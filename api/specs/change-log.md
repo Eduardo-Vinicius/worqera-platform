@@ -2,6 +2,8 @@
 
 ## 2026-09-14
 
-- Specs iniciais: current-state, roadmap A0–A6, product RFs, architecture, modeling Mongo, endpoints `/api/v1` (PLANEJADO), backlog.
-- Decisões: Node hospedado, Mongo, AbacatePay, trial 7d, kanban = setores por shop, admin full board, contas sector em A3.
-- Design master: `docs/superpowers/specs/2026-09-14-worqera-platform-design.md`.
+- Specs iniciais + **inventário legado** (`feature-inventory.md`).
+- RFs expandidos: kanban RF-KAN-*, preservar ops LIVE, **TOP-01…10**, **QW-01…14**.
+- Roadmap: quick-wins primeiro; A2 unifica coluna=setor; modeling orders enriquecido + `service_catalog`.
+- Decisões: Node, Mongo, AbacatePay, trial 7d, kanban setores, CdT = seed.
+- Design master atualizado com “não reinventar” + tops.

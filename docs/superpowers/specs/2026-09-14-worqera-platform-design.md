@@ -2,72 +2,79 @@
 
 ## Em uma frase
 
-Worqera é um SaaS multi-tenant de gestão de pedidos/kanban para oficinas de tênis (e afins). Casa do Tênis é o primeiro shop (legado/seed), não o nome do produto.
+Worqera é um SaaS multi-tenant de gestão de pedidos/kanban para oficinas de tênis. Casa do Tênis é o primeiro shop (legado/seed), não o nome do produto.
 
 ## Decisões fechadas
 
 | Tema | Decisão |
 |------|--------|
-| API host | Node long-running (Express/Fastify), Docker, **sem Lambda** |
+| API host | Node long-running, Docker, **sem Lambda** |
 | DB | MongoDB |
-| Billing | AbacatePay (webhook seguro + simulação em dev) |
-| Trial | 7 dias `trialing` no signup; sem pagamento → bloqueio do portal (só auth + billing) |
-| Kanban | Carro-chefe = colunas = **setores configuráveis por shop** |
-| Admin no board | Vê e move para **qualquer** coluna |
-| Conta de setor (P1) | Membership `sector` + `sectorIds` → vê só o(s) seu(s) setor(es) |
-| Auth | Hash de senha; JWT + refresh HttpOnly; RBAC na API; isolamento por `shopId` |
-| Specs | Padrão procedy: `api/specs/` + `web/specs/` + este design |
+| Billing | AbacatePay |
+| Trial | 7 dias; sem pagamento → bloqueio (só auth + billing) |
+| Kanban | Carro-chefe = **setores configuráveis por shop** |
+| Admin board | Vê e move para **qualquer** coluna |
+| Conta setor (P1) | `role: sector` + `sectorIds` |
+| Auth | Hash; JWT + refresh HttpOnly; RBAC API; `shopId` |
+| Specs | Padrão procedy |
+
+## O que já existe (não reinventar)
+
+Inventário: [api/specs/feature-inventory.md](../../api/specs/feature-inventory.md).
+
+**Preservar / migrar:** clientes, pedidos (código curto, serviços, sinal, garantia, fotos, PDF, ZIP), kanban UX (DnD, filtros, atrasados, prioridade, assignee), mover setor + histórico, funcionários, dashboard, metrics/financeiro, 2 TVs, e-mail de status, consulta.
+
+**Corrigir cedo (QW):** toasts, `/pedidos` 404, logout, WhatsApp require, hash senha, gate metrics, secrets no template, dual e-mail, `clientPhone`, upload limit, refresh role.
+
+**Substituir no alvo:** colunas = status strings → colunas = setores do shop; Dynamo/Lambda → Mongo/host; brand CdT hardcoded → branding do shop.
 
 ## Arquitetura
 
 ```
 web/ (Next.js)  →  /api/v1  →  api/ (Node)  →  MongoDB
                                       ↓
-                               S3 (fotos/PDF)
-                                      ↓
-                               AbacatePay (checkout/webhooks)
+                               S3 · AbacatePay
 ```
 
-- Base path `/api/v1`; `GET /health`; Problem Details + `correlationId`
-- Camadas: routes → application/services → repositories → Mongo
-- Header opcional `X-Worqera-Shop` quando user tiver mais de um shop
-- Todo documento operacional com `shopId`
+## Kanban (carro-chefe)
 
-## Produto — prioridades
+1. Shop cadastra setores (ordem = fluxo).
+2. Board = colunas desses setores.
+3. Admin/owner: visão total + move livre.
+4. Conta setor: só suas colunas + regras de saída.
+5. `status` de negócio derivado (`open|in_progress|ready|delivered`); **não** dual status×setor como SoT.
+6. UX legada (filtros, SLA visual, comando rápido) permanece.
 
-1. **Kanban por setores** (confiável, rápido, permissões reais)
-2. Clientes + pedidos (CRUD, fotos, PDF)
-3. Segurança + multi-tenant
-4. Signup → trial 7d → AbacatePay → gate do portal
-5. Dashboard/indicadores (depois do kanban estável)
+## Features tops (agregar)
 
-## Setores
+| # | Feature |
+|---|---------|
+| TOP-01 | Catálogo de serviços por shop |
+| TOP-02 | Consulta pública por código |
+| TOP-03 | Etiqueta/QR imprimível |
+| TOP-04 | Regras de fluxo por serviço → setores |
+| TOP-05 | Alertas de atraso |
+| TOP-06 | WhatsApp auto (opt-in) |
+| TOP-07 | Pedido rápido / templates |
+| TOP-08 | Garantia lifecycle |
+| TOP-09 | Atalhos teclado no kanban |
+| TOP-10 | TV configurável |
 
-- Collection `sectors` por `shopId` (CRUD admin/owner)
-- Pedido: `currentSectorId` + `sectorHistory[]`
-- Seed Casa do Tênis = fluxo atual (Atendimento → … → Final)
-- P0: kanban dinâmico + admin total; P1: contas de setor
+Detalhe RF: [api/specs/product.requirements.md](../../api/specs/product.requirements.md).
 
-## Billing (fino)
+## Billing
 
-- Plano `WORQERA_PRO`; subscription por shop
-- Status: `trialing` | `active` | `past_due` | `canceled` | `expired`
-- Webhook AbacatePay: secret + HMAC + idempotência
-- Gate: subscription `trialing|active` para rotas operacionais
+AbacatePay + webhook seguro; plano `WORQERA_PRO`; trial no signup.
 
-## Legacy
+## Ordem de execução
 
-- Specs e seed marcam `legacy-brand: casa-do-tenis`
-- E-mails/SMS/WhatsApp default do seed CdT; produto = Worqera
-
-## Fora do v1
-
-White-label total, multi-loja no mesmo login (além do header), mobile, seats complexos, workers de PDF em fila (pode vir depois).
+1. Quick-wins  
+2. A0 → A1 → **A2 kanban** → A5 billing → A3 sector accounts → A4 ops + TOPs  
 
 ## Specs
 
 | Onde | Uso |
 |------|-----|
-| [api/specs/](../../api/specs/) | Contrato, modeling, roadmap back |
-| [web/specs/](../../web/specs/) | UI, integração browser, roadmap front |
-| Este arquivo | Decisões de produto/arquitetura |
+| [api/specs/](../../api/specs/) | Back + inventário + RFs |
+| [web/specs/](../../web/specs/) | Front |
+| Este arquivo | Decisões |

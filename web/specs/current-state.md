@@ -4,41 +4,30 @@
 
 ## Em uma frase
 
-Next.js 15 App Router com login, dashboard, kanban (`/status`), clientes, pedidos, admin financeiro/métricas e TVs — ainda acoplado à **API LEGADO** (sem tenant/trial) e setores parcialmente hardcoded no client.
+Next.js 15 com login, dashboard, **kanban `/status` (carro-chefe UI)**, clientes, novo pedido, consultas, funcionários, admin financeiro/métricas e 2 modos TV — ainda na API LEGADO; setores e catálogo de serviços hardcoded no client.
+
+**Inventário:** [feature-inventory.md](./feature-inventory.md)
 
 ## Stack
 
-- Next.js 15.2.x, React 19, Tailwind 4, Radix/shadcn
-- Auth: `localStorage` + cookie `token`; `middleware.ts` decode JWT
-- API: `lib/apiService.ts` → `NEXT_PUBLIC_API_URL` (default `:3001`)
-- Brand: `NEXT_PUBLIC_APP_NAME` (Worqera)
+Next 15.2 / React 19 / Tailwind 4 / Radix · `lib/apiService.ts` · auth cookie+localStorage · `NEXT_PUBLIC_APP_NAME=Worqera`
 
-## Mapa de rotas
+## Mapa rápido
 
-| Rota | Status | Notas |
-|------|--------|-------|
-| `/` | live | Login |
-| `/dashboard` | live | Stats LEGADO |
-| `/dashboard/setores` | live | |
-| `/status` | live | Kanban principal (carro-chefe alvo) |
-| `/pedidos/novo` | live | |
-| `/clientes/**` | live | |
-| `/consultas` | live | |
-| `/funcionarios` | live | |
-| `/admin/financeiro`, `/admin/metrics` | live | Gate role admin só no front |
-| `/tv`, `/tv-dashboard` | live | |
-| `/signup` | **ausente** | Precisa para trial |
-| `/billing` | **ausente** | AbacatePay + bloqueio pós-trial |
-| `/setores` (CRUD admin) | **ausente** | Setores hoje hardcoded em `lib/setores` |
+| Área | Status |
+|------|--------|
+| Login / dashboard / kanban / clientes / consultas / funcionários / admin / TVs | LIVE |
+| `/pedidos` lista | **404** |
+| `/emails` | HIDDEN |
+| `/dashboard/setores`, `/tv` | LIVE orfãs no nav |
+| Toaster sonner | usado sem `<Toaster />` |
+| Signup / billing / setores CRUD / conta setor | ausente |
+| Catálogo serviços | hardcoded em `/pedidos/novo` |
 
-## Gaps vs produto alvo
+## Kanban UI (resumo)
 
-- Sem signup/trial/billing UI
-- Kanban não é 100% dinâmico por shop (cores/nomes locais)
-- Sem modo “conta de setor” (board filtrado)
-- Auth client não usa refresh HttpOnly ainda
-- Sem `X-Worqera-Shop`
+DnD, dialog assignee, filtros (hoje/atrasados/prioridade), compact, comando rápido, PDF, `CardDetalhesPedido`, `MoverSetorButton`, cores `lib/setores.ts`. Colunas = **status API**, não setores CRUD.
 
-## Próximo (front)
+## Próximo
 
-Alinhar com ondas W1–W2 após A1/A2 — ver [roadmap.md](./roadmap.md).
+Quick-wins W (Toaster, `/pedidos`, logout, nav) → W1/W2 com API A1/A2. Ver [roadmap.md](./roadmap.md).

@@ -2,5 +2,5 @@
 
 ## 2026-09-14
 
-- Specs iniciais: current-state, roadmap W0–W5, architecture, integration, backlog.
-- Kanban definido como carro-chefe UI; setores configuráveis por shop; billing AbacatePay.
+- Specs + **feature-inventory** (páginas, kanban UI, gaps 404/toaster/nav).
+- Roadmap: QW primeiro; W2 preserva UX kanban; TOPs (serviços, consulta pública, etiqueta, TV settings).

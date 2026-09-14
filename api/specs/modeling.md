@@ -100,6 +100,8 @@ DB único compartilhado; isolamento por `shopId` (não DB-per-tenant).
 
 ### `orders` (pedidos)
 
+Campos alinhados ao legado útil (`pedidoModel` + runtime):
+
 ```json
 {
   "_id": "ObjectId",
@@ -108,29 +110,62 @@ DB único compartilhado; isolamento por `shopId` (não DB-per-tenant).
   "clientId": "ObjectId",
   "clientName": "string",
   "clientPhone": "string|null",
-  "services": [],
-  "pricing": {},
-  "photos": [],
+  "clientEmail": "string|null",
+  "shoeModel": "string",
+  "services": [{ "id": "string", "name": "string", "price": 0 }],
+  "accessories": [],
+  "warranty": {},
+  "pricing": {
+    "total": 0,
+    "deposit": 0,
+    "remaining": 0,
+    "expenses": 0
+  },
+  "photos": [{ "key": "string", "url": "string|null", "isCover": false }],
   "currentSectorId": "ObjectId|null",
+  "sectorPath": ["ObjectId"],
   "sectorHistory": [
     {
       "sectorId": "ObjectId",
       "enteredAt": "Date",
       "leftAt": "Date|null",
       "movedByUserId": "ObjectId",
+      "employeeId": "ObjectId|null",
+      "employeeName": "string|null",
       "note": "string|null"
     }
   ],
   "status": "open|in_progress|ready|delivered|cancelled",
-  "priority": "normal|high",
+  "priority": 1,
+  "dueAt": "Date|null",
+  "deliveredAt": "Date|null",
+  "assigneeEmployeeId": "ObjectId|null",
   "pdfUrl": "string|null",
+  "notes": "string|null",
   "createdByUserId": "ObjectId",
+  "updatedByUserId": "ObjectId|null",
   "createdAt": "Date",
   "updatedAt": "Date"
 }
 ```
 
-Índices: `(shopId, code)` unique; `(shopId, currentSectorId)`; `(shopId, createdAt)`.
+Índices: `(shopId, code)` unique; `(shopId, currentSectorId)`; `(shopId, createdAt)`; `(shopId, dueAt)`; `(shopId, status)`.
+
+### `service_catalog` (TOP-01)
+
+```json
+{
+  "_id": "ObjectId",
+  "shopId": "ObjectId",
+  "name": "string",
+  "defaultPrice": 0,
+  "sectorPathHint": ["ObjectId"],
+  "active": true,
+  "sortOrder": 0
+}
+```
+
+Índices: `(shopId, name)`.
 
 ### `subscriptions`
 

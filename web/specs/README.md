@@ -3,16 +3,18 @@
 ## Ordem de leitura
 
 1. [current-state.md](./current-state.md) — snapshot UI atual
-2. [roadmap.md](./roadmap.md) — próximas entregas front
-3. [frontend.architecture.md](./frontend.architecture.md) — rotas e pastas
-4. [frontend.integration.md](./frontend.integration.md) — como o browser chama a API
+2. [feature-inventory.md](./feature-inventory.md) — páginas e gaps
+3. [roadmap.md](./roadmap.md) — QW + W* + TOPs
+4. [frontend.architecture.md](./frontend.architecture.md) — rotas e pastas
+5. [frontend.integration.md](./frontend.integration.md) — como o browser chama a API
 
 ## Arquivos canônicos
 
 | Arquivo | Uso |
 |---------|-----|
 | [current-state.md](./current-state.md) | Onde estamos na UI |
-| [roadmap.md](./roadmap.md) | Fases W* |
+| [feature-inventory.md](./feature-inventory.md) | Inventário de páginas |
+| [roadmap.md](./roadmap.md) | Fases W* + QW + TOP |
 | [backlog.md](./backlog.md) | IDs |
 | [change-log.md](./change-log.md) | Histórico |
 | [frontend.architecture.md](./frontend.architecture.md) | Rotas, auth client, kanban |

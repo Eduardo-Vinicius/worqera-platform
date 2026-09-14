@@ -4,74 +4,107 @@
 
 ## Norte
 
-Sair do Lambda/DynamoDB → API Node + Mongo multi-tenant, com **kanban por setores** como carro-chefe, trial 7d e AbacatePay.
+Sair do Lambda/Dynamo → Node + Mongo multi-tenant. **Kanban por setores** = carro-chefe. Trial 7d + AbacatePay. Preservar o que já funciona (pedidos, clientes, TVs, métricas, fotos, PDF).
 
-## Fases
+Inventário completo: [feature-inventory.md](./feature-inventory.md).
 
-### A0 — Bootstrap host (próxima)
+---
+
+## Quick-wins (fazer cedo — inclusive no legado)
+
+Ordem sugerida (pode rodar **em paralelo** ao A0):
+
+| # | ID | Item |
+|---|-----|------|
+| 1 | QW-01…05 | Front: Toaster, `/pedidos`, logout, cookie, nav TV/setores |
+| 2 | QW-06,09–12 | Back: WA require, upload limit, clientPhone, double e-mail, refresh role |
+| 3 | QW-07,08,13 | Segurança: hash senha, gate metrics, limpar secrets do template |
+| 4 | QW-14 | E-mail audit: ligar ou cortar |
+
+Detalhe: [product.requirements.md](./product.requirements.md) § Quick-wins.
+
+---
+
+## Fases estruturais
+
+### A0 — Bootstrap host
 
 - [ ] App Node long-running (`/api/v1`, `/health`)
-- [ ] Docker Compose Mongo (dev); API no host
-- [ ] `.env.example` / config; correlationId; Problem Details
-- [ ] Remover dependência de Lambda no caminho feliz de dev
-- [ ] Makefile `dev` / `health` (estilo procedy)
+- [ ] Compose Mongo; API no host; Makefile
+- [ ] Problem Details + correlationId
+- [ ] Dev sem Lambda
 
 ### A1 — Identity + Shop + segurança
 
-- [ ] Collections `users`, `shops`, `memberships`
-- [ ] Signup: shop + owner + subscription `trialing` (7d)
+- [ ] `users`, `shops`, `memberships`
+- [ ] Signup + trial 7d
 - [ ] Login / refresh HttpOnly / logout
-- [ ] Hash de senha; fechar register aberto
-- [ ] JWT com `shopId` + role; header `X-Worqera-Shop`
-- [ ] Gate subscription `trialing|active` em rotas operacionais
+- [ ] Password hash; fechar register aberto
+- [ ] JWT `shopId` + role; `X-Worqera-Shop`
+- [ ] Gate subscription
 
 ### A2 — Setores + Kanban (carro-chefe)
 
 - [ ] CRUD `sectors` por shop
-- [ ] Pedido com `currentSectorId` + `sectorHistory`
-- [ ] `GET /kanban` colunas dinâmicas por setores ativos
-- [ ] Admin/owner: ver todas as colunas; mover para qualquer setor
-- [ ] Seed Casa do Tênis (`legacy-brand`)
-- [ ] Migrar/adaptar domínio pedido+cliente mínimos para Mongo
+- [ ] Pedidos Mongo mínimos + history
+- [ ] `GET /kanban` + `POST .../move` (admin full board)
+- [ ] Unificar coluna = setor (RF-KAN-12)
+- [ ] Seed Casa do Tênis
+- [ ] TOP-04 início: regras fluxo por serviço (mínimo viável)
+- [ ] Preservar UX: filtros, prioridade, atrasados, dialog assignee
 
-### A3 — Contas de setor (P1 kanban)
+### A3 — Contas de setor
 
-- [ ] Membership `role: sector` + `sectorIds`
-- [ ] Kanban filtrado: só colunas/cards do setor
-- [ ] Regras de movimento (sair do próprio setor → próximo permitido)
-- [ ] Admin cria/convoca users de setor
+- [ ] Membership `sector` + `sectorIds`
+- [ ] Board filtrado + regras de move
+- [ ] Admin convida/cria user de setor
 
 ### A4 — Ops completo no Mongo
 
-- [ ] Clientes, pedidos, fotos (S3), PDF
-- [ ] Funcionários (chão, distinto de membership login se necessário)
-- [ ] Dashboard / indicadores scoped por `shopId`
-- [ ] Notificações com branding do shop (não hardcoded CdT)
+- [ ] Clientes, fotos S3, PDF, ZIP, consulta
+- [ ] Funcionários + dashboard + metrics (com RBAC)
+- [ ] TVs consumindo API nova
+- [ ] Notificações com branding do shop
+- [ ] TOP-01 catálogo serviços
+- [ ] TOP-02 consulta pública
+- [ ] TOP-03 etiqueta/QR
+- [ ] TOP-05 alertas atraso
+- [ ] TOP-06 WhatsApp auto (opt-in)
 
 ### A5 — Billing AbacatePay
 
-- [ ] Plano `WORQERA_PRO`
-- [ ] Checkout session → URL AbacatePay
-- [ ] Webhook `/webhooks/abacatepay` (secret + HMAC + idempotência)
-- [ ] `subscription.completed|renewed|cancelled`
-- [ ] Dev simulation endpoint
-- [ ] Front gate pós-trial
+- [ ] Checkout + webhook seguro + dev simulate
+- [ ] Gate pós-trial
 
 ### A6 — Endurecimento
 
-- [ ] Índices Mongo (`shopId` + queries de kanban)
-- [ ] RBAC em todas as rotas sensíveis
-- [ ] Desligar/arquivar path Lambda + DynamoDB
-- [ ] Observabilidade básica
+- [ ] Índices Mongo; audit RBAC; decommission Lambda/Dynamo
+
+---
+
+## Features tops (após kanban A2 estável)
+
+Ordem de valor:
+
+1. **TOP-04** regras de fluxo por serviço (alimenta o kanban)
+2. **TOP-01** catálogo de serviços por shop
+3. **TOP-02** consulta pública por código
+4. **TOP-05** alertas de atraso
+5. **TOP-03** etiqueta/QR
+6. **TOP-06** WhatsApp auto
+7. **TOP-07 / TOP-10** pedido rápido + TV settings
+
+---
 
 ## Próximas entregas (ordem)
 
-1. **A0** bootstrap  
-2. **A1** auth+shop+trial  
-3. **A2** setores+kanban admin  
-4. **A5** AbacatePay (pode paralelizar após A1)  
-5. **A3** contas setor  
-6. **A4** resto ops  
+1. **Quick-wins** QW-01…14 (não bloqueiam A0)  
+2. **A0** bootstrap  
+3. **A1** auth+shop+trial  
+4. **A2** setores+kanban admin  
+5. **A5** AbacatePay (após A1)  
+6. **A3** contas setor  
+7. **A4** + TOPs  
 
 ## Fora deste roadmap
 

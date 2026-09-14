@@ -2,47 +2,59 @@
 
 **Atualizado:** 2026-09-14
 
+Inventário: [feature-inventory.md](./feature-inventory.md) · Produto: [`../../api/specs/product.requirements.md`](../../api/specs/product.requirements.md)
+
+## Quick-wins (já)
+
+- [ ] **QW-01** `<Toaster />` no `app/layout.tsx`
+- [ ] **QW-02** Página `/pedidos` (lista) ou corrigir links
+- [ ] **QW-03** Logout limpa localStorage + cookie
+- [ ] **QW-04** Cookie secure condicional
+- [ ] **QW-05** Nav: `/tv`, `/dashboard/setores`
+- [ ] **QW-14** Decidir: show e-mails audit ou remover rota/flag
+
 ## Fases
 
-### W0 — Specs + alinhamento (feito)
+### W0 — Specs (feito)
 
-- [x] Specs iniciais + design master
-- [x] `.env.example` com API URL / app name
+- [x] Specs + inventário + design master
 
 ### W1 — Auth SaaS + trial UX
 
-- [ ] `/signup` (loja + owner)
-- [ ] Login contra `/api/v1/auth/*`
-- [ ] Refresh cookie; `auth/me`
-- [ ] Banner “X dias de trial”
-- [ ] Redirect `SUBSCRIPTION_INACTIVE` → `/billing`
+- [ ] `/signup`
+- [ ] Auth `/api/v1` + refresh cookie
+- [ ] Banner trial
+- [ ] Gate → `/billing`
 
-### W2 — Kanban carro-chefe (setores dinâmicos)
+### W2 — Kanban carro-chefe
 
-- [ ] Admin: CRUD `/setores` (ou settings)
-- [ ] `/status` (ou rename `/kanban`) consome `GET /kanban`
-- [ ] Drag move → `POST /kanban/orders/{id}/move`
-- [ ] Admin vê todas as colunas; remove hardcode `lib/setores` como fonte de verdade
-- [ ] Empty states / loading sólidos (produto primeiro)
+- [ ] Settings CRUD setores
+- [ ] Board = `GET /kanban` (colunas = setores)
+- [ ] Move API; admin full board
+- [ ] Remover `lib/setores` como SoT (virar fallback/seed UI only)
+- [ ] Preservar: DnD, filtros, atrasados, prioridade, compact, comando rápido
+- [ ] **TOP-09** atalhos teclado (polish)
+- [ ] Unificar badges status→setor
 
-### W3 — Billing AbacatePay
+### W3 — Billing
 
-- [ ] `/billing` — plano, CTA, redirect checkout
-- [ ] Tela de bloqueio pós-trial (só billing)
-- [ ] Retorno pós-pagamento
+- [ ] `/billing` + checkout AbacatePay + bloqueio pós-trial
 
-### W4 — Conta de setor
+### W4 — Conta setor
 
-- [ ] UI admin: criar membership sector + setor
-- [ ] Board filtrado para role `sector`
-- [ ] Feedback claro “você está no setor X”
+- [ ] Admin cria membership sector
+- [ ] Board filtrado + copy “você está no setor X”
 
-### W5 — Ops no v1 API
+### W5 — Ops v1 API + TOPs
 
-- [ ] Clients/orders/PDF via `/api/v1`
-- [ ] Dashboard summary novo
-- [ ] Remover chamadas LEGADO
+- [ ] Clients/orders/PDF/metrics via `/api/v1`
+- [ ] **TOP-01** UI catálogo serviços
+- [ ] **TOP-02** `/p/[codigo]` consulta pública
+- [ ] **TOP-03** print etiqueta
+- [ ] **TOP-07** pedido rápido
+- [ ] **TOP-10** settings TV
+- [ ] Desligar LEGADO
 
 ## Ordem
 
-W0 → W1 (com A1) → W2 (com A2) → W3 (com A5) → W4 (com A3) → W5
+QW → W1(+A1) → W2(+A2) → W3(+A5) → W4(+A3) → W5(+A4/TOPs)

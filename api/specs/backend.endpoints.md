@@ -123,16 +123,23 @@ GET /dashboard/summary               # PLANEJADO — contagens por setor, etc.
 GET /metrics/...                     # PLANEJADO — admin/owner only
 ```
 
-LEGADO: `/dashboard`, `/metrics` (JWT qualquer).
+LEGADO: `/dashboard`, `/metrics/*` (JWT qualquer — QW-08).
 
-## Headers
+## Público (TOP-02)
 
-| Header | Uso |
-|--------|-----|
-| `Authorization: Bearer …` | Access token |
-| `X-Worqera-Shop` | Shop ativo (obrigatório se multi-membership) |
-| `X-Correlation-Id` | Opcional; ecoado na resposta |
+```
+GET /public/orders/{code}            # PLANEJADO — status resumido sem auth
+```
+
+## Catálogo (TOP-01)
+
+```
+GET/POST /services                   # PLANEJADO
+PATCH/DELETE /services/{id}          # PLANEJADO
+```
 
 ## Notas de migração
 
 Front troca paths LEGADO → `/api/v1/...` por onda (ver `frontend-integration.md` e `web/specs`). Enquanto isso, não quebrar LEGADO em produção CdT sem plano de cutover.
+
+Inventário completo do legado: [feature-inventory.md](./feature-inventory.md).
