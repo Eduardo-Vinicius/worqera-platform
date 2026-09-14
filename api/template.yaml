@@ -1,0 +1,275 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Shoe Repair API - Lambda + API Gateway + DynamoDB
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket with Lambda code
+  LambdaS3Key:
+    Type: String
+    Description: S3 key for Lambda code zip
+  ResourceSuffix:
+    Type: String
+    Default: ''
+    Description: Optional suffix to make resource names unique per environment
+Resources:
+  ShoeRepairApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ShoeRepairApiFunction
+      Handler: handler.handler
+      Runtime: nodejs18.x
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          DYNAMODB_CLIENTE_TABLE: !Ref ShoeRepairClientesTable
+          DYNAMODB_PEDIDO_TABLE: !Ref ShoeRepairPedidosTable
+          DYNAMODB_COUNTER_TABLE: !Ref ShoeRepairCountersTable
+          S3_BUCKET_NAME: !Ref ShoeRepairFotosBucket
+          DYNAMODB_USER_TABLE: !Ref ShoeRepairUsersTable
+          DYNAMODB_FUNCIONARIO_TABLE: !Ref ShoeRepairFuncionariosTable
+          JWT_SECRET: !Ref JWTSecret
+          REFRESH_SECRET: !Ref RefreshSecret
+          JWT_EXPIRES: !Ref JWTExpires
+          REFRESH_EXPIRES: !Ref RefreshExpires
+          GMAIL_USER: acasadotenis.notification@gmail.com # Adiciona o e-mail do Gmail
+          GMAIL_APP_PASSWORD: oshgsedzjuzuoghr # Adiciona a senha do aplicativo do Gmail
+          SMS_ENABLED: 'false' # Mude para 'true' para ativar SMS via AWS SNS
+          SMS_SENDER_ID: CasaDoTenis # Nome que aparece no SMS (nem todos países suportam)
+  JWTSecret:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /shoe-repair-api/jwt-secret
+      Type: String
+      Value: 2b1e7c7e-8e2a-4c3a-9f7d-7e8b2e1c9f3a
+
+  RefreshSecret:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /shoe-repair-api/refresh-secret
+      Type: String
+      Value: 7e4d2c1b-3a9f-4e8b-8c2a-1f7d2e3b4c5a
+
+  JWTExpires:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /shoe-repair-api/jwt-expires
+      Type: String
+      Value: 10h
+
+  RefreshExpires:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /shoe-repair-api/refresh-expires
+      Type: String
+      Value: 7d
+  ShoeRepairFotosBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'shoe-repair-fotos-${AWS::AccountId}-${AWS::Region}${ResourceSuffix}'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${ShoeRepairFotosBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub 'arn:aws:s3:::${ShoeRepairFotosBucket}'
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                  - sns:SetSMSAttributes
+                  - sns:GetSMSAttributes
+                Resource: '*'
+  ShoeRepairClientesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'ShoeRepairClientes${ResourceSuffix}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  ShoeRepairUsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'ShoeRepairUsers${ResourceSuffix}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+  ShoeRepairPedidosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'ShoeRepairPedidos${ResourceSuffix}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  ShoeRepairCountersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'ShoeRepairCounters${ResourceSuffix}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  ShoeRepairFuncionariosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'ShoeRepairFuncionarios${ResourceSuffix}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: setorId
+          AttributeType: S
+        - AttributeName: ativo
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: setorId-index
+          KeySchema:
+            - AttributeName: setorId
+              KeyType: HASH
+            - AttributeName: ativo
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+  # API Gateway HTTP API (v2) - Melhor suporte a CORS
+
+  ShoeRepairHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ShoeRepairHttpApi
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - '*'
+        ExposeHeaders:
+          - '*'
+        MaxAge: 3600
+
+  # Integração Lambda com HTTP API
+  ShoeRepairHttpApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ShoeRepairHttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ShoeRepairApiFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  # Rota padrão (captura todas as requisições)
+  ShoeRepairHttpApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ShoeRepairHttpApi
+      RouteKey: '$default'
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref ShoeRepairHttpApiIntegration
+
+  # Stage de produção
+  ShoeRepairHttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ShoeRepairHttpApi
+      StageName: $default
+      AutoDeploy: true
+
+  # Permissão para API Gateway invocar Lambda
+  LambdaApiGatewayInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ShoeRepairApiFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ShoeRepairHttpApi}/*'
+
+Outputs:
+  ApiUrl:
+    Description: "URL da API HTTP Gateway"
+    Value: !GetAtt ShoeRepairHttpApi.ApiEndpoint
+    Export:
+      Name: ShoeRepairApiUrl
+

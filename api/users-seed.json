@@ -1,0 +1,11 @@
+{
+  "ShoeRepairUsers": [
+    { "PutRequest": { "Item": { "id": {"S":"u-admin"},       "email": {"S":"admin@loja.com"},        "password": {"S":"123456"}, "nome": {"S":"Admin"},        "role": {"S":"admin"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-atendimento"}, "email": {"S":"atendimento@loja.com"},  "password": {"S":"123456"}, "nome": {"S":"Atendimento"},  "role": {"S":"atendimento"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-lavagem"},     "email": {"S":"lavagem@loja.com"},      "password": {"S":"123456"}, "nome": {"S":"Lavagem"},      "role": {"S":"lavagem"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-pintura"},     "email": {"S":"pintura@loja.com"},      "password": {"S":"123456"}, "nome": {"S":"Pintura"},      "role": {"S":"pintura"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-acabamento"},  "email": {"S":"acabamento@loja.com"},   "password": {"S":"123456"}, "nome": {"S":"Acabamento"},   "role": {"S":"acabamento"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-costura"},     "email": {"S":"costura@loja.com"},      "password": {"S":"123456"}, "nome": {"S":"Costura"},      "role": {"S":"costura"} } } },
+    { "PutRequest": { "Item": { "id": {"S":"u-sapataria"},   "email": {"S":"sapataria@loja.com"},    "password": {"S":"123456"}, "nome": {"S":"Sapataria"},    "role": {"S":"sapataria"} } } }
+  ]
+}

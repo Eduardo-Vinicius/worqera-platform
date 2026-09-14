@@ -1,0 +1,49 @@
+name: Deploy Lambda with CloudFormation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Lambda package
+        run: |
+          mkdir dist
+          cp handler.js dist/
+          cp -r src dist/
+          cp package.json dist/
+          npm install --omit=dev --prefix dist
+      - name: Set ZIP name
+        run: echo "LAMBDA_ZIP=lambda-${GITHUB_SHA}.zip" >> $GITHUB_ENV
+      - name: Zip Lambda package
+        run: |
+          cd dist
+          zip -r ../$LAMBDA_ZIP .
+      - name: Upload Lambda package to S3
+        run: aws s3 cp $LAMBDA_ZIP s3://${{ secrets.S3_BUCKET_NAME }}/$LAMBDA_ZIP
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file template.yaml \
+            --stack-name shoe-repair-api \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides LambdaS3Bucket=${{ secrets.S3_BUCKET_NAME }} LambdaS3Key=$LAMBDA_ZIP
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1

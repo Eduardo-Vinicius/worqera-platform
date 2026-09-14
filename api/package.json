@@ -1,0 +1,31 @@
+{
+  "name": "shoe-repair-api",
+  "version": "1.0.0",
+  "description": "API simples para AWS Lambda",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "aws-sdk": "^2.1481.0",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^7.0.13",
+    "serverless-http": "^3.2.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/nodemailer": "^7.0.9",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
