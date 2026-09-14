@@ -5,6 +5,7 @@ module.exports = {
   Sector: require('./Sector'),
   Client: require('./Client'),
   Order: require('./Order'),
+  Employee: require('./Employee'),
   Subscription: require('./Subscription'),
   WebhookEvent: require('./WebhookEvent'),
   ServiceCatalog: require('./ServiceCatalog'),

@@ -39,7 +39,7 @@ export async function getClienteByIdService(id: string) {
   const token = getAuthToken();
   const cacheKey = buildCacheKey(`clientes:${id}`, token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/clientes/${id}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/clients/${id}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 5 * 60_000 });
@@ -65,7 +65,7 @@ export async function updateClienteService(id: string, cliente: Partial<{
   observacoes: string;
 }>) {
   const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/clientes/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -86,7 +86,8 @@ export async function getPedidoByIdService(id: string) {
 // lib/apiService.ts
 
 // Normalize to avoid trailing slashes that can cause double // in paths
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "")
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "")
+const API_BASE_URL = `${API_ORIGIN}/api/v1`
 
 function getAuthToken() {
   return localStorage.getItem("token");
@@ -110,6 +111,11 @@ function getAuthHeaders(contentType = "application/json", options: { requireAuth
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const shopId = typeof window !== "undefined" ? localStorage.getItem("shopId") : null;
+  if (shopId) {
+    headers["X-Worqera-Shop"] = shopId;
   }
 
   return headers;
@@ -400,7 +406,7 @@ export async function getMetricsOverviewService(filters: MetricsFinanceiroFilter
 }
 
 export async function getPedidoService(id: string) {
-  const response = await fetch(`${API_BASE_URL}/pedidos/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/orders/${id}`, {
     method: "GET",
     headers: getAuthHeaders(),
     cache: "no-store",
@@ -416,7 +422,7 @@ export async function getPedidoService(id: string) {
 }
 
 export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdfAsset[]> {
-  const response = await fetch(`${API_BASE_URL}/pedidos/${pedidoId}/pdfs`, {
+  const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/pdfs`, {
     method: "GET",
     headers: getAuthHeaders(),
     cache: "no-store",
@@ -434,10 +440,9 @@ export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdf
 
 export async function uploadPedidoFotosService(pedidoId: string, files: File[]): Promise<string[]> {
   const formData = new FormData();
-  formData.append("pedidoId", pedidoId);
   files.forEach((file) => formData.append("fotos", file));
 
-  const response = await fetch(`${API_BASE_URL}/upload/fotos`, {
+  const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/photos`, {
     method: "POST",
     headers: getAuthHeaders(""),
     body: formData,
@@ -446,17 +451,22 @@ export async function uploadPedidoFotosService(pedidoId: string, files: File[]):
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao fazer upload das fotos");
+    throw new Error(errorData.detail || errorData.error || "Erro ao fazer upload das fotos");
   }
 
   const result = await response.json().catch(() => ({}));
   const payload = resolveApiPayload(result);
   const urls = payload?.urls || payload?.fotos || payload?.photos || [];
-  return Array.isArray(urls) ? urls.filter((url): url is string => typeof url === "string") : [];
+  if (Array.isArray(urls)) {
+    return urls
+      .map((u) => (typeof u === "string" ? u : u?.url))
+      .filter((url): url is string => typeof url === "string");
+  }
+  return [];
 }
 
 export async function downloadPedidoFotosZipService(pedidoId: string) {
-  const response = await fetch(`${API_BASE_URL}/pedidos/${pedidoId}/fotos/zip`, {
+  const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/photos/zip`, {
     method: "GET",
     headers: getAuthHeaders(""),
     cache: "no-store",
@@ -498,7 +508,7 @@ export async function createFuncionarioService(data: {
   observacoes?: string;
   ativo?: boolean;
 }) {
-  const response = await fetch(`${API_BASE_URL}/funcionarios`, {
+  const response = await fetch(`${API_BASE_URL}/employees`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -526,20 +536,23 @@ export async function listFuncionariosService(params: {
   const token = getAuthToken();
   const cacheKey = buildCacheKey(`funcionarios:${qs || "all"}`, token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/funcionarios${qs ? `?${qs}` : ""}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/employees${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 5 * 60_000 });
 
   const payload = resolveApiPayload(result);
-  return Array.isArray(payload) ? payload : [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(result?.employees)) return result.employees;
+  if (Array.isArray(result?.data)) return result.data;
+  return [];
 }
 
 export async function getFuncionarioService(id: string): Promise<Funcionario> {
   const token = getAuthToken();
   const cacheKey = buildCacheKey(`funcionario:${id}`, token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/funcionarios/${id}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/employees/${id}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 5 * 60_000 });
@@ -548,7 +561,7 @@ export async function getFuncionarioService(id: string): Promise<Funcionario> {
 }
 
 export async function updateFuncionarioService(id: string, data: Partial<Funcionario>) {
-  const response = await fetch(`${API_BASE_URL}/funcionarios/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -563,7 +576,7 @@ export async function updateFuncionarioService(id: string, data: Partial<Funcion
 }
 
 export async function deleteFuncionarioService(id: string) {
-  const response = await fetch(`${API_BASE_URL}/funcionarios/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -605,7 +618,7 @@ export async function createPedidoService(pedido: {
   status?: string;
 }) {
   const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/pedidos`, {
+  const response = await fetch(`${API_BASE_URL}/orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -635,7 +648,7 @@ export async function createClienteService(cliente: {
   observacoes?: string;
 }) {
   const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/clientes`, {
+  const response = await fetch(`${API_BASE_URL}/clients`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -654,7 +667,7 @@ export async function getClientesService(forceRefresh = false) {
   const token = getAuthToken();
   const cacheKey = buildCacheKey("clientes", token);
 
-  return fetchWithCache(`${API_BASE_URL}/clientes`, {
+  return fetchWithCache(`${API_BASE_URL}/clients`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -673,6 +686,8 @@ export async function loginService(email: string, password: string) {
   const data = await response.json()
   // Salva no localStorage
   localStorage.setItem("token", data.token)
+  const shopId = data.shop?.id || data.membership?.shopId || data.shopId
+  if (shopId) localStorage.setItem("shopId", String(shopId))
   // Salva no cookie (disponível para o middleware)
   const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
   document.cookie = `token=${data.token}; path=/; max-age=604800; samesite=lax${secure}`
@@ -682,62 +697,71 @@ export async function loginService(email: string, password: string) {
   return data
 }
 
-// Busca colunas de status filtradas conforme permissão do usuário (para exibição)
+// Colunas do board = setores ativos
 export async function getStatusColumnsService(forceRefresh = false) {
   const token = getAuthToken();
   const cacheKey = buildCacheKey("status:columns:filtered", token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/status/columns/filtered`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/sectors`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 10 * 60_000, forceRefresh });
-  
-  return result.data; // Retorna apenas os dados das colunas visíveis ao usuário
+
+  const sectors = result?.sectors || result?.data || [];
+  const columns: Record<string, any[]> = {};
+  (Array.isArray(sectors) ? sectors : [])
+    .filter((s: any) => s.active !== false)
+    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+    .forEach((s: any) => {
+      columns[s.name || s.slug || s._id] = [];
+    });
+  return columns;
 }
 
-// Busca todas as colunas de status (sem filtro) para permitir movimentação para qualquer setor
+// Busca todas as colunas (mesmo set — admin move livre no v1)
 export async function getAllStatusColumnsService(forceRefresh = false) {
-  const token = getAuthToken();
-  const cacheKey = buildCacheKey("status:columns:all", token);
-
-  const result = await fetchWithCache(`${API_BASE_URL}/status/columns`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-  }, { cacheKey, ttlMs: 10 * 60_000, forceRefresh });
-  
-  return result.data; // Retorna todas as colunas (sem filtros)
+  return getStatusColumnsService(forceRefresh);
 }
 
-// Busca lista de pedidos
+// Busca lista de pedidos no kanban (adapta GET /kanban → array flat legado)
 export async function getOrdersStatusService(funcionario?: string, opts: { forceRefresh?: boolean } = {}) {
   const token = getAuthToken();
-  const query = funcionario && funcionario.trim().length > 0
-    ? `?funcionario=${encodeURIComponent(funcionario.trim())}`
-    : "";
   const cacheKey = buildCacheKey(`pedidos:kanban:${funcionario || "all"}`, token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/pedidos/kanban/status${query}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/kanban`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 10_000, forceRefresh: opts.forceRefresh });
-  
-  return result.data; // Retorna apenas o array de pedidos
+
+  const columns = result?.columns || [];
+  const orders: any[] = [];
+  for (const col of columns) {
+    const sector = col.sector || {};
+    for (const o of col.orders || []) {
+      orders.push({
+        ...o,
+        id: o.id || o._id,
+        codigo: o.codigo || o.code,
+        clientName: o.clientName,
+        modeloTenis: o.modeloTenis || o.shoeModel,
+        status: sector.name || o.status,
+        setorAtual: sector._id || sector.id || o.setorAtual || o.currentSectorId,
+        funcionarioAtual: o.funcionarioAtual || o.assigneeEmployeeName,
+      });
+    }
+  }
+  if (funcionario?.trim()) {
+    const f = funcionario.trim().toLowerCase();
+    return orders.filter((o) => String(o.funcionarioAtual || "").toLowerCase().includes(f));
+  }
+  return orders;
 }
 
 export async function getOrdersService(opts: { forceRefresh?: boolean } = {}) {
   const token = getAuthToken();
   const cacheKey = buildCacheKey("pedidos:list", token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/pedidos`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/orders`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -748,28 +772,35 @@ export async function getOrdersService(opts: { forceRefresh?: boolean } = {}) {
   return result.data || result; // Retorna result.data se existir, senão result
 }
 
-// Atualiza o status de um pedido
+// Atualiza setor do pedido (UI legado chama "status"; no v1 movemos para o setor pelo nome)
 export async function updateOrderStatusService(orderId: string, newStatus: string, funcionarioNome: string, observacao?: string) {
-  const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/pedidos/${orderId}/status`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify({ status: newStatus, funcionarioNome, observacao }),
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const err: any = new Error(errorData.error || "Erro ao atualizar status do pedido");
-    err.status = response.status;
-    throw err;
+  const sectorsRes = await fetch(`${API_BASE_URL}/sectors`, { headers: getAuthHeaders() });
+  const sectorsJson = await sectorsRes.json().catch(() => ({}));
+  const sectors = sectorsJson.sectors || sectorsJson.data || [];
+  const match = (Array.isArray(sectors) ? sectors : []).find(
+    (s: any) =>
+      String(s.name || "").toLowerCase() === String(newStatus || "").toLowerCase() ||
+      String(s._id) === String(newStatus) ||
+      String(s.slug || "").toLowerCase() === String(newStatus || "").toLowerCase()
+  );
+  if (!match) {
+    // fallback: patch status de negócio
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status: newStatus, notes: observacao }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const err: any = new Error(errorData.detail || errorData.error || "Erro ao atualizar pedido");
+      err.status = response.status;
+      throw err;
+    }
+    invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
+    return response.json();
   }
-  
-  const result = await response.json();
-  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
-  return result.data || result; // Compatível com respostas antigas e novas
+
+  return moverPedidoSetorService(orderId, String(match._id), funcionarioNome, observacao);
 }
 
 // Atualiza os dados completos de um pedido
@@ -782,24 +813,26 @@ export async function updateOrderService(orderId: string, orderData: {
   dataPrevistaEntrega?: string;
   prioridade?: number;
 }) {
-  const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/pedidos/${orderId}`, {
+  const body: Record<string, unknown> = { ...orderData };
+  if (orderData.modeloTenis) body.shoeModel = orderData.modeloTenis;
+  if (orderData.dataPrevistaEntrega) body.dueAt = orderData.dataPrevistaEntrega;
+  if (orderData.prioridade != null) body.priority = orderData.prioridade;
+  if (orderData.price != null) body.pricing = { total: orderData.price };
+
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(orderData),
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
   });
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao atualizar pedido");
+    throw new Error(errorData.detail || errorData.error || "Erro ao atualizar pedido");
   }
   
   const result = await response.json();
   invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
-  return result.data; // Retorna o pedido atualizado
+  return result.data || result;
 }
 
 export async function getDashboardService(opts: { forceRefresh?: boolean } = {}) {
@@ -808,28 +841,22 @@ export async function getDashboardService(opts: { forceRefresh?: boolean } = {})
 
   const result = await fetchWithCache(`${API_BASE_URL}/dashboard`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 15_000, forceRefresh: opts.forceRefresh });
   
-  return result; // Retorna o objeto completo, não result.data
+  return result;
 }
 
 // Estatísticas por setor
 export async function getSetoresEstatisticasService(opts: { forceRefresh?: boolean } = {}) {
   const token = getAuthToken();
   const cacheKey = buildCacheKey("setores:estatisticas", token);
-  const result = await fetchWithCache(`${API_BASE_URL}/setores/estatisticas`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/sectors/stats?includeOrders=true`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 30_000, forceRefresh: opts.forceRefresh });
   if (!result) return result;
-  return result.data || result;
+  return result.data || result.stats || result;
 }
 
 export async function apiFetch(
@@ -837,6 +864,7 @@ export async function apiFetch(
   options: RequestInit = {}
 ) {
   const headers: Record<string, string> = {
+    ...getAuthHeaders(),
     ...(options.headers as Record<string, string> || {}),
   }
   
@@ -850,38 +878,39 @@ export async function apiFetch(
 
 // Gera PDF de um pedido
 export async function generateOrderPDFService(pedidoId: string) {
-  const response = await fetch(`${API_BASE_URL}/pedidos/document/pdf`, {
+  const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/pdf`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ pedidoId }),
+    body: JSON.stringify({}),
     cache: "no-store",
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao gerar PDF do pedido");
+    throw new Error(errorData.detail || errorData.error || "Erro ao gerar PDF do pedido");
   }
 
-  // Retorna o blob do PDF para download
   return response.blob();
 }
 
 // Próximo setor para o pedido
 export async function getProximoSetorService(pedidoId: string) {
-  const token = localStorage.getItem("token");
-  const response = await fetch(`${API_BASE_URL}/pedidos/${pedidoId}/proximo-setor`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar próximo setor");
-  }
-  const result = await response.json();
-  return result.data || result;
+  const [orderRes, sectorsRes] = await Promise.all([
+    fetch(`${API_BASE_URL}/orders/${pedidoId}`, { headers: getAuthHeaders() }),
+    fetch(`${API_BASE_URL}/sectors`, { headers: getAuthHeaders() }),
+  ]);
+  if (!orderRes.ok) throw new Error("Pedido não encontrado");
+  const order = await orderRes.json();
+  const sectorsJson = await sectorsRes.json();
+  const sectors = (sectorsJson.sectors || [])
+    .filter((s: any) => s.active !== false)
+    .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+  const currentId = String(order.currentSectorId || order.setorAtual || "");
+  const idx = sectors.findIndex((s: any) => String(s._id) === currentId);
+  const next = idx >= 0 && idx < sectors.length - 1 ? sectors[idx + 1] : null;
+  return next
+    ? { setorId: next._id, setor: next, nome: next.name }
+    : { setorId: null, done: true };
 }
 
 // Mover pedido para setor específico
@@ -890,25 +919,20 @@ export async function moverPedidoSetorService(
   setorId: string,
   funcionarioNome?: string,
   observacao?: string,
-  status?: string,
+  _status?: string,
 ) {
-  const token = localStorage.getItem("token");
-  const payload: Record<string, string> = { setorId };
-  if (funcionarioNome?.trim()) payload.funcionarioNome = funcionarioNome.trim();
-  if (observacao?.trim()) payload.observacao = observacao.trim();
-  if (status?.trim()) payload.status = status.trim();
+  const payload: Record<string, string> = { toSectorId: setorId };
+  if (funcionarioNome?.trim()) payload.employeeName = funcionarioNome.trim();
+  if (observacao?.trim()) payload.note = observacao.trim();
 
-  const response = await fetch(`${API_BASE_URL}/pedidos/${pedidoId}/mover-setor`, {
+  const response = await fetch(`${API_BASE_URL}/kanban/orders/${pedidoId}/move`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    const err: any = new Error(errorData.error || "Erro ao mover pedido de setor");
+    const err: any = new Error(errorData.detail || errorData.error || "Erro ao mover pedido de setor");
     err.status = response.status;
     throw err;
   }
@@ -931,24 +955,39 @@ export async function getPedidosConsultaService(params: {
 } = {}, opts: { forceRefresh?: boolean } = {}) {
   const token = getAuthToken();
   const query = new URLSearchParams();
+  const map: Record<string, string> = {
+    codigo: "code",
+    cliente: "client",
+    status: "status",
+    setor: "sectorId",
+    funcionario: "employeeId",
+    dataInicio: "dataInicio",
+    dataFim: "dataFim",
+    limit: "limit",
+    lastKey: "cursor",
+  };
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (typeof value === "string" && value.trim() === "") return;
     if (key === "limit" && typeof value === "number" && value <= 0) return;
-    query.append(key, String(value));
+    query.append(map[key] || key, String(value));
   });
 
   const qs = query.toString();
   const cacheKey = buildCacheKey(`pedidos:consulta:${qs || "all"}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/pedidos/consulta${qs ? `?${qs}` : ""}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/orders${qs ? `?${qs}` : ""}`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 15_000, forceRefresh: opts.forceRefresh });
 
-  return result.data ? result : { data: result.data || result, nextToken: undefined, count: Array.isArray(result) ? result.length : 0 };
+  const data = Array.isArray(result?.data)
+    ? result.data
+    : Array.isArray(result?.orders)
+      ? result.orders
+      : Array.isArray(result)
+        ? result
+        : [];
+  return { data, nextToken: result?.nextToken, count: result?.count ?? data.length };
 }
 
 // Busca informações do usuário logado

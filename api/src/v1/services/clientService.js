@@ -14,13 +14,28 @@ async function listClients(shopId, { q } = {}) {
 }
 
 async function createClient(shopId, data) {
+  const address =
+    data.address ||
+    data.endereco ||
+    (data.cep || data.logradouro
+      ? {
+          cep: data.cep,
+          logradouro: data.logradouro,
+          numero: data.numero,
+          bairro: data.bairro,
+          cidade: data.cidade,
+          estado: data.estado,
+          complemento: data.complemento,
+        }
+      : {});
+
   return Client.create({
     shopId,
-    name: data.name,
+    name: data.name || data.nome || data.nomeCompleto,
     cpf: data.cpf || null,
-    phone: data.phone || null,
+    phone: data.phone || data.telefone || null,
     email: data.email || null,
-    address: data.address || {},
+    address,
   });
 }
 

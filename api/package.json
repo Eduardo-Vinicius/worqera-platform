@@ -1,7 +1,7 @@
 {
   "name": "worqera-api",
   "version": "1.0.0",
-  "description": "Worqera API — Node + Mongo (v1) with legacy Dynamo routes",
+  "description": "Worqera API — Node + Mongo (v1)",
   "main": "handler.js",
   "scripts": {
     "start": "node src/server.js",

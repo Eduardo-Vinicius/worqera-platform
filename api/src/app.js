@@ -3,28 +3,6 @@ const express = require('express');
 const { correlationId } = require('./v1/middleware/correlation');
 const { errorHandler } = require('./v1/middleware/errors');
 
-function mountLegacyRoutes(app) {
-  const clienteRoutes = require('./routes/clienteRoutes');
-  const pedidoRoutes = require('./routes/pedidoRoutes');
-  const uploadRoutes = require('./routes/uploadRoutes');
-  const authRoutes = require('./routes/authRoutes');
-  const statusRoutes = require('./routes/statusRoutes');
-  const dashboardRoutes = require('./routes/dashboardRoutes');
-  const setorRoutes = require('./routes/setorRoutes');
-  const funcionarioRoutes = require('./routes/funcionarioRoutes');
-  const metricsRoutes = require('./routes/metricsRoutes');
-
-  app.use('/clientes', clienteRoutes);
-  app.use('/pedidos', pedidoRoutes);
-  app.use('/upload', uploadRoutes);
-  app.use('/auth', authRoutes);
-  app.use('/status', statusRoutes);
-  app.use('/dashboard', dashboardRoutes);
-  app.use('/setores', setorRoutes);
-  app.use('/funcionarios', funcionarioRoutes);
-  app.use('/metrics', metricsRoutes);
-}
-
 function createExpressApp() {
   const app = express();
 
@@ -69,8 +47,6 @@ function createExpressApp() {
   });
 
   app.use('/api/v1', require('./v1'));
-
-  mountLegacyRoutes(app);
 
   app.use(errorHandler);
 

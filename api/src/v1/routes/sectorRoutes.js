@@ -9,6 +9,7 @@ const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, sectorController.list);
+router.get('/stats', ...guard, sectorController.stats);
 router.post('/', ...guard, requireRole('owner', 'admin'), sectorController.create);
 router.post('/reorder', ...guard, requireRole('owner', 'admin'), sectorController.reorder);
 router.patch('/:id', ...guard, requireRole('owner', 'admin'), sectorController.patch);

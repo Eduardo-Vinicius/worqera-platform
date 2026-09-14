@@ -9,8 +9,11 @@ router.use('/sectors', require('./routes/sectorRoutes'));
 router.use('/kanban', require('./routes/kanbanRoutes'));
 router.use('/clients', require('./routes/clientRoutes'));
 router.use('/orders', require('./routes/orderRoutes'));
+router.use('/employees', require('./routes/employeeRoutes'));
 router.use('/billing', require('./routes/billingRoutes'));
 router.use('/dashboard', require('./routes/dashboardRoutes'));
+router.use('/metrics', require('./routes/metricsRoutes'));
+router.use('/files', require('./routes/fileRoutes'));
 router.use('/public', require('./routes/publicRoutes'));
 router.use('/services', require('./routes/serviceRoutes'));
 

@@ -1,10 +1,17 @@
 const sectorService = require('../services/sectorService');
+const dashboardService = require('../services/dashboardService');
 const { wrap } = require('./helpers');
 
 exports.list = wrap(async (req, res) => {
   const includeInactive = req.query.includeInactive === 'true';
   const sectors = await sectorService.listSectors(req.shopId, { includeInactive });
   res.status(200).json({ sectors });
+});
+
+exports.stats = wrap(async (req, res) => {
+  const includeOrders = req.query.includeOrders === 'true' || req.query.orders === '1';
+  const data = await dashboardService.getSetoresStats(req.shopId, { includeOrders });
+  res.status(200).json(data);
 });
 
 exports.create = wrap(async (req, res) => {

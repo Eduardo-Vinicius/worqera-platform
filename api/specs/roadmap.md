@@ -67,9 +67,10 @@ Detalhe: [product.requirements.md](./product.requirements.md) § Quick-wins.
 ### A4 — Ops completo no Mongo
 
 - [x] Clientes CRUD (v1 mínimo)
-- [ ] fotos S3, PDF, ZIP
+- [x] fotos (local/S3), PDF, ZIP + serializers legado
 - [x] TOP-02 consulta pública (`GET /public/orders/:code`)
-- [ ] Funcionários + dashboard + metrics (com RBAC) — dashboard summary ok
+- [x] Funcionários + dashboard + metrics (com RBAC)
+- [x] Setores stats (TV / dashboard/setores)
 - [ ] TVs consumindo API nova
 - [ ] Notificações com branding do shop
 - [x] TOP-01 catálogo serviços (GET/POST mínimo)
@@ -84,7 +85,8 @@ Detalhe: [product.requirements.md](./product.requirements.md) § Quick-wins.
 - [ ] Integração real AbacatePay (não mock)
 ### A6 — Endurecimento
 
-- [ ] Índices Mongo; audit RBAC; decommission Lambda/Dynamo
+- [x] Dynamo legacy routes unmounted (`mountLegacyRoutes` removed)
+- [ ] Índices Mongo; audit RBAC; delete unused legacy source files
 
 ---
 

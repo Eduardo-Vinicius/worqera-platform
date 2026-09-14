@@ -1,28 +1,42 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-14 (pós implementação)
+**Atualizado:** 2026-09-14 (cutover Mongo)
 
 ## Em uma frase
 
-**Dois mundos no mesmo host:** `/api/v1` (Mongo SaaS — signup, trial, setores, kanban) **LIVE** + rotas **legado** Dynamo/Lambda-compat ainda montadas para CdT.
+API **somente Mongo** em `/api/v1` (Node hospedado). Rotas Dynamo legado **desmontadas**. Storage local em `uploads/` (S3 opcional).
 
-## Onde estamos
+## LIVE
 
-| Área | Status |
-|------|--------|
-| Host Node `:3001` + `/health` | **LIVE** |
-| Mongo + `/api/v1` auth/shop/sectors/kanban/orders/clients/billing | **LIVE** |
-| Trial 7d + gate subscription | **LIVE** |
-| Seed Casa do Tênis | **LIVE** (`make api-seed`) |
-| Conta role `sector` (filtro kanban) | **LIVE** (API) |
-| AbacatePay real | **STUB** (dev complete + webhook skeleton) |
-| Fotos S3 / PDF / WA / metrics ricos no v1 | **legado only** |
-| Dynamo legado | **LIVE** paralelo |
-| Front signup/billing/kanban/settings | **LIVE** |
+| Área | Endpoint |
+|------|----------|
+| Health | `GET /health` |
+| Auth SaaS | `/api/v1/auth/*` signup/login/me + trial 7d |
+| Shop / members / sectors / kanban | `/api/v1/...` |
+| Clients / orders / employees | CRUD Mongo |
+| Fotos / PDF / ZIP | `POST/GET /orders/:id/photos`, `/pdf`, `/photos/zip` |
+| Dashboard / metrics / sector stats | `/dashboard`, `/metrics/*`, `/sectors/stats` |
+| Billing stub AbacatePay | `/billing/*`, webhook |
+| Public order | `/public/orders/:code` |
+| Files | `/files/*` |
+
+## Front
+
+`web/lib/apiService.ts` aponta para `${API}/api/v1`. `/status` redireciona para `/kanban`.
+
+## Como rodar
+
+```bash
+make api-dev
+make api-seed   # opcional
+make web-dev
+```
+
+Deixe `S3_BUCKET_NAME` vazio no `.env` para disco local.
 
 ## Próximo
 
-1. Migrar fotos/PDF/consulta/TV/metrics para v1 (A4)
-2. AbacatePay produção (A5)
-3. UI admin criar membership sector (W4)
-4. Cutover CdT do Dynamo → Mongo + desligar Lambda
+- AbacatePay produção
+- UI membership role `sector`
+- Migrar dados históricos CdT (se houver dump Dynamo) → Mongo
+- Remover código morto legado Dynamo quando estável
