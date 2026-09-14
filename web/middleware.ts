@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Caminhos que não precisam de autenticação
-const PUBLIC_PATHS = ['/', '/api/auth'];
+const PUBLIC_PATHS = ['/', '/signup', '/api/auth'];
+const PUBLIC_PREFIXES = ['/p/'];
 const HIDDEN_FEATURE_PREFIXES = ['/emails'];
 const ADMIN_PREFIX = '/admin';
 
@@ -28,7 +29,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl);
   }
 
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

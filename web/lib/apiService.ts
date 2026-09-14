@@ -674,7 +674,11 @@ export async function loginService(email: string, password: string) {
   // Salva no localStorage
   localStorage.setItem("token", data.token)
   // Salva no cookie (disponível para o middleware)
-  document.cookie = `token=${data.token}; path=/; max-age=604800; secure; samesite=strict`;
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
+  document.cookie = `token=${data.token}; path=/; max-age=604800; samesite=lax${secure}`
+  if (data.refreshToken) {
+    localStorage.setItem("refreshToken", data.refreshToken)
+  }
   return data
 }
 

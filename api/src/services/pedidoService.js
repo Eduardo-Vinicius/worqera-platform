@@ -95,6 +95,7 @@ exports.createPedido = async (pedido) => {
     codigo: codigoPedido, // Novo campo com código sequencial legível
     clienteId: pedido.clienteId,
     clientName: pedido.clientName,
+    clientPhone: pedido.clientPhone || pedido.telefoneCliente || null,
     modeloTenis: pedido.modeloTenis,
     servicos: pedido.servicos || [],
     fotos: pedido.fotos || [],

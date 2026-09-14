@@ -113,6 +113,14 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     Cookies.remove("token")
+    try {
+      localStorage.removeItem("token")
+      localStorage.removeItem("refreshToken")
+      localStorage.removeItem("shopId")
+    } catch {
+      // ignore
+    }
+    document.cookie = "token=; path=/; max-age=0; samesite=lax"
     window.location.href = "/"
   }
 
@@ -176,7 +184,29 @@ export default function DashboardPage() {
                     title="Dashboard para TV"
                   >
                     <Monitor className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">TV Dashboard</span>
+                    <span className="hidden sm:inline">TV Cliente</span>
+                  </Button>
+                </Link>
+                <Link href="/tv">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-slate-600 border-slate-300 hover:bg-slate-50 hover:text-slate-800"
+                    title="TV de produção por setor"
+                  >
+                    <Monitor className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">TV Chão</span>
+                  </Button>
+                </Link>
+                <Link href="/dashboard/setores">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-slate-600 border-slate-300 hover:bg-slate-50 hover:text-slate-800"
+                    title="Estatísticas por setor"
+                  >
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Setores</span>
                   </Button>
                 </Link>
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -352,14 +382,29 @@ export default function DashboardPage() {
                   Kanban
                 </CardTitle>
                 <CardDescription className="text-orange-600">
-                  Fluxo de producao dos pedidos
+                  Board por setores — carro-chefe
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Link href="/status" className="block">
-                  <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-50">
+              <CardContent className="space-y-2">
+                <Link href="/kanban" className="block">
+                  <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
                     <BarChart3 className="w-4 h-4 mr-2" />
-                    Abrir Kanban
+                    Kanban (setores)
+                  </Button>
+                </Link>
+                <Link href="/settings/setores" className="block">
+                  <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-50">
+                    Configurar setores
+                  </Button>
+                </Link>
+                <Link href="/status" className="block">
+                  <Button variant="ghost" className="w-full text-orange-700">
+                    Kanban legado
+                  </Button>
+                </Link>
+                <Link href="/billing" className="block">
+                  <Button variant="ghost" className="w-full text-orange-700">
+                    Assinatura
                   </Button>
                 </Link>
               </CardContent>

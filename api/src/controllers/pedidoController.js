@@ -3,6 +3,7 @@ const clienteService = require('../services/clienteService');
 const emailService = require('../services/emailService');
 const pdfService = require('../services/pdfService');
 const setorService = require('../services/setorService');
+const whatsappService = require('../services/whatsappService');
 const AWS = require('aws-sdk');
 const archiver = require('archiver');
 const { ORDER_STATUS, normalizeStatus, slugifyStatus } = require('../utils/orderStatus');
@@ -437,6 +438,7 @@ exports.createPedido = async (req, res) => {
     const { 
       clienteId, 
       clientName,
+      clientPhone,
       modeloTenis, 
       servicos, 
       fotos, 
@@ -515,6 +517,7 @@ exports.createPedido = async (req, res) => {
     const dadosPedido = {
       clienteId,
       clientName,
+      clientPhone: clientPhone || null,
       modeloTenis,
       servicos,
       fotos: fotos || [],
@@ -592,9 +595,8 @@ exports.createPedido = async (req, res) => {
     }
 
     const novoPedido = await pedidoService.createPedido(dadosPedido);
-    
-    // Enviar notificações (não bloqueia se falhar)
-    await enviarNotificacoesPedido(novoPedido, statusInicial);
+
+    // E-mail de novo recebimento (com PDF) já é enviado em pedidoService.createPedido — evitar double-send.
     
     res.status(201).json({
       success: true,

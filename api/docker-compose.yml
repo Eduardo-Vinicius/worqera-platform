@@ -1,0 +1,12 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: worqera-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - worqera_mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  worqera_mongo_data:

@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Playfair_Display, Source_Sans_3 } from "next/font/google"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const playfairDisplay = Playfair_Display({
@@ -27,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${playfairDisplay.variable} ${sourceSans.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   )
 }

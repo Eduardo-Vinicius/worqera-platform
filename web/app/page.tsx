@@ -4,12 +4,14 @@ import type React from "react"
 
 import { useState } from "react"
 import { loginService } from "@/lib/apiService"
+import { loginV1 } from "@/lib/apiV1"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, ShieldCheck } from "lucide-react"
+import Link from "next/link"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -22,7 +24,12 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
     try {
-      await loginService(email, password)
+      // Prefer API v1 (SaaS); fall back to legado Dynamo
+      try {
+        await loginV1(email, password)
+      } catch {
+        await loginService(email, password)
+      }
       window.location.href = "/dashboard"
     } catch (err: any) {
       setError(err.message || "Erro ao autenticar")
@@ -99,6 +106,12 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <p className="text-sm text-center text-muted-foreground mt-4">
+              Nova oficina?{" "}
+              <Link href="/signup" className="text-primary hover:underline font-medium">
+                Criar conta com 7 dias grátis
+              </Link>
+            </p>
           </CardContent>
         </Card>
 

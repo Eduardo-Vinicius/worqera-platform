@@ -11,6 +11,27 @@ Parameters:
     Type: String
     Default: ''
     Description: Optional suffix to make resource names unique per environment
+  GmailUser:
+    Type: String
+    Default: ''
+    Description: Gmail user for notifications (set via deploy params / secrets manager)
+  GmailAppPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Gmail app password — never commit real values
+  SmsSenderId:
+    Type: String
+    Default: Worqera
+    Description: SMS sender id
+  JwtSecretValue:
+    Type: String
+    NoEcho: true
+    Description: JWT signing secret
+  RefreshSecretValue:
+    Type: String
+    NoEcho: true
+    Description: Refresh token signing secret
 Resources:
   ShoeRepairApiFunction:
     Type: AWS::Lambda::Function
@@ -36,23 +57,23 @@ Resources:
           REFRESH_SECRET: !Ref RefreshSecret
           JWT_EXPIRES: !Ref JWTExpires
           REFRESH_EXPIRES: !Ref RefreshExpires
-          GMAIL_USER: acasadotenis.notification@gmail.com # Adiciona o e-mail do Gmail
-          GMAIL_APP_PASSWORD: oshgsedzjuzuoghr # Adiciona a senha do aplicativo do Gmail
+          GMAIL_USER: !Ref GmailUser
+          GMAIL_APP_PASSWORD: !Ref GmailAppPassword
           SMS_ENABLED: 'false' # Mude para 'true' para ativar SMS via AWS SNS
-          SMS_SENDER_ID: CasaDoTenis # Nome que aparece no SMS (nem todos países suportam)
+          SMS_SENDER_ID: !Ref SmsSenderId
   JWTSecret:
     Type: AWS::SSM::Parameter
     Properties:
       Name: /shoe-repair-api/jwt-secret
       Type: String
-      Value: 2b1e7c7e-8e2a-4c3a-9f7d-7e8b2e1c9f3a
+      Value: !Ref JwtSecretValue
 
   RefreshSecret:
     Type: AWS::SSM::Parameter
     Properties:
       Name: /shoe-repair-api/refresh-secret
       Type: String
-      Value: 7e4d2c1b-3a9f-4e8b-8c2a-1f7d2e3b4c5a
+      Value: !Ref RefreshSecretValue
 
   JWTExpires:
     Type: AWS::SSM::Parameter

@@ -9,6 +9,6 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-router.post('/fotos', authMiddleware, upload.array('fotos', 5), uploadController.uploadFotos);
+router.post('/fotos', authMiddleware, upload.array('fotos', 8), uploadController.uploadFotos);
 
 module.exports = router;

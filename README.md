@@ -7,28 +7,26 @@ Front (Next.js) em `web/` · API (Node.js / Express / AWS Lambda) em `api/`. Um 
 Em dois terminais:
 
 ```bash
-# 1) API
-cd api
-npm install
-cp .env.example .env   # preencher AWS, JWT, etc.
-# subir o servidor local conforme o fluxo do projeto (ver api/README.md)
+# 1) API (Mongo + host Node — legado + /api/v1)
+make api-dev
+# opcional: make api-seed   # Casa do Tênis + admin@worqera.local / admin123
 
 # 2) Front
-cd web
-npm install
-cp .env.example .env.local   # se ainda não existir
-npm run dev
+make web-dev
+# ou: cd web && npm install && npm run dev
 ```
 
 - Front: http://localhost:3000  
-- API (padrão do front): `NEXT_PUBLIC_API_URL` → http://localhost:3001  
+- API: http://localhost:3001 (`/health`, `/api/v1/...`, rotas legado)  
+- Signup SaaS: `/signup` · Kanban setores: `/kanban` · Setores: `/settings/setores` · Billing: `/billing`  
+- Consulta pública: `/p/{codigo}`  
 
 ### Env
 
 | App | Arquivo | Como |
 |-----|---------|------|
-| API | `api/.env` | Copiar de `api/.env.example` (ou `api/.env.template`) e preencher |
-| Front | `web/.env.local` | Copiar de `web/.env.example`. Inclui `NEXT_PUBLIC_API_URL` |
+| API | `api/.env` | Copiar de `api/.env.example` |
+| Front | `web/.env.local` | Copiar de `web/.env.example` |
 
 **Não** commitamos `.env` / `.env.local`. Em máquina nova: criar na mão a partir dos `.example`.
 

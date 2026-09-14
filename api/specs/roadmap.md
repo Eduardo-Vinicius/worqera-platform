@@ -29,53 +29,59 @@ Detalhe: [product.requirements.md](./product.requirements.md) § Quick-wins.
 
 ### A0 — Bootstrap host
 
-- [ ] App Node long-running (`/api/v1`, `/health`)
-- [ ] Compose Mongo; API no host; Makefile
-- [ ] Problem Details + correlationId
-- [ ] Dev sem Lambda
+- [x] App Node long-running (`/api/v1`, `/health`)
+- [x] Compose Mongo; API no host; Makefile
+- [x] Problem Details + correlationId
+- [x] Dev sem Lambda
 
 ### A1 — Identity + Shop + segurança
 
-- [ ] `users`, `shops`, `memberships`
-- [ ] Signup + trial 7d
-- [ ] Login / refresh HttpOnly / logout
-- [ ] Password hash; fechar register aberto
-- [ ] JWT `shopId` + role; `X-Worqera-Shop`
-- [ ] Gate subscription
+- [x] `users`, `shops`, `memberships`
+- [x] Signup + trial 7d
+- [x] Login / refresh (body) / logout noop
+- [x] bcrypt senhas (v1; legado ainda parcial)
+- [x] JWT `shopId` + role; `X-Worqera-Shop`
+- [x] Gate subscription
+- [x] Seed Casa do Tênis
+- [ ] Refresh HttpOnly cookie (web)
+- [ ] Fechar register aberto no legado
+- [ ] Remover secrets do `template.yaml` (QW-13)
 
 ### A2 — Setores + Kanban (carro-chefe)
 
-- [ ] CRUD `sectors` por shop
-- [ ] Pedidos Mongo mínimos + history
-- [ ] `GET /kanban` + `POST .../move` (admin full board)
-- [ ] Unificar coluna = setor (RF-KAN-12)
-- [ ] Seed Casa do Tênis
+- [x] CRUD `sectors` por shop
+- [x] Pedidos Mongo mínimos + history
+- [x] `GET /kanban` + `POST .../move` (admin full board)
+- [ ] Unificar coluna = setor no front (RF-KAN-12)
+- [x] Seed Casa do Tênis
 - [ ] TOP-04 início: regras fluxo por serviço (mínimo viável)
 - [ ] Preservar UX: filtros, prioridade, atrasados, dialog assignee
 
 ### A3 — Contas de setor
 
-- [ ] Membership `sector` + `sectorIds`
-- [ ] Board filtrado + regras de move
-- [ ] Admin convida/cria user de setor
+- [x] Membership `sector` + `sectorIds` (API)
+- [x] Board filtrado + regras de move
+- [x] Admin convida/cria user de setor
+- [ ] UI/roles seed alinhados no front
 
 ### A4 — Ops completo no Mongo
 
-- [ ] Clientes, fotos S3, PDF, ZIP, consulta
-- [ ] Funcionários + dashboard + metrics (com RBAC)
+- [x] Clientes CRUD (v1 mínimo)
+- [ ] fotos S3, PDF, ZIP
+- [x] TOP-02 consulta pública (`GET /public/orders/:code`)
+- [ ] Funcionários + dashboard + metrics (com RBAC) — dashboard summary ok
 - [ ] TVs consumindo API nova
 - [ ] Notificações com branding do shop
-- [ ] TOP-01 catálogo serviços
-- [ ] TOP-02 consulta pública
+- [x] TOP-01 catálogo serviços (GET/POST mínimo)
 - [ ] TOP-03 etiqueta/QR
 - [ ] TOP-05 alertas atraso
 - [ ] TOP-06 WhatsApp auto (opt-in)
 
 ### A5 — Billing AbacatePay
 
-- [ ] Checkout + webhook seguro + dev simulate
-- [ ] Gate pós-trial
-
+- [x] Checkout mock + webhook secret + idempotência + dev simulate
+- [x] Gate pós-trial (`subscriptionGate`)
+- [ ] Integração real AbacatePay (não mock)
 ### A6 — Endurecimento
 
 - [ ] Índices Mongo; audit RBAC; decommission Lambda/Dynamo

@@ -4,7 +4,7 @@
 
 ## Em uma frase
 
-API **legado** Express + Lambda + DynamoDB, single-shop, com domínio operacional **rico** (pedidos, kanban status, setores hardcoded, fotos, PDF, dashboard, metrics, TVs via front, e-mail CdT). Alvo: Node hospedado + Mongo multi-tenant + kanban por setores + trial/AbacatePay.
+API **híbrida**: legado Express + DynamoDB (rotas raiz) **e** alvo **`/api/v1`** Node long-running + Mongo multi-tenant (auth/shop/trial, setores, kanban, billing mock). CdT = seed `casa-do-tenis`.
 
 **Inventário detalhado:** [feature-inventory.md](./feature-inventory.md)
 
@@ -12,20 +12,16 @@ API **legado** Express + Lambda + DynamoDB, single-shop, com domínio operaciona
 
 | Área | Status | Notas |
 |------|--------|-------|
-| Host Lambda + SAM | legado | → A0 processo contínuo |
-| Express domínio ops | **LIVE útil** | Reaproveitar regras na API nova |
-| Auth JWT | PARTIAL | Plaintext password; register aberto; refresh perde role |
-| Clientes / Pedidos | LIVE | `clientPhone` gap no create; código DDMMYY-SEQ |
-| Kanban status + mover setor | LIVE | Dual status×setor; RBAC cosmético |
-| Setores CRUD / por shop | ausente | Hardcoded `SETORES_PADRAO` |
-| Conta setor real | ausente | Roles seed sem enforce |
-| Funcionários | LIVE | Chão ≠ login |
-| Upload / PDF / ZIP | LIVE | Limite 5 vs 8 |
-| Dashboard / Metrics / Financeiro | LIVE | Metrics sem gate admin API |
-| E-mail notificações | LIVE | Brand CdT; double send create; audit desmontada |
-| SMS final | PARTIAL | Flag |
-| WhatsApp | PARTIAL | Manual; require quebrado; auto não wired |
-| Shop / Trial / AbacatePay | ausente | |
+| Host Node + Mongo (`src/server.js`) | **LIVE local** | `make dev`; Lambda `handler.js` ainda aponta p/ mesmo app |
+| Express `/api/v1` | **LIVE bootstrap** | Auth, shops, sectors, kanban, clients, orders, billing, public, services |
+| Express domínio ops legado | **LIVE útil** | Rotas raiz Dynamo intactas |
+| Auth JWT v1 | LIVE | bcrypt + trial 7d no signup; refresh body |
+| Auth JWT legado | PARTIAL | Dynamo; register aberto |
+| Clientes / Pedidos v1 | LIVE mínimo | Código `DDMMYY-SEQ` via `order_counters` |
+| Kanban por setores | LIVE v1 | RBAC sector + move RF-KAN-06 |
+| Setores CRUD / por shop | LIVE v1 | Soft-delete `active=false` |
+| Shop / Trial / AbacatePay | LIVE mock | Checkout URL mock; webhook secret + idempotência |
+| Seed CdT | LIVE | `npm run seed` |
 | Specs | iniciado | Este diretório |
 
 ## Stack atual → alvo
