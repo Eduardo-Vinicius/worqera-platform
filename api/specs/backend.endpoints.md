@@ -138,6 +138,14 @@ GET/POST /services                   # PLANEJADO
 PATCH/DELETE /services/{id}          # PLANEJADO
 ```
 
+## Headers
+
+| Header | Uso |
+|--------|-----|
+| `Authorization: Bearer …` | Access token |
+| `X-Worqera-Shop` | Shop ativo (obrigatório se multi-membership) |
+| `X-Correlation-Id` | Opcional; ecoado na resposta |
+
 ## Notas de migração
 
 Front troca paths LEGADO → `/api/v1/...` por onda (ver `frontend-integration.md` e `web/specs`). Enquanto isso, não quebrar LEGADO em produção CdT sem plano de cutover.
