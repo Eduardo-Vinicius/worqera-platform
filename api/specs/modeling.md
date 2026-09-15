@@ -122,6 +122,15 @@ Campos alinhados ao legado útil (`pedidoModel` + runtime):
     "expenses": 0
   },
   "photos": [{ "key": "string", "url": "string|null", "isCover": false }],
+  "items": [
+    {
+      "_id": "ObjectId",
+      "shoeModel": "string",
+      "services": [{ "id": "string", "name": "string", "price": 0 }],
+      "photos": [{ "key": "string", "url": "string|null", "isCover": false }],
+      "notes": "string|null"
+    }
+  ],
   "currentSectorId": "ObjectId|null",
   "sectorPath": ["ObjectId"],
   "sectorHistory": [
@@ -150,6 +159,8 @@ Campos alinhados ao legado útil (`pedidoModel` + runtime):
 ```
 
 Índices: `(shopId, code)` unique; `(shopId, currentSectorId)`; `(shopId, createdAt)`; `(shopId, dueAt)`; `(shopId, status)`.
+
+**Espelho flat:** `shoeModel` / `services` / `photos` no documento = `items[0]` (legado). Create/PATCH aceitam `items[]` **ou** payload flat; se `items` vier preenchido, o primeiro item é copiado para os campos flat. Docs antigos sem `items` (ou `items: []`) continuam válidos — leitura (`effectiveItems`) sintetiza um item a partir do flat. Um pedido = um `code` = um card no kanban. Serialização sempre devolve `items` + `itemCount` (readers vazios ainda saem com 1 item sintetizado). `pricing.total` = soma dos serviços de **todos** os items, salvo total explícito no body.
 
 ### `service_catalog` (TOP-01)
 

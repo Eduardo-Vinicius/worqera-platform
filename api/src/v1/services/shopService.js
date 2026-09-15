@@ -1,24 +1,164 @@
+const crypto = require('crypto');
 const Shop = require('../models/Shop');
 const Membership = require('../models/Membership');
 const User = require('../models/User');
 const { hashPassword } = require('./authService');
 
+function slugify(input) {
+  return String(input || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+}
+
+function generatePartnerCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
 async function getCurrentShop(shopId) {
   return Shop.findById(shopId).lean();
 }
 
-async function patchCurrentShop(shopId, updates) {
-  const allowed = {};
-  if (updates.name != null) allowed.name = updates.name;
-  if (updates.timezone != null) allowed.timezone = updates.timezone;
-  if (updates.branding != null) {
-    allowed.branding = {
-      displayName: updates.branding.displayName,
-      emailFromName: updates.branding.emailFromName,
-      legacyBrand: updates.branding.legacyBrand,
-    };
+async function ensurePartnerCode(shopId) {
+  const shop = await Shop.findById(shopId);
+  if (!shop) return null;
+  if (shop.partnerCode) return shop.toObject();
+  for (let i = 0; i < 5; i += 1) {
+    const code = generatePartnerCode();
+    try {
+      shop.partnerCode = code;
+      await shop.save();
+      return shop.toObject();
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+    }
   }
-  return Shop.findByIdAndUpdate(shopId, { $set: allowed }, { new: true }).lean();
+  return shop.toObject();
+}
+
+async function regeneratePartnerCode(shopId) {
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    const err = new Error('Shop not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  for (let i = 0; i < 5; i += 1) {
+    shop.partnerCode = generatePartnerCode();
+    try {
+      await shop.save();
+      return shop.toObject();
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+    }
+  }
+  const err = new Error('Could not allocate partner code');
+  err.status = 500;
+  throw err;
+}
+
+async function patchCurrentShop(shopId, updates) {
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    const err = new Error('Shop not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  if (updates.name != null) shop.name = String(updates.name).trim();
+  if (updates.timezone != null) shop.timezone = updates.timezone;
+
+  if (updates.slug != null) {
+    const next = slugify(updates.slug);
+    if (!next || next.length < 2) {
+      const err = new Error('slug inválido (mín. 2 caracteres)');
+      err.status = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    if (next !== shop.slug) {
+      const clash = await Shop.findOne({ slug: next, _id: { $ne: shopId } }).lean();
+      if (clash) {
+        const err = new Error('slug já em uso');
+        err.status = 409;
+        err.code = 'CONFLICT';
+        throw err;
+      }
+      shop.slug = next;
+    }
+  }
+
+  if (updates.branding != null && typeof updates.branding === 'object') {
+    const b = updates.branding;
+    shop.branding = shop.branding || {};
+    if (b.displayName != null) shop.branding.displayName = b.displayName;
+    if (b.emailFromName != null) shop.branding.emailFromName = b.emailFromName;
+    if (b.legacyBrand != null) shop.branding.legacyBrand = b.legacyBrand;
+    if (b.phone != null) shop.branding.phone = b.phone;
+    if (b.address != null) shop.branding.address = b.address;
+    if (b.logoUrl != null) shop.branding.logoUrl = b.logoUrl;
+    if (b.primaryColor != null) shop.branding.primaryColor = b.primaryColor;
+  }
+
+  if (updates.tvSettings != null && typeof updates.tvSettings === 'object') {
+    shop.tvSettings = shop.tvSettings || {};
+    if (updates.tvSettings.client) {
+      shop.tvSettings.client = {
+        ...(shop.tvSettings.client?.toObject?.() || shop.tvSettings.client || {}),
+        ...updates.tvSettings.client,
+      };
+    }
+    if (updates.tvSettings.floor) {
+      shop.tvSettings.floor = {
+        ...(shop.tvSettings.floor?.toObject?.() || shop.tvSettings.floor || {}),
+        ...updates.tvSettings.floor,
+      };
+    }
+  }
+
+  if (updates.notifications != null && typeof updates.notifications === 'object') {
+    shop.notifications = shop.notifications || {};
+    if (updates.notifications.whatsapp) {
+      const w = updates.notifications.whatsapp;
+      shop.notifications.whatsapp = shop.notifications.whatsapp || {};
+      if (w.enabled != null) shop.notifications.whatsapp.enabled = Boolean(w.enabled);
+      if (w.shopPhoneE164 != null) shop.notifications.whatsapp.shopPhoneE164 = w.shopPhoneE164;
+      if (w.templates && typeof w.templates === 'object') {
+        shop.notifications.whatsapp.templates = {
+          ...(shop.notifications.whatsapp.templates?.toObject?.() ||
+            shop.notifications.whatsapp.templates ||
+            {}),
+          ...w.templates,
+        };
+      }
+    }
+  }
+
+  if (updates.onboardingComplete === true) {
+    shop.onboarding = shop.onboarding || {};
+    shop.onboarding.completedAt = new Date();
+  }
+  if (updates.onboarding && typeof updates.onboarding === 'object') {
+    if (updates.onboarding.completedAt != null) {
+      shop.onboarding.completedAt = updates.onboarding.completedAt;
+    }
+  }
+
+  if (updates.regeneratePartnerCode === true) {
+    await shop.save();
+    return regeneratePartnerCode(shopId);
+  }
+
+  await shop.save();
+  if (!shop.partnerCode) {
+    return ensurePartnerCode(shopId);
+  }
+  return shop.toObject();
 }
 
 async function listMembers(shopId) {
@@ -48,6 +188,23 @@ async function addMember(shopId, { email, password, name, role, sectorIds }) {
     throw err;
   }
 
+  const allowedRoles = ['admin', 'atendimento', 'sector'];
+  const nextRole = String(role || 'atendimento').toLowerCase();
+  if (!allowedRoles.includes(nextRole)) {
+    const err = new Error('Invalid role (use admin, atendimento, or sector)');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
+  const sectors = Array.isArray(sectorIds) ? sectorIds : [];
+  if (nextRole === 'sector' && sectors.length === 0) {
+    const err = new Error('sectorIds required when role is sector');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
   const normalizedEmail = String(email).toLowerCase().trim();
   let user = await User.findOne({ email: normalizedEmail });
   if (!user) {
@@ -69,8 +226,8 @@ async function addMember(shopId, { email, password, name, role, sectorIds }) {
   const membership = await Membership.create({
     userId: user._id,
     shopId,
-    role: role || 'atendimento',
-    sectorIds: sectorIds || [],
+    role: nextRole,
+    sectorIds: nextRole === 'sector' ? sectors : [],
     active: true,
   });
 
@@ -93,17 +250,116 @@ async function patchMember(shopId, membershipId, updates) {
     throw err;
   }
 
-  if (updates.role != null) membership.role = updates.role;
+  if (membership.role === 'owner' && updates.role != null && updates.role !== 'owner') {
+    const err = new Error('Cannot change owner role');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
+  if (updates.role != null) {
+    const nextRole = String(updates.role).toLowerCase();
+    if (!['admin', 'atendimento', 'sector', 'owner'].includes(nextRole)) {
+      const err = new Error('Invalid role');
+      err.status = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    if (nextRole === 'owner' && membership.role !== 'owner') {
+      const err = new Error('Cannot promote to owner via this endpoint');
+      err.status = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    membership.role = nextRole;
+  }
   if (updates.sectorIds != null) membership.sectorIds = updates.sectorIds;
-  if (updates.active != null) membership.active = updates.active;
+  if (updates.active != null) {
+    if (membership.role === 'owner' && updates.active === false) {
+      const err = new Error('Cannot deactivate owner');
+      err.status = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    membership.active = updates.active;
+  }
+
+  if (membership.role === 'sector' && !(membership.sectorIds || []).length) {
+    const err = new Error('sectorIds required when role is sector');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
   await membership.save();
   return membership.toObject();
+}
+
+async function resetMemberPassword(shopId, membershipId, password) {
+  if (!password || String(password).length < 6) {
+    const err = new Error('password min 6 required');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const membership = await Membership.findOne({ _id: membershipId, shopId });
+  if (!membership) {
+    const err = new Error('Membership not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const user = await User.findById(membership.userId);
+  if (!user) {
+    const err = new Error('User not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  user.passwordHash = await hashPassword(password);
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpires = null;
+  await user.save();
+  return { ok: true, userId: user._id, email: user.email };
+}
+
+async function seedDefaultCatalog(shopId) {
+  const ServiceCatalog = require('../models/ServiceCatalog');
+  const DEFAULT_SERVICES = [
+    { name: 'Limpeza Simples', defaultPrice: 30, sortOrder: 1 },
+    { name: 'Limpeza Completa', defaultPrice: 50, sortOrder: 2 },
+    { name: 'Restauração', defaultPrice: 80, sortOrder: 3 },
+    { name: 'Reparo', defaultPrice: 40, sortOrder: 4 },
+    { name: 'Customização', defaultPrice: 120, sortOrder: 5 },
+    { name: 'Pintura', defaultPrice: 60, sortOrder: 6 },
+    { name: 'Troca de Sola', defaultPrice: 70, sortOrder: 7 },
+    { name: 'Costura', defaultPrice: 35, sortOrder: 8 },
+  ];
+  const count = await ServiceCatalog.countDocuments({ shopId });
+  if (count > 0) return { ok: true, seeded: 0, existing: count };
+  await ServiceCatalog.insertMany(
+    DEFAULT_SERVICES.map((s) => ({
+      shopId,
+      name: s.name,
+      defaultPrice: s.defaultPrice,
+      sortOrder: s.sortOrder,
+      active: true,
+      sectorPathHint: [],
+    }))
+  );
+  return { ok: true, seeded: DEFAULT_SERVICES.length, existing: 0 };
 }
 
 module.exports = {
   getCurrentShop,
   patchCurrentShop,
+  ensurePartnerCode,
+  regeneratePartnerCode,
+  generatePartnerCode,
+  slugify,
+  seedDefaultCatalog,
   listMembers,
   addMember,
   patchMember,
+  resetMemberPassword,
 };

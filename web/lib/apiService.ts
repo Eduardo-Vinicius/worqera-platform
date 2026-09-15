@@ -1,4 +1,15 @@
 import { buildCacheKey, fetchWithCache, invalidateCacheByPrefix } from "./cache";
+import {
+  adaptClient,
+  adaptDepartmentRow,
+  adaptEmployee,
+  adaptEmployeeMetricRow,
+  adaptMetricsDelays,
+  adaptMetricsFinance,
+  adaptMetricsOverview,
+  adaptMetricsSummary,
+  adaptOrder,
+} from "./adapters";
 
 export interface ServicoPedido {
   preco: number;
@@ -13,6 +24,13 @@ export interface StatusHistoryPedido {
   userName: string;
   userId: string;
   status: string;
+}
+
+export interface PedidoItem {
+  shoeModel: string;
+  services?: Array<{ id?: string; name?: string; price?: number; nome?: string; preco?: number }>;
+  photos?: string[];
+  notes?: string | null;
 }
 
 export interface Pedido {
@@ -31,6 +49,14 @@ export interface Pedido {
   updatedAt: string;
   id: string;
   clienteId: string;
+  items?: PedidoItem[];
+  itemCount?: number;
+}
+
+export interface CreatePedidoItemInput {
+  shoeModel: string;
+  services: Array<{ id?: string; name: string; price: number }>;
+  notes?: string;
 }
 
 // ...existing code...
@@ -46,7 +72,7 @@ export async function getClienteByIdService(id: string) {
 
   const payload = resolveApiPayload(result);
   if (!payload) throw new Error("Erro ao buscar cliente");
-  return payload;
+  return adaptClient(payload);
 }
 
 // Atualiza um cliente
@@ -66,7 +92,7 @@ export async function updateClienteService(id: string, cliente: Partial<{
 }>) {
   const token = localStorage.getItem("token");
   const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -86,7 +112,7 @@ export async function getPedidoByIdService(id: string) {
 // lib/apiService.ts
 
 // Normalize to avoid trailing slashes that can cause double // in paths
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "")
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001").replace(/\/+$/, "")
 const API_BASE_URL = `${API_ORIGIN}/api/v1`
 
 function getAuthToken() {
@@ -320,77 +346,78 @@ function buildMetricsQuery<T extends object>(params: T) {
 export async function getMetricsResumoService(filters: MetricsBaseFilters = {}): Promise<MetricsResumo> {
   const { suffix, cacheSuffix } = buildMetricsQuery(filters);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:resumo:${cacheSuffix}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/resumo${suffix}`, {
+  const cacheKey = buildCacheKey(`metrics:summary:${cacheSuffix}`, token);
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/summary${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 60_000 });
 
-  return resolveApiPayload(result);
+  return adaptMetricsSummary(resolveApiPayload(result));
 }
 
 export async function getMetricsDepartamentosService(filters: MetricsBaseFilters = {}): Promise<MetricsDepartamento[]> {
   const { suffix, cacheSuffix } = buildMetricsQuery(filters);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:departamentos:${cacheSuffix}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/departamentos${suffix}`, {
+  const cacheKey = buildCacheKey(`metrics:departments:${cacheSuffix}`, token);
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/departments${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 60_000 });
 
   const payload = resolveApiPayload(result);
-  return Array.isArray(payload) ? payload : [];
+  return (Array.isArray(payload) ? payload : []).map(adaptDepartmentRow);
 }
 
 export async function getMetricsFuncionariosService(params: number | MetricsFuncionariosFilters = 10): Promise<MetricsFuncionario[]> {
   const normalized = typeof params === "number" ? { limit: params } : params;
   const { suffix, cacheSuffix } = buildMetricsQuery(normalized);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:funcionarios:${cacheSuffix}`, token);
+  const cacheKey = buildCacheKey(`metrics:employees:${cacheSuffix}`, token);
 
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/funcionarios${suffix}`, {
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/employees${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 60_000 });
 
   const payload = resolveApiPayload(result);
-  return Array.isArray(payload) ? payload : [];
+  return (Array.isArray(payload) ? payload : []).map(adaptEmployeeMetricRow);
 }
 
 export async function getMetricsAtrasosService(filters: MetricsBaseFilters = {}): Promise<MetricsAtrasos> {
   const { suffix, cacheSuffix } = buildMetricsQuery(filters);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:atrasos:${cacheSuffix}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/atrasos${suffix}`, {
+  const cacheKey = buildCacheKey(`metrics:delays:${cacheSuffix}`, token);
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/delays${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 60_000 });
 
-  return resolveApiPayload(result);
+  return adaptMetricsDelays(resolveApiPayload(result));
 }
 
 export async function getMetricsFinanceiroService(filters: MetricsFinanceiroFilters = {}): Promise<MetricsFinanceiro> {
   const { suffix, cacheSuffix } = buildMetricsQuery(filters);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:financeiro:${cacheSuffix}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/financeiro${suffix}`, {
+  const cacheKey = buildCacheKey(`metrics:finance:${cacheSuffix}`, token);
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/finance${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 30_000 });
 
-  return resolveApiPayload(result);
+  return adaptMetricsFinance(resolveApiPayload(result));
 }
 
 export async function getMetricsFuncionariosDesempenhoService(filters: MetricsFuncionariosFilters = {}): Promise<MetricsFuncionariosDesempenho> {
   const { suffix, cacheSuffix } = buildMetricsQuery(filters);
   const token = getAuthToken();
-  const cacheKey = buildCacheKey(`metrics:funcionarios:desempenho:${cacheSuffix}`, token);
-  const result = await fetchWithCache(`${API_BASE_URL}/metrics/funcionarios/desempenho${suffix}`, {
+  const cacheKey = buildCacheKey(`metrics:employees:performance:${cacheSuffix}`, token);
+  const result = await fetchWithCache(`${API_BASE_URL}/metrics/employees/performance${suffix}`, {
     method: "GET",
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 30_000 });
 
-  return resolveApiPayload(result);
+  const payload = resolveApiPayload(result);
+  return adaptMetricsOverview({ employees: payload }).funcionarios || payload;
 }
 
 export async function getMetricsOverviewService(filters: MetricsFinanceiroFilters & MetricsFuncionariosFilters = {}): Promise<MetricsOverview> {
@@ -402,7 +429,7 @@ export async function getMetricsOverviewService(filters: MetricsFinanceiroFilter
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 30_000 });
 
-  return resolveApiPayload(result);
+  return adaptMetricsOverview(resolveApiPayload(result));
 }
 
 export async function getPedidoService(id: string) {
@@ -418,7 +445,7 @@ export async function getPedidoService(id: string) {
   }
 
   const result = await response.json();
-  return resolveApiPayload(result);
+  return adaptOrder(resolveApiPayload(result));
 }
 
 export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdfAsset[]> {
@@ -438,9 +465,19 @@ export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdf
   return Array.isArray(payload) ? payload : [];
 }
 
+function parseUploadedPhotoUrls(payload: any): string[] {
+  const urls = payload?.urls || payload?.fotos || payload?.photos || [];
+  if (Array.isArray(urls)) {
+    return urls
+      .map((u) => (typeof u === "string" ? u : u?.url))
+      .filter((url): url is string => typeof url === "string");
+  }
+  return [];
+}
+
 export async function uploadPedidoFotosService(pedidoId: string, files: File[]): Promise<string[]> {
   const formData = new FormData();
-  files.forEach((file) => formData.append("fotos", file));
+  files.forEach((file) => formData.append("photos", file));
 
   const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/photos`, {
     method: "POST",
@@ -455,14 +492,34 @@ export async function uploadPedidoFotosService(pedidoId: string, files: File[]):
   }
 
   const result = await response.json().catch(() => ({}));
-  const payload = resolveApiPayload(result);
-  const urls = payload?.urls || payload?.fotos || payload?.photos || [];
-  if (Array.isArray(urls)) {
-    return urls
-      .map((u) => (typeof u === "string" ? u : u?.url))
-      .filter((url): url is string => typeof url === "string");
+  return parseUploadedPhotoUrls(resolveApiPayload(result));
+}
+
+export async function uploadPedidoItemFotosService(
+  pedidoId: string,
+  itemIndex: number,
+  files: File[]
+): Promise<string[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("photos", file));
+
+  const response = await fetch(
+    `${API_BASE_URL}/orders/${pedidoId}/items/${itemIndex}/photos`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(""),
+      body: formData,
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || "Erro ao fazer upload das fotos");
   }
-  return [];
+
+  const result = await response.json().catch(() => ({}));
+  return parseUploadedPhotoUrls(resolveApiPayload(result));
 }
 
 export async function downloadPedidoFotosZipService(pedidoId: string) {
@@ -542,10 +599,14 @@ export async function listFuncionariosService(params: {
   }, { cacheKey, ttlMs: 5 * 60_000 });
 
   const payload = resolveApiPayload(result);
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(result?.employees)) return result.employees;
-  if (Array.isArray(result?.data)) return result.data;
-  return [];
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(result?.employees)
+      ? result.employees
+      : Array.isArray(result?.data)
+        ? result.data
+        : [];
+  return list.map(adaptEmployee);
 }
 
 export async function getFuncionarioService(id: string): Promise<Funcionario> {
@@ -591,32 +652,57 @@ export async function deleteFuncionarioService(id: string) {
 
 // Cria um novo pedido
 export async function createPedidoService(pedido: {
-  clienteId: string;
+  clienteId?: string;
+  clientId?: string;
   clientName: string;
-  modeloTenis: string;
-  servicos: Array<{
+  modeloTenis?: string;
+  shoeModel?: string;
+  servicos?: Array<{
     id: string;
     nome: string;
     preco: number;
     descricao: string;
   }>;
-  fotos: string[];
-  precoTotal: number;
-  valorSinal: number;
-  valorRestante: number;
-  dataPrevistaEntrega: string;
-  departamento: string;  
-  observacoes: string;
+  items?: CreatePedidoItemInput[];
+  fotos?: string[];
+  precoTotal?: number;
+  valorSinal?: number;
+  valorRestante?: number;
+  dataPrevistaEntrega?: string;
+  departamento?: string;
+  observacoes?: string;
   prioridade?: number;
-  garantia: {
+  garantia?: {
     ativa: boolean;
     preco: number;
     duracao: string;
     data: string;
   };
-  acessorios: string[];
+  warranty?: unknown;
+  pricing?: unknown;
+  acessorios?: string[];
   status?: string;
 }) {
+  const body: Record<string, unknown> = { ...pedido };
+
+  if (pedido.clientId && !pedido.clienteId) {
+    body.clienteId = pedido.clientId;
+  }
+  if (pedido.clienteId && !pedido.clientId) {
+    body.clientId = pedido.clienteId;
+  }
+
+  if (Array.isArray(pedido.items) && pedido.items.length) {
+    const first = pedido.items[0];
+    if (!pedido.modeloTenis && !pedido.shoeModel) {
+      body.shoeModel = first.shoeModel;
+      body.modeloTenis = first.shoeModel;
+    }
+    if (!pedido.servicos?.length) {
+      body.services = first.services;
+    }
+  }
+
   const token = localStorage.getItem("token");
   const response = await fetch(`${API_BASE_URL}/orders`, {
     method: "POST",
@@ -624,7 +710,7 @@ export async function createPedidoService(pedido: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify(pedido),
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error("Erro ao criar pedido");
   const result = await response.json();
@@ -635,15 +721,15 @@ export async function createPedidoService(pedido: {
 // Cria um novo cliente
 export async function createClienteService(cliente: {
   nomeCompleto: string;
-  cpf: string;
   telefone: string;
-  email: string;
-  cep: string;
-  logradouro: string;
-  numero: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
+  cpf?: string;
+  email?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
   complemento?: string;
   observacoes?: string;
 }) {
@@ -662,18 +748,56 @@ export async function createClienteService(cliente: {
   return result;
 }
 
-// Busca lista de clientes
-export async function getClientesService(forceRefresh = false) {
+// Busca lista de clientes (server-side q + paginação). Sempre retorna { data, nextToken, count }.
+export async function getClientesService(
+  opts: boolean | { q?: string; limit?: number; lastKey?: string; forceRefresh?: boolean } = {}
+) {
   const token = getAuthToken();
-  const cacheKey = buildCacheKey("clientes", token);
+  const options =
+    typeof opts === "boolean"
+      ? { forceRefresh: opts, q: undefined as string | undefined, limit: 200 as number | undefined, lastKey: undefined as string | undefined }
+      : {
+          forceRefresh: opts.forceRefresh,
+          q: opts.q,
+          limit: opts.limit ?? 50,
+          lastKey: opts.lastKey,
+        };
 
-  return fetchWithCache(`${API_BASE_URL}/clients`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
+  const query = new URLSearchParams();
+  if (options.q?.trim()) query.set("q", options.q.trim());
+  if (options.limit) query.set("limit", String(options.limit));
+  if (options.lastKey) query.set("cursor", options.lastKey);
+  const qs = query.toString();
+
+  const cacheKey = buildCacheKey(`clientes:${qs || "all"}`, token);
+
+  const result = await fetchWithCache(
+    `${API_BASE_URL}/clients${qs ? `?${qs}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     },
-  }, { cacheKey, ttlMs: 5 * 60_000, forceRefresh });
+    { cacheKey, ttlMs: 30_000, forceRefresh: Boolean(options.forceRefresh) }
+  );
+
+  const payload = resolveApiPayload(result);
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(result?.clients)
+      ? result.clients
+      : Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result)
+          ? result
+          : [];
+  return {
+    data: list.map(adaptClient),
+    nextToken: result?.nextToken || null,
+    count: result?.count ?? list.length,
+  };
 }
 
 export async function loginService(email: string, password: string) {
@@ -769,7 +893,8 @@ export async function getOrdersService(opts: { forceRefresh?: boolean } = {}) {
     },
   }, { cacheKey, ttlMs: 10_000, forceRefresh: opts.forceRefresh });
   
-  return result.data || result; // Retorna result.data se existir, senão result
+  const list = result.data || result.orders || result;
+  return Array.isArray(list) ? list.map(adaptOrder) : list;
 }
 
 // Atualiza setor do pedido (UI legado chama "status"; no v1 movemos para o setor pelo nome)
@@ -804,35 +929,76 @@ export async function updateOrderStatusService(orderId: string, newStatus: strin
 }
 
 // Atualiza os dados completos de um pedido
-export async function updateOrderService(orderId: string, orderData: {
-  modeloTenis?: string;
-  servicos?: string;
-  descricaoServicos?: string;
-  price?: number;
-  status?: string;
-  dataPrevistaEntrega?: string;
-  prioridade?: number;
-}) {
-  const body: Record<string, unknown> = { ...orderData };
-  if (orderData.modeloTenis) body.shoeModel = orderData.modeloTenis;
-  if (orderData.dataPrevistaEntrega) body.dueAt = orderData.dataPrevistaEntrega;
+export async function updateOrderService(
+  orderId: string,
+  orderData: {
+    modeloTenis?: string;
+    shoeModel?: string;
+    clientName?: string;
+    clientPhone?: string;
+    notes?: string;
+    observacoes?: string;
+    servicos?: string;
+    descricaoServicos?: string;
+    price?: number;
+    total?: number;
+    deposit?: number;
+    remaining?: number;
+    status?: string;
+    dataPrevistaEntrega?: string;
+    dueAt?: string;
+    prioridade?: number;
+    pricing?: { total?: number; deposit?: number; remaining?: number; expenses?: number };
+  }
+) {
+  const body: Record<string, unknown> = {};
+  if (orderData.modeloTenis != null || orderData.shoeModel != null) {
+    body.shoeModel = orderData.shoeModel ?? orderData.modeloTenis;
+  }
+  if (orderData.clientName != null) body.clientName = orderData.clientName;
+  if (orderData.clientPhone != null) body.clientPhone = orderData.clientPhone;
+  if (orderData.notes != null || orderData.observacoes != null) {
+    body.notes = orderData.notes ?? orderData.observacoes;
+  }
+  if (orderData.status != null) body.status = orderData.status;
+  if (orderData.dataPrevistaEntrega != null || orderData.dueAt != null) {
+    body.dueAt = orderData.dueAt ?? orderData.dataPrevistaEntrega;
+  }
   if (orderData.prioridade != null) body.priority = orderData.prioridade;
-  if (orderData.price != null) body.pricing = { total: orderData.price };
+
+  const total =
+    orderData.pricing?.total ??
+    orderData.total ??
+    orderData.price;
+  const deposit = orderData.pricing?.deposit ?? orderData.deposit;
+  const remaining = orderData.pricing?.remaining ?? orderData.remaining;
+  if (total != null || deposit != null || remaining != null) {
+    body.pricing = {
+      ...(orderData.pricing || {}),
+      ...(total != null ? { total: Number(total) } : {}),
+      ...(deposit != null ? { deposit: Number(deposit) } : {}),
+      ...(remaining != null
+        ? { remaining: Number(remaining) }
+        : total != null && deposit != null
+          ? { remaining: Math.max(0, Number(total) - Number(deposit)) }
+          : {}),
+    };
+  }
 
   const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
-  
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || errorData.error || "Erro ao atualizar pedido");
   }
-  
+
   const result = await response.json();
   invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
-  return result.data || result;
+  return adaptOrder(resolveApiPayload(result) || result);
 }
 
 export async function getDashboardService(opts: { forceRefresh?: boolean } = {}) {
@@ -844,6 +1010,9 @@ export async function getDashboardService(opts: { forceRefresh?: boolean } = {})
     headers: getAuthHeaders(),
   }, { cacheKey, ttlMs: 15_000, forceRefresh: opts.forceRefresh });
   
+  if (result?.recentOrders) {
+    result.recentOrders = result.recentOrders.map(adaptOrder);
+  }
   return result;
 }
 
@@ -945,6 +1114,7 @@ export async function moverPedidoSetorService(
 export async function getPedidosConsultaService(params: {
   codigo?: string;
   cliente?: string;
+  clientId?: string;
   status?: string;
   setor?: string;
   funcionario?: string;
@@ -958,6 +1128,7 @@ export async function getPedidosConsultaService(params: {
   const map: Record<string, string> = {
     codigo: "code",
     cliente: "client",
+    clientId: "clientId",
     status: "status",
     setor: "sectorId",
     funcionario: "employeeId",
@@ -987,7 +1158,11 @@ export async function getPedidosConsultaService(params: {
       : Array.isArray(result)
         ? result
         : [];
-  return { data, nextToken: result?.nextToken, count: result?.count ?? data.length };
+  return {
+    data: data.map(adaptOrder),
+    nextToken: result?.nextToken,
+    count: result?.count ?? data.length,
+  };
 }
 
 // Busca informações do usuário logado
@@ -1038,212 +1213,4 @@ export async function getUserInfoService() {
       };
     }
   }
-}
-
-// --- Email Audit & Tracking ---
-export interface EmailLog {
-  id: string;
-  codigoPedido: string;
-  pedidoId: string;
-  nomeCliente: string;
-  emailCliente: string;
-  assunto: string;
-  tipo: 'confirmacao' | 'atualizacao' | 'conclusao' | 'coleta' | 'notificacao' | 'outro';
-  status: 'sucesso' | 'erro' | 'pendente';
-  dataSolicitacao: string;
-  dataEnvio?: string;
-  duracaoMs?: number;
-  mensagemErro?: string;
-  pdfUrl?: string;
-  tentativas: number;
-  ultimaTentativa?: string;
-}
-
-export interface EmailLogsResponse {
-  data: EmailLog[];
-  nextToken?: string;
-  count: number;
-  total?: number;
-}
-
-export interface EmailSummary {
-  totalEnviados: number;
-  totalErros: number;
-  totalPendentes: number;
-  taxaDeErro: number;
-  totalPorTipo: Record<string, number>;
-  totalPorStatus: Record<string, number>;
-  duracionMediaMs?: number;
-}
-
-export interface EmailStatistics {
-  periodo: {
-    dataInicio: string;
-    dataFim: string;
-  };
-  resumo: EmailSummary;
-  topClientesNoErro: Array<{
-    email: string;
-    totalErros: number;
-    ultimoErro: string;
-  }>;
-  topTiposErro: Array<{
-    mensagemErro: string;
-    frequencia: number;
-  }>;
-  evolucaoTempo: Array<{
-    data: string;
-    enviados: number;
-    erros: number;
-    pendentes: number;
-  }>;
-}
-
-/**
- * Busca logs de emails com filtros e paginação
- */
-export async function getEmailLogsService(params: {
-  email?: string;
-  pedidoId?: string;
-  codigoPedido?: string;
-  status?: 'sucesso' | 'erro' | 'pendente';
-  tipo?: string;
-  dataInicio?: string;
-  dataFim?: string;
-  limit?: number;
-  lastKey?: string;
-} = {}): Promise<EmailLogsResponse> {
-  const token = getAuthToken();
-  const query = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === "string" && value.trim() === "") return;
-    if (key === "limit" && typeof value === "number" && value <= 0) return;
-    query.append(key, String(value));
-  });
-
-  const qs = query.toString();
-
-  const response = await fetch(`${API_BASE_URL}/emails/logs${qs ? `?${qs}` : ""}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar logs de emails");
-  }
-
-  const result = await response.json();
-  const payload = resolveApiPayload(result);
-
-  return {
-    data: Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [],
-    nextToken: payload?.nextToken || payload?.lastKey,
-    count: payload?.count || (Array.isArray(payload?.data) ? payload.data.length : Array.isArray(payload) ? payload.length : 0),
-    total: payload?.total,
-  };
-}
-
-/**
- * Busca resumo/estatísticas gerais de emails
- */
-export async function getEmailSummaryService(): Promise<EmailSummary> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}/emails/logs/resumo`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar resumo de emails");
-  }
-
-  const result = await response.json();
-  return resolveApiPayload(result);
-}
-
-/**
- * Busca últimos emails enviados para um endereço de email específico
- */
-export async function getEmailsUltimosService(email: string, limit = 10): Promise<EmailLog[]> {
-  const token = getAuthToken();
-  const query = new URLSearchParams();
-  query.append("limit", String(limit));
-
-  const response = await fetch(`${API_BASE_URL}/emails/logs/ultimos/${encodeURIComponent(email)}?${query.toString()}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar últimos emails");
-  }
-
-  const result = await response.json();
-  const payload = resolveApiPayload(result);
-  return Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-}
-
-/**
- * Busca emails de um pedido específico
- */
-export async function getEmailsByPedidoService(pedidoId: string): Promise<EmailLog[]> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}/emails/logs/pedido/${pedidoId}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar emails do pedido");
-  }
-
-  const result = await response.json();
-  const payload = resolveApiPayload(result);
-  return Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-}
-
-/**
- * Busca estatísticas detalhadas de emails (erros, evolução temporal, etc)
- */
-export async function getEmailStatisticsService(params: {
-  dataInicio?: string;
-  dataFim?: string;
-  dias?: number;
-} = {}): Promise<EmailStatistics> {
-  const token = getAuthToken();
-  const query = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === "string" && value.trim() === "") return;
-    query.append(key, String(value));
-  });
-
-  const qs = query.toString();
-
-  const response = await fetch(`${API_BASE_URL}/emails/estatisticas${qs ? `?${qs}` : ""}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao buscar estatísticas de emails");
-  }
-
-  const result = await response.json();
-  return resolveApiPayload(result);
 }

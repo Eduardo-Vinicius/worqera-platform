@@ -16,6 +16,9 @@ router.use('/metrics', require('./routes/metricsRoutes'));
 router.use('/files', require('./routes/fileRoutes'));
 router.use('/public', require('./routes/publicRoutes'));
 router.use('/services', require('./routes/serviceRoutes'));
+router.use('/platform', require('./routes/platformRoutes'));
+router.use('/alerts', require('./routes/alertsRoutes'));
+router.use('/invites', require('./routes/inviteRoutes'));
 
 // Webhook at /api/v1/webhooks/abacatepay
 router.post('/webhooks/abacatepay', billingController.abacateWebhook);

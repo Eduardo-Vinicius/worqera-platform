@@ -22,11 +22,22 @@ exports.completeCheckoutDev = wrap(async (req, res) => {
 });
 
 exports.abacateWebhook = wrap(async (req, res) => {
-  const secret = req.query.webhookSecret || req.query.secret;
-  if (!billingService.verifyWebhookSecret(secret)) {
+  const querySecret = req.query.webhookSecret || req.query.secret;
+  const signature =
+    req.headers['x-abacate-signature'] ||
+    req.headers['x-worqera-signature'] ||
+    req.headers['x-signature'];
+  const rawBody =
+    typeof req.rawBody === 'string'
+      ? req.rawBody
+      : Buffer.isBuffer(req.rawBody)
+        ? req.rawBody.toString('utf8')
+        : JSON.stringify(req.body || {});
+
+  if (!billingService.authorizeWebhook({ querySecret, signatureHeader: signature, rawBody })) {
     return sendError(res, 401, {
       title: 'Unauthorized',
-      detail: 'Invalid webhook secret',
+      detail: 'Invalid webhook signature or secret',
       code: 'UNAUTHORIZED',
     });
   }

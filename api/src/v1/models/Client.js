@@ -7,6 +7,7 @@ const clientSchema = new mongoose.Schema(
     cpf: { type: String, default: null },
     phone: { type: String, default: null },
     email: { type: String, default: null },
+    whatsappOptIn: { type: Boolean, default: false },
     address: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }

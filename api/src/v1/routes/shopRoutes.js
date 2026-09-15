@@ -15,6 +15,12 @@ router.patch(
   requireRole('owner', 'admin'),
   shopController.patchCurrent
 );
+router.post(
+  '/current/seed-catalog',
+  ...guard,
+  requireRole('owner', 'admin'),
+  shopController.seedCatalog
+);
 router.get(
   '/current/members',
   ...guard,
@@ -32,6 +38,18 @@ router.patch(
   ...guard,
   requireRole('owner', 'admin'),
   shopController.patchMember
+);
+router.post(
+  '/current/members/:id/reset-password',
+  ...guard,
+  requireRole('owner', 'admin'),
+  shopController.resetMemberPassword
+);
+router.post(
+  '/current/invites',
+  ...guard,
+  requireRole('owner', 'admin'),
+  shopController.createInvite
 );
 
 module.exports = router;

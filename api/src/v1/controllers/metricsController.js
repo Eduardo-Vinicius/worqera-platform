@@ -3,21 +3,26 @@ const { wrap } = require('./helpers');
 
 function buildFilters(query = {}) {
   return {
-    periodo: query.periodo,
-    dataInicio: query.dataInicio,
-    dataFim: query.dataFim,
-    limitServicos: query.limitServicos,
+    period: query.period || query.periodo,
+    startDate: query.startDate || query.dataInicio,
+    endDate: query.endDate || query.dataFim,
+    servicesLimit: query.servicesLimit || query.limitServicos,
     limit: query.limit,
+    // legacy aliases still accepted once
+    periodo: query.periodo || query.period,
+    dataInicio: query.dataInicio || query.startDate,
+    dataFim: query.dataFim || query.endDate,
+    limitServicos: query.limitServicos || query.servicesLimit,
   };
 }
 
-exports.departamentos = wrap(async (req, res) => {
-  const data = await metricsService.getDistribuicaoDepartamentos(req.shopId, buildFilters(req.query));
+exports.departments = wrap(async (req, res) => {
+  const data = await metricsService.getDepartmentDistribution(req.shopId, buildFilters(req.query));
   res.status(200).json({ success: true, data });
 });
 
-exports.funcionarios = wrap(async (req, res) => {
-  const data = await metricsService.getDistribuicaoFuncionarios(
+exports.employees = wrap(async (req, res) => {
+  const data = await metricsService.getEmployeeDistribution(
     req.shopId,
     req.query.limit,
     buildFilters(req.query)
@@ -25,23 +30,23 @@ exports.funcionarios = wrap(async (req, res) => {
   res.status(200).json({ success: true, data });
 });
 
-exports.atrasos = wrap(async (req, res) => {
-  const data = await metricsService.getAtrasos(req.shopId, buildFilters(req.query));
+exports.delays = wrap(async (req, res) => {
+  const data = await metricsService.getDelays(req.shopId, buildFilters(req.query));
   res.status(200).json({ success: true, data });
 });
 
-exports.resumo = wrap(async (req, res) => {
-  const data = await metricsService.getResumo(req.shopId, buildFilters(req.query));
+exports.summary = wrap(async (req, res) => {
+  const data = await metricsService.getSummary(req.shopId, buildFilters(req.query));
   res.status(200).json({ success: true, data });
 });
 
-exports.financeiro = wrap(async (req, res) => {
-  const data = await metricsService.getFinanceiro(req.shopId, buildFilters(req.query));
+exports.finance = wrap(async (req, res) => {
+  const data = await metricsService.getFinance(req.shopId, buildFilters(req.query));
   res.status(200).json({ success: true, data });
 });
 
-exports.desempenho = wrap(async (req, res) => {
-  const data = await metricsService.getDesempenhoFuncionarios(
+exports.employeePerformance = wrap(async (req, res) => {
+  const data = await metricsService.getEmployeePerformance(
     req.shopId,
     req.query.limit,
     buildFilters(req.query)

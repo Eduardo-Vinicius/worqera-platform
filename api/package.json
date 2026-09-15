@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "seed": "node src/v1/seed/casaDoTenis.js",
-    "test": "echo \"No tests yet\""
+    "test": "node --test src/v1/__tests__/**/*.test.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",
@@ -15,7 +15,7 @@
     "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",

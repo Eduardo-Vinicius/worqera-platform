@@ -1,35 +1,34 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { correlationId } = require('./v1/middleware/correlation');
 const { errorHandler } = require('./v1/middleware/errors');
 
 function createExpressApp() {
   const app = express();
 
-  // CORS — allow all in development
-  app.options('*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Worqera-Shop, X-Correlation-Id'
-    );
-    res.header('Access-Control-Max-Age', '86400');
-    res.status(200).send();
-  });
+  app.use(
+    cors({
+      origin: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      credentials: true,
+    })
+  );
 
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Worqera-Shop, X-Correlation-Id'
-    );
-    next();
-  });
+  app.use(cookieParser());
 
-  // JSON body (webhook raw body can be added later if HMAC over raw bytes is required)
-  app.use(express.json({ limit: '2mb' }));
+  // Preserve raw body for webhook HMAC verification
+  app.use(
+    express.json({
+      limit: '2mb',
+      verify: (req, _res, buf) => {
+        if (req.originalUrl && String(req.originalUrl).includes('/webhooks/')) {
+          req.rawBody = buf.toString('utf8');
+        }
+      },
+    })
+  );
 
   app.use(correlationId);
 

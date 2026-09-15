@@ -9,6 +9,6 @@ const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, dashboardController.dashboard);
 router.get('/summary', ...guard, dashboardController.summary);
-router.get('/setores', ...guard, dashboardController.setores);
+router.get('/sectors', ...guard, dashboardController.sectors);
 
 module.exports = router;

@@ -1,28 +1,27 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-14 (cutover Mongo)
+**Atualizado:** 2026-09-15 (carga CdT + consultas paginadas)
 
 ## Em uma frase
 
-API **somente Mongo** em `/api/v1` (Node hospedado). Rotas Dynamo legado **desmontadas**. Storage local em `uploads/` (S3 opcional).
+API Mongo `/api/v1` multi-tenant: signup+trial, members com roles, kanban por setor, **platform admin**, billing gate, scripts de import histórico CdT (`delivered` / códigos legacy).
 
 ## LIVE
 
 | Área | Endpoint |
 |------|----------|
 | Health | `GET /health` |
-| Auth SaaS | `/api/v1/auth/*` signup/login/me + trial 7d |
-| Shop / members / sectors / kanban | `/api/v1/...` |
-| Clients / orders / employees | CRUD Mongo |
-| Fotos / PDF / ZIP | `POST/GET /orders/:id/photos`, `/pdf`, `/photos/zip` |
-| Dashboard / metrics / sector stats | `/dashboard`, `/metrics/*`, `/sectors/stats` |
-| Billing stub AbacatePay | `/billing/*`, webhook |
-| Public order | `/public/orders/:code` |
-| Files | `/files/*` |
+| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`) |
+| Shop / members | `/shops/current`, `/shops/current/members` |
+| Platform | `/platform/shops` list/get/patch (suspend, +trial) |
+| Sectors / kanban | filter + move para `role:sector` |
+| Services / clients / orders / employees | CRUD |
+| Billing | `/billing/*` + webhook HMAC |
+| Public / files | `/public/orders/:code`, `/files/*` |
 
-## Front
+## Env chave
 
-`web/lib/apiService.ts` aponta para `${API}/api/v1`. `/status` redireciona para `/kanban`.
+`PLATFORM_ADMIN_EMAILS` · `WORQERA_AbacatePay__WebhookSecret` · `ALLOW_INSECURE_WEBHOOK=1` só em dev
 
 ## Como rodar
 
@@ -32,11 +31,8 @@ make api-seed   # opcional
 make web-dev
 ```
 
-Deixe `S3_BUCKET_NAME` vazio no `.env` para disco local.
-
 ## Próximo
 
-- AbacatePay produção
-- UI membership role `sector`
-- Migrar dados históricos CdT (se houver dump Dynamo) → Mongo
-- Remover código morto legado Dynamo quando estável
+- AbacatePay create-session produção
+- Invite branding (Fase 3)
+- ZIP fotos todos items; limpar legado Dynamo

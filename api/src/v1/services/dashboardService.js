@@ -65,24 +65,19 @@ async function getDashboard(shopId, auth = {}) {
     Client.countDocuments({ shopId }),
     Order.countDocuments({ shopId, status: { $in: ['open', 'in_progress', 'ready'] } }),
     Order.countDocuments({ shopId, status: 'open' }),
-    Order.find({ shopId }).sort({ createdAt: -1 }).limit(10).lean(),
+    Order.find({ shopId, status: { $nin: ['cancelled', 'delivered'] } })
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .lean(),
     auth.userId ? User.findById(auth.userId).lean() : null,
   ]);
-
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const completedToday = await Order.countDocuments({
-    shopId,
-    status: 'delivered',
-    $or: [{ deliveredAt: { $gte: startOfDay } }, { updatedAt: { $gte: startOfDay } }],
-  });
 
   return {
     stats: {
       totalClients,
       activeOrders,
       pendingOrders,
-      completedToday,
+      completedToday: summary.completedToday,
       overdue: summary.overdue,
       openOrders: summary.openOrders,
     },
@@ -97,7 +92,7 @@ async function getDashboard(shopId, auth = {}) {
   };
 }
 
-async function getSetoresStats(shopId, { includeOrders = false } = {}) {
+async function getSectorsStats(shopId, { includeOrders = false } = {}) {
   const [sectors, orders] = await Promise.all([
     Sector.find({ shopId, active: true }).sort({ order: 1 }).lean(),
     Order.find({ shopId, status: { $nin: ['cancelled', 'delivered'] } }).lean(),
@@ -123,10 +118,10 @@ async function getSetoresStats(shopId, { includeOrders = false } = {}) {
   });
 
   return {
-    setores: bySector,
+    sectors: bySector,
     data: bySector,
     totalOpen: orders.length,
   };
 }
 
-module.exports = { getSummary, getDashboard, getSetoresStats };
+module.exports = { getSummary, getDashboard, getSectorsStats, getSetoresStats: getSectorsStats };

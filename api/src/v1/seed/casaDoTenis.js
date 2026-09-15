@@ -5,6 +5,7 @@ const Shop = require('../models/Shop');
 const Membership = require('../models/Membership');
 const Sector = require('../models/Sector');
 const Subscription = require('../models/Subscription');
+const ServiceCatalog = require('../models/ServiceCatalog');
 const { hashPassword } = require('../services/authService');
 
 const LEGACY_SECTORS = [
@@ -23,10 +24,38 @@ const LEGACY_SECTORS = [
   },
 ];
 
+const DEFAULT_SERVICES = [
+  { name: 'Limpeza Simples', defaultPrice: 30, sortOrder: 1 },
+  { name: 'Limpeza Completa', defaultPrice: 50, sortOrder: 2 },
+  { name: 'Restauração', defaultPrice: 80, sortOrder: 3 },
+  { name: 'Reparo', defaultPrice: 40, sortOrder: 4 },
+  { name: 'Customização', defaultPrice: 120, sortOrder: 5 },
+  { name: 'Pintura', defaultPrice: 60, sortOrder: 6 },
+  { name: 'Troca de Sola', defaultPrice: 70, sortOrder: 7 },
+  { name: 'Costura', defaultPrice: 35, sortOrder: 8 },
+];
+
+async function ensureServices(shopId) {
+  const count = await ServiceCatalog.countDocuments({ shopId });
+  if (count > 0) return;
+  await ServiceCatalog.insertMany(
+    DEFAULT_SERVICES.map((s) => ({
+      shopId,
+      name: s.name,
+      defaultPrice: s.defaultPrice,
+      sortOrder: s.sortOrder,
+      active: true,
+      sectorPathHint: [],
+    }))
+  );
+  console.log('[seed] Seeded service catalog');
+}
+
 async function seedCasaDoTenis() {
   const existing = await Shop.findOne({ slug: 'casa-do-tenis' });
   if (existing) {
-    console.log('[seed] Shop casa-do-tenis already exists — skipping');
+    console.log('[seed] Shop casa-do-tenis already exists — ensuring services');
+    await ensureServices(existing._id);
     return { skipped: true, shopId: existing._id };
   }
 
@@ -56,6 +85,7 @@ async function seedCasaDoTenis() {
       legacyBrand: 'casa-do-tenis',
     },
     timezone: 'America/Sao_Paulo',
+    onboarding: { completedAt: new Date(), lastDigestAt: null },
   });
 
   await Membership.create({
@@ -82,6 +112,8 @@ async function seedCasaDoTenis() {
       active: true,
     }))
   );
+
+  await ensureServices(shop._id);
 
   console.log('[seed] Created shop casa-do-tenis with legacy sectors');
   console.log('[seed] Login:', email, '/', password);

@@ -66,7 +66,9 @@ async function generateOrderPdf(shopId, orderId) {
   const [client, shop, sector] = await Promise.all([
     order.clientId ? Client.findOne({ _id: order.clientId, shopId }).lean() : null,
     Shop.findById(shopId).lean(),
-    order.currentSectorId ? Sector.findById(order.currentSectorId).lean() : null,
+    order.currentSectorId
+      ? Sector.findOne({ _id: order.currentSectorId, shopId }).lean()
+      : null,
   ]);
 
   const brand =

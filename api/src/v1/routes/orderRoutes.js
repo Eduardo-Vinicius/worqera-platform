@@ -15,11 +15,19 @@ router.post(
   orderController.uploadPhotosMiddleware,
   orderController.uploadPhotos
 );
+router.post(
+  '/:id/items/:itemIndex/photos',
+  ...guard,
+  orderController.uploadPhotosMiddleware,
+  orderController.uploadItemPhotos
+);
 router.get('/:id/photos/zip', ...guard, orderController.zipPhotos);
 router.post('/:id/pdf', ...guard, orderController.generatePdf);
 router.get('/:id/pdfs', ...guard, orderController.listPdfs);
 router.get('/:id', ...guard, orderController.get);
 router.patch('/:id', ...guard, orderController.patch);
+router.post('/:id/reopen', ...guard, orderController.reopen);
+router.post('/:id/comments', ...guard, orderController.addComment);
 router.delete('/:id', ...guard, orderController.remove);
 
 module.exports = router;

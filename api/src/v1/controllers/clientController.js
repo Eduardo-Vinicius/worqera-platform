@@ -3,9 +3,18 @@ const { serializeClient } = require('../serializers');
 const { wrap } = require('./helpers');
 
 exports.list = wrap(async (req, res) => {
-  const clients = await clientService.listClients(req.shopId, { q: req.query.q });
-  const data = clients.map(serializeClient);
-  res.status(200).json({ clients: data, data });
+  const result = await clientService.listClients(req.shopId, {
+    q: req.query.q,
+    limit: req.query.limit,
+    cursor: req.query.cursor,
+  });
+  const data = (result.clients || result.data || result).map(serializeClient);
+  res.status(200).json({
+    clients: data,
+    data,
+    nextToken: result.nextToken || null,
+    count: data.length,
+  });
 });
 
 exports.create = wrap(async (req, res) => {

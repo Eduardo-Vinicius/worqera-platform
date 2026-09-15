@@ -15,8 +15,8 @@ exports.dashboard = wrap(async (req, res) => {
   res.status(200).json(data);
 });
 
-exports.setores = wrap(async (req, res) => {
+exports.sectors = wrap(async (req, res) => {
   const includeOrders = req.query.includeOrders === 'true' || req.query.orders === '1';
-  const data = await dashboardService.getSetoresStats(req.shopId, { includeOrders });
+  const data = await dashboardService.getSectorsStats(req.shopId, { includeOrders });
   res.status(200).json(data);
 });

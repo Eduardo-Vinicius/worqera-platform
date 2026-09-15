@@ -1,12 +1,22 @@
+# DEV local — Mongo com porta no host.
+# Produção: use docker-compose.prod.yml (sem ports; volumes /volumes/worqera; sharednet).
+
 services:
   mongo:
     image: mongo:7
     container_name: worqera-mongo
     ports:
-      - "27017:27017"
+      # Bind explícito em loopback — evita race/IPv6 estranho no Docker Desktop
+      - "127.0.0.1:27017:27017"
     volumes:
       - worqera_mongo_data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   worqera_mongo_data:

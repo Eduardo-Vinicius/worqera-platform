@@ -1,0 +1,97 @@
+# Produção (Oracle / VM): API + Mongo — espelha procedy-platform/api/docker-compose.prod.yml
+# - Volumes em /volumes/worqera/{mongodb,api/storage}
+# - Mongo SEM ports (só rede Docker)
+# - API SEM ports no host (nginx → worqera-api:80)
+# - Rede proxy EXISTENTE (nginx/certbot); rede internal só API↔Mongo
+#
+# Pré-requisito no host:
+#   sudo mkdir -p /volumes/worqera/mongodb /volumes/worqera/api/storage
+#   sudo chown -R 999:999 /volumes/worqera/mongodb
+#
+# 1. cp .env.prod.example .env.prod && chmod 600 .env.prod
+# 2. Editar JWT_*, PUBLIC_*, WORQERA_DOCKER_NETWORK
+# 3. make prod-up
+# 4. No nginx: upstream → server worqera-api:80;
+
+name: worqera-prod
+
+services:
+  worqera-mongodb:
+    image: mongo:7
+    container_name: worqera-mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - /volumes/worqera/mongodb:/data/db
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  worqera-mongodb-init:
+    image: mongo:7
+    container_name: worqera-mongodb-init
+    depends_on:
+      worqera-mongodb:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      MONGO_HOST: worqera-mongodb
+      MONGO_PORT: "27017"
+      REPLICA_SET: rs0
+      REPLICA_MEMBER_HOST: worqera-mongodb
+    entrypoint:
+      - bash
+      - /scripts/init-replica-set.sh
+    volumes:
+      - ./docker/mongo/init-replica-set.sh:/scripts/init-replica-set.sh:ro
+    networks:
+      - internal
+
+  worqera-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: worqera-api:prod
+    container_name: worqera-api
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: "80"
+      MONGODB_URI: mongodb://worqera-mongodb:27017/worqera?replicaSet=rs0
+      STORAGE_PATH: /app/storage
+    expose:
+      - "80"
+    volumes:
+      - /volumes/worqera/api/storage:/app/storage
+    depends_on:
+      worqera-mongodb-init:
+        condition: service_completed_successfully
+    networks:
+      - internal
+      - proxy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:80/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+networks:
+  internal:
+    name: worqera-internal
+  proxy:
+    name: ${WORQERA_DOCKER_NETWORK:-sharednet}
+    external: ${WORQERA_DOCKER_NETWORK_EXTERNAL:-true}

@@ -1,7 +1,7 @@
 # Worqera — Inventário de features (legado → alvo)
 
 **Atualizado:** 2026-09-14  
-Fonte: código live em `api/` + `web/` (pré-refatoração Mongo).
+Fonte original: código live em `api/` + `web/` (pré-refatoração Mongo). **Pós cutover + Ops UX:** `/pedidos` lista LIVE; TV Cliente = `/tv`; TV Chão = `/tv-dashboard`; `Order.items[]`. Tabela abaixo ainda mistura gaps legado — use [current-state.md](./current-state.md) para o runtime.
 
 Este arquivo fecha o **gap** entre o que já existe e o que os roadmaps pedem. Use junto com [current-state.md](./current-state.md) e [product.requirements.md](./product.requirements.md).
 
@@ -22,9 +22,10 @@ Este arquivo fecha o **gap** entre o que já existe e o que os roadmaps pedem. U
 |---------|------|-------|-------|
 | Login | LIVE | LIVE | Senha plaintext; sem signup/trial |
 | Clientes CRUD | LIVE | LIVE | ViaCEP no create; máscara PII na lista |
-| Pedidos CRUD | LIVE | PARTIAL | Create + consultas; **sem** `/pedidos` list (404) |
+| Pedidos CRUD | LIVE | LIVE | Códigos loja `0001…`; etiqueta pós-create |
 | Kanban status | LIVE | LIVE | Carro-chefe UI; dual status+setor |
-| Mover setor | LIVE | LIVE | Dialog funcionário + obs; DnD |
+| Mover setor | LIVE | LIVE | Livre; off-path exige `note` |
+| plannedSectorIds | LIVE | LIVE | Path no create + chips no detalhe |
 | Setores configuráveis | — | — | Hardcoded; **TARGET** A2 |
 | Conta por setor | PARTIAL | PARTIAL | Roles seed; filtro cosmético; **TARGET** A3 |
 | Funcionários (chão) | LIVE | LIVE | ≠ login user |
@@ -33,8 +34,8 @@ Este arquivo fecha o **gap** entre o que já existe e o que os roadmaps pedem. U
 | ZIP fotos | LIVE | LIVE | CardDetalhes |
 | Dashboard KPIs | LIVE | LIVE | |
 | Métricas / financeiro | LIVE | LIVE | Gate admin só no front |
-| TV chão `/tv` | LIVE | LIVE | Orfã no nav |
-| TV cliente `/tv-dashboard` | LIVE | LIVE | Link no dashboard |
+| TV Cliente `/tv` | LIVE | LIVE | Sala de espera; fora da sidebar; atalho dashboard |
+| TV Oficina `/tv-dashboard` | LIVE | LIVE | Fila por setor; `?hot=1` (ex-TV Chão) |
 | E-mail status | LIVE | HIDDEN | Brand CdT; audit UI escondida |
 | SMS final | PARTIAL | — | `SMS_ENABLED` |
 | WhatsApp | PARTIAL | — | Endpoints manuais; **require quebrado** |

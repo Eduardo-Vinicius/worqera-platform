@@ -1,0 +1,14 @@
+const express = require('express');
+const alertsController = require('../controllers/alertsController');
+const { auth } = require('../middleware/auth');
+const { shopContext } = require('../middleware/shopContext');
+const { subscriptionGate } = require('../middleware/subscriptionGate');
+const { requireRole } = require('../middleware/requireRole');
+
+const router = express.Router();
+const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin')];
+
+router.get('/delays', ...guard, alertsController.listDelays);
+router.post('/delays/digest', ...guard, alertsController.sendDigest);
+
+module.exports = router;

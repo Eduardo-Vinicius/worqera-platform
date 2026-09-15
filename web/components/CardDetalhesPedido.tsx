@@ -6,9 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { getClienteByIdService } from "@/lib/apiService";
+import { getShopCurrentV1 } from "@/lib/apiV1";
+import {
+  buildWaMeUrl,
+  DEFAULT_WA_TEMPLATES,
+  fillWaTemplate,
+} from "@/lib/whatsapp";
 import SetorProgress from "@/components/SetorProgress";
 import MoverSetorButton from "@/components/MoverSetorButton";
 import { usePedidoAssets } from "@/hooks/usePedidoAssets";
+import { MessageCircle } from "lucide-react";
 
 export interface PedidoDetalhes {
   id: string;
@@ -24,7 +31,7 @@ export interface PedidoDetalhes {
   status: string;
   createdDate: string;
   expectedDate: string;
-  statusHistory: Array<{
+  statusHistory?: Array<{
     status: string;
     date: string;
     time: string;
@@ -98,6 +105,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   const [loadingCliente, setLoadingCliente] = useState(false);
   const [errorCliente, setErrorCliente] = useState("");
   const [renewedPhotos, setRenewedPhotos] = useState<Record<number, boolean>>({});
+  const [waUrl, setWaUrl] = useState("");
   const hasRefreshedOnOpenRef = useRef(false);
   const lastRefreshIdRef = useRef<string | null>(null);
   const lastClientFetchRef = useRef<string | null>(null);
@@ -141,6 +149,56 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   }, [open, pedidoAtual?.clientId]);
 
   useEffect(() => {
+    if (!open || !pedidoAtual) {
+      setWaUrl("")
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const shop = await getShopCurrentV1()
+        const doc = shop?.shop || shop
+        const wa = doc?.notifications?.whatsapp
+        if (!wa?.enabled) {
+          if (!cancelled) setWaUrl("")
+          return
+        }
+        const phone =
+          cliente?.telefone ||
+          pedidoAtual.clientPhone ||
+          wa.shopPhoneE164 ||
+          ""
+        if (!phone) {
+          if (!cancelled) setWaUrl("")
+          return
+        }
+        const slug = doc?.slug || localStorage.getItem("shopSlug") || ""
+        const code = pedidoAtual.codigo || pedidoAtual.id
+        const origin = typeof window !== "undefined" ? window.location.origin : ""
+        const link = slug ? `${origin}/p/${slug}/${code}` : `${origin}/p/${code}`
+        const shopName = doc?.branding?.displayName || doc?.name || "Worqera"
+        const tpl =
+          wa.templates?.publicLink ||
+          wa.templates?.ready ||
+          DEFAULT_WA_TEMPLATES.publicLink
+        const text = fillWaTemplate(tpl, {
+          code: String(code),
+          client: pedidoAtual.clientName || cliente?.nomeCompleto || "",
+          link,
+          shop: shopName,
+          sector: String(pedidoAtual.status || ""),
+        })
+        if (!cancelled) setWaUrl(buildWaMeUrl(phone, text))
+      } catch {
+        if (!cancelled) setWaUrl("")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, pedidoAtual, cliente])
+
+  useEffect(() => {
     if (pedido) {
       setPedido(pedido);
     }
@@ -176,6 +234,20 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   }, [open]);
 
   if (!pedidoAtual) return null;
+
+  const statusHistorySafe = Array.isArray(pedidoAtual.statusHistory)
+    ? pedidoAtual.statusHistory
+    : Array.isArray((pedidoAtual as any).setoresHistorico)
+      ? ((pedidoAtual as any).setoresHistorico as any[]).map((h) => {
+          const when = h.entradaEm || h.enteredAt ? new Date(h.entradaEm || h.enteredAt) : null;
+          const label = [h.action, h.note, h.movedByName].filter(Boolean).join(" · ") || "movimento";
+          return {
+            status: label,
+            date: when && !Number.isNaN(when.getTime()) ? when.toLocaleDateString("pt-BR") : "",
+            time: when && !Number.isNaN(when.getTime()) ? when.toLocaleTimeString("pt-BR") : "",
+          };
+        })
+      : [];
 
   const formatServicos = (value: unknown): string => {
     if (!value) return "";
@@ -323,7 +395,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
 
   return (
     <Dialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border-[var(--wq-border)]">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-slate-600 text-sm font-semibold">
@@ -345,6 +417,14 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
                 >
                   Copiar
                 </Button>
+                {waUrl ? (
+                  <Button asChild variant="ghost" size="sm" className="h-6 px-2 text-[var(--wq-success)]">
+                    <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="mr-1 h-3.5 w-3.5" />
+                      WhatsApp
+                    </a>
+                  </Button>
+                ) : null}
               </DialogTitle>
               <DialogDescription>
                 {loadingCliente ? (
@@ -372,12 +452,15 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
             </div>
           )}
           {/* Progresso dos Setores */}
-          {pedidoAtual.setoresFluxo && pedidoAtual.setorAtual && pedidoAtual.setoresHistorico && (
+          {Array.isArray(pedidoAtual.setoresFluxo) &&
+            pedidoAtual.setoresFluxo.length > 0 &&
+            pedidoAtual.setorAtual &&
+            Array.isArray(pedidoAtual.setoresHistorico) && (
             <div className="mt-3">
               <SetorProgress
                 pedido={{
-                  setoresFluxo: pedidoAtual.setoresFluxo,
-                  setorAtual: pedidoAtual.setorAtual,
+                  setoresFluxo: pedidoAtual.setoresFluxo.map(String),
+                  setorAtual: String(pedidoAtual.setorAtual),
                   setoresHistorico: pedidoAtual.setoresHistorico,
                 }}
               />
@@ -488,7 +571,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
               <div className="font-semibold mb-2 text-blue-800">Garantia Contratada:</div>
               <div className="text-sm space-y-1">
                 <div><strong>Duração:</strong> {pedidoAtual.garantia.duracao}</div>
-                <div><strong>Valor:</strong> R$ {pedidoAtual.garantia.preco.toFixed(2)}</div>
+                <div><strong>Valor:</strong> R$ {Number(pedidoAtual.garantia.preco || 0).toFixed(2)}</div>
                 {pedidoAtual.garantia.data && (
                   <div><strong>Válida até:</strong> {pedidoAtual.garantia.data}</div>
                 )}
@@ -497,13 +580,15 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           )}
           
           {/* Acessórios */}
-          {pedidoAtual.acessorios && pedidoAtual.acessorios.length > 0 && (
+          {Array.isArray(pedidoAtual.acessorios) && pedidoAtual.acessorios.length > 0 && (
             <div className="border-t pt-3 mt-4">
               <div className="font-semibold mb-2">Acessórios Inclusos:</div>
               <div className="flex flex-wrap gap-1">
                 {pedidoAtual.acessorios.map((acessorio, index) => (
                   <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                    {acessorio}
+                    {typeof acessorio === "string"
+                      ? acessorio
+                      : (acessorio as any)?.nome || (acessorio as any)?.name || "—"}
                   </span>
                 ))}
               </div>
@@ -606,9 +691,17 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           <div>
             <strong>Histórico:</strong>
             <ul className="list-disc ml-5">
-              {pedidoAtual.statusHistory.map((h, i) => (
-                <li key={i}>{h.status} - {h.date} às {h.time}</li>
-              ))}
+              {statusHistorySafe.length > 0 ? (
+                statusHistorySafe.map((h, i) => (
+                  <li key={i}>
+                    {h.status}
+                    {h.date ? ` - ${h.date}` : ""}
+                    {h.time ? ` às ${h.time}` : ""}
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-slate-500">Sem histórico detalhado.</li>
+              )}
             </ul>
           </div>
         </div>
@@ -626,8 +719,14 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
             <MoverSetorButton
               pedidoId={pedidoAtual.id}
               onSuccess={(pedidoAtualizado) => {
-                setPedido(pedidoAtualizado as PedidoDetalhes);
-                onPedidoUpdated?.(pedidoAtualizado as PedidoDetalhes);
+                void refreshPedido()
+                  .then((fresh) => {
+                    if (fresh) onPedidoUpdated?.(fresh as PedidoDetalhes);
+                  })
+                  .catch(() => {
+                    setPedido(pedidoAtualizado as PedidoDetalhes);
+                    onPedidoUpdated?.(pedidoAtualizado as PedidoDetalhes);
+                  });
               }}
             />
           )}

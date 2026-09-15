@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Caminhos que não precisam de autenticação
-const PUBLIC_PATHS = ['/', '/signup', '/api/auth'];
-const PUBLIC_PREFIXES = ['/p/'];
-const HIDDEN_FEATURE_PREFIXES = ['/emails'];
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/api/auth'];
 const ADMIN_PREFIX = '/admin';
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -13,40 +10,80 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 
     const normalized = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const payloadJson = atob(padded);
-
-    return JSON.parse(payloadJson);
+    return JSON.parse(atob(padded));
   } catch {
     return null;
   }
 }
 
+function platformAdminEmails() {
+  return String(
+    process.env.NEXT_PUBLIC_PLATFORM_ADMIN_EMAILS ||
+      process.env.PLATFORM_ADMIN_EMAILS ||
+      ''
+  )
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function homeForRole(role: string) {
+  return role === 'sector' ? '/kanban' : '/dashboard';
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get('token')?.value;
 
-  if (HIDDEN_FEATURE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    const dashboardUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  if (PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (
+    PUBLIC_PATHS.includes(pathname) ||
+    pathname.startsWith('/p/') ||
+    pathname.startsWith('/invite/') ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password'
+  ) {
+    if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
+      const payload = decodeJwtPayload(token);
+      const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
+      return NextResponse.redirect(new URL(homeForRole(role), request.url));
+    }
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('token')?.value;
-  // Verifica se existe um token (JWT)
   if (!token) {
-    const loginUrl = new URL('/', request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  const payload = decodeJwtPayload(token);
+  const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
+  const email = String(payload?.email ?? '').toLowerCase();
+
+  if (pathname.startsWith('/admin/shops')) {
+    const allowed = platformAdminEmails();
+    if (!allowed.length || !allowed.includes(email)) {
+      return NextResponse.redirect(new URL('/kanban', request.url));
+    }
+    return NextResponse.next();
   }
 
   if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
-    const payload = decodeJwtPayload(token);
-    const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
+    if (role !== 'admin' && role !== 'owner') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
 
-    if (role !== 'admin') {
-      const dashboardUrl = new URL('/dashboard', request.url);
-      return NextResponse.redirect(dashboardUrl);
+  if (role === 'sector') {
+    const blocked =
+      pathname.startsWith('/settings') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/funcionarios') ||
+      pathname.startsWith('/billing') ||
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/clientes') ||
+      pathname === '/pedidos' ||
+      pathname.startsWith('/pedidos/novo');
+    if (blocked) {
+      return NextResponse.redirect(new URL('/kanban', request.url));
     }
   }
 

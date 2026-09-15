@@ -121,17 +121,17 @@ function buildFinanceiroResumo(orders) {
   const margemPrevista = receitaPrevista > 0 ? (lucroPrevisto / receitaPrevista) * 100 : 0;
 
   return {
-    totalPedidos,
-    pedidosFinalizados,
-    pedidosEmAberto: totalPedidos - pedidosFinalizados,
-    receitaPrevista,
-    receitaRecebida,
-    receitaPendente,
-    despesas,
-    lucroPrevisto,
-    lucroRealizado,
-    margemPrevista,
-    ticketMedio,
+    totalOrders: totalPedidos,
+    completedOrders: pedidosFinalizados,
+    openOrders: totalPedidos - pedidosFinalizados,
+    expectedRevenue: receitaPrevista,
+    receivedRevenue: receitaRecebida,
+    pendingRevenue: receitaPendente,
+    expenses: despesas,
+    expectedProfit: lucroPrevisto,
+    realizedProfit: lucroRealizado,
+    expectedMargin: margemPrevista,
+    averageTicket: ticketMedio,
   };
 }
 
@@ -141,19 +141,19 @@ function buildReceitaPorStatus(orders) {
     const status = String(order.status || 'Sem status');
     const atual = map.get(status) || {
       status,
-      pedidos: 0,
-      receitaPrevista: 0,
-      receitaRecebida: 0,
+      orders: 0,
+      expectedRevenue: 0,
+      receivedRevenue: 0,
     };
     const total = orderTotal(order);
     const restante = Math.max(0, orderRemaining(order));
     const recebido = isFinalStatus(status) ? total : Math.max(0, total - restante);
-    atual.pedidos += 1;
-    atual.receitaPrevista += total;
-    atual.receitaRecebida += recebido;
+    atual.orders += 1;
+    atual.expectedRevenue += total;
+    atual.receivedRevenue += recebido;
     map.set(status, atual);
   });
-  return Array.from(map.values()).sort((a, b) => b.receitaPrevista - a.receitaPrevista);
+  return Array.from(map.values()).sort((a, b) => b.expectedRevenue - a.expectedRevenue);
 }
 
 function buildEvolucaoDiaria(orders) {
@@ -162,16 +162,16 @@ function buildEvolucaoDiaria(orders) {
     const created = parseData(order.createdAt);
     if (!created) return;
     const day = created.toISOString().split('T')[0];
-    const atual = map.get(day) || { data: day, pedidos: 0, receitaPrevista: 0, receitaRecebida: 0 };
+    const atual = map.get(day) || { date: day, orders: 0, expectedRevenue: 0, receivedRevenue: 0 };
     const total = orderTotal(order);
     const restante = Math.max(0, orderRemaining(order));
     const recebido = isFinalStatus(order.status) ? total : Math.max(0, total - restante);
-    atual.pedidos += 1;
-    atual.receitaPrevista += total;
-    atual.receitaRecebida += recebido;
+    atual.orders += 1;
+    atual.expectedRevenue += total;
+    atual.receivedRevenue += recebido;
     map.set(day, atual);
   });
-  return Array.from(map.values()).sort((a, b) => a.data.localeCompare(b.data));
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function buildTopServicos(orders, limit = 10) {
@@ -179,27 +179,35 @@ function buildTopServicos(orders, limit = 10) {
   orders.forEach((order) => {
     const services = Array.isArray(order.services) ? order.services : [];
     if (!services.length) {
-      const nome = 'Servico geral';
-      const atual = map.get(nome) || { servico: nome, pedidos: 0, receita: 0 };
-      atual.pedidos += 1;
-      atual.receita += orderTotal(order);
+      const nome = 'General service';
+      const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
+      atual.orders += 1;
+      atual.revenue += orderTotal(order);
       map.set(nome, atual);
       return;
     }
     services.forEach((s) => {
-      const nome = String(s.name || 'Servico sem nome').trim() || 'Servico sem nome';
-      const atual = map.get(nome) || { servico: nome, pedidos: 0, receita: 0 };
-      atual.pedidos += 1;
-      atual.receita += toNumber(s.price);
+      const nome = String(s.name || 'Unnamed service').trim() || 'Unnamed service';
+      const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
+      atual.orders += 1;
+      atual.revenue += toNumber(s.price);
       map.set(nome, atual);
     });
   });
   return Array.from(map.values())
-    .sort((a, b) => b.receita - a.receita)
+    .sort((a, b) => b.revenue - a.revenue)
     .slice(0, limit);
 }
 
-async function getDistribuicaoDepartamentos(shopId, filters = {}) {
+function periodInfo(periodo) {
+  return {
+    start: periodo.start.toISOString().split('T')[0],
+    end: periodo.end.toISOString().split('T')[0],
+    label: periodo.label,
+  };
+}
+
+async function getDepartmentDistribution(shopId, filters = {}) {
   const periodo = resolvePeriodo(filters);
   const [orders, sectors] = await Promise.all([
     loadOrders(shopId, { openOnly: true }),
@@ -210,20 +218,20 @@ async function getDistribuicaoDepartamentos(shopId, filters = {}) {
   const agregados = new Map();
 
   filtrados.forEach((order) => {
-    const setorId = order.currentSectorId ? String(order.currentSectorId) : 'sem-setor';
-    const atual = agregados.get(setorId) || {
-      setorId,
-      setorNome: sectorMap.get(setorId) || 'Sem setor',
+    const sectorId = order.currentSectorId ? String(order.currentSectorId) : 'no-sector';
+    const atual = agregados.get(sectorId) || {
+      sectorId,
+      sectorName: sectorMap.get(sectorId) || 'No sector',
       total: 0,
     };
     atual.total += 1;
-    agregados.set(setorId, atual);
+    agregados.set(sectorId, atual);
   });
 
   return Array.from(agregados.values());
 }
 
-async function getDistribuicaoFuncionarios(shopId, limit = DEFAULT_FUNC_LIMIT, filters = {}) {
+async function getEmployeeDistribution(shopId, limit = DEFAULT_FUNC_LIMIT, filters = {}) {
   const safeLimit = Math.max(1, Number(limit) || DEFAULT_FUNC_LIMIT);
   const periodo = resolvePeriodo(filters);
   const [orders, employees] = await Promise.all([
@@ -236,10 +244,10 @@ async function getDistribuicaoFuncionarios(shopId, limit = DEFAULT_FUNC_LIMIT, f
 
   filtrados.forEach((order) => {
     const empId = order.assigneeEmployeeId ? String(order.assigneeEmployeeId) : null;
-    const nome = empId ? empMap.get(empId) || 'Desconhecido' : 'Sem responsavel';
-    const atual = agregados.get(nome) || { funcionarioNome: nome, total: 0 };
+    const name = empId ? empMap.get(empId) || 'Unknown' : 'Unassigned';
+    const atual = agregados.get(name) || { employeeName: name, total: 0 };
     atual.total += 1;
-    agregados.set(nome, atual);
+    agregados.set(name, atual);
   });
 
   return Array.from(agregados.values())
@@ -247,96 +255,88 @@ async function getDistribuicaoFuncionarios(shopId, limit = DEFAULT_FUNC_LIMIT, f
     .slice(0, safeLimit);
 }
 
-async function getAtrasos(shopId, filters = {}) {
+async function getDelays(shopId, filters = {}) {
   const periodo = resolvePeriodo(filters);
   const now = Date.now();
   const orders = await loadOrders(shopId, { openOnly: true });
   const filtrados = orders.filter((o) => isInsidePeriod(parseData(o.createdAt), periodo));
   const atrasados = filtrados
-    .map((order) => ({ order, dataPrevista: parseData(order.dueAt) }))
-    .filter((item) => item.dataPrevista && item.dataPrevista.getTime() < now)
-    .map((item) => ({ order: item.order, atrasoMs: now - item.dataPrevista.getTime() }))
-    .sort((a, b) => b.atrasoMs - a.atrasoMs);
+    .map((order) => ({ order, dueAt: parseData(order.dueAt) }))
+    .filter((item) => item.dueAt && item.dueAt.getTime() < now)
+    .map((item) => ({ order: item.order, delayMs: now - item.dueAt.getTime() }))
+    .sort((a, b) => b.delayMs - a.delayMs);
 
-  const totalAtrasados = atrasados.length;
-  const atrasoMedioMs =
-    totalAtrasados === 0
+  const totalDelayed = atrasados.length;
+  const averageDelayMs =
+    totalDelayed === 0
       ? 0
-      : Math.round(atrasados.reduce((acc, item) => acc + item.atrasoMs, 0) / totalAtrasados);
+      : Math.round(atrasados.reduce((acc, item) => acc + item.delayMs, 0) / totalDelayed);
 
   return {
-    totalAtrasados,
-    atrasoMedioMs,
-    atrasoMedioHoras: Number((atrasoMedioMs / (1000 * 60 * 60)).toFixed(2)),
-    itens: atrasados.slice(0, MAX_ATRASOS_ITEMS).map(({ order }) => ({
+    totalDelayed,
+    averageDelayMs,
+    averageDelayHours: Number((averageDelayMs / (1000 * 60 * 60)).toFixed(2)),
+    items: atrasados.slice(0, MAX_ATRASOS_ITEMS).map(({ order }) => ({
       id: String(order._id),
-      codigo: order.code,
+      code: order.code,
       status: order.status,
-      funcionarioAtual: order.assigneeEmployeeId || null,
-      dataPrevistaEntrega: order.dueAt || null,
-      diasAtraso: Math.floor((now - parseData(order.dueAt).getTime()) / (1000 * 60 * 60 * 24)),
+      assigneeEmployeeId: order.assigneeEmployeeId || null,
+      dueAt: order.dueAt || null,
+      daysLate: Math.floor((now - parseData(order.dueAt).getTime()) / (1000 * 60 * 60 * 24)),
     })),
   };
 }
 
-async function getResumo(shopId, filters = {}) {
+async function getSummary(shopId, filters = {}) {
   const periodo = resolvePeriodo(filters);
   const now = Date.now();
   const orders = await loadOrders(shopId);
   const filtrados = orders.filter((o) => isInsidePeriod(parseData(o.createdAt), periodo));
 
   let total = 0;
-  let finalizados = 0;
-  let atrasados = 0;
-  let noPrazo = 0;
+  let completed = 0;
+  let delayed = 0;
+  let onTime = 0;
 
   filtrados.forEach((order) => {
     total += 1;
     if (isFinalStatus(order.status)) {
-      finalizados += 1;
+      completed += 1;
       return;
     }
-    const dataPrevista = parseData(order.dueAt);
-    if (!dataPrevista) return;
-    if (dataPrevista.getTime() < now) atrasados += 1;
-    else noPrazo += 1;
+    const dueAt = parseData(order.dueAt);
+    if (!dueAt) return;
+    if (dueAt.getTime() < now) delayed += 1;
+    else onTime += 1;
   });
 
-  const abertos = total - finalizados;
+  const open = total - completed;
   return {
     total,
-    abertos,
-    finalizados,
-    atrasados,
-    noPrazo,
-    taxaAtraso: abertos > 0 ? Number(((atrasados / abertos) * 100).toFixed(2)) : 0,
-    periodo: {
-      inicio: periodo.start.toISOString().split('T')[0],
-      fim: periodo.end.toISOString().split('T')[0],
-      referencia: periodo.label,
-    },
+    open,
+    completed,
+    delayed,
+    onTime,
+    delayRate: open > 0 ? Number(((delayed / open) * 100).toFixed(2)) : 0,
+    period: periodInfo(periodo),
   };
 }
 
-async function getFinanceiro(shopId, filters = {}) {
+async function getFinance(shopId, filters = {}) {
   const periodo = resolvePeriodo(filters);
   const orders = await loadOrders(shopId);
   const filtrados = orders.filter((o) => isInsidePeriod(parseData(o.createdAt), periodo));
 
   return {
-    periodo: {
-      inicio: periodo.start.toISOString().split('T')[0],
-      fim: periodo.end.toISOString().split('T')[0],
-      referencia: periodo.label,
-    },
-    resumo: buildFinanceiroResumo(filtrados),
-    receitaPorStatus: buildReceitaPorStatus(filtrados),
-    topServicos: buildTopServicos(filtrados, Number(filters.limitServicos) || 10),
-    evolucaoDiaria: buildEvolucaoDiaria(filtrados),
+    period: periodInfo(periodo),
+    summary: buildFinanceiroResumo(filtrados),
+    revenueByStatus: buildReceitaPorStatus(filtrados),
+    topServices: buildTopServicos(filtrados, Number(filters.servicesLimit || filters.limitServicos) || 10),
+    dailyEvolution: buildEvolucaoDiaria(filtrados),
   };
 }
 
-async function getDesempenhoFuncionarios(shopId, limit = DEFAULT_FUNC_LIMIT, filters = {}) {
+async function getEmployeePerformance(shopId, limit = DEFAULT_FUNC_LIMIT, filters = {}) {
   const safeLimit = Math.max(1, Number(limit) || DEFAULT_FUNC_LIMIT);
   const periodo = resolvePeriodo(filters);
   const [orders, employees] = await Promise.all([
@@ -350,56 +350,52 @@ async function getDesempenhoFuncionarios(shopId, limit = DEFAULT_FUNC_LIMIT, fil
   filtrados.forEach((order) => {
     const names = new Set();
     if (order.assigneeEmployeeId) {
-      names.add(empMap.get(String(order.assigneeEmployeeId)) || 'Desconhecido');
+      names.add(empMap.get(String(order.assigneeEmployeeId)) || 'Unknown');
     }
     (order.sectorHistory || []).forEach((h) => {
       if (h.employeeName) names.add(h.employeeName);
     });
-    if (!names.size) names.add('Sem responsavel');
-    names.forEach((nome) => {
-      const atual = produtividade.get(nome) || {
-        funcionarioNome: nome,
-        pedidosComParticipacao: 0,
-        pedidosFinalizados: 0,
+    if (!names.size) names.add('Unassigned');
+    names.forEach((name) => {
+      const atual = produtividade.get(name) || {
+        employeeName: name,
+        ordersParticipated: 0,
+        ordersCompleted: 0,
       };
-      atual.pedidosComParticipacao += 1;
-      if (isFinalStatus(order.status)) atual.pedidosFinalizados += 1;
-      produtividade.set(nome, atual);
+      atual.ordersParticipated += 1;
+      if (isFinalStatus(order.status)) atual.ordersCompleted += 1;
+      produtividade.set(name, atual);
     });
   });
 
   const top = Array.from(produtividade.values())
-    .filter((i) => i.funcionarioNome !== 'Sem responsavel')
-    .sort((a, b) => b.pedidosComParticipacao - a.pedidosComParticipacao);
+    .filter((i) => i.employeeName !== 'Unassigned')
+    .sort((a, b) => b.ordersParticipated - a.ordersParticipated);
 
   return {
-    periodo: {
-      inicio: periodo.start.toISOString().split('T')[0],
-      fim: periodo.end.toISOString().split('T')[0],
-      referencia: periodo.label,
-    },
-    topFuncionariosPorPedidos: top.slice(0, safeLimit),
-    topFuncionariosMaisRapidos: [],
+    period: periodInfo(periodo),
+    topByOrders: top.slice(0, safeLimit),
+    topBySpeed: [],
   };
 }
 
 async function getOverview(shopId, options = {}) {
-  const [resumo, atrasos, financeiro, funcionarios] = await Promise.all([
-    getResumo(shopId, options),
-    getAtrasos(shopId, options),
-    getFinanceiro(shopId, options),
-    getDesempenhoFuncionarios(shopId, options.limit, options),
+  const [summary, delays, finance, employees] = await Promise.all([
+    getSummary(shopId, options),
+    getDelays(shopId, options),
+    getFinance(shopId, options),
+    getEmployeePerformance(shopId, options.limit, options),
   ]);
-  return { resumo, atrasos, financeiro, funcionarios };
+  return { summary, delays, finance, employees };
 }
 
 module.exports = {
-  getDistribuicaoDepartamentos,
-  getDistribuicaoFuncionarios,
-  getAtrasos,
-  getResumo,
-  getFinanceiro,
-  getDesempenhoFuncionarios,
+  getDepartmentDistribution,
+  getEmployeeDistribution,
+  getDelays,
+  getSummary,
+  getFinance,
+  getEmployeePerformance,
   getOverview,
   isOpen,
 };

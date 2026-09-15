@@ -1,24 +1,30 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Playfair_Display, Source_Sans_3 } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "sonner"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
-const playfairDisplay = Playfair_Display({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-playfair",
+  variable: "--font-inter",
 })
 
-const sourceSans = Source_Sans_3({
+const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-source-sans",
+  variable: "--font-geist-mono",
 })
 
 export const metadata: Metadata = {
-  title: `${process.env.NEXT_PUBLIC_APP_NAME || "Worqera"} - Sistema de Gestão`,
-  description: "Sistema de gestão para loja de reforma de tênis"
+  title: `${process.env.NEXT_PUBLIC_APP_NAME || "Worqera"} — Gestão de pedidos para oficinas`,
+  description:
+    "Kanban por setores, rastreio público e operação de oficina. Teste grátis a Worqera.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/favicon.ico" }],
+    apple: [{ url: "/apple-icon.png" }],
+  },
 }
 
 export default function RootLayout({
@@ -27,10 +33,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" className={`${playfairDisplay.variable} ${sourceSans.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        {children}
-        <Toaster richColors position="top-right" />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          {children}
+          <Toaster richColors position="top-right" />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -121,10 +121,11 @@ export async function fetchWithCache<T = any>(
   }
 
   const doFetch = (async () => {
-    const response = await fetch(url, fetchOptions);
+    const { fetchWithAuthRetry } = await import("./authRefresh")
+    let response = await fetchWithAuthRetry(url, fetchOptions)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const message = errorData.error || errorData.message || `Erro ao buscar ${url}`;
+      const message = errorData.error || errorData.message || errorData.detail || `Erro ao buscar ${url}`;
       throw new Error(message);
     }
 

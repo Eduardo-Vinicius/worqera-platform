@@ -1,33 +1,31 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-09-14
+**Atualizado:** 2026-09-15 (LP marketing + login `/login` + branding)
 
 ## Em uma frase
 
-Next.js 15 com login, dashboard, **kanban `/status` (carro-chefe UI)**, clientes, novo pedido, consultas, funcionários, admin financeiro/métricas e 2 modos TV — ainda na API LEGADO; setores e catálogo de serviços hardcoded no client.
+Next.js 15 com landing em `/`, login em `/login`, AppShell slim, kanban multi-coluna, consultas, Equipe, Oficinas super-admin, trial/billing gate.
 
-**Inventário:** [feature-inventory.md](./feature-inventory.md)
+**Specs:** [landing](../../docs/superpowers/specs/2026-09-15-worqera-landing-page.md) · [saas-tenancy](../../docs/superpowers/specs/2026-09-14-worqera-saas-tenancy.md)
 
 ## Stack
 
-Next 15.2 / React 19 / Tailwind 4 / Radix · `lib/apiService.ts` · auth cookie+localStorage · `NEXT_PUBLIC_APP_NAME=Worqera`
+Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · JetBrains Mono
 
 ## Mapa rápido
 
 | Área | Status |
 |------|--------|
-| Login / dashboard / kanban / clientes / consultas / funcionários / admin / TVs | LIVE |
-| `/pedidos` lista | **404** |
-| `/emails` | HIDDEN |
-| `/dashboard/setores`, `/tv` | LIVE orfãs no nav |
-| Toaster sonner | usado sem `<Toaster />` |
-| Signup / billing / setores CRUD / conta setor | ausente |
-| Catálogo serviços | hardcoded em `/pedidos/novo` |
-
-## Kanban UI (resumo)
-
-DnD, dialog assignee, filtros (hoje/atrasados/prioridade), compact, comando rápido, PDF, `CardDetalhesPedido`, `MoverSetorButton`, cores `lib/setores.ts`. Colunas = **status API**, não setores CRUD.
+| Landing `/` | LIVE (CTA trial) |
+| Login `/login` · signup | LIVE |
+| AppShell + logo + meV1 | LIVE |
+| Equipe `/settings/equipe` | LIVE |
+| Oficinas `/admin/shops` | LIVE (allowlist) |
+| Dashboard / Kanban / Consultas | LIVE |
+| Serviços / Pedidos / etiqueta | LIVE |
+| Billing lock UX | LIVE (AbacatePay) |
+| TV Cliente / TV Oficina | LIVE |
 
 ## Próximo
 
-Quick-wins W (Toaster, `/pedidos`, logout, nav) → W1/W2 com API A1/A2. Ver [roadmap.md](./roadmap.md).
+AbacatePay produção; polish LP assets de parceiros; TV settings.

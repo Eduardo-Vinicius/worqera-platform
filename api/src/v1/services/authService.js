@@ -1,10 +1,12 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Shop = require('../models/Shop');
 const Membership = require('../models/Membership');
 const Subscription = require('../models/Subscription');
 const Sector = require('../models/Sector');
+const { isPlatformAdminEmail } = require('../middleware/platformAdmin');
 
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 const JWT_SECRET = () => process.env.JWT_SECRET || 'changeme';
@@ -61,7 +63,8 @@ function signRefreshToken(user) {
   });
 }
 
-async function signup({ email, password, name, shopName, shopSlug }) {
+async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref }) {
+  const { generatePartnerCode } = require('./shopService');
   const normalizedEmail = String(email).toLowerCase().trim();
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
@@ -97,10 +100,16 @@ async function signup({ email, password, name, shopName, shopSlug }) {
     name: name || normalizedEmail.split('@')[0],
   });
 
+  const referredBy = String(partnerCode || ref || '')
+    .trim()
+    .toUpperCase() || null;
+
   const shop = await Shop.create({
     name: shopName || `${user.name}'s Shop`,
     slug,
     status: 'active',
+    partnerCode: generatePartnerCode(),
+    referredByPartnerCode: referredBy,
     branding: {
       displayName: shopName || user.name,
       emailFromName: shopName || user.name,
@@ -178,9 +187,13 @@ async function login({ email, password }) {
   const primary = memberships[0] || null;
   const accessToken = signAccessToken({ user, membership: primary });
   const refreshToken = signRefreshToken(user);
+  const primaryShop = primary ? await Shop.findById(primary.shopId).lean() : null;
 
   return {
     user: { id: user._id, email: user.email, name: user.name },
+    shop: primaryShop
+      ? { id: primaryShop._id, name: primaryShop.name, slug: primaryShop.slug }
+      : null,
     memberships: memberships.map((m) => ({
       id: m._id,
       shopId: m.shopId,
@@ -214,7 +227,73 @@ async function refresh(refreshToken) {
 
   const membership = await Membership.findOne({ userId: user._id, active: true });
   const accessToken = signAccessToken({ user, membership });
-  return { token: accessToken, accessToken };
+  const nextRefresh = signRefreshToken(user);
+  return { token: accessToken, accessToken, refreshToken: nextRefresh };
+}
+
+/**
+ * Always returns ok (anti-enumeration). In development, resetToken is returned
+ * so local flows work without email. Production should wire SES later.
+ */
+async function requestPasswordReset(email) {
+  const normalized = String(email || '')
+    .toLowerCase()
+    .trim();
+  const user = normalized ? await User.findOne({ email: normalized }) : null;
+  if (!user) {
+    return { ok: true };
+  }
+
+  const raw = crypto.randomBytes(32).toString('hex');
+  user.passwordResetTokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+  user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
+  await user.save();
+
+  const out = { ok: true };
+  if (process.env.NODE_ENV !== 'production') {
+    out.resetToken = raw;
+    out.devHint = 'Use POST /auth/reset-password with this token (dev only)';
+  }
+
+  const base = (process.env.PUBLIC_WEB_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
+  const resetUrl = `${base}/reset-password?token=${encodeURIComponent(raw)}`;
+  try {
+    const { sendMail } = require('./mailer');
+    await sendMail({
+      to: user.email,
+      subject: 'Redefinir senha',
+      text: `Redefina sua senha: ${resetUrl}\n\nToken válido por 1 hora.`,
+      html: `<p>Redefina sua senha:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Válido por 1 hora.</p>`,
+    });
+  } catch (err) {
+    console.error('[auth] reset email failed', err.message);
+  }
+  return out;
+}
+
+async function resetPassword({ token, password }) {
+  if (!token || !password || String(password).length < 6) {
+    const err = new Error('token and password (min 6) required');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
+  const user = await User.findOne({
+    passwordResetTokenHash: hash,
+    passwordResetExpires: { $gt: new Date() },
+  });
+  if (!user) {
+    const err = new Error('Invalid or expired reset token');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  user.passwordHash = await hashPassword(password);
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpires = null;
+  await user.save();
+  return { ok: true };
 }
 
 async function me(userId) {
@@ -238,6 +317,7 @@ async function me(userId) {
 
   return {
     user: { id: user._id, email: user.email, name: user.name },
+    platformAdmin: isPlatformAdminEmail(user.email),
     memberships: memberships.map((m) => {
       const shop = shopById[String(m.shopId)];
       const sub = subByShop[String(m.shopId)];
@@ -247,7 +327,14 @@ async function me(userId) {
         role: m.role,
         sectorIds: m.sectorIds,
         shop: shop
-          ? { id: shop._id, name: shop.name, slug: shop.slug, status: shop.status }
+          ? {
+              id: shop._id,
+              name: shop.name,
+              slug: shop.slug,
+              status: shop.status,
+              branding: shop.branding || {},
+              partnerCode: shop.partnerCode || null,
+            }
           : null,
         subscription: sub
           ? {
@@ -267,6 +354,8 @@ module.exports = {
   login,
   refresh,
   me,
+  requestPasswordReset,
+  resetPassword,
   hashPassword,
   verifyPassword,
   signAccessToken,
