@@ -56,8 +56,8 @@ export function AppSidebar({
     return () => window.removeEventListener("wq-session-updated", sync)
   }, [])
 
-  const isAdmin = role === "admin" || role === "owner"
-  const isOwnerAdmin = isAdmin
+  const isOwner = role === "owner"
+  const isOwnerAdmin = role === "admin" || role === "owner"
   const isSector = role === "sector"
 
   return (
@@ -89,7 +89,7 @@ export function AppSidebar({
         {NAV_SECTIONS.map((section) => {
           const items = section.items.filter((item) => {
             if (item.platformOnly) return platformAdmin
-            if (item.adminOnly && !isAdmin) return false
+            if (item.ownerOnly && !isOwner) return false
             if (item.ownerAdminOnly && !isOwnerAdmin) return false
             if (item.hideForSector && isSector) return false
             return true

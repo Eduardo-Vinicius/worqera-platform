@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(authMiddleware.requireAdmin);
+router.use(authMiddleware.requireOwner);
 
 router.get('/departamentos', metricsController.getDistribuicaoDepartamentos);
 router.get('/funcionarios', metricsController.getDistribuicaoFuncionarios);

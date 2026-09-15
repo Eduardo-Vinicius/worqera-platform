@@ -22,3 +22,11 @@ module.exports.requireAdmin = (req, res, next) => {
   }
   next();
 };
+
+module.exports.requireOwner = (req, res, next) => {
+  const role = String(req.user?.role || req.user?.perfil || '').toLowerCase();
+  if (role !== 'owner') {
+    return res.status(403).json({ error: 'Acesso restrito ao proprietário.', code: 'FORBIDDEN' });
+  }
+  next();
+};

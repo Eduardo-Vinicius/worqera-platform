@@ -157,7 +157,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1320px] space-y-5 px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-[1320px] space-y-5">
         {loading && <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>}
         {error && <p className="text-sm text-[var(--wq-danger)]">{error}</p>}
 

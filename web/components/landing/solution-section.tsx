@@ -1,51 +1,105 @@
 "use client"
 
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
-import { Check } from "lucide-react"
+import { ArrowRight, Eye, LayoutGrid, ShieldCheck, Sparkles, Users } from "lucide-react"
+
+const BENEFITS = [
+  {
+    icon: LayoutGrid,
+    pt: {
+      title: "Kanban que a equipe entende",
+      desc: "Cada setor é uma coluna. Arraste o pedido e todo mundo sabe o que fazer agora.",
+    },
+    en: {
+      title: "A kanban your team gets",
+      desc: "Each sector is a column. Move the order and everyone knows what to do next.",
+    },
+  },
+  {
+    icon: Eye,
+    pt: {
+      title: "Cliente sem ficar no escuro",
+      desc: "Consulta pública do status — menos ligação, menos WhatsApp, mais confiança.",
+    },
+    en: {
+      title: "Customers stay informed",
+      desc: "Public status lookup — fewer calls, less WhatsApp, more trust.",
+    },
+  },
+  {
+    icon: Users,
+    pt: {
+      title: "Papéis certos para cada pessoa",
+      desc: "Dono vê o crítico. Atendimento e setor vêem só o que precisam. Operação limpa.",
+    },
+    en: {
+      title: "The right role for each person",
+      desc: "Owner sees the critical stuff. Front desk and sectors see only what they need.",
+    },
+  },
+  {
+    icon: ShieldCheck,
+    pt: {
+      title: "Qualidade de produto SaaS",
+      desc: "Rápido, estável e pensado para o dia a dia da oficina — não uma planilha disfarçada.",
+    },
+    en: {
+      title: "Real SaaS product quality",
+      desc: "Fast, stable, built for workshop days — not a spreadsheet in disguise.",
+    },
+  },
+]
 
 export function SolutionSection() {
-  const { t } = useLanguage()
+  const { locale } = useLanguage()
+  const pt = locale === "pt"
 
   return (
-    <section id="solution" className="py-20 lg:py-32 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          <div>
-            <h2 className="lp-brand text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground mb-6 text-balance">
-              {t.solution.title}
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8">{t.solution.subtitle}</p>
-
-            <ul className="space-y-4">
-              {t.solution.features.map((feature, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="h-4 w-4 text-primary" />
-                  </div>
-                  <span className="text-foreground">{feature}</span>
-                </li>
-              ))}
-            </ul>
+    <section id="vantagens" className="relative py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary sm:text-sm">
+            <Sparkles className="h-3.5 w-3.5" />
+            {pt ? "Por que assinar a Worqera" : "Why subscribe to Worqera"}
           </div>
+          <h2 className="lp-brand mb-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            {pt ? "Clareza que faz a oficina render" : "Clarity that makes the workshop run"}
+          </h2>
+          <p className="text-base text-muted-foreground sm:text-lg">
+            {pt
+              ? "Menos caos, mais entrega. Você assina para ter visibilidade, ritmo e uma experiência que a equipe gosta de usar."
+              : "Less chaos, more delivery. You subscribe for visibility, pace, and software the team actually enjoys using."}
+          </p>
+        </div>
 
-          <div className="relative">
-            <div className="aspect-[4/3] rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <div className="flex h-full items-center justify-center rounded-xl bg-muted/70">
-                <div className="w-full max-w-sm px-4 text-center">
-                  <div className="mb-4 flex justify-center gap-2">
-                    <div className="h-2.5 w-16 rounded-full bg-primary/30" />
-                    <div className="h-2.5 w-16 rounded-full bg-primary/15" />
-                    <div className="h-2.5 w-16 rounded-full bg-border" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="h-14 rounded-lg border border-border bg-card shadow-sm" />
-                    ))}
-                  </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+          {BENEFITS.map((item) => {
+            const copy = pt ? item.pt : item.en
+            const Icon = item.icon
+            return (
+              <div
+                key={copy.title}
+                className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm transition-colors hover:border-primary/30 sm:p-6"
+              >
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
                 </div>
+                <h3 className="mb-2 text-base font-semibold text-foreground">{copy.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{copy.desc}</p>
               </div>
-            </div>
-          </div>
+            )
+          })}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <Button asChild size="lg" className="glow-primary h-11 rounded-xl bg-primary px-7 hover:bg-secondary">
+            <Link href="/signup">
+              {pt ? "Quero testar agora" : "I want to try now"}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </div>
     </section>

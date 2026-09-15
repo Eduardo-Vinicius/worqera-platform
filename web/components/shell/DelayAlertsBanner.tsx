@@ -6,10 +6,10 @@ import { listDelayAlertsV1, sendDelayDigestV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { X } from "lucide-react"
 
-function isOwnerOrAdmin() {
+function isOwner() {
   if (typeof window === "undefined") return false
   const role = String(localStorage.getItem("role") || "").toLowerCase()
-  return role === "owner" || role === "admin"
+  return role === "owner"
 }
 
 export function DelayAlertsBanner() {
@@ -19,7 +19,7 @@ export function DelayAlertsBanner() {
   const [allowed, setAllowed] = useState(false)
 
   useEffect(() => {
-    setAllowed(isOwnerOrAdmin())
+    setAllowed(isOwner())
   }, [])
 
   useEffect(() => {

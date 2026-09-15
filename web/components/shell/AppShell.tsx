@@ -111,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               "w-full flex-1",
               fullBleed
                 ? "max-w-none px-0 py-0"
-                : "mx-auto max-w-[1320px] px-5 py-6 md:px-8 md:py-7"
+                : "mx-auto max-w-[1320px] px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-7"
             )}
           >
             {children}

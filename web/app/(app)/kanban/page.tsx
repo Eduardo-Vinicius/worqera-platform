@@ -701,8 +701,8 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="flex h-[calc(100vh-3.5rem)] min-h-[640px] flex-col md:h-[calc(100vh-0px)]">
-        <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 pt-0 md:px-6">
+      <div className="flex h-[calc(100dvh-3.5rem)] min-h-[480px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
+        <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
             subtitle={

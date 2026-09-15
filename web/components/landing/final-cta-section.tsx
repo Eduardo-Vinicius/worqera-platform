@@ -27,7 +27,7 @@ export function FinalCtaSection() {
               className="glow-primary rounded-xl bg-primary px-8 hover:bg-secondary"
             >
               <Link href="/signup">
-                {pt ? "Criar conta grátis" : "Create free account"}
+                {pt ? "Testar grátis agora" : "Try free now"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -46,10 +46,10 @@ export function FinalCtaSection() {
           </p>
         </div>
 
-        <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-8 text-center text-sm text-muted-foreground">
           {pt
-            ? "Com A Casa do Tênis, Sapataria Paulista e Axisbyte"
-            : "With A Casa do Tênis, Sapataria Paulista and Axisbyte"}
+            ? "Oficinas como A Casa do Tênis, Sapataria Paulista e Axisbyte já usam no dia a dia"
+            : "Workshops like A Casa do Tênis, Sapataria Paulista, and Axisbyte use it every day"}
         </p>
       </div>
     </section>

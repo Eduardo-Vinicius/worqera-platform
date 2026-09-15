@@ -2,6 +2,7 @@
 
 ## 2026-09-15
 
+- **ACL:** rotas `/metrics` (v1 + legado) restritas a role `owner` (admin de loja não vê financeiro/métricas).
 - **Carga CdT:** scripts `extract-cdt-report001.py`, `import-cdt-report001.js`, `import-cdt-open-snapshot.js`; histórico `delivered` com códigos `NNNN-26`; guia PRD em `docs/ops/cdt-historical-import-prd.md`.
 - **Consultas API:** `listClients` com `q` + cursor/limit; `listOrders` status CSV + code prefix; index `{shopId,status,createdAt}`.
 

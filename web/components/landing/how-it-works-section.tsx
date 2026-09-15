@@ -6,13 +6,13 @@ export function HowItWorksSection() {
   const { t } = useLanguage()
 
   return (
-    <section id="how-it-works" className="scroll-mt-24 py-16 lg:py-28">
+    <section id="how-it-works" className="scroll-mt-24 py-14 sm:py-16 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 text-center sm:mb-16">
-          <h2 className="lp-brand mb-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+        <div className="mb-10 text-center sm:mb-12">
+          <h2 className="lp-brand mb-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {t.howItWorks.title}
           </h2>
-          <p className="text-muted-foreground">{t.howItWorks.subtitle}</p>
+          <p className="text-base text-muted-foreground sm:text-lg">{t.howItWorks.subtitle}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:gap-10">

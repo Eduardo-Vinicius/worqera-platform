@@ -21,11 +21,11 @@ export type NavItem = {
   href: string
   label: string
   icon: LucideIcon
-  /** Shop owner/admin only (financeiro etc.) */
-  adminOnly?: boolean
+  /** Shop owner only (financeiro / métricas) */
+  ownerOnly?: boolean
   /** Owner/admin — hide from atendimento/sector */
   ownerAdminOnly?: boolean
-  /** Hide from role=sector floor accounts */
+  /** Hide from role=sector accounts */
   hideForSector?: boolean
   /** Platform Worqera super-admin only */
   platformOnly?: boolean
@@ -62,8 +62,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Admin",
     items: [
-      { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, adminOnly: true },
-      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, adminOnly: true },
+      { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerOnly: true },
+      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerOnly: true },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
     ],
   },

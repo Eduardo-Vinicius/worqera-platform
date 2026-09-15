@@ -35,7 +35,8 @@ function die(msg) {
 print(`Reading payload: ${PAYLOAD_PATH}`);
 let payload;
 try {
-  payload = JSON.parse(cat(PAYLOAD_PATH));
+  // fs.readFileSync is reliable across mongosh versions; `cat()` is not always defined.
+  payload = JSON.parse(fs.readFileSync(PAYLOAD_PATH, 'utf8'));
 } catch (e) {
   die(`Não li o payload em ${PAYLOAD_PATH}: ${e}`);
 }

@@ -161,7 +161,7 @@ export default function PedidosPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1100px] space-y-4 px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-[1100px] space-y-4">
         <div className="flex flex-wrap gap-2">
           {(
             [

@@ -7,7 +7,7 @@ export function ClientsSection() {
   const { t } = useLanguage()
 
   return (
-    <section className="py-16 lg:py-32 relative">
+    <section id="clientes" className="py-14 sm:py-16 lg:py-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card/50 backdrop-blur-sm mb-6">

@@ -66,7 +66,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
+  if (
+    pathname.startsWith('/admin/financeiro') ||
+    pathname.startsWith('/admin/metrics')
+  ) {
+    if (role !== 'owner') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  } else if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
     if (role !== 'admin' && role !== 'owner') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

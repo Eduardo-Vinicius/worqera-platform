@@ -133,11 +133,11 @@ export const translations = {
         },
         {
           name: "Axisbyte",
-          industry: "Tecnologia",
+          industry: "Cliente Worqera",
         },
         {
           name: "Outros 12+ clientes",
-          industry: "Diversos Setores",
+          industry: "Diversos setores",
         },
       ],
       testimonials: [
@@ -495,10 +495,10 @@ export const translations = {
     },
     // Final CTA
     finalCta: {
-      headline: "Transforme sua gestão de pedidos",
-      subheadline: "Junte-se a empresas como A Casa do Tênis e Sapataria Paulista. Comece a otimizar sua operação hoje mesmo.",
-      cta: "Solicitar Demonstração",
-      reassurance: "Resposta rápida • Sem compromisso • Implantação em 1 semana",
+      headline: "Pronto para testar na sua oficina?",
+      subheadline: "Crie a conta, veja o kanban e sinta a diferença em minutos — com oficinas que já usam no dia a dia.",
+      cta: "Testar grátis",
+      reassurance: "7 dias grátis · Sem cartão · Cancele quando quiser",
     },
     // Footer
     footer: {
@@ -638,11 +638,11 @@ export const translations = {
         },
         {
           name: "Axisbyte",
-          industry: "Technology",
+          industry: "Worqera customer",
         },
         {
           name: "12+ other clients",
-          industry: "Various Industries",
+          industry: "Various industries",
         },
       ],
       testimonials: [
@@ -1000,10 +1000,10 @@ export const translations = {
     },
     // Final CTA
     finalCta: {
-      headline: "Transform your order management",
-      subheadline: "Join companies like A Casa do Tênis and Sapataria Paulista. Start optimizing your operation today.",
-      cta: "Request Demo",
-      reassurance: "Quick response • No commitment • Implementation in 1 week",
+      headline: "Ready to try it in your workshop?",
+      subheadline: "Create an account, open the kanban, and feel the difference in minutes — with workshops already using it daily.",
+      cta: "Try free",
+      reassurance: "7 days free · No card · Cancel anytime",
     },
     // Footer
     footer: {

@@ -2,7 +2,11 @@
 
 ## 2026-09-15
 
-- **Landing + branding:** `/` = LP (quem somos, parceiros CdT/Sapataria Paulista/Axisbyte, AbacatePay, CTA trial); login em `/login`; logo SVG + favicon; auth/shell alinhados às cores do site.
+- **LP conversão:** hero full-viewport com mock kanban; tema claro/escuro (toggle); Axisbyte só como cliente; bloco AbacatePay/pagamento/usabilidade; CTAs “Testar grátis”; sem crédito “produto Axisbyte”.
+- **ACL:** Financeiro + Métricas só `owner` (nav, middleware, API metrics).
+- **Copy:** removido “chão” da UI (Equipe → “Setor”).
+- **Mobile SaaS:** padding shell/dashboard/pedidos/kanban (`100dvh`, menos min-height no mobile).
+- **Landing + branding:** `/` = LP; login em `/login`; logo SVG + favicon; auth/shell alinhados às cores do site.
 - **Consultas:** hub com Finalizados; pedidos com tabs Ativos/Finalizados/Todos, debounce, carregar mais; clientes com busca server-side (`q`) + paginação.
 
 ## 2026-09-14

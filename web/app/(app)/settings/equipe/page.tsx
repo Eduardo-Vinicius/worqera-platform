@@ -284,7 +284,7 @@ export default function EquipePage() {
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="atendimento">Atendimento</SelectItem>
-                  <SelectItem value="sector">Setor (chão)</SelectItem>
+                  <SelectItem value="sector">Setor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -333,7 +333,7 @@ export default function EquipePage() {
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="atendimento">Atendimento</SelectItem>
-                  <SelectItem value="sector">Setor (chão)</SelectItem>
+                  <SelectItem value="sector">Setor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -435,7 +435,7 @@ export default function EquipePage() {
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="atendimento">Atendimento</SelectItem>
-                            <SelectItem value="sector">Setor (chão)</SelectItem>
+                            <SelectItem value="sector">Setor</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

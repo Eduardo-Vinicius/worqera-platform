@@ -9,7 +9,7 @@ export function PricingSection() {
   const { locale, t } = useLanguage()
 
   return (
-    <section id="pricing" className="relative py-16 lg:py-32">
+    <section id="pricing" className="relative py-14 sm:py-16 lg:py-24">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10 text-center sm:mb-16">
           <h2 className="lp-brand mb-3 text-balance text-2xl font-semibold tracking-tight text-foreground sm:mb-4 sm:text-3xl md:text-4xl lg:text-5xl">
@@ -88,7 +88,7 @@ export function PricingSection() {
                     : "border-border hover:bg-card/80"
                 }`}
               >
-                <Link href="/signup">{locale === "pt" ? "Começar grátis" : "Start free"}</Link>
+                <Link href="/signup">{locale === "pt" ? "Testar grátis" : "Try free"}</Link>
               </Button>
             </div>
           ))}

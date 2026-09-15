@@ -7,13 +7,13 @@ export function FaqSection() {
   const { t } = useLanguage()
 
   return (
-    <section id="faq" className="py-20 lg:py-32 relative">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
+    <section id="faq" className="relative py-14 sm:py-16 lg:py-24">
+      <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 text-center sm:mb-12">
+          <h2 className="lp-brand mb-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {t.faq.title}
           </h2>
-          <p className="text-lg text-muted-foreground">{t.faq.subtitle}</p>
+          <p className="text-base text-muted-foreground sm:text-lg">{t.faq.subtitle}</p>
         </div>
 
         <Accordion type="single" collapsible className="space-y-4">
