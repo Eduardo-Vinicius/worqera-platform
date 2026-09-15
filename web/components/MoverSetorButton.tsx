@@ -23,9 +23,10 @@ interface Props {
 function mapProximo(
   data: Awaited<ReturnType<typeof getProximoSetorService>>,
 ): { id: string; nome: string } | null {
-  if (!data || data.setorId == null) return null
-  const nome = "nome" in data ? data.nome : data.setor?.name
-  return { id: String(data.setorId), nome: String(nome || "") }
+  if (!data?.setorId) return null
+  const anyData = data as { nome?: string; setor?: { name?: string } }
+  const nome = anyData.nome || anyData.setor?.name || ""
+  return { id: String(data.setorId), nome: String(nome) }
 }
 
 export const MoverSetorButton: React.FC<Props> = ({ pedidoId, onSuccess }) => {

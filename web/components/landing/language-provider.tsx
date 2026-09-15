@@ -1,12 +1,14 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import { type Locale, getTranslation, type translations } from "@/components/landing/i18n"
+import { type Locale, getTranslation } from "@/components/landing/i18n"
+
+type Translation = ReturnType<typeof getTranslation>
 
 type LanguageContextType = {
   locale: Locale
   setLocale: (locale: Locale) => void
-  t: typeof translations.pt
+  t: Translation
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
@@ -14,7 +16,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<Locale>("pt")
 
-  const value = {
+  const value: LanguageContextType = {
     locale,
     setLocale,
     t: getTranslation(locale),
