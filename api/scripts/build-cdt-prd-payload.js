@@ -73,7 +73,9 @@ const orders = rows.map((r) => ({
 const payload = {
   version: 1,
   shopSlug: 'casa-do-tenis',
-  source: 'report001 Pedidos por Cliente 14/07/2026-14/09/2026',
+  // Rótulo operacional gravado no payload (não cita arquivo interno)
+  source: 'carga-historica-manual',
+  sourceLabel: 'Carga histórica manual · processo de importação (jul–set/2026)',
   builtAt: new Date().toISOString(),
   orderCount: orders.length,
   orders,

@@ -97,7 +97,9 @@ O parser agora pega só o nome **antes** do código (não os valores da linha an
 
 ```js
 // mongo shell / Compass — só no shop CdT
-db.orders.deleteMany({ shopId: ObjectId('…'), notes: /import report001/ })
+db.orders.deleteMany({ shopId: ObjectId('…'), notes: /Carga histórica manual/ })
+# legado (se já rodou import antigo):
+# db.orders.deleteMany({ shopId: ObjectId('…'), notes: /import report001/ })
 db.clients.deleteMany({ shopId: ObjectId('…'), phone: null, email: null, /* cuidado: só se não houver clientes reais novos */ })
 ```
 

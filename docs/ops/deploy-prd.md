@@ -31,20 +31,24 @@ Nginx: `upstream` → `server worqera-api:80;`
 
 ## 3) Web
 
+`.env.prod` **não é obrigatório** (igual experiência Procedy no dia a dia).  
+Defaults: rede `sharednet` + `NEXT_PUBLIC_API_URL=https://api.worqera.com`.
+
 ```bash
 cd web
-cp .env.prod.example .env.prod
-chmod 600 .env.prod
-# NEXT_PUBLIC_API_URL=https://api.seudominio.com  (sem /api/v1)
-# WORQERA_DOCKER_NETWORK=sharednet
+# se a API pública for outro domínio:
+NEXT_PUBLIC_API_URL=https://api.seudominio.com make prod-up
 
-make prod-up          # ou na raiz: make web-prod-up
+# ou só:
+make prod-up
 ```
+
+Opcional: `cp .env.prod.example .env.prod` só se quiser fixar URL/admins no arquivo.
 
 Nginx: `upstream` → `server worqera-web:80;`
 
 ## Notas
 
 - `NEXT_PUBLIC_*` entram no **build** da imagem — mudar URL = rebuild.
-- Dev local continua com `api/docker-compose.yml` (Mongo `:27017`) + `make api-dev` / `make web-dev`.
+- Dev local: `api/docker-compose.yml` (Mongo `:27017`) + `make api-dev` / `make web-dev`.
 - AbacatePay fica `Enabled=false` até ligar cobrança.
