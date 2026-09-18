@@ -8,7 +8,6 @@ import { getDashboardService } from "@/lib/apiService"
 import { getShopCurrentV1, sendWeeklyDigestV1 } from "@/lib/apiV1"
 import { SetupChecklist } from "@/components/shell/SetupChecklist"
 import { ReferralCard } from "@/components/shell/ReferralCard"
-import { TvLaunchPanel } from "@/components/shell/TvLaunchPanel"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -17,9 +16,11 @@ import {
   Clock3,
   KanbanSquare,
   Mail,
+  Monitor,
   Package,
   Plus,
   Search,
+  Tv,
   Users,
 } from "lucide-react"
 
@@ -158,6 +159,8 @@ export default function DashboardPage() {
     { href: "/kanban", label: "Kanban", icon: KanbanSquare },
     { href: "/consultas", label: "Consultas", icon: Search },
     { href: "/clientes", label: "Clientes", icon: Users },
+    { href: "/tv", label: "TV Cliente", icon: Tv, external: true },
+    { href: "/tv-dashboard", label: "TV Oficina", icon: Monitor, external: true },
   ]
 
   return (
@@ -204,8 +207,6 @@ export default function DashboardPage() {
         {!loading && !error && (
           <>
             <SetupChecklist openOrders={open} totalClients={clients} />
-
-            <TvLaunchPanel />
 
             {/* Hero strip — mais compacto */}
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
@@ -277,13 +278,15 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <nav aria-label="Atalhos" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <nav aria-label="Atalhos" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {shortcuts.map((s) => {
                 const Icon = s.icon
                 return (
                   <Link
                     key={s.href}
                     href={s.href}
+                    target={s.external ? "_blank" : undefined}
+                    rel={s.external ? "noopener noreferrer" : undefined}
                     className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
                       s.primary
                         ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]"
@@ -362,12 +365,10 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-4 py-3">
                     <div>
                       <h2 className="text-sm font-semibold text-[var(--wq-text)]">Carga por setor</h2>
-                      <p className="text-[11px] text-[var(--wq-text-muted)]">
-                        No kanban · na TV Oficina aparece a mesma fila
-                      </p>
+                      <p className="text-[11px] text-[var(--wq-text-muted)]">Distribuição do kanban</p>
                     </div>
-                    <Link href="/tv-dashboard" target="_blank" className="text-xs font-semibold text-[var(--wq-brand)] hover:underline">
-                      TV →
+                    <Link href="/kanban" className="text-xs font-semibold text-[var(--wq-brand)] hover:underline">
+                      Kanban →
                     </Link>
                   </div>
                   <ul className="max-h-[280px] space-y-2.5 overflow-y-auto px-4 py-3">

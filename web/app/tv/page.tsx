@@ -249,77 +249,84 @@ export default function TvClientePage() {
   const visible = pages[pageIndex] || []
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--wq-ink)] p-8 text-white md:p-12">
-      <header className="mb-10 flex items-end justify-between gap-6">
-        <div>
+    <div className="box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[var(--wq-ink)] px-4 py-3 text-white sm:px-6 sm:py-4 md:px-8 md:py-5">
+      <header className="mb-3 flex shrink-0 items-end justify-between gap-4 sm:mb-4">
+        <div className="min-w-0">
           {showLogo ? (
-            <div className="mb-2 flex items-center gap-3">
+            <div className="mb-1 flex items-center gap-2.5">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="h-10 w-auto object-contain" />
+                <img src={logoUrl} alt="" className="h-7 w-auto object-contain sm:h-8" />
               ) : null}
-              <p className="text-sm font-medium" style={{ color: brandPrimary }}>
+              <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandPrimary }}>
                 {brandName || "Worqera"}
               </p>
             </div>
           ) : (
-            <p className="text-sm text-white/50">Worqera</p>
+            <p className="text-xs text-white/50">Worqera</p>
           )}
-          <h1 className="text-4xl font-semibold md:text-5xl">{title}</h1>
+          <h1 className="truncate text-2xl font-semibold sm:text-3xl md:text-4xl">{title}</h1>
           {tiles.length > 0 ? (
-            <p className="mt-2 text-base text-white/55">
+            <p className="mt-1 text-sm text-white/50">
               {tilesPerPage} por tela
               {pages.length > 1
-                ? ` · página ${pageIndex + 1}/${pages.length} · gira sozinho`
+                ? ` · ${pageIndex + 1}/${pages.length}`
                 : ` · ${tiles.length} pedido${tiles.length === 1 ? "" : "s"}`}
             </p>
           ) : null}
         </div>
-        <div className="text-right font-mono text-2xl tabular-nums md:text-3xl">
+        <div className="shrink-0 text-right font-mono text-xl tabular-nums sm:text-2xl md:text-3xl">
           {clock}
-          <p className="font-sans text-sm text-white/50">Atualizado há {secondsAgo}s</p>
+          <p className="font-sans text-xs text-white/45 sm:text-sm">há {secondsAgo}s</p>
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {error && (
-          <p className="mb-4 text-lg text-amber-200" role="status">
+          <p className="mb-2 shrink-0 text-sm text-amber-200" role="status">
             {error}
           </p>
         )}
 
         {loading && tiles.length === 0 ? (
-          <p className="m-auto text-2xl text-white/60">Carregando pedidos…</p>
+          <p className="m-auto text-xl text-white/60">Carregando pedidos…</p>
         ) : tiles.length === 0 ? (
-          <p className="m-auto text-2xl text-white/60">Nenhum pedido em andamento</p>
+          <p className="m-auto text-xl text-white/60">Nenhum pedido em andamento</p>
         ) : (
           <>
             <div
               key={pageIndex}
-              className={`grid min-h-0 flex-1 grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 ${
+              className={`grid min-h-0 flex-1 gap-3 overflow-hidden sm:gap-4 ${
+                visible.length <= 2
+                  ? "grid-cols-1 sm:grid-cols-2"
+                  : visible.length <= 4
+                    ? "grid-cols-2"
+                    : "grid-cols-2 xl:grid-cols-3"
+              } ${
                 reduceMotion
                   ? ""
                   : "motion-safe:animate-[tvFade_500ms_ease] motion-reduce:animate-none"
               }`}
+              style={{ gridAutoRows: "minmax(0, 1fr)" }}
             >
               {visible.map((tile) => (
                 <article
                   key={tile.id}
-                  className={`flex flex-col items-center justify-center rounded-3xl border px-6 py-8 text-center ${
+                  className={`flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-2xl border px-4 py-4 text-center sm:px-6 sm:py-5 ${
                     tile.kind === "ready"
                       ? "border-[var(--wq-action)]/50 bg-[var(--wq-action)]/15"
                       : "border-white/10 bg-white/5"
                   }`}
                 >
                   <p
-                    className={`font-mono text-5xl font-semibold tracking-wide md:text-7xl ${
+                    className={`font-mono text-4xl font-semibold tracking-wide sm:text-5xl md:text-6xl lg:text-7xl ${
                       tile.kind === "ready" ? "text-teal-100" : "text-white"
                     }`}
                   >
                     {tile.code}
                   </p>
                   <p
-                    className={`mt-4 text-2xl md:text-3xl ${
+                    className={`mt-2 text-lg sm:mt-3 sm:text-2xl md:text-3xl ${
                       tile.kind === "ready" ? "text-teal-50" : "text-white/80"
                     }`}
                   >
@@ -330,12 +337,12 @@ export default function TvClientePage() {
             </div>
 
             {pages.length > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-3" aria-hidden="true">
+              <div className="mt-3 flex shrink-0 items-center justify-center gap-2.5 sm:mt-4" aria-hidden="true">
                 {pages.map((_, index) => (
                   <span
                     key={index}
-                    className={`h-2.5 rounded-full ${
-                      index === pageIndex ? "w-8 bg-white" : "w-2.5 bg-white/30"
+                    className={`h-2 rounded-full ${
+                      index === pageIndex ? "w-7 bg-white" : "w-2 bg-white/30"
                     } ${reduceMotion ? "" : "transition-[width,background-color] duration-500"}`}
                   />
                 ))}
@@ -347,7 +354,7 @@ export default function TvClientePage() {
 
       <style>{`
         @keyframes tvFade {
-          from { opacity: 0; transform: translateY(12px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @media (prefers-reduced-motion: reduce) {

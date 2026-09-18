@@ -21,10 +21,19 @@ const QUIET_BEEP =
 
 function TvFloorFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--wq-ink)] text-white">
-      <p className="text-2xl text-white/60">Carregando TV Oficina…</p>
+    <div className="flex h-[100dvh] items-center justify-center bg-[var(--wq-ink)] text-white">
+      <p className="text-xl text-white/60">Carregando TV Oficina…</p>
     </div>
   )
+}
+
+function gridColsClass(count: number) {
+  if (count <= 1) return "grid-cols-1"
+  if (count === 2) return "grid-cols-1 sm:grid-cols-2"
+  if (count === 3) return "grid-cols-1 sm:grid-cols-3"
+  if (count <= 4) return "grid-cols-2 lg:grid-cols-4"
+  if (count <= 6) return "grid-cols-2 lg:grid-cols-3"
+  return "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
 }
 
 function TvFloorInner() {
@@ -134,76 +143,79 @@ function TvFloorInner() {
   const secondsAgo = Math.max(0, Math.floor((now - fetchedAt) / 1000))
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--wq-ink)] p-8 text-white md:p-12">
-      <header className="mb-10 flex items-end justify-between gap-6">
-        <div>
-          <div className="mb-2 flex items-center gap-3">
+    <div className="box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[var(--wq-ink)] px-4 py-3 text-white sm:px-6 sm:py-4 md:px-8 md:py-5">
+      <header className="mb-3 flex shrink-0 items-center justify-between gap-4 sm:mb-4">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-2.5">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-10 w-auto object-contain" />
+              <img src={logoUrl} alt="" className="h-7 w-auto object-contain sm:h-8" />
             ) : null}
-            <p className="text-sm font-medium" style={{ color: brandPrimary }}>
+            <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandPrimary }}>
               {brandName || "Worqera"}
             </p>
           </div>
-          <h1 className="text-4xl font-semibold md:text-5xl">{floorTitle}</h1>
-          <p className="mt-1 text-lg text-white/60">
+          <h1 className="truncate text-2xl font-semibold sm:text-3xl md:text-4xl">{floorTitle}</h1>
+          <p className="mt-0.5 text-sm text-white/55">
             Fila por setor
             {hot ? " · fila quente" : ""}
           </p>
         </div>
-        <div className="text-right font-mono text-2xl tabular-nums md:text-3xl">
+        <div className="shrink-0 text-right font-mono text-xl tabular-nums sm:text-2xl md:text-3xl">
           {clock}
-          <p className="font-sans text-sm text-white/50">Atualizado há {secondsAgo}s</p>
+          <p className="font-sans text-xs text-white/45 sm:text-sm">há {secondsAgo}s</p>
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {error && (
-          <p className="mb-4 text-lg text-[var(--wq-warn)]" role="status">
+          <p className="mb-2 shrink-0 text-sm text-[var(--wq-warn)]" role="status">
             {error}
           </p>
         )}
 
         {loading && sectors.length === 0 ? (
-          <p className="m-auto text-2xl text-white/60">Carregando setores…</p>
+          <p className="m-auto text-xl text-white/60">Carregando setores…</p>
         ) : visible.length === 0 ? (
-          <p className="m-auto text-2xl text-white/60">
+          <p className="m-auto text-xl text-white/60">
             {hot ? "Nenhum pedido atrasado ou de alta prioridade" : "Nenhum setor cadastrado"}
           </p>
         ) : (
-          <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            className={`grid min-h-0 flex-1 gap-3 overflow-hidden ${gridColsClass(visible.length)}`}
+            style={{ gridAutoRows: "minmax(0, 1fr)" }}
+          >
             {visible.map((sector) => {
               const flashing = flashIds.includes(sector.id)
               return (
                 <article
                   key={sector.id}
-                  className={`flex flex-col rounded-3xl border bg-white/5 p-5 ${
+                  className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border bg-white/5 p-3 sm:p-4 ${
                     flashing
                       ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]"
                       : "border-white/10"
                   } ${reduceMotion ? "" : "transition-[box-shadow,border-color] duration-300"}`}
                 >
-                  <div
-                    className="mb-4 h-1.5 w-12 rounded-full"
-                    style={{ backgroundColor: sector.color }}
-                    aria-hidden="true"
-                  />
-                  <p className="text-sm uppercase tracking-[0.18em] text-white/50">Setor</p>
-                  <h2 className="mt-1 truncate font-[family-name:var(--font-fraunces)] text-2xl">
-                    {sector.name}
-                  </h2>
-                  <p
-                    className="mt-3 font-mono text-6xl font-semibold tabular-nums leading-none md:text-7xl"
-                    style={{ color: sector.color }}
-                  >
-                    {sector.count}
-                  </p>
-                  <p className="mt-2 text-sm text-white/50">
-                    {sector.count === 1 ? "1 pedido" : `${sector.count} pedidos`}
-                  </p>
+                  <div className="mb-2 flex shrink-0 items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div
+                        className="mb-1.5 h-1 w-10 rounded-full"
+                        style={{ backgroundColor: sector.color }}
+                        aria-hidden="true"
+                      />
+                      <h2 className="truncate text-base font-semibold sm:text-lg md:text-xl">
+                        {sector.name}
+                      </h2>
+                    </div>
+                    <p
+                      className="shrink-0 font-mono text-3xl font-semibold tabular-nums leading-none sm:text-4xl md:text-5xl"
+                      style={{ color: sector.color }}
+                    >
+                      {sector.count}
+                    </p>
+                  </div>
 
-                  <ul className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5">
                     {sector.orders.length === 0 && (
                       <li className="text-sm text-white/40">Fila vazia</li>
                     )}
@@ -212,16 +224,16 @@ function TvFloorInner() {
                       return (
                         <li
                           key={order.id}
-                          className="flex items-baseline justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2"
+                          className="flex items-baseline justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5"
                         >
-                          <span className="font-mono text-xl tracking-wide md:text-2xl">
+                          <span className="font-mono text-base tracking-wide sm:text-lg md:text-xl">
                             {order.code}
                           </span>
                           <span
-                            className={`shrink-0 text-sm font-semibold tabular-nums ${
+                            className={`shrink-0 text-xs font-semibold tabular-nums sm:text-sm ${
                               overdue
                                 ? `text-[var(--wq-warn)] ${reduceMotion ? "" : "animate-pulse"}`
-                                : "text-white/60"
+                                : "text-white/55"
                             }`}
                           >
                             {formatHoursInSector(order.hoursInSector)}
