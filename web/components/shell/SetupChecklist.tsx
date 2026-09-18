@@ -64,6 +64,7 @@ export function SetupChecklist({
 
   if (dismissed || !ready) return null
 
+  // TV não entra no tour — abre em card próprio no dashboard (localStorage)
   const steps: Step[] = [
     {
       id: "sectors",
@@ -89,17 +90,10 @@ export function SetupChecklist({
       href: "/settings/equipe",
       done: teamOk,
     },
-    {
-      id: "tv",
-      label: "Abrir TV Cliente ou Oficina",
-      href: "/settings/tv",
-      done: false,
-    },
   ]
 
-  const core = steps.filter((s) => s.id !== "tv")
-  const doneCount = core.filter((s) => s.done).length
-  if (doneCount >= core.length) {
+  const doneCount = steps.filter((s) => s.done).length
+  if (doneCount >= steps.length) {
     try {
       localStorage.setItem("wq-setup-checklist-done", "1")
     } catch {}
@@ -107,7 +101,7 @@ export function SetupChecklist({
   }
 
   const next = steps.find((s) => !s.done) || steps[0]
-  const pct = Math.round((doneCount / core.length) * 100)
+  const pct = Math.round((doneCount / steps.length) * 100)
 
   const dismiss = () => {
     try {
@@ -128,14 +122,14 @@ export function SetupChecklist({
 
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-      <div className="flex items-center gap-2 px-3 py-2 sm:px-3.5">
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={toggle}
           className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
           aria-expanded={open}
         >
-          <span className="relative h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-[var(--wq-paper)] sm:w-16">
+          <span className="relative h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-[var(--wq-paper)]">
             <span
               className="absolute inset-y-0 left-0 rounded-full bg-[var(--wq-brand)] transition-[width]"
               style={{ width: `${pct}%` }}
@@ -145,13 +139,10 @@ export function SetupChecklist({
             <span className="font-medium">Setup</span>
             <span className="text-[var(--wq-text-muted)]">
               {" "}
-              {doneCount}/{core.length}
+              {doneCount}/{steps.length}
             </span>
             {!open && next ? (
-              <span className="hidden text-[var(--wq-text-muted)] sm:inline">
-                {" "}
-                · {next.label}
-              </span>
+              <span className="hidden text-[var(--wq-text-muted)] sm:inline"> · {next.label}</span>
             ) : null}
           </span>
           <ChevronDown

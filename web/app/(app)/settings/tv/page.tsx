@@ -16,7 +16,7 @@ export default function TvSettingsPage() {
   const [client, setClient] = useState({
     title: "",
     showLogo: true,
-    tilesPerPage: 6,
+    tilesPerPage: 8,
     refreshMs: 30000,
     carouselMs: 8000,
   })
@@ -56,7 +56,7 @@ export default function TvSettingsPage() {
         tvSettings: {
           client: {
             ...client,
-            tilesPerPage: Number(client.tilesPerPage) || 6,
+            tilesPerPage: Number(client.tilesPerPage) || 8,
             refreshMs: Number(client.refreshMs) || 30000,
             carouselMs: Number(client.carouselMs) || 8000,
           },
@@ -83,12 +83,28 @@ export default function TvSettingsPage() {
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
-              <Link href="/tv" target="_blank">
+              <Link
+                href="/tv"
+                target="_blank"
+                onClick={() => {
+                  try {
+                    localStorage.setItem("wq-tv-opened", "1")
+                  } catch {}
+                }}
+              >
                 <ExternalLink className="mr-1 h-3.5 w-3.5" /> Cliente
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
-              <Link href="/tv-dashboard" target="_blank">
+              <Link
+                href="/tv-dashboard"
+                target="_blank"
+                onClick={() => {
+                  try {
+                    localStorage.setItem("wq-tv-opened", "1")
+                  } catch {}
+                }}
+              >
                 <ExternalLink className="mr-1 h-3.5 w-3.5" /> Oficina
               </Link>
             </Button>
@@ -125,15 +141,18 @@ export default function TvSettingsPage() {
               </label>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>Tiles por página</Label>
+                  <Label>Pedidos por tela</Label>
                   <Input
                     type="number"
+                    min={4}
+                    max={12}
                     value={client.tilesPerPage}
                     onChange={(e) =>
                       setClient((c) => ({ ...c, tilesPerPage: Number(e.target.value) }))
                     }
                     className="rounded-[10px]"
                   />
+                  <p className="text-[11px] text-[var(--wq-text-muted)]">Padrão 8 · o resto gira no carrossel</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Refresh (ms)</Label>

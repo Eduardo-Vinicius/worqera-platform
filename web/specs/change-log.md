@@ -2,6 +2,8 @@
 
 ## 2026-09-17
 
+- **Dashboard:** layout mais compacto; TV em card destacado (fora do tour); tour sem passo “abrir TV” que nunca marcava.
+- **TV Cliente:** padrão **8** pedidos/tela + carrossel; legenda de páginas.
 - **Financeiro:** caixa do dia (entregue/sinais/a receber), período Hoje, top serviços com `items[]`, status em PT, export CSV.
 - **QW práticos:** ⌘K busca pedido; drawer kanban (link/WA/imprimir); novo pedido com data +3/+5/+7 e clientes recentes.
 - **Novo pedido:** pares em abas (1 formulário por vez) + botão “Adicionar par”; rota/acessórios sempre visíveis (sem `<details>`).

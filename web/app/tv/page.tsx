@@ -6,7 +6,7 @@ import { getShopCurrentV1 } from "@/lib/apiV1"
 
 const DEFAULT_REFRESH_MS = 18_000
 const DEFAULT_CAROUSEL_MS = 8_000
-const DEFAULT_TILES = 6
+const DEFAULT_TILES = 8
 
 type OrderRow = {
   id?: string
@@ -266,6 +266,14 @@ export default function TvClientePage() {
             <p className="text-sm text-white/50">Worqera</p>
           )}
           <h1 className="text-4xl font-semibold md:text-5xl">{title}</h1>
+          {tiles.length > 0 ? (
+            <p className="mt-2 text-base text-white/55">
+              {tilesPerPage} por tela
+              {pages.length > 1
+                ? ` · página ${pageIndex + 1}/${pages.length} · gira sozinho`
+                : ` · ${tiles.length} pedido${tiles.length === 1 ? "" : "s"}`}
+            </p>
+          ) : null}
         </div>
         <div className="text-right font-mono text-2xl tabular-nums md:text-3xl">
           {clock}
