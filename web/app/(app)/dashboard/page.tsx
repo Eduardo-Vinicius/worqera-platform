@@ -176,10 +176,11 @@ export default function DashboardPage() {
                 className="rounded-[10px]"
                 disabled={digestBusy}
                 onClick={sendWeekly}
+                title="Envia o resumo semanal por e-mail para os owners da loja"
               >
                 <Mail className="mr-1.5 h-4 w-4" />
                 <span className="hidden sm:inline">
-                  {digestBusy ? "Enviando…" : "Digest semanal"}
+                  {digestBusy ? "Enviando…" : "Digest aos owners"}
                 </span>
                 <span className="sm:hidden">Digest</span>
               </Button>
@@ -204,7 +205,6 @@ export default function DashboardPage() {
         {!loading && !error && (
           <>
             <SetupChecklist openOrders={open} totalClients={clients} />
-            {isOwner ? <ReferralCard /> : null}
 
             {/* Hero strip */}
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
@@ -427,6 +427,8 @@ export default function DashboardPage() {
                     </Link>
                   </section>
                 )}
+
+                {isOwner ? <ReferralCard /> : null}
               </div>
             </div>
           </>

@@ -119,9 +119,11 @@ export default function SetoresSettingsPage() {
 
       <div className="mx-auto max-w-[800px] space-y-5 px-5 py-6 md:px-8">
         <p className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3 text-sm text-[var(--wq-text-muted)]">
-          Com e-mail do cliente no pedido e SMTP ligado: ao entrar numa coluna com “E-mail”, o cliente
-          recebe aviso. Coluna <strong className="text-[var(--wq-text)]">Pronta / terminal</strong> marca
-          o pedido como pronto e envia e-mail de retirada. WhatsApp continua pelo toast no kanban.
+          Todo pedido precisa terminar em um setor{" "}
+          <strong className="text-[var(--wq-text)]">Final</strong> (ex.: Atendimento final) — a rota
+          sempre inclui essa coluna no fim. Com e-mail do cliente e SMTP: ao entrar numa coluna com
+          “E-mail”, o cliente recebe aviso; a coluna final marca pronto e avisa retirada. WhatsApp
+          continua pelo toast no kanban.
         </p>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">

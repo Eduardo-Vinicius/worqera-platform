@@ -196,7 +196,7 @@ export interface Funcionario {
   updatedAt?: string;
 }
 
-export type MetricsPeriodo = "7d" | "15d" | "30d" | "90d" | "180d" | "1y";
+export type MetricsPeriodo = "today" | "7d" | "15d" | "30d" | "90d" | "180d" | "1y";
 
 export interface MetricsBaseFilters {
   periodo?: MetricsPeriodo;
@@ -281,12 +281,26 @@ export interface MetricsFinanceiroEvolucaoDiaria {
   receitaRecebida: number;
 }
 
+export interface MetricsFinanceiroCaixaHoje {
+  data: string
+  entregueHoje: number
+  entreguesCount: number
+  sinaisHoje: number
+  sinaisCount: number
+  aReceberProntos: number
+  prontosCount: number
+  aReceberAbertos: number
+  abertosCount: number
+  entradaHoje: number
+}
+
 export interface MetricsFinanceiro {
   periodo: MetricsPeriodoInfo;
   resumo: MetricsFinanceiroResumo;
   receitaPorStatus: MetricsFinanceiroReceitaPorStatus[];
   topServicos: MetricsFinanceiroTopServico[];
   evolucaoDiaria: MetricsFinanceiroEvolucaoDiaria[];
+  caixaHoje?: MetricsFinanceiroCaixaHoje;
 }
 
 export interface MetricsFuncionariosPedidos {

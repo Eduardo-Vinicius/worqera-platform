@@ -265,6 +265,24 @@ export async function listDelayAlertsV1() {
   }>("/alerts/delays")
 }
 
+export async function getAlertsInboxV1() {
+  return v1Fetch<{
+    readyCount: number
+    reopenedCount: number
+    feedbackCount: number
+    feedback: Array<{
+      id: string
+      code: string
+      clientName: string
+      status?: string
+      score?: number
+      comment?: string
+      tags?: string[]
+      createdAt?: string | null
+    }>
+  }>("/alerts/inbox")
+}
+
 export async function sendDelayDigestV1() {
   return v1Fetch<{ ok: boolean; sent: number; total: number }>("/alerts/delays/digest", {
     method: "POST",

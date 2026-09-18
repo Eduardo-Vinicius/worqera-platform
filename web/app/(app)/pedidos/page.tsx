@@ -72,6 +72,13 @@ export default function PedidosPage() {
 
   useEffect(() => {
     setIsOwner(String(localStorage.getItem("role") || "").toLowerCase() === "owner")
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("q")?.trim()
+      if (fromUrl) {
+        setQ(fromUrl)
+        setTab("todos")
+      }
+    } catch {}
   }, [])
 
   const createDemo = async () => {

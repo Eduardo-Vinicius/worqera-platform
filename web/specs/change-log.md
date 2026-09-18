@@ -2,6 +2,12 @@
 
 ## 2026-09-17
 
+- **Financeiro:** caixa do dia (entregue/sinais/a receber), período Hoje, top serviços com `items[]`, status em PT, export CSV.
+- **QW práticos:** ⌘K busca pedido; drawer kanban (link/WA/imprimir); novo pedido com data +3/+5/+7 e clientes recentes.
+- **Novo pedido:** pares em abas (1 formulário por vez) + botão “Adicionar par”; rota/acessórios sempre visíveis (sem `<details>`).
+- **Dashboard:** checklist vira faixa compacta colapsável; indicação vai para o rodapé da coluna direita (discreta).
+- **Kanban reopen/deliver:** badge Reaberto no card; atalho “Marcar entregue” na coluna final; sino de inbox (feedback + prontos + reabertos) no AppHeader.
+- **Setores:** copy deixa claro que todo pedido termina em setor Final.
 - **Cliente notify:** e-mail create/move/ready; toggle por setor (`notifyEmailOnEnter` + `isTerminal`); master em Empresa; feedback CSAT 1–5 na consulta pública; reabrir ready/delivered (mesmo código).
 - **QW:** badge Sistema ok no AppHeader; etiqueta auto-print `?print=1` + CSS print.
 - **Branding por loja:** Empresa — upload logo, cores primary/accent, presets, preview; shell aplica CSS vars; sidebar com logo; consulta `/p` brandada (mobile full-bleed); etiqueta + TVs com logo/cor; checklist “logo e cores”.

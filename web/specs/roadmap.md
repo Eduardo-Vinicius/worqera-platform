@@ -105,6 +105,13 @@ Rebuild PRD web+api → smoke mobile CdT → Meta Cloud API (opcional, hoje wa.m
 | QW-27 | Feedback CSAT pertinente + ver no detalhe | **feito** |
 | QW-28 | Marcar entregue no detalhe | **feito** |
 | QW-29 | Convite setor copy “só sua fila” | **feito** |
+| QW-30 | Badge reaberto + limpar feedback no reopen | **feito** |
+| QW-31 | Sino inbox (feedback/prontos) + entregue na coluna final | **feito** |
+| QW-32 | Rota sempre termina em setor Final | **feito** |
+| QW-33 | ⌘K busca pedido + botão no header | **feito** |
+| QW-34 | Kanban drawer: copiar link / WA / imprimir | **feito** |
+| QW-35 | Novo pedido: data +3d chips + clientes recentes | **feito** |
+| QW-36 | Financeiro: caixa do dia + serviços multi-par + CSV | **feito** |
 
 ## Propostas SaaS (backlog priorizado)
 

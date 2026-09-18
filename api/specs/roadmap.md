@@ -91,6 +91,7 @@ Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp auto
 | QW-API-08 | Export CSV delivered | **feito** |
 | QW-API-09 | Digest semanal owner | **feito** |
 | QW-API-10 | Sentry API | backlog |
+| QW-API-11 | Financeiro `today` + caixaHoje + services from items[] | **feito** |
 
 ## Propostas backend (trimestre)
 

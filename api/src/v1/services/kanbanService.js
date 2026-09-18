@@ -103,6 +103,8 @@ function summarizeCard(order) {
     plannedSectorIds: Array.isArray(order.plannedSectorIds)
       ? order.plannedSectorIds.map((s) => String(s._id || s))
       : [],
+    reopened: Boolean(order.reopenedAt),
+    feedbackScore: order.feedback?.score || null,
   };
 }
 

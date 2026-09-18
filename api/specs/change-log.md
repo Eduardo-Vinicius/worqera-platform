@@ -2,6 +2,8 @@
 
 ## 2026-09-17
 
+- **Financeiro:** `GET /metrics/finance` com `today` (caixa do dia), top serviços via `items[].services`, labels PT de status.
+- **Reopen/feedback/inbox:** `Order.reopenedAt`; reopen limpa `feedback`; planned path sempre termina em setor `isTerminal`; `GET /alerts/inbox` (feedback recente + ready + reopened counts).
 - **Cliente notify:** `Sector.notifyEmailOnEnter`; `orderNotify` (created/moved/ready); `Shop.notifications.email.enabled`; `POST /public/.../feedback`; reopen ready+delivered (`action: reopen`); `Order.feedback`.
 - **Branding:** `branding.accentColor`; `POST /shops/current/logo` (multipart ≤2MB); `GET /public/files/*` só `shops/*/branding/`; public order retorna logo/cores/phone; mailer usa `primaryColor`; `Shop.adminNote` + patch platform.
 - **Wow:** digest semanal owner (`POST /alerts/weekly-digest` + `scripts/send-weekly-digests.js`); WhatsApp suggest no move do kanban (`whatsappSuggest` wa.me).

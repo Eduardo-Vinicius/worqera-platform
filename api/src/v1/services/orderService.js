@@ -92,6 +92,14 @@ async function listOrders(shopId, query = {}) {
     }
   }
 
+  if (query.hasFeedback === '1' || query.hasFeedback === 'true') {
+    filter['feedback.score'] = { $gte: 1 };
+  }
+  if (query.reopened === '1' || query.reopened === 'true') {
+    filter.reopenedAt = { $ne: null };
+    filter.status = filter.status || { $nin: ['delivered', 'cancelled'] };
+  }
+
   // Avoid over-ANDing the same term as both q and client/code
   if (filter.$or && filter.clientName) delete filter.clientName;
   if (filter.$or && filter.code && query.q && !query.code) delete filter.code;
@@ -210,6 +218,15 @@ async function createOrder(shopId, userId, data) {
   }
 
   const plannedSectorIds = resolvePlannedSectorIds(data, allSectors, startSector, hintIds);
+  const hasTerminal = allSectors.some((s) => s.active !== false && s.isTerminal);
+  if (!hasTerminal) {
+    const err = new Error(
+      'Configure um setor final (ex.: Atendimento final) em Setores antes de criar pedidos'
+    );
+    err.status = 400;
+    err.code = 'NO_TERMINAL_SECTOR';
+    throw err;
+  }
   const warranty = ensureWarranty(data.warranty || data.garantia || {});
 
   const order = await Order.create({
@@ -299,11 +316,28 @@ function ensureWarranty(raw = {}) {
 }
 
 function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = []) {
+  const active = (allSectors || []).filter((s) => s.active !== false);
+  const ensureTerminalLast = (ids) => {
+    const terminals = active
+      .filter((s) => s.isTerminal)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (!terminals.length) return ids;
+    const terminalId = terminals[0]._id;
+    const tid = String(terminalId);
+    const cleaned = (ids || []).filter((id) => String(id) !== tid);
+    if (!cleaned.length && startSector) {
+      if (String(startSector._id) === tid) return [terminalId];
+      return [startSector._id, terminalId];
+    }
+    return [...cleaned, terminalId];
+  };
+
   const explicit = Array.isArray(data.plannedSectorIds) ? data.plannedSectorIds : null;
   if (explicit && explicit.length) {
-    return explicit
-      .map((id) => allSectors.find((s) => String(s._id) === String(id))?._id)
+    const mapped = explicit
+      .map((id) => active.find((s) => String(s._id) === String(id))?._id)
       .filter(Boolean);
+    return ensureTerminalLast(mapped);
   }
 
   // TOP-04: merge sectorPathHint from catalog services matched by name
@@ -313,13 +347,13 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
     for (const id of serviceHints) {
       const sid = String(id);
       if (seen.has(sid)) continue;
-      const sector = allSectors.find((s) => String(s._id) === sid);
+      const sector = active.find((s) => String(s._id) === sid);
       if (sector) {
         seen.add(sid);
         matched.push(sector._id);
       }
     }
-    if (matched.length) return matched;
+    if (matched.length) return ensureTerminalLast(matched);
   }
 
   const raw =
@@ -341,17 +375,17 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
   const seen = new Set();
   for (const token of tokens) {
     const sector =
-      allSectors.find((s) => String(s.slug || '').toLowerCase() === token) ||
-      allSectors.find((s) => String(s.name || '').toLowerCase() === token) ||
-      allSectors.find((s) => String(s._id) === token);
+      active.find((s) => String(s.slug || '').toLowerCase() === token) ||
+      active.find((s) => String(s.name || '').toLowerCase() === token) ||
+      active.find((s) => String(s._id) === token);
     if (sector && !seen.has(String(sector._id))) {
       seen.add(String(sector._id));
       matched.push(sector._id);
     }
   }
 
-  if (matched.length) return matched;
-  return startSector?._id ? [startSector._id] : [];
+  if (matched.length) return ensureTerminalLast(matched);
+  return ensureTerminalLast(startSector?._id ? [startSector._id] : []);
 }
 
 async function getOrder(shopId, id) {
@@ -483,6 +517,7 @@ async function patchOrder(shopId, id, userId, updates) {
   order.updatedByUserId = userId;
   if (updates.status === 'delivered' && !order.deliveredAt) {
     order.deliveredAt = updates.deliveredAt ? new Date(updates.deliveredAt) : new Date();
+    order.reopenedAt = null;
   }
   if (updates.status && updates.status !== 'delivered') {
     // keep deliveredAt unless explicitly cleared
@@ -533,6 +568,8 @@ async function reopenOrder(shopId, id, userId, body = {}) {
   order.status = nextStatus;
   order.currentSectorId = sector._id;
   order.deliveredAt = null;
+  order.reopenedAt = new Date();
+  order.set('feedback', null);
   order.updatedByUserId = userId;
   order.sectorHistory = order.sectorHistory || [];
   order.sectorHistory.push({

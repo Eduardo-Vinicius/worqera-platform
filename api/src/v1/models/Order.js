@@ -105,6 +105,8 @@ const orderSchema = new mongoose.Schema(
     priority: { type: Number, default: 1 },
     dueAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
+    /** Set when reopened for rework; cleared when delivered again. */
+    reopenedAt: { type: Date, default: null },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
     pdfUrl: { type: String, default: null },
     notes: { type: String, default: null },

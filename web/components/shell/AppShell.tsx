@@ -7,6 +7,7 @@ import { meV1 } from "@/lib/apiV1"
 import { AppSidebar } from "./AppSidebar"
 import { TrialBanner } from "./TrialBanner"
 import { DelayAlertsBanner } from "./DelayAlertsBanner"
+import { QuickOrderJump } from "./QuickOrderJump"
 import { cn } from "@/lib/utils"
 
 function isFullBleed(pathname: string) {
@@ -134,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
+      <QuickOrderJump />
     </div>
   )
 }

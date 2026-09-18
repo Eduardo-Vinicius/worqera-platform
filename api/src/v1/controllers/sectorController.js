@@ -30,6 +30,7 @@ exports.remove = wrap(async (req, res) => {
 });
 
 exports.reorder = wrap(async (req, res) => {
-  const sectors = await sectorService.reorderSectors(req.shopId, req.body);
+  const items = Array.isArray(req.body) ? req.body : req.body?.items;
+  const sectors = await sectorService.reorderSectors(req.shopId, items);
   res.status(200).json({ sectors });
 });

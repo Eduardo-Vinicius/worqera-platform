@@ -242,9 +242,47 @@ async function sendWeeklyDigest(shopId) {
   };
 }
 
+async function getOwnerInbox(shopId) {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [feedbackItems, readyCount, reopenedCount] = await Promise.all([
+    Order.find({
+      shopId,
+      'feedback.score': { $gte: 1 },
+      'feedback.createdAt': { $gte: since },
+    })
+      .sort({ 'feedback.createdAt': -1 })
+      .limit(20)
+      .select('code clientName status feedback')
+      .lean(),
+    Order.countDocuments({ shopId, status: 'ready' }),
+    Order.countDocuments({
+      shopId,
+      reopenedAt: { $ne: null },
+      status: { $nin: ['delivered', 'cancelled'] },
+    }),
+  ]);
+
+  return {
+    readyCount,
+    reopenedCount,
+    feedbackCount: feedbackItems.length,
+    feedback: feedbackItems.map((o) => ({
+      id: String(o._id),
+      code: o.code,
+      clientName: o.clientName || '',
+      status: o.status,
+      score: o.feedback?.score,
+      comment: o.feedback?.comment || '',
+      tags: Array.isArray(o.feedback?.tags) ? o.feedback.tags : [],
+      createdAt: o.feedback?.createdAt || null,
+    })),
+  };
+}
+
 module.exports = {
   listDelayAlerts,
   sendDelayDigest,
   buildWeeklyStats,
   sendWeeklyDigest,
+  getOwnerInbox,
 };

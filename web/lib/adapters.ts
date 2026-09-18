@@ -256,6 +256,7 @@ export function adaptMetricsDelays(d: any) {
 export function adaptMetricsFinance(f: any) {
   if (!f) return f;
   const summary = f.summary || f.resumo;
+  const today = f.today || f.caixaHoje;
   return {
     ...f,
     periodo: f.period
@@ -293,6 +294,20 @@ export function adaptMetricsFinance(f: any) {
       receitaPrevista: e.expectedRevenue ?? e.receitaPrevista,
       receitaRecebida: e.receivedRevenue ?? e.receitaRecebida,
     })),
+    caixaHoje: today
+      ? {
+          data: today.date || today.data,
+          entregueHoje: today.deliveredToday ?? today.entregueHoje ?? 0,
+          entreguesCount: today.deliveredCount ?? today.entreguesCount ?? 0,
+          sinaisHoje: today.depositsToday ?? today.sinaisHoje ?? 0,
+          sinaisCount: today.depositsCount ?? today.sinaisCount ?? 0,
+          aReceberProntos: today.readyToCollect ?? today.aReceberProntos ?? 0,
+          prontosCount: today.readyCount ?? today.prontosCount ?? 0,
+          aReceberAbertos: today.openPipeline ?? today.aReceberAbertos ?? 0,
+          abertosCount: today.openCount ?? today.abertosCount ?? 0,
+          entradaHoje: today.cashInToday ?? today.entradaHoje ?? 0,
+        }
+      : f.caixaHoje,
   };
 }
 

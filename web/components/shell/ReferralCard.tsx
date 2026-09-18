@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import { getShopCurrentV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { Copy, Gift } from "lucide-react"
@@ -42,29 +41,26 @@ export function ReferralCard() {
   }
 
   return (
-    <section className="rounded-2xl border border-[var(--wq-brand)]/25 bg-[color-mix(in_srgb,var(--wq-brand)_8%,var(--wq-surface))] px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-brand)]">
-            <Gift className="h-3.5 w-3.5" />
+          <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--wq-text)]">
+            <Gift className="h-3.5 w-3.5 text-[var(--wq-brand)]" />
             Indique e ganhe
           </p>
-          <h3 className="mt-1 text-sm font-semibold text-[var(--wq-text)] sm:text-base">
+          <p className="mt-0.5 text-[11px] leading-snug text-[var(--wq-text-muted)]">
             1 mês grátis quando a oficina indicada assinar
-          </h3>
-          <p className="mt-1 break-all font-mono text-xs text-[var(--wq-text-muted)]">{url}</p>
+          </p>
         </div>
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 rounded-[10px]"
           onClick={copy}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-[var(--wq-brand)] hover:bg-[var(--wq-paper)]"
         >
-          <Copy className="mr-1.5 h-4 w-4" />
-          Copiar link
-        </Button>
+          <Copy className="h-3 w-3" />
+          Copiar
+        </button>
       </div>
-    </section>
+    </div>
   )
 }

@@ -15,3 +15,8 @@ exports.sendWeeklyDigest = wrap(async (req, res) => {
   const result = await alertsService.sendWeeklyDigest(req.shopId);
   res.status(200).json(result);
 });
+
+exports.inbox = wrap(async (req, res) => {
+  const data = await alertsService.getOwnerInbox(req.shopId);
+  res.status(200).json(data);
+});

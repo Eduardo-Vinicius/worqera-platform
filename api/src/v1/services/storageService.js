@@ -2,7 +2,8 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 
-const BASE_DIR = () => process.env.STORAGE_PATH || path.join(process.cwd(), 'uploads');
+const BASE_DIR = () =>
+  path.resolve(process.env.STORAGE_PATH || path.join(process.cwd(), 'uploads'));
 const useS3 = () => Boolean(String(process.env.S3_BUCKET_NAME || '').trim());
 
 let s3Client = null;
@@ -22,9 +23,10 @@ function normalizeKey(key) {
 
 function absolutePath(key) {
   const safe = normalizeKey(key);
-  const full = path.join(BASE_DIR(), safe);
-  const root = path.resolve(BASE_DIR());
-  if (!full.startsWith(root)) {
+  const root = BASE_DIR();
+  const full = path.resolve(root, safe);
+  const rootPrefix = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  if (full !== root && !full.startsWith(rootPrefix)) {
     const err = new Error('Invalid storage key');
     err.status = 400;
     err.code = 'INVALID_KEY';

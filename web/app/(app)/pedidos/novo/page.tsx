@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Search, Upload, X, Plus } from "lucide-react"
 import Link from "next/link"
 import { createPedidoService, createClienteService, getClientesService, getPedidoIdFromCreateResponse, uploadPedidoItemFotosService } from "@/lib/apiService"
-import { listServicesV1 } from "@/lib/apiV1"
+import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
 import { normalizeWarranty } from "@/lib/warranty"
 import {
   loadOrderTemplates,
@@ -62,20 +62,42 @@ const defaultAccessories = [
   "Certificado de garantia"
 ];
 
-// Departamento inicial fixo: Atendimento
-const departments = [{ value: "atendimento", label: "Atendimento" }];
-
-// Grupos de fluxo por departamento (apenas nomes dos setores, sem variações)
-const departmentFlowGroups = [
-  { id: "pintura", label: "Pintura", options: [{ id: "pintura", label: "Pintura" }] },
-  { id: "lavagem", label: "Lavagem", options: [{ id: "lavagem", label: "Lavagem" }] },
-  { id: "costura", label: "Costura", options: [{ id: "costura", label: "Costura" }] },
-  { id: "sapataria", label: "Sapataria", options: [{ id: "sapataria", label: "Sapataria" }] },
-  { id: "acabamento", label: "Acabamento", options: [{ id: "acabamento", label: "Acabamento" }] },
-  { id: "atendimento", label: "Atendimento", options: [{ id: "atendimento", label: "Atendimento" }] },
+// Fallback de fluxo se a API de setores falhar
+const FALLBACK_FLOW_SECTORS = [
+  { id: "atendimento", name: "Atendimento", slug: "atendimento", isTerminal: false },
+  { id: "sapataria", name: "Sapataria", slug: "sapataria", isTerminal: false },
+  { id: "costura", name: "Costura", slug: "costura", isTerminal: false },
+  { id: "lavagem", name: "Lavagem", slug: "lavagem", isTerminal: false },
+  { id: "acabamento", name: "Acabamento", slug: "acabamento", isTerminal: false },
+  { id: "pintura", name: "Pintura", slug: "pintura", isTerminal: false },
 ];
 
-import { useEffect } from "react"
+function dueInDays(days: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+const RECENT_CLIENTS_KEY = "wq-recent-clients-v1"
+
+type RecentClient = { id: string; name: string; phone?: string }
+
+function loadRecentClients(): RecentClient[] {
+  try {
+    const raw = localStorage.getItem(RECENT_CLIENTS_KEY)
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list.slice(0, 6) : []
+  } catch {
+    return []
+  }
+}
+
+function pushRecentClient(client: RecentClient) {
+  try {
+    const prev = loadRecentClients().filter((c) => c.id !== client.id)
+    localStorage.setItem(RECENT_CLIENTS_KEY, JSON.stringify([client, ...prev].slice(0, 6)))
+  } catch {}
+}
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -87,8 +109,10 @@ export default function NewOrderPage() {
     observations: "",
   })
   const [items, setItems] = useState([emptyOrderItemDraft()])
+  const [activeItemIndex, setActiveItemIndex] = useState(0)
   const [flowObservation, setFlowObservation] = useState("");
   const [selectedFlowOptions, setSelectedFlowOptions] = useState<string[]>(["atendimento"]);
+  const [flowSectors, setFlowSectors] = useState(FALLBACK_FLOW_SECTORS)
   const [prioridade, setPrioridade] = useState<string>("2")
   const [totalPrice, setTotalPrice] = useState(0)
   const [signalType, setSignalType] = useState("50") // "50", "100", "custom"
@@ -110,9 +134,11 @@ export default function NewOrderPage() {
     cpf: "",
     email: "",
   })
+  const [recentClients, setRecentClients] = useState<RecentClient[]>([])
 
   useEffect(() => {
     setTemplates(loadOrderTemplates())
+    setRecentClients(loadRecentClients())
   }, [])
 
   useEffect(() => {
@@ -140,13 +166,52 @@ export default function NewOrderPage() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await listSectorsV1()
+        const list = (res.sectors || [])
+          .filter((s: any) => s.active !== false)
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+          .map((s: any) => ({
+            id: String(s._id || s.id || s.slug || s.name),
+            name: String(s.name || s.slug || "Setor"),
+            slug: String(s.slug || s.name || "").toLowerCase(),
+            isTerminal: Boolean(s.isTerminal),
+          }))
+        if (!cancelled && list.length) {
+          setFlowSectors(list)
+          setSelectedFlowOptions((prev) => {
+            const kept = prev.filter((id) =>
+              list.some((s) => s.id === id || s.slug === id)
+            )
+            if (kept.length) return kept
+            const start = list.find((s) => !s.isTerminal) || list[0]
+            return start ? [start.slug || start.id] : prev
+          })
+        }
+      } catch {
+        // keep fallback
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return;
+    if (!raw) {
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(3) }))
+      return
+    }
     try {
       const draft = JSON.parse(raw);
       const { sneaker: _legacySneaker, ...restForm } = draft.formData || {};
-      setFormData((prev) => ({ ...prev, ...restForm }));
+      const nextForm = { ...restForm }
+      if (!nextForm.expectedDate) nextForm.expectedDate = dueInDays(3)
+      setFormData((prev) => ({ ...prev, ...nextForm }));
       setItems(migrateDraftToItems(draft));
       if (typeof draft.totalPrice === "number") setTotalPrice(draft.totalPrice);
       if (typeof draft.signalType === "string") setSignalType(draft.signalType);
@@ -160,7 +225,7 @@ export default function NewOrderPage() {
       }
       if (typeof draft.prioridade === "string") setPrioridade(draft.prioridade);
     } catch (err) {
-      // ignore
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(3) }))
     }
   }, []);
 
@@ -219,7 +284,12 @@ export default function NewOrderPage() {
   }
 
   const addItem = () => {
-    setItems((prev) => [...prev, emptyOrderItemDraft()])
+    setItems((prev) => {
+      const next = [...prev, emptyOrderItemDraft()]
+      setActiveItemIndex(next.length - 1)
+      return next
+    })
+    toast.message("Novo par adicionado — preencha modelo e serviços")
   }
 
   const removeItem = (itemIndex: number) => {
@@ -234,6 +304,11 @@ export default function NewOrderPage() {
       setTotalPrice(newTotal)
       if (signalType === "50") setSignalValue(newTotal * 0.5)
       else if (signalType === "100") setSignalValue(newTotal)
+      setActiveItemIndex((cur) => {
+        if (cur === itemIndex) return Math.max(0, itemIndex - 1)
+        if (cur > itemIndex) return cur - 1
+        return Math.min(cur, next.length - 1)
+      })
       return next
     })
   }
@@ -392,6 +467,20 @@ export default function NewOrderPage() {
     }
   }
 
+  const selectClient = (client: any) => {
+    const id = String(client.id || client._id || "")
+    if (!id) return
+    handleSelectChange("clientId", id)
+    setClientSearch("")
+    const entry: RecentClient = {
+      id,
+      name: String(client.nomeCompleto || client.name || "Cliente"),
+      phone: String(client.telefone || client.phone || ""),
+    }
+    pushRecentClient(entry)
+    setRecentClients(loadRecentClients())
+  }
+
   const saveNewClient = async () => {
     const nomeCompleto = newClient.nomeCompleto.trim()
     const telefone = newClient.telefone.trim()
@@ -425,9 +514,9 @@ export default function NewOrderPage() {
         list.find((client: any) => client.id === createdId) ||
         list.find((client: any) => String(client.nomeCompleto || "").toLowerCase() === nomeCompleto.toLowerCase())
       if (match?.id) {
-        handleSelectChange("clientId", match.id)
+        selectClient(match)
       } else if (createdId) {
-        handleSelectChange("clientId", createdId)
+        selectClient({ id: createdId, nomeCompleto, telefone })
       }
       setShowNewClient(false)
       setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" })
@@ -442,10 +531,14 @@ export default function NewOrderPage() {
 
   const toggleFlowOption = (id: string) => {
     setSelectedFlowOptions((prev) => {
-      if (prev.includes(id)) return prev.filter((item) => item !== id);
-      return [...prev, id];
-    });
-  };
+      const sector = flowSectors.find((s) => s.id === id || s.slug === id)
+      const key = sector?.slug || sector?.id || id
+      if (prev.includes(key) || prev.includes(id)) {
+        return prev.filter((item) => item !== key && item !== id)
+      }
+      return [...prev, key]
+    })
+  }
 
   // Funções para gerenciar serviços selecionados
   const applyTemplate = (tpl: OrderTemplate) => {
@@ -608,7 +701,7 @@ export default function NewOrderPage() {
     localStorage.removeItem(DRAFT_KEY);
     setFormData({
       clientId: "",
-      expectedDate: "",
+      expectedDate: dueInDays(3),
       department: "atendimento",
       observations: "",
     });
@@ -700,13 +793,13 @@ export default function NewOrderPage() {
 
       const flowSelections = selectedFlowOptions
         .map((opt) => {
-          for (const group of departmentFlowGroups) {
-            const found = group.options.find((o) => o.id === opt);
-            if (found) return { id: found.id, nome: found.label };
-          }
-          return null;
+          const found = flowSectors.find(
+            (s) => s.id === opt || s.slug === opt || s.name.toLowerCase() === opt.toLowerCase()
+          )
+          if (found) return { id: found.slug || found.id, nome: found.name }
+          return { id: opt, nome: opt }
         })
-        .filter(Boolean) as Array<{ id: string; nome: string }>;
+        .filter(Boolean) as Array<{ id: string; nome: string }>
 
       const observacoesFluxoPayload = flowObservation.trim()
         ? [{ observacao: flowObservation.trim() }]
@@ -903,6 +996,26 @@ export default function NewOrderPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {!clientSearch && recentClients.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {recentClients.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() =>
+                              selectClient({
+                                id: c.id,
+                                nomeCompleto: c.name,
+                                telefone: c.phone,
+                              })
+                            }
+                            className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-1 text-xs font-medium text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--wq-text-muted)]" />
                       <Input
@@ -925,10 +1038,7 @@ export default function NewOrderPage() {
                             className={`flex w-full flex-col items-start gap-0.5 border-b border-[var(--wq-border)] px-3 py-1.5 text-left last:border-b-0 hover:bg-[var(--wq-paper)] ${
                               formData.clientId === client.id ? "bg-[var(--wq-brand-soft)]" : ""
                             }`}
-                            onClick={() => {
-                              handleSelectChange("clientId", client.id)
-                              setClientSearch("")
-                            }}
+                            onClick={() => selectClient(client)}
                           >
                             <span className="text-sm font-medium text-[var(--wq-text)]">
                               {client.nomeCompleto || client.name}
@@ -1019,343 +1129,356 @@ export default function NewOrderPage() {
                 {errors.clientId && <p className="text-sm text-destructive">{errors.clientId}</p>}
               </section>
 
-              {/* Block 2 — Tênis */}
-              <section className="space-y-5">
-                <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">Tênis</h2>
+              {/* Block 2 — Pares */}
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                      Pares
+                    </h2>
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      Um formulário por vez · {items.length}{" "}
+                      {items.length === 1 ? "par" : "pares"}
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={addItem}>
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Adicionar par
+                  </Button>
+                </div>
                 {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
 
-                {items.map((item, itemIndex) => (
-                  <section key={item.id} className="space-y-4 border-l-[3px] border-[var(--wq-brand)] pl-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-semibold text-[var(--wq-text)]">Tênis {itemIndex + 1}</h3>
-                      {items.length > 1 && (
+                {items.length > 1 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map((it, idx) => {
+                      const label = it.sneaker?.trim() || `Par ${idx + 1}`
+                      const active = idx === Math.min(activeItemIndex, items.length - 1)
+                      return (
                         <button
+                          key={it.id}
                           type="button"
-                          className="text-sm text-[var(--wq-brand)] underline-offset-2 hover:underline"
-                          onClick={() => removeItem(itemIndex)}
+                          onClick={() => setActiveItemIndex(idx)}
+                          className={`max-w-[11rem] truncate rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                            active
+                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                              : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          }`}
+                          title={label}
                         >
-                          Remover
+                          {label}
                         </button>
-                      )}
-                    </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`sneaker-${itemIndex}`}>Modelo do Tênis</Label>
-                      <Input
-                        id={`sneaker-${itemIndex}`}
-                        value={item.sneaker}
-                        onChange={(e) => {
-                          patchItem(itemIndex, { sneaker: e.target.value })
-                          if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
-                        }}
-                        placeholder="Ex: Nike Air Max 90"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`item-notes-${itemIndex}`}>Observações deste tênis</Label>
-                      <Input
-                        id={`item-notes-${itemIndex}`}
-                        value={item.notes}
-                        onChange={(e) => patchItem(itemIndex, { notes: e.target.value })}
-                        placeholder="Detalhes específicos deste par..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Serviços</Label>
-                      <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
-                        {availableServices.map((service) => {
-                          const isSelected = item.selectedServices.find((s) => s.id === service.id)
-                          const inputId = `service-${itemIndex}-${service.id}`
-                          return (
-                            <div
-                              key={service.id}
-                              className="flex items-center gap-2 rounded-lg border border-[var(--wq-border)] px-2.5 py-1.5 hover:bg-[var(--wq-paper)]"
-                            >
-                              <input
-                                type="checkbox"
-                                id={inputId}
-                                checked={!!isSelected}
-                                onChange={(e) => toggleService(itemIndex, service.id, e.target.checked)}
-                                className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
-                              />
-                              <label htmlFor={inputId} className="flex-1 cursor-pointer leading-tight">
-                                <div className="text-sm font-medium text-[var(--wq-text)]">{service.name}</div>
-                                <div className="text-xs text-[var(--wq-text-muted)]">R$ {service.suggestedPrice.toFixed(2)}</div>
-                              </label>
-                            </div>
-                          )
-                        })}
+                {(() => {
+                  const itemIndex = Math.min(activeItemIndex, Math.max(0, items.length - 1))
+                  const item = items[itemIndex]
+                  if (!item) return null
+                  return (
+                    <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-[var(--wq-text)]">
+                          Par {itemIndex + 1}
+                          {item.sneaker?.trim() ? (
+                            <span className="font-normal text-[var(--wq-text-muted)]"> · {item.sneaker}</span>
+                          ) : null}
+                        </h3>
+                        {items.length > 1 ? (
+                          <button
+                            type="button"
+                            className="text-sm text-[var(--wq-danger)] hover:underline"
+                            onClick={() => removeItem(itemIndex)}
+                          >
+                            Remover este par
+                          </button>
+                        ) : null}
                       </div>
 
-                      {item.selectedServices.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-[var(--wq-text)]">Detalhes dos serviços</h4>
-                          {item.selectedServices.map((service) => (
-                            <div
-                              key={service.id}
-                              className="space-y-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-sm font-medium">{service.name}</h5>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => toggleService(itemIndex, service.id, false)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`sneaker-${itemIndex}`}>Modelo *</Label>
+                        <Input
+                          id={`sneaker-${itemIndex}`}
+                          value={item.sneaker}
+                          onChange={(e) => {
+                            patchItem(itemIndex, { sneaker: e.target.value })
+                            if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
+                          }}
+                          placeholder="Ex: Nike Air Max 90"
+                          className="bg-[var(--wq-surface)]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`item-notes-${itemIndex}`}>Obs. deste par</Label>
+                        <Input
+                          id={`item-notes-${itemIndex}`}
+                          value={item.notes}
+                          onChange={(e) => patchItem(itemIndex, { notes: e.target.value })}
+                          placeholder="Opcional"
+                          className="bg-[var(--wq-surface)]"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Serviços</Label>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {availableServices.map((service) => {
+                            const isSelected = item.selectedServices.find((s) => s.id === service.id)
+                            const inputId = `service-${itemIndex}-${service.id}`
+                            return (
+                              <label
+                                key={service.id}
+                                htmlFor={inputId}
+                                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 transition ${
+                                  isSelected
+                                    ? "border-[var(--wq-brand)]/50 bg-[var(--wq-brand-soft)]"
+                                    : "border-[var(--wq-border)] bg-[var(--wq-surface)] hover:bg-[var(--wq-paper)]"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={inputId}
+                                  checked={!!isSelected}
+                                  onChange={(e) => toggleService(itemIndex, service.id, e.target.checked)}
+                                  className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
+                                />
+                                <span className="min-w-0 flex-1 leading-tight">
+                                  <span className="block text-sm font-medium text-[var(--wq-text)]">{service.name}</span>
+                                  <span className="text-xs text-[var(--wq-text-muted)]">
+                                    R$ {service.suggestedPrice.toFixed(2)}
+                                  </span>
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+
+                        {item.selectedServices.length > 0 ? (
+                          <div className="space-y-2 pt-1">
+                            {item.selectedServices.map((service) => (
+                              <div
+                                key={service.id}
+                                className="grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:grid-cols-[1fr_120px_auto]"
+                              >
+                                <div className="space-y-1 sm:col-span-1">
+                                  <p className="text-sm font-medium text-[var(--wq-text)]">{service.name}</p>
+                                  <Input
+                                    value={service.description}
+                                    onChange={(e) =>
+                                      updateService(itemIndex, service.id, "description", e.target.value)
+                                    }
+                                    placeholder="Obs. do serviço"
+                                    className="h-9"
+                                  />
+                                </div>
                                 <div className="space-y-1">
-                                  <Label>Preço (R$)</Label>
+                                  <Label className="text-xs">Preço</Label>
                                   <Input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     value={service.price}
-                                    onChange={(e) => updateService(itemIndex, service.id, "price", Number(e.target.value))}
-                                    placeholder="0.00"
+                                    onChange={(e) =>
+                                      updateService(itemIndex, service.id, "price", Number(e.target.value))
+                                    }
+                                    className="h-9"
                                   />
                                 </div>
-                                <div className="space-y-1">
-                                  <Label>Descrição/Observações</Label>
-                                  <Input
-                                    value={service.description}
-                                    onChange={(e) => updateService(itemIndex, service.id, "description", e.target.value)}
-                                    placeholder="Detalhes específicos do serviço..."
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Fotos do Tênis</Label>
-                      <div className="rounded-lg border-2 border-dashed border-[var(--wq-border)] bg-[var(--wq-paper)] p-4 text-center">
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          capture="environment"
-                          onChange={(e) => handlePhotoUpload(item.id, e)}
-                          className="hidden"
-                          id={`photo-upload-${itemIndex}`}
-                        />
-                        <label htmlFor={`photo-upload-${itemIndex}`} className="cursor-pointer">
-                          <Upload className="mx-auto mb-2 h-7 w-7 text-[var(--wq-text-muted)]" />
-                          <p className="text-sm text-[var(--wq-text-muted)]">
-                            Clique para adicionar fotos (máximo {MAX_PHOTOS} fotos, até 5MB cada)
-                          </p>
-                        </label>
-                      </div>
-
-                      {item.photos.length > 0 && (
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                          {item.photos.map((photo, index) => (
-                            <div
-                              key={index}
-                              className="group relative overflow-hidden rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)]"
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData("text/plain", index.toString())
-                              }}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => {
-                                e.preventDefault()
-                                const from = Number(e.dataTransfer.getData("text/plain"))
-                                if (!Number.isNaN(from)) movePhoto(itemIndex, from, index)
-                              }}
-                            >
-                              <img
-                                src={photo.preview || "/placeholder.svg"}
-                                alt={`Foto ${index + 1}`}
-                                className="h-32 w-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--wq-ink)]/50 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
-                              <div className="absolute left-2 top-2 flex gap-2">
-                                <Button
+                                <button
                                   type="button"
-                                  size="sm"
-                                  variant={photo.isCover ? "default" : "secondary"}
-                                  className={`h-7 px-2 text-xs ${
-                                    photo.isCover
-                                      ? "bg-[var(--wq-action)] text-white"
-                                      : "bg-white/80 text-[var(--wq-text)]"
-                                  }`}
-                                  onClick={() => markAsCover(itemIndex, index)}
+                                  className="self-end rounded-md p-2 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-danger)]"
+                                  onClick={() => toggleService(itemIndex, service.id, false)}
+                                  aria-label="Remover serviço"
                                 >
-                                  {photo.isCover ? "Capa" : "Marcar capa"}
-                                </Button>
+                                  <X className="h-4 w-4" />
+                                </button>
                               </div>
-                              <div className="absolute right-2 top-2 flex gap-2">
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => removePhoto(itemIndex, index)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <div className="absolute bottom-2 left-2 rounded-full bg-[var(--wq-ink)]/40 px-2 py-1 text-[11px] text-white/90">
-                                Arraste para reordenar
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                ))}
-
-                <button
-                  type="button"
-                  className="text-sm text-[var(--wq-brand)] underline-offset-2 hover:underline"
-                  onClick={addItem}
-                >
-                  + Outro tênis
-                </button>
-
-                <details className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-4">
-                  <summary className="cursor-pointer py-3 text-sm font-semibold text-[var(--wq-text)]">
-                    Opções do pedido
-                  </summary>
-                  <div className="space-y-4 pb-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="department">Departamento *</Label>
-                      <Select value="atendimento" disabled>
-                        <SelectTrigger className={`${errors.department ? "border-destructive" : ""} pointer-events-none opacity-70`}>
-                          <SelectValue placeholder="Atendimento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="atendimento">Atendimento</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-[var(--wq-text-muted)]">O pedido sempre inicia em Atendimento.</p>
-                      {errors.department && <p className="text-sm text-destructive">{errors.department}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Fluxo de setores</Label>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                        {departmentFlowGroups.map((group) => (
-                          <div key={group.id} className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-2.5">
-                            <p className="mb-1.5 text-sm font-semibold text-[var(--wq-text)]">{group.label}</p>
-                            <div className="space-y-1.5">
-                              {group.options.map((opt) => {
-                                const checked = selectedFlowOptions.includes(opt.id)
-                                return (
-                                  <label key={opt.id} className="flex cursor-pointer items-start gap-2 text-sm text-[var(--wq-text)]">
-                                    <input
-                                      type="checkbox"
-                                      className="mt-0.5 rounded border-[var(--wq-border)] text-[var(--wq-action)]"
-                                      checked={checked}
-                                      onChange={() => toggleFlowOption(opt.id)}
-                                    />
-                                    <span>{opt.label}</span>
-                                  </label>
-                                )
-                              })}
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Acessórios</Label>
-                      <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
-                        {defaultAccessories.map((accessory) => {
-                          const isSelected = selectedAccessories.includes(accessory)
-                          return (
-                            <div
-                              key={accessory}
-                              className="flex items-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1.5 hover:bg-[var(--wq-paper)]"
-                            >
-                              <input
-                                type="checkbox"
-                                id={accessory}
-                                checked={isSelected}
-                                onChange={(e) => toggleAccessory(accessory, e.target.checked)}
-                                className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
-                              />
-                              <label htmlFor={accessory} className="flex-1 cursor-pointer text-sm">
-                                {accessory}
-                              </label>
-                            </div>
-                          )
-                        })}
+                        ) : null}
                       </div>
 
-                      <div className="space-y-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3">
-                        <Label className="font-medium">Adicionar acessório personalizado</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Ex: Fivela especial, Solado antiderrapante..."
-                            value={customAccessory}
-                            onChange={(e) => setCustomAccessory(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault()
-                                addCustomAccessory()
-                              }
-                            }}
-                            className="flex-1"
+                      <div className="space-y-2">
+                        <Label>Fotos</Label>
+                        <div className="rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handlePhotoUpload(item.id, e)}
+                            className="hidden"
+                            id={`photo-upload-${itemIndex}`}
                           />
-                          <Button
-                            type="button"
-                            onClick={addCustomAccessory}
-                            disabled={!customAccessory.trim()}
-                            variant="outline"
-                            size="sm"
+                          <label
+                            htmlFor={`photo-upload-${itemIndex}`}
+                            className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--wq-brand)] hover:underline"
                           >
-                            <Plus className="mr-1 h-4 w-4" />
-                            Adicionar
-                          </Button>
+                            <Upload className="h-4 w-4" />
+                            Adicionar fotos (máx. {MAX_PHOTOS})
+                          </label>
                         </div>
-                      </div>
 
-                      {selectedAccessories.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {selectedAccessories.map((accessory, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 rounded-full bg-[var(--wq-brand-soft)] px-3 py-1 text-sm text-[var(--wq-text)]"
-                            >
-                              <span>{accessory}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeAccessory(accessory)}
-                                className="h-4 w-4 p-0 hover:bg-[var(--wq-brand)]/15"
+                        {item.photos.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {item.photos.map((photo, index) => (
+                              <div
+                                key={index}
+                                className="group relative overflow-hidden rounded-lg border border-[var(--wq-border)]"
+                                draggable
+                                onDragStart={(e) => e.dataTransfer.setData("text/plain", index.toString())}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault()
+                                  const from = Number(e.dataTransfer.getData("text/plain"))
+                                  if (!Number.isNaN(from)) movePhoto(itemIndex, from, index)
+                                }}
                               >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                                <img
+                                  src={photo.preview || "/placeholder.svg"}
+                                  alt={`Foto ${index + 1}`}
+                                  className="h-24 w-full object-cover"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-[var(--wq-ink)]/55 p-1">
+                                  <button
+                                    type="button"
+                                    className="rounded px-1.5 text-[10px] font-semibold text-white"
+                                    onClick={() => markAsCover(itemIndex, index)}
+                                  >
+                                    {photo.isCover ? "Capa" : "Capa?"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded px-1.5 text-[10px] font-semibold text-white"
+                                    onClick={() => removePhoto(itemIndex, index)}
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
+                  )
+                })()}
+              </section>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="flowObservation">Observação inicial do fluxo</Label>
-                      <Textarea
-                        id="flowObservation"
-                        placeholder="Ex.: Cliente pediu reforçar pintura nas laterais"
-                        value={flowObservation}
-                        onChange={(e) => setFlowObservation(e.target.value)}
-                      />
-                    </div>
+              {/* Block 2b — Rota e extras (sempre visível) */}
+              <section className="space-y-4">
+                <div>
+                  <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                    Rota na oficina
+                  </h2>
+                  <p className="text-xs text-[var(--wq-text-muted)]">
+                    Começa em Atendimento · a última etapa Final entra sozinha
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {flowSectors
+                    .filter((s) => !s.isTerminal)
+                    .map((sector) => {
+                      const key = sector.slug || sector.id
+                      const checked = selectedFlowOptions.includes(key) || selectedFlowOptions.includes(sector.id)
+                      return (
+                        <button
+                          key={sector.id}
+                          type="button"
+                          onClick={() => toggleFlowOption(key)}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                            checked
+                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                              : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          }`}
+                        >
+                          {sector.name}
+                        </button>
+                      )
+                    })}
+                </div>
+                {errors.department ? (
+                  <p className="text-sm text-destructive">{errors.department}</p>
+                ) : null}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="flowObservation">Obs. do fluxo</Label>
+                  <Textarea
+                    id="flowObservation"
+                    placeholder="Ex.: reforçar pintura nas laterais"
+                    value={flowObservation}
+                    onChange={(e) => setFlowObservation(e.target.value)}
+                    className="min-h-[72px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Acessórios deixados</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {defaultAccessories.map((accessory) => {
+                      const isSelected = selectedAccessories.includes(accessory)
+                      return (
+                        <button
+                          key={accessory}
+                          type="button"
+                          onClick={() => toggleAccessory(accessory, !isSelected)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                            isSelected
+                              ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+                              : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/30"
+                          }`}
+                        >
+                          {accessory}
+                        </button>
+                      )
+                    })}
                   </div>
-                </details>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Outro acessório…"
+                      value={customAccessory}
+                      onChange={(e) => setCustomAccessory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addCustomAccessory()
+                        }
+                      }}
+                      className="h-9"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addCustomAccessory}
+                      disabled={!customAccessory.trim()}
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {selectedAccessories.length > 0 &&
+                  selectedAccessories.some((a) => !defaultAccessories.includes(a)) ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedAccessories
+                        .filter((a) => !defaultAccessories.includes(a))
+                        .map((accessory) => (
+                          <span
+                            key={accessory}
+                            className="inline-flex items-center gap-1 rounded-full bg-[var(--wq-brand-soft)] px-2.5 py-1 text-xs"
+                          >
+                            {accessory}
+                            <button type="button" onClick={() => removeAccessory(accessory)} aria-label="Remover">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
               </section>
 
               {/* Block 3 — Pagamento + enviar */}
@@ -1519,6 +1642,27 @@ export default function NewOrderPage() {
                       onChange={handleInputChange}
                       className={errors.expectedDate ? "border-destructive" : ""}
                     />
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { d: 3, label: "+3 dias" },
+                        { d: 5, label: "+5 dias" },
+                        { d: 7, label: "+7 dias" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.d}
+                          type="button"
+                          className="rounded-full border border-[var(--wq-border)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40 hover:text-[var(--wq-text)]"
+                          onClick={() => {
+                            handleSelectChange("expectedDate", dueInDays(opt.d))
+                            if (errors.expectedDate) {
+                              setErrors((prev) => ({ ...prev, expectedDate: "" }))
+                            }
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                     {errors.expectedDate && <p className="text-sm text-destructive">{errors.expectedDate}</p>}
                   </div>
                   <div className="space-y-1.5">

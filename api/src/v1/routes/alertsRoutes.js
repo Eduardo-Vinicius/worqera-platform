@@ -10,6 +10,7 @@ const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin'
 const ownerGuard = [auth, shopContext, subscriptionGate, requireRole('owner')];
 
 router.get('/delays', ...guard, alertsController.listDelays);
+router.get('/inbox', ...guard, alertsController.inbox);
 router.post('/delays/digest', ...guard, alertsController.sendDigest);
 router.post('/weekly-digest', ...ownerGuard, alertsController.sendWeeklyDigest);
 

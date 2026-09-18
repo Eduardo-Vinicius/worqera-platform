@@ -6,6 +6,14 @@ const FINAL_STATUSES = new Set(['delivered', 'cancelled']);
 const DEFAULT_FUNC_LIMIT = 10;
 const MAX_ATRASOS_ITEMS = 50;
 
+const STATUS_LABELS = {
+  open: 'Aberto',
+  in_progress: 'Em andamento',
+  ready: 'Pronto',
+  delivered: 'Entregue',
+  cancelled: 'Cancelado',
+};
+
 function isFinalStatus(status) {
   return FINAL_STATUSES.has(String(status || ''));
 }
@@ -28,18 +36,39 @@ function parseData(dateStr) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function startOfLocalDay(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfLocalDay(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function isSameLocalDay(date, ref = new Date()) {
+  if (!date) return false;
+  return startOfLocalDay(date).getTime() === startOfLocalDay(ref).getTime();
+}
+
 function resolvePeriodo(filters = {}) {
   const now = new Date();
   let start = null;
   let end = null;
-  const periodoRaw = String(filters.periodo || '').trim().toLowerCase();
+  const periodoRaw = String(filters.periodo || filters.period || '').trim().toLowerCase();
 
-  if (filters.dataInicio || filters.dataFim) {
-    start = parseData(filters.dataInicio) || new Date(0);
-    end = parseData(filters.dataFim) || now;
-    if (filters.dataFim && !String(filters.dataFim).includes('T')) {
+  if (filters.dataInicio || filters.dataFim || filters.startDate || filters.endDate) {
+    start = parseData(filters.dataInicio || filters.startDate) || new Date(0);
+    end = parseData(filters.dataFim || filters.endDate) || now;
+    const endRaw = String(filters.dataFim || filters.endDate || '');
+    if (endRaw && !endRaw.includes('T')) {
       end.setHours(23, 59, 59, 999);
     }
+  } else if (periodoRaw === 'today' || periodoRaw === 'hoje' || periodoRaw === '1d') {
+    start = startOfLocalDay(now);
+    end = endOfLocalDay(now);
   } else {
     const periodMap = { '7d': 7, '15d': 15, '30d': 30, '90d': 90, '180d': 180, '1y': 365 };
     const dias = periodMap[periodoRaw] || 30;
@@ -57,7 +86,7 @@ function resolvePeriodo(filters = {}) {
     start,
     end,
     label:
-      filters.dataInicio || filters.dataFim
+      filters.dataInicio || filters.dataFim || filters.startDate || filters.endDate
         ? `${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}`
         : periodoRaw || '30d',
   };
@@ -91,6 +120,36 @@ function orderExpenses(order) {
   return toNumber(order.pricing?.expenses);
 }
 
+function orderReceived(order) {
+  const total = orderTotal(order);
+  if (String(order.status) === 'delivered') return total;
+  if (String(order.status) === 'cancelled') return Math.min(total, orderDeposit(order));
+  const restante = Math.max(0, orderRemaining(order));
+  let recebido = Math.max(0, total - restante);
+  if (recebido <= 0) recebido = Math.min(total, orderDeposit(order));
+  return recebido;
+}
+
+function flattenOrderServices(order) {
+  const fromItems = [];
+  if (Array.isArray(order.items)) {
+    for (const item of order.items) {
+      if (Array.isArray(item?.services)) {
+        for (const s of item.services) fromItems.push(s);
+      }
+    }
+  }
+  if (fromItems.length) return fromItems;
+  if (Array.isArray(order.services) && order.services.length) return order.services;
+  if (Array.isArray(order.servicos) && order.servicos.length) return order.servicos;
+  return [];
+}
+
+function statusLabel(status) {
+  const key = String(status || '');
+  return STATUS_LABELS[key] || key || 'Sem status';
+}
+
 function buildFinanceiroResumo(orders) {
   let receitaPrevista = 0;
   let receitaRecebida = 0;
@@ -100,13 +159,8 @@ function buildFinanceiroResumo(orders) {
 
   orders.forEach((order) => {
     const totalPedido = orderTotal(order);
-    const restante = Math.max(0, orderRemaining(order));
-    let recebido = Math.max(0, totalPedido - restante);
-    if (recebido <= 0) recebido = Math.min(totalPedido, orderDeposit(order));
-    if (isFinalStatus(order.status)) {
-      recebido = totalPedido;
-      pedidosFinalizados += 1;
-    }
+    const recebido = orderReceived(order);
+    if (String(order.status) === 'delivered') pedidosFinalizados += 1;
     const pendente = Math.max(0, totalPedido - recebido);
     receitaPrevista += totalPedido;
     receitaRecebida += recebido;
@@ -138,7 +192,7 @@ function buildFinanceiroResumo(orders) {
 function buildReceitaPorStatus(orders) {
   const map = new Map();
   orders.forEach((order) => {
-    const status = String(order.status || 'Sem status');
+    const status = statusLabel(order.status);
     const atual = map.get(status) || {
       status,
       orders: 0,
@@ -146,8 +200,7 @@ function buildReceitaPorStatus(orders) {
       receivedRevenue: 0,
     };
     const total = orderTotal(order);
-    const restante = Math.max(0, orderRemaining(order));
-    const recebido = isFinalStatus(status) ? total : Math.max(0, total - restante);
+    const recebido = orderReceived(order);
     atual.orders += 1;
     atual.expectedRevenue += total;
     atual.receivedRevenue += recebido;
@@ -164,8 +217,7 @@ function buildEvolucaoDiaria(orders) {
     const day = created.toISOString().split('T')[0];
     const atual = map.get(day) || { date: day, orders: 0, expectedRevenue: 0, receivedRevenue: 0 };
     const total = orderTotal(order);
-    const restante = Math.max(0, orderRemaining(order));
-    const recebido = isFinalStatus(order.status) ? total : Math.max(0, total - restante);
+    const recebido = orderReceived(order);
     atual.orders += 1;
     atual.expectedRevenue += total;
     atual.receivedRevenue += recebido;
@@ -177,9 +229,9 @@ function buildEvolucaoDiaria(orders) {
 function buildTopServicos(orders, limit = 10) {
   const map = new Map();
   orders.forEach((order) => {
-    const services = Array.isArray(order.services) ? order.services : [];
+    const services = flattenOrderServices(order);
     if (!services.length) {
-      const nome = 'General service';
+      const nome = 'Sem serviço';
       const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
       atual.orders += 1;
       atual.revenue += orderTotal(order);
@@ -187,16 +239,74 @@ function buildTopServicos(orders, limit = 10) {
       return;
     }
     services.forEach((s) => {
-      const nome = String(s.name || 'Unnamed service').trim() || 'Unnamed service';
+      const nome = String(s.name || s.nome || 'Serviço').trim() || 'Serviço';
       const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
       atual.orders += 1;
-      atual.revenue += toNumber(s.price);
+      atual.revenue += toNumber(s.price, s.preco);
       map.set(nome, atual);
     });
   });
   return Array.from(map.values())
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, limit);
+}
+
+/** Snapshot operacional do dia (independente do filtro de período). */
+function buildCaixaHoje(orders) {
+  const now = new Date();
+  let deliveredToday = 0;
+  let deliveredCount = 0;
+  let depositsToday = 0;
+  let depositsCount = 0;
+  let readyToCollect = 0;
+  let readyCount = 0;
+  let openPipeline = 0;
+  let openCount = 0;
+
+  orders.forEach((order) => {
+    const status = String(order.status || '');
+    const total = orderTotal(order);
+    const deposit = orderDeposit(order);
+    const remaining = Math.max(0, orderRemaining(order));
+    const created = parseData(order.createdAt);
+    const deliveredAt = parseData(order.deliveredAt);
+
+    if (
+      status === 'delivered' &&
+      (isSameLocalDay(deliveredAt, now) || (!deliveredAt && isSameLocalDay(created, now)))
+    ) {
+      deliveredToday += total;
+      deliveredCount += 1;
+    }
+
+    if (isSameLocalDay(created, now) && deposit > 0) {
+      depositsToday += deposit;
+      depositsCount += 1;
+    }
+
+    if (status === 'ready') {
+      readyToCollect += remaining > 0 ? remaining : total;
+      readyCount += 1;
+    }
+
+    if (!isFinalStatus(status)) {
+      openPipeline += remaining;
+      openCount += 1;
+    }
+  });
+
+  return {
+    date: startOfLocalDay(now).toISOString().split('T')[0],
+    deliveredToday,
+    deliveredCount,
+    depositsToday,
+    depositsCount,
+    readyToCollect,
+    readyCount,
+    openPipeline,
+    openCount,
+    cashInToday: deliveredToday + depositsToday,
+  };
 }
 
 function periodInfo(periodo) {
@@ -333,6 +443,7 @@ async function getFinance(shopId, filters = {}) {
     revenueByStatus: buildReceitaPorStatus(filtrados),
     topServices: buildTopServicos(filtrados, Number(filters.servicesLimit || filters.limitServicos) || 10),
     dailyEvolution: buildEvolucaoDiaria(filtrados),
+    today: buildCaixaHoje(orders),
   };
 }
 

@@ -15,9 +15,14 @@ import {
 } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  ExternalLink,
+  MessageCircle,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   Settings,
@@ -30,10 +35,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { addOrderCommentV1, getKanbanV1, moveKanbanOrderV1 } from "@/lib/apiV1"
-import { getPedidoService } from "@/lib/apiService"
+import { getPedidoService, updateOrderService } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
+import { buildWaMeUrl, DEFAULT_WA_TEMPLATES, fillWaTemplate } from "@/lib/whatsapp"
 
 type OrderCard = {
   _id?: string
@@ -49,10 +55,19 @@ type OrderCard = {
   items?: unknown[]
   plannedSectorIds?: string[]
   currentSectorId?: string
+  reopened?: boolean
+  feedbackScore?: number | null
+  status?: string
 }
 
 type Column = {
-  sector: { _id: string; id?: string; name: string; color?: string }
+  sector: {
+    _id: string
+    id?: string
+    name: string
+    color?: string
+    isTerminal?: boolean
+  }
   orders: OrderCard[]
 }
 
@@ -62,7 +77,8 @@ type DetailOrder = {
   id?: string
   code?: string
   clientName?: string
-  client?: { name?: string; nomeCompleto?: string }
+  clientPhone?: string
+  client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
   shoeModel?: string
   items?: Array<{ shoeModel?: string; services?: Array<{ name?: string; price?: number }> }>
   plannedSectorIds?: string[]
@@ -82,6 +98,7 @@ type DetailOrder = {
   priority?: number
   dueAt?: string
   notes?: string
+  status?: string
   comments?: Array<{
     id?: string
     text?: string
@@ -152,6 +169,8 @@ function KanbanCardBody({
   dragHandleProps,
   columnSectorId,
   sectorNameById,
+  isTerminalColumn,
+  onMarkDelivered,
 }: {
   order: OrderCard
   focused?: boolean
@@ -161,18 +180,26 @@ function KanbanCardBody({
   dragHandleProps?: Record<string, unknown>
   columnSectorId?: string
   sectorNameById?: Map<string, string>
+  isTerminalColumn?: boolean
+  onMarkDelivered?: (order: OrderCard) => void
 }) {
   const late = order.dueAt && new Date(order.dueAt).getTime() < Date.now()
   const pairs = pairCount(order)
   const cue = routeCue(order, columnSectorId || "", sectorNameById || new Map())
+  const showDeliver =
+    Boolean(isTerminalColumn) &&
+    (order.status === "ready" || !order.status) &&
+    Boolean(onMarkDelivered)
 
   return (
     <div
       className={cn(
         "cursor-grab rounded-xl border bg-[var(--wq-surface)] p-3 shadow-sm active:cursor-grabbing",
-        cue.offFlow
-          ? "border-[var(--wq-warn)]/50 border-l-[3px] border-l-[var(--wq-warn)] bg-[color-mix(in_srgb,var(--wq-warn)_8%,var(--wq-surface))]"
-          : "border-[var(--wq-border)]",
+        order.reopened
+          ? "border-sky-300/70 border-l-[3px] border-l-sky-500 bg-[color-mix(in_srgb,#0ea5e9_8%,var(--wq-surface))]"
+          : cue.offFlow
+            ? "border-[var(--wq-warn)]/50 border-l-[3px] border-l-[var(--wq-warn)] bg-[color-mix(in_srgb,var(--wq-warn)_8%,var(--wq-surface))]"
+            : "border-[var(--wq-border)]",
         focused && "ring-2 ring-[var(--wq-action)]",
         dragging && "opacity-40"
       )}
@@ -191,6 +218,11 @@ function KanbanCardBody({
           <span className="font-mono text-sm font-semibold tracking-tight text-[var(--wq-text)]">
             {orderCode(order)}
           </span>
+          {order.reopened && (
+            <Badge className="border-0 bg-sky-100 text-[10px] font-semibold text-sky-800">
+              Reaberto
+            </Badge>
+          )}
           {cue.offFlow && (
             <Badge className="border-0 bg-[var(--wq-warn)]/20 text-[10px] font-semibold text-[var(--wq-warn)]">
               Fora do fluxo
@@ -239,6 +271,20 @@ function KanbanCardBody({
           </p>
         )}
       </button>
+      {showDeliver ? (
+        <button
+          type="button"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+          onClick={(e) => {
+            e.stopPropagation()
+            onMarkDelivered?.(order)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Check className="h-3.5 w-3.5" />
+          Marcar entregue
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -250,6 +296,8 @@ function DraggableCard({
   onOpen,
   columnSectorId,
   sectorNameById,
+  isTerminalColumn,
+  onMarkDelivered,
 }: {
   order: OrderCard
   focused?: boolean
@@ -257,6 +305,8 @@ function DraggableCard({
   onOpen?: () => void
   columnSectorId: string
   sectorNameById: Map<string, string>
+  isTerminalColumn?: boolean
+  onMarkDelivered?: (order: OrderCard) => void
 }) {
   const id = orderId(order)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
@@ -273,6 +323,8 @@ function DraggableCard({
         dragHandleProps={{ ...listeners, ...attributes }}
         columnSectorId={columnSectorId}
         sectorNameById={sectorNameById}
+        isTerminalColumn={isTerminalColumn}
+        onMarkDelivered={onMarkDelivered}
       />
     </div>
   )
@@ -286,6 +338,7 @@ function DroppableColumn({
   onOpenCard,
   sectorNameById,
   compact,
+  onMarkDelivered,
 }: {
   column: Column
   filterLate: boolean
@@ -294,9 +347,11 @@ function DroppableColumn({
   onOpenCard: (o: OrderCard) => void
   sectorNameById: Map<string, string>
   compact?: boolean
+  onMarkDelivered?: (order: OrderCard) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, filterLate)
+  const isTerminal = Boolean(column.sector.isTerminal)
 
   return (
     <div
@@ -312,6 +367,11 @@ function DroppableColumn({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--wq-text)]">
           {column.sector.name}
         </span>
+        {isTerminal ? (
+          <Badge className="border-0 bg-emerald-100 text-[10px] font-semibold text-emerald-800">
+            Final
+          </Badge>
+        ) : null}
         <Badge variant="outline" className="font-mono text-[11px]">
           {orders.length}
         </Badge>
@@ -329,6 +389,8 @@ function DroppableColumn({
             onOpen={() => onOpenCard(o)}
             columnSectorId={column.sector._id}
             sectorNameById={sectorNameById}
+            isTerminalColumn={isTerminal}
+            onMarkDelivered={onMarkDelivered}
           />
         ))}
       </div>
@@ -376,6 +438,7 @@ export default function KanbanPage() {
           _id: String(c.sector?._id || c.sector?.id),
           name: c.sector?.name || "Setor",
           color: c.sector?.color || "#7C6CF0",
+          isTerminal: Boolean(c.sector?.isTerminal),
         },
         orders: (c.orders || []).map((o: any) => ({
           ...o,
@@ -385,6 +448,8 @@ export default function KanbanPage() {
           plannedSectorIds: Array.isArray(o.plannedSectorIds)
             ? o.plannedSectorIds.map(String)
             : [],
+          reopened: Boolean(o.reopened),
+          status: o.status,
         })),
       }))
       const targets: ForwardTarget[] = (res.forwardTargets || []).map((t: any) => ({
@@ -460,6 +525,25 @@ export default function KanbanPage() {
       if (col.orders.some((o) => orderId(o) === id)) return col.sector._id
     }
     return null
+  }
+
+  const markDelivered = async (order: OrderCard) => {
+    const id = orderId(order)
+    if (!id) return
+    try {
+      await updateOrderService(id, {
+        status: "delivered",
+        deliveredAt: new Date().toISOString(),
+      })
+      toast.success(`${orderCode(order)} marcado como entregue`)
+      if (detailOpen && detail && String(detail.id) === id) {
+        setDetailOpen(false)
+        setDetail(null)
+      }
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao marcar entregue")
+    }
   }
 
   const executeMove = async (orderIdValue: string, toSectorId: string, note?: string) => {
@@ -835,6 +919,7 @@ export default function KanbanPage() {
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
                   compact
+                  onMarkDelivered={markDelivered}
                 />
               )}
               {focusedCardId && (
@@ -892,6 +977,7 @@ export default function KanbanPage() {
                   onFocusCard={setFocusedCardId}
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
+                  onMarkDelivered={markDelivered}
                 />
               ))}
             </div>
@@ -942,6 +1028,85 @@ export default function KanbanPage() {
                         Prazo {new Date(detail.dueAt).toLocaleDateString("pt-BR")}
                       </p>
                     )}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-[10px]"
+                        onClick={async () => {
+                          const slug = localStorage.getItem("shopSlug") || ""
+                          const code = detail.code || ""
+                          const origin = window.location.origin
+                          const link = slug
+                            ? `${origin}/p/${slug}/${encodeURIComponent(code)}`
+                            : `${origin}/p/${encodeURIComponent(code)}`
+                          try {
+                            await navigator.clipboard.writeText(link)
+                            toast.success("Link público copiado")
+                          } catch {
+                            toast.message(link)
+                          }
+                        }}
+                      >
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copiar link
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-[10px]"
+                        onClick={() => {
+                          const phone =
+                            detail.clientPhone ||
+                            detail.client?.phone ||
+                            detail.client?.telefone ||
+                            ""
+                          if (!phone) {
+                            toast.error("Cliente sem telefone")
+                            return
+                          }
+                          const slug = localStorage.getItem("shopSlug") || ""
+                          const code = detail.code || ""
+                          const origin = window.location.origin
+                          const link = slug
+                            ? `${origin}/p/${slug}/${encodeURIComponent(code)}`
+                            : `${origin}/p/${encodeURIComponent(code)}`
+                          const text = fillWaTemplate(DEFAULT_WA_TEMPLATES.publicLink, {
+                            code,
+                            client:
+                              detail.clientName ||
+                              detail.client?.nomeCompleto ||
+                              detail.client?.name ||
+                              "",
+                            link,
+                            shop: localStorage.getItem("shopName") || "Worqera",
+                          })
+                          const url = buildWaMeUrl(phone, text)
+                          if (!url) {
+                            toast.error("Telefone inválido")
+                            return
+                          }
+                          window.open(url, "_blank", "noopener,noreferrer")
+                        }}
+                      >
+                        <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                        WhatsApp
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                        <Link href={`/pedidos/${detail.id}/etiqueta?print=1`}>
+                          <Printer className="mr-1.5 h-3.5 w-3.5" />
+                          Imprimir
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                        <Link href={`/pedidos?q=${encodeURIComponent(detail.code || "")}`}>
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          Pedidos
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
 
                   <div>

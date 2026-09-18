@@ -140,6 +140,7 @@ function serializeOrder(order) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     deliveredAt: order.deliveredAt || null,
+    reopenedAt: order.reopenedAt || null,
     feedback: order.feedback?.score
       ? {
           score: order.feedback.score,
