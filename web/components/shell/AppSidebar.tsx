@@ -34,6 +34,7 @@ export function AppSidebar({
   const pathname = usePathname()
   const [role, setRole] = useState("")
   const [shopName, setShopName] = useState("Oficina")
+  const [logoUrl, setLogoUrl] = useState("")
   const [userName, setUserName] = useState("Usuário")
   const [platformAdmin, setPlatformAdmin] = useState(false)
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
@@ -46,6 +47,7 @@ export function AppSidebar({
           localStorage.getItem("shopName") ||
           "Oficina"
       )
+      setLogoUrl(localStorage.getItem("shopLogoUrl") || "")
       setUserName(
         localStorage.getItem("userName") || localStorage.getItem("email") || "Usuário"
       )
@@ -64,18 +66,27 @@ export function AppSidebar({
     <aside
       className={cn(
         "flex w-[246px] shrink-0 flex-col bg-[var(--wq-ink)] text-[var(--wq-on-ink)]",
-        mobile && "h-full w-full max-w-[280px]"
+        mobile && "h-full w-full max-w-none"
       )}
     >
-      <div className="px-5 pt-6 pb-5 border-b border-white/10">
+      <div className="border-b border-white/10 px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
         <Link
           href={isSector ? "/kanban" : "/dashboard"}
           onClick={onNavigate}
-          className="flex items-center gap-3"
+          className="flex min-w-0 items-center gap-3"
         >
-          <WorqeraLogo className="h-9 w-9 shrink-0" title={appName} />
-          <div>
-            <div className="font-[family-name:var(--font-display)] text-lg tracking-wide text-white">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-0.5"
+            />
+          ) : (
+            <WorqeraLogo className="h-9 w-9 shrink-0" title={appName} />
+          )}
+          <div className="min-w-0">
+            <div className="truncate font-[family-name:var(--font-display)] text-base tracking-wide text-white sm:text-lg">
               {shopName}
             </div>
             <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">

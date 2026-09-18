@@ -52,3 +52,7 @@ Nginx: `upstream` → `server worqera-web:80;`
 - `NEXT_PUBLIC_*` entram no **build** da imagem — mudar URL = rebuild.
 - Dev local: `api/docker-compose.yml` (Mongo `:27017`) + `make api-dev` / `make web-dev`.
 - AbacatePay fica `Enabled=false` até ligar cobrança.
+- Health: `GET /health` (live) · `GET /health/ready` (Mongo ping) — use ready no UptimeRobot.
+- Backup semanal: `api/scripts/mongo-backup.sh` (cron no host).
+- Trial D-2/D-0: `node api/scripts/send-trial-reminders.js` (cron diário).
+- Digest semanal (owners): `node api/scripts/send-weekly-digests.js` (cron segundas) ou botão no dashboard.

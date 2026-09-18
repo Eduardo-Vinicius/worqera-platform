@@ -3,12 +3,21 @@ const orderController = require('../controllers/orderController');
 const { auth } = require('../middleware/auth');
 const { shopContext } = require('../middleware/shopContext');
 const { subscriptionGate } = require('../middleware/subscriptionGate');
+const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, orderController.list);
 router.post('/', ...guard, orderController.create);
+router.get('/export.csv', ...guard, requireRole('owner'), orderController.exportCsv);
+router.get('/export', ...guard, requireRole('owner'), orderController.exportCsv);
+router.post(
+  '/demo',
+  ...guard,
+  requireRole('owner', 'admin', 'atendimento'),
+  orderController.createDemo
+);
 router.post(
   '/:id/photos',
   ...guard,

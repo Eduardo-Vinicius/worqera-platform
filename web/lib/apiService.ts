@@ -945,6 +945,7 @@ export async function updateOrderService(
     deposit?: number;
     remaining?: number;
     status?: string;
+    deliveredAt?: string;
     dataPrevistaEntrega?: string;
     dueAt?: string;
     prioridade?: number;
@@ -961,6 +962,7 @@ export async function updateOrderService(
     body.notes = orderData.notes ?? orderData.observacoes;
   }
   if (orderData.status != null) body.status = orderData.status;
+  if (orderData.deliveredAt != null) body.deliveredAt = orderData.deliveredAt;
   if (orderData.dataPrevistaEntrega != null || orderData.dueAt != null) {
     body.dueAt = orderData.dueAt ?? orderData.dataPrevistaEntrega;
   }

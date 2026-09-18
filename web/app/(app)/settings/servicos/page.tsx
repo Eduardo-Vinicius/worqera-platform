@@ -173,7 +173,7 @@ export default function ServicosSettingsPage() {
   }
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Catálogo de serviços"
         subtitle="Usado no novo pedido · rota sugerida de setores (TOP-04)"

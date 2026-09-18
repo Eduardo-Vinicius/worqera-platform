@@ -205,6 +205,24 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
   }
 
   await order.save();
+
+  // Client email: only when sector asks for it, or terminal (ready)
+  try {
+    const Shop = require('../models/Shop');
+    const shop = await Shop.findById(shopId).lean();
+    const shouldMail =
+      Boolean(toSector.notifyEmailOnEnter) || Boolean(toSector.isTerminal);
+    if (shouldMail && shop) {
+      const { notifyOrderStatusSafe } = require('./orderNotify');
+      const kind = toSector.isTerminal || order.status === 'ready' ? 'ready' : 'moved';
+      notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, kind, {
+        sectorName: toSector.name,
+      });
+    }
+  } catch (_err) {
+    // never block move
+  }
+
   return order.toObject();
 }
 

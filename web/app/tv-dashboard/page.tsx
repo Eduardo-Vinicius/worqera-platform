@@ -39,6 +39,8 @@ function TvFloorInner() {
   const [reduceMotion, setReduceMotion] = useState(false)
   const [refreshMs, setRefreshMs] = useState(REFRESH_MS)
   const [brandName, setBrandName] = useState("")
+  const [logoUrl, setLogoUrl] = useState("")
+  const [brandPrimary, setBrandPrimary] = useState("#7D26DE")
   const [floorTitle, setFloorTitle] = useState("TV Oficina")
   const prevTotalsRef = useRef<Record<string, number>>({})
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -69,6 +71,9 @@ function TvFloorInner() {
         if (cfg.refreshMs) setRefreshMs(Number(cfg.refreshMs) || REFRESH_MS)
         if (cfg.title) setFloorTitle(String(cfg.title))
         setBrandName(doc?.branding?.displayName || doc?.name || "")
+        setLogoUrl(doc?.branding?.logoUrl || "")
+        const { resolveBrandColors } = await import("@/lib/shopBrand")
+        setBrandPrimary(resolveBrandColors(doc?.branding).primary)
       } catch {
         // defaults
       }
@@ -132,7 +137,15 @@ function TvFloorInner() {
     <div className="flex min-h-screen flex-col bg-[var(--wq-ink)] p-8 text-white md:p-12">
       <header className="mb-10 flex items-end justify-between gap-6">
         <div>
-          <p className="text-sm text-white/50">{brandName || "Worqera"}</p>
+          <div className="mb-2 flex items-center gap-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-10 w-auto object-contain" />
+            ) : null}
+            <p className="text-sm font-medium" style={{ color: brandPrimary }}>
+              {brandName || "Worqera"}
+            </p>
+          </div>
           <h1 className="text-4xl font-semibold md:text-5xl">{floorTitle}</h1>
           <p className="mt-1 text-lg text-white/60">
             Fila por setor

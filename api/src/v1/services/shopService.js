@@ -18,6 +18,21 @@ function generatePartnerCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function normalizeHexColor(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const m = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!m) {
+    const err = new Error('Cor inválida (use #RGB ou #RRGGBB)');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  let h = m[1];
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  return `#${h.toUpperCase()}`;
+}
+
 async function getCurrentShop(shopId) {
   return Shop.findById(shopId).lean();
 }
@@ -101,8 +116,9 @@ async function patchCurrentShop(shopId, updates) {
     if (b.legacyBrand != null) shop.branding.legacyBrand = b.legacyBrand;
     if (b.phone != null) shop.branding.phone = b.phone;
     if (b.address != null) shop.branding.address = b.address;
-    if (b.logoUrl != null) shop.branding.logoUrl = b.logoUrl;
-    if (b.primaryColor != null) shop.branding.primaryColor = b.primaryColor;
+    if (b.logoUrl != null) shop.branding.logoUrl = String(b.logoUrl || '').trim();
+    if (b.primaryColor != null) shop.branding.primaryColor = normalizeHexColor(b.primaryColor);
+    if (b.accentColor != null) shop.branding.accentColor = normalizeHexColor(b.accentColor);
   }
 
   if (updates.tvSettings != null && typeof updates.tvSettings === 'object') {
@@ -136,6 +152,11 @@ async function patchCurrentShop(shopId, updates) {
           ...w.templates,
         };
       }
+    }
+    if (updates.notifications.email) {
+      const e = updates.notifications.email;
+      shop.notifications.email = shop.notifications.email || {};
+      if (e.enabled != null) shop.notifications.email.enabled = Boolean(e.enabled);
     }
   }
 
@@ -350,6 +371,46 @@ async function seedDefaultCatalog(shopId) {
   return { ok: true, seeded: DEFAULT_SERVICES.length, existing: 0 };
 }
 
+async function uploadShopLogo(shopId, file) {
+  const storageService = require('./storageService');
+  if (!file || !file.buffer) {
+    const err = new Error('arquivo de logo obrigatório');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const mime = String(file.mimetype || '').toLowerCase();
+  if (!allowed.includes(mime)) {
+    const err = new Error('logo deve ser jpeg, png, webp ou gif');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    const err = new Error('Shop not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const extMap = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  const ext = extMap[mime] || 'png';
+  const prefix = storageService.brandingPrefix(shopId);
+  await storageService.deletePrefix(prefix).catch(() => 0);
+  const key = `${prefix}logo.${ext}`;
+  const stored = await storageService.putBuffer(key, file.buffer, mime);
+  shop.branding = shop.branding || {};
+  shop.branding.logoUrl = stored.url;
+  await shop.save();
+  return shop.toObject();
+}
+
 module.exports = {
   getCurrentShop,
   patchCurrentShop,
@@ -362,4 +423,5 @@ module.exports = {
   addMember,
   patchMember,
   resetMemberPassword,
+  uploadShopLogo,
 };

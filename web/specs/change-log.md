@@ -1,5 +1,16 @@
 # Worqera Web — Change log
 
+## 2026-09-17
+
+- **Cliente notify:** e-mail create/move/ready; toggle por setor (`notifyEmailOnEnter` + `isTerminal`); master em Empresa; feedback CSAT 1–5 na consulta pública; reabrir ready/delivered (mesmo código).
+- **QW:** badge Sistema ok no AppHeader; etiqueta auto-print `?print=1` + CSS print.
+- **Branding por loja:** Empresa — upload logo, cores primary/accent, presets, preview; shell aplica CSS vars; sidebar com logo; consulta `/p` brandada (mobile full-bleed); etiqueta + TVs com logo/cor; checklist “logo e cores”.
+- **Platform:** nota interna (`adminNote`) em `/admin/shops`.
+- **Wow:** digest semanal (botão dashboard owner); toast “Avisar no WhatsApp” ao mover no kanban (wa.me + templates da Empresa).
+- **Mobile SaaS:** AppHeader empilha; bleed sync; banners wrap; sidebar truncate; safe-area; FAB kanban; listas/clientes/pedidos/consultas sem overflow; sticky novo pedido.
+- **QW:** empty states + pedido demo; export CSV finalizados (owner); skeletons em loading; `/forbidden` + `not-found`; PWA manifest; billing UX (AbacatePay + o que inclui); onboarding com exemplo.
+- **LP conversão + ACL owner** (carry da sessão anterior).
+
 ## 2026-09-15
 
 - **LP conversão:** hero full-viewport com mock kanban; tema claro/escuro (toggle); Axisbyte só como cliente; bloco AbacatePay/pagamento/usabilidade; CTAs “Testar grátis”; sem crédito “produto Axisbyte”.

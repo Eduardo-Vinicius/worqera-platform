@@ -115,7 +115,7 @@ export default function ConsultasClientesPage() {
   }, [selectedId, selected])
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Consultar clientes"
         subtitle="Busca no servidor por nome, CPF, telefone ou e-mail"
@@ -133,7 +133,7 @@ export default function ConsultasClientesPage() {
 
       <div className="mx-auto max-w-[1100px] space-y-4 px-5 py-6 md:px-8">
         <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[200px] flex-1">
+          <div className="relative min-w-0 w-full flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
               className="h-10 rounded-[10px] pl-9"

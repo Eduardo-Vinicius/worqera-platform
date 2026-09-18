@@ -9,6 +9,8 @@ const sectorSchema = new mongoose.Schema(
     color: { type: String, default: '#2196F3' },
     active: { type: Boolean, default: true },
     isTerminal: { type: Boolean, default: false },
+    /** When true, entering this sector emails the client (if shop email on + clientEmail). */
+    notifyEmailOnEnter: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -161,7 +161,7 @@ function ConsultasPedidosInner() {
   }
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Consultar pedidos"
         subtitle="Mais recentes primeiro · finalizados fora do kanban"
@@ -200,7 +200,7 @@ function ConsultasPedidosInner() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[220px] flex-1">
+          <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
               className="h-10 rounded-[10px] pl-9"

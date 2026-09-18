@@ -2,6 +2,20 @@ const shopService = require('../services/shopService');
 const inviteService = require('../services/inviteService');
 const { wrap } = require('./helpers');
 const { sendError } = require('../middleware/errors');
+const multer = require('multer');
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+});
+
+exports.uploadLogoMiddleware = (req, res, next) => {
+  const handler = logoUpload.single('logo');
+  handler(req, res, (err) => {
+    if (err) return next(err);
+    next();
+  });
+};
 
 exports.getCurrent = wrap(async (req, res) => {
   let shop = await shopService.getCurrentShop(req.shopId);
@@ -13,6 +27,11 @@ exports.getCurrent = wrap(async (req, res) => {
 
 exports.patchCurrent = wrap(async (req, res) => {
   const shop = await shopService.patchCurrentShop(req.shopId, req.body || {});
+  res.status(200).json(shop);
+});
+
+exports.uploadLogo = wrap(async (req, res) => {
+  const shop = await shopService.uploadShopLogo(req.shopId, req.file);
   res.status(200).json(shop);
 });
 

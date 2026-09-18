@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  createDemoOrderV1,
   createServiceV1,
   listSectorsV1,
   patchShopCurrentV1,
@@ -104,7 +105,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Bem-vindo ao Worqera"
         subtitle="Configure a oficina em 3 passos rápidos"
@@ -258,11 +259,35 @@ export default function OnboardingPage() {
               3. Criar o primeiro pedido
             </h2>
             <p className="text-sm text-[var(--wq-text-muted)]">
-              Pronto. Abra o formulário de novo pedido ou vá direto ao kanban.
+              Crie um pedido real ou gere um exemplo para ver o kanban funcionando em segundos.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button asChild className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90">
                 <Link href="/pedidos/novo">Novo pedido →</Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-[10px]"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true)
+                  try {
+                    await createDemoOrderV1()
+                    toast.success("Pedido de exemplo criado")
+                    await patchShopCurrentV1({ onboardingComplete: true })
+                    try {
+                      localStorage.removeItem("wq-needs-onboarding")
+                    } catch {}
+                    router.push("/kanban")
+                  } catch (err: any) {
+                    toast.error(err?.message || "Falha no exemplo")
+                  } finally {
+                    setBusy(false)
+                  }
+                }}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pedido de exemplo"}
               </Button>
               <Button
                 type="button"

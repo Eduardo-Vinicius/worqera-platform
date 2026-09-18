@@ -61,7 +61,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/admin/shops')) {
     const allowed = platformAdminEmails();
     if (!allowed.length || !allowed.includes(email)) {
-      return NextResponse.redirect(new URL('/kanban', request.url));
+      return NextResponse.redirect(new URL('/forbidden', request.url));
     }
     return NextResponse.next();
   }
@@ -71,11 +71,11 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/admin/metrics')
   ) {
     if (role !== 'owner') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   } else if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
     if (role !== 'admin' && role !== 'owner') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   }
 

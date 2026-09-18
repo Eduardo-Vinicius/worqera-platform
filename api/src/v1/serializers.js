@@ -140,6 +140,14 @@ function serializeOrder(order) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     deliveredAt: order.deliveredAt || null,
+    feedback: order.feedback?.score
+      ? {
+          score: order.feedback.score,
+          comment: order.feedback.comment || '',
+          tags: Array.isArray(order.feedback.tags) ? order.feedback.tags : [],
+          createdAt: order.feedback.createdAt || null,
+        }
+      : null,
   };
 }
 

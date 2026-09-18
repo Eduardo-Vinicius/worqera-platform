@@ -40,6 +40,19 @@ exports.create = wrap(async (req, res) => {
   res.status(201).json(serializeOrder(order));
 });
 
+exports.createDemo = wrap(async (req, res) => {
+  const order = await orderService.createDemoOrder(req.shopId, req.auth.userId);
+  res.status(201).json(serializeOrder(order));
+});
+
+exports.exportCsv = wrap(async (req, res) => {
+  const csv = await orderService.exportDeliveredOrdersCsv(req.shopId);
+  const day = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="orders-delivered-${day}.csv"`);
+  res.status(200).send(csv);
+});
+
 exports.get = wrap(async (req, res) => {
   const order = await orderService.getOrder(req.shopId, req.params.id);
   res.status(200).json(serializeOrder(order));
@@ -160,4 +173,15 @@ exports.publicByCode = wrap(async (req, res) => {
   const shopSlug = req.params.shopSlug || req.query.shop || req.query.slug || null;
   const order = await orderService.getPublicOrderByCode(req.params.code, { shopSlug });
   res.status(200).json(order);
+});
+
+exports.publicFeedback = wrap(async (req, res) => {
+  const shopSlug = req.params.shopSlug || req.body?.shopSlug || req.query.shop || null;
+  const result = await orderService.submitPublicFeedback(req.params.code, {
+    shopSlug,
+    score: req.body?.score,
+    comment: req.body?.comment,
+    tags: req.body?.tags,
+  });
+  res.status(200).json(result);
 });

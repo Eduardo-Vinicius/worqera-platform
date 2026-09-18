@@ -127,6 +127,17 @@ export async function meV1() {
     localStorage.setItem("shopDisplayName", String(shop.name))
   }
   if (shop?.slug) localStorage.setItem("shopSlug", String(shop.slug))
+  if (shop?.branding) {
+    const { syncBrandToStorage } = await import("./shopBrand")
+    syncBrandToStorage({
+      name: shop.name,
+      slug: shop.slug,
+      displayName: shop.branding.displayName || shop.name,
+      logoUrl: shop.branding.logoUrl || "",
+      primaryColor: shop.branding.primaryColor || "",
+      accentColor: shop.branding.accentColor || "",
+    })
+  }
   return data
 }
 
@@ -261,6 +272,20 @@ export async function sendDelayDigestV1() {
   })
 }
 
+export async function sendWeeklyDigestV1() {
+  return v1Fetch<{
+    ok: boolean
+    sent: number
+    deliveredCount?: number
+    openCount?: number
+    delaysTotal?: number
+    revenue?: number
+  }>("/alerts/weekly-digest", {
+    method: "POST",
+    body: JSON.stringify({}),
+  })
+}
+
 export async function listPlatformShopsV1(params: { q?: string; status?: string } = {}) {
   const qs = new URLSearchParams()
   if (params.q) qs.set("q", params.q)
@@ -271,7 +296,12 @@ export async function listPlatformShopsV1(params: { q?: string; status?: string 
 
 export async function patchPlatformShopV1(
   id: string,
-  body: Partial<{ status: string; extendTrialDays: number; subscriptionStatus: string }>
+  body: Partial<{
+    status: string
+    extendTrialDays: number
+    subscriptionStatus: string
+    adminNote: string
+  }>
 ) {
   return v1Fetch(`/platform/shops/${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -298,6 +328,34 @@ export async function patchShopCurrentV1(
   })
 }
 
+export async function uploadShopLogoV1(file: File) {
+  const form = new FormData()
+  form.append("logo", file)
+  const headers = new Headers()
+  const token = getToken()
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+  const shopId = getShopId()
+  if (shopId) headers.set("X-Worqera-Shop", shopId)
+  // Do not set Content-Type — browser sets multipart boundary
+  const res = await fetch(`${API_V1}/shops/current/logo`, {
+    method: "POST",
+    headers,
+    body: form,
+    credentials: "include",
+  })
+  const text = await res.text()
+  let data: any = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = { detail: text }
+  }
+  if (!res.ok) {
+    throw new ApiV1Error(data?.detail || data?.title || res.statusText, res.status, data?.code)
+  }
+  return data
+}
+
 export async function seedShopCatalogV1() {
   return v1Fetch<{ ok: boolean; seeded: number; existing: number }>(
     "/shops/current/seed-catalog",
@@ -314,6 +372,7 @@ export async function createSectorV1(body: {
   color?: string
   order?: number
   isTerminal?: boolean
+  notifyEmailOnEnter?: boolean
 }) {
   return v1Fetch("/sectors", { method: "POST", body: JSON.stringify(body) })
 }
@@ -361,6 +420,48 @@ export async function addOrderCommentV1(orderId: string, text: string) {
   })
 }
 
+export async function createDemoOrderV1() {
+  return v1Fetch<any>("/orders/demo", {
+    method: "POST",
+    body: JSON.stringify({}),
+  })
+}
+
+async function v1FetchBlob(path: string, init: RequestInit = {}, retried = false): Promise<Blob> {
+  const headers = new Headers(init.headers || {})
+  const token = getToken()
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+  const shopId = getShopId()
+  if (shopId) headers.set("X-Worqera-Shop", shopId)
+
+  const res = await fetch(`${API_V1}${path}`, { ...init, headers, credentials: "include" })
+  if (!res.ok) {
+    if (res.status === 401 && !retried && path !== "/auth/refresh" && path !== "/auth/login") {
+      const { tryRefreshSession } = await import("./authRefresh")
+      const ok = await tryRefreshSession()
+      if (ok) return v1FetchBlob(path, init, true)
+    }
+    const text = await res.text()
+    let data: any = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = { detail: text }
+    }
+    const msg = data?.detail || data?.title || data?.error || res.statusText
+    const code = data?.code
+    if (code === "SUBSCRIPTION_INACTIVE" && typeof window !== "undefined") {
+      window.location.href = "/billing"
+    }
+    throw new ApiV1Error(msg, res.status, code)
+  }
+  return res.blob()
+}
+
+export async function exportOrdersCsvV1() {
+  return v1FetchBlob("/orders/export.csv")
+}
+
 export async function getSubscriptionV1() {
   return v1Fetch<{ subscription: any }>("/billing/subscription")
 }
@@ -399,6 +500,30 @@ export async function getPublicOrderV1(code: string, shopSlug?: string) {
   }
   const qs = shopSlug ? `?shop=${encodeURIComponent(shopSlug)}` : ""
   return v1Fetch(`/public/orders/${encodeURIComponent(code)}${qs}`)
+}
+
+export async function submitPublicFeedbackV1(
+  shopSlug: string,
+  code: string,
+  body: { score: number; comment?: string; tags?: string[] }
+) {
+  return v1Fetch(
+    `/public/shops/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(code)}/feedback`,
+    { method: "POST", body: JSON.stringify(body) }
+  )
+}
+
+/** Liveness of API (no auth). Used by SystemOkBadge. */
+export async function getApiHealthV1(): Promise<{ ok: boolean; ready?: boolean }> {
+  try {
+    const base = API_V1.replace(/\/api\/v1$/, "")
+    const res = await fetch(`${base}/health/ready`, { cache: "no-store" })
+    if (!res.ok) return { ok: false }
+    const data = await res.json().catch(() => ({}))
+    return { ok: true, ready: Boolean(data?.ready ?? data?.status === "ok") }
+  } catch {
+    return { ok: false }
+  }
 }
 
 export async function listServicesV1() {

@@ -152,6 +152,7 @@ export default function TvClientePage() {
   const [brandName, setBrandName] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [showLogo, setShowLogo] = useState(true)
+  const [brandPrimary, setBrandPrimary] = useState("#7D26DE")
 
   const load = useCallback(async () => {
     try {
@@ -198,6 +199,8 @@ export default function TvClientePage() {
         if (cfg.showLogo === false) setShowLogo(false)
         setBrandName(doc?.branding?.displayName || doc?.name || "")
         setLogoUrl(doc?.branding?.logoUrl || "")
+        const { resolveBrandColors } = await import("@/lib/shopBrand")
+        setBrandPrimary(resolveBrandColors(doc?.branding).primary)
       } catch {
         // keep defaults
       }
@@ -255,7 +258,7 @@ export default function TvClientePage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoUrl} alt="" className="h-10 w-auto object-contain" />
               ) : null}
-              <p className="text-sm font-medium text-[var(--wq-accent)]">
+              <p className="text-sm font-medium" style={{ color: brandPrimary }}>
                 {brandName || "Worqera"}
               </p>
             </div>

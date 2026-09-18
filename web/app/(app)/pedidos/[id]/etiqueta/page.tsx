@@ -7,6 +7,8 @@ import QRCode from "qrcode"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { getPedidoService } from "@/lib/apiService"
+import { getShopCurrentV1 } from "@/lib/apiV1"
+import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } from "@/lib/shopBrand"
 import { Printer, KanbanSquare, Plus } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,11 +27,15 @@ function PedidoEtiquetaInner() {
   const search = useSearchParams()
   const id = String(params?.id || "")
   const pairsMode = search.get("pares") === "1"
+  const autoPrint = search.get("print") === "1"
 
   const [order, setOrder] = useState<OrderLabel | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState("")
   const [pairQrs, setPairQrs] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [brandName, setBrandName] = useState("Worqera")
+  const [logoUrl, setLogoUrl] = useState("")
+  const [ink, setInk] = useState("#0F172A")
 
   const code = order?.code || "—"
   const clientName =
@@ -39,6 +45,26 @@ function PedidoEtiquetaInner() {
     if (order?.shoeModel) return [{ shoeModel: order.shoeModel }]
     return []
   }, [order])
+
+  useEffect(() => {
+    const stored = readBrandFromStorage()
+    if (stored.displayName) setBrandName(stored.displayName)
+    if (stored.logoUrl) setLogoUrl(stored.logoUrl)
+    const colors = resolveBrandColors(stored)
+    setInk(deepenHex(colors.primary))
+    ;(async () => {
+      try {
+        const shop = await getShopCurrentV1()
+        const doc = shop?.shop || shop
+        setBrandName(doc?.branding?.displayName || doc?.name || "Worqera")
+        setLogoUrl(doc?.branding?.logoUrl || "")
+        const c = resolveBrandColors(doc?.branding)
+        setInk(deepenHex(c.primary))
+      } catch {
+        // keep localStorage
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -58,16 +84,18 @@ function PedidoEtiquetaInner() {
     if (!order?.code || typeof window === "undefined") return
     const publicUrl = (() => {
       const slug = localStorage.getItem("shopSlug")
-      if (slug) return `${window.location.origin}/p/${encodeURIComponent(slug)}/${encodeURIComponent(order.code)}`
+      if (slug)
+        return `${window.location.origin}/p/${encodeURIComponent(slug)}/${encodeURIComponent(order.code)}`
       return `${window.location.origin}/p/${encodeURIComponent(order.code)}`
     })()
+    const dark = normalizeHex(ink) || "#0F172A"
     let cancelled = false
     ;(async () => {
       try {
         const main = await QRCode.toDataURL(publicUrl, {
           margin: 1,
           width: 280,
-          color: { dark: "#0F172A", light: "#FFFFFF" },
+          color: { dark, light: "#FFFFFF" },
         })
         if (!cancelled) setQrDataUrl(main)
 
@@ -80,7 +108,7 @@ function PedidoEtiquetaInner() {
             QRCode.toDataURL(`${publicUrl}?item=${index + 1}`, {
               margin: 1,
               width: 180,
-              color: { dark: "#0F172A", light: "#FFFFFF" },
+              color: { dark, light: "#FFFFFF" },
             })
           )
         )
@@ -92,7 +120,13 @@ function PedidoEtiquetaInner() {
     return () => {
       cancelled = true
     }
-  }, [order])
+  }, [order, ink])
+
+  useEffect(() => {
+    if (!autoPrint || loading || !order || !qrDataUrl) return
+    const t = setTimeout(() => window.print(), 400)
+    return () => clearTimeout(t)
+  }, [autoPrint, loading, order, qrDataUrl])
 
   if (loading) {
     return <p className="p-8 text-[var(--wq-text-muted)]">Carregando etiqueta…</p>
@@ -109,23 +143,53 @@ function PedidoEtiquetaInner() {
     )
   }
 
+  const BrandHeader = ({ compact = false }: { compact?: boolean }) => (
+    <div className={`flex items-center justify-center gap-2 ${compact ? "mb-2" : "mb-3"}`}>
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt=""
+          className={compact ? "h-8 w-auto object-contain" : "h-10 w-auto object-contain"}
+        />
+      ) : null}
+      <p
+        className="text-xs uppercase tracking-[0.2em]"
+        style={{ color: ink }}
+      >
+        {brandName}
+      </p>
+    </div>
+  )
+
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .wq-print-label, .wq-print-label * { visibility: visible; }
+          .wq-print-label {
+            position: absolute; left: 0; top: 0; width: 100%;
+            margin: 0 !important; padding: 12mm !important;
+            box-shadow: none !important; border: none !important;
+          }
+        }
+      `}</style>
       <div className="print:hidden">
         <AppHeader
           title="Etiqueta do pedido"
-          subtitle="Imprima e cole no produto"
+          subtitle="Imprima e cole no produto · QR abre a consulta pública"
+          showHealth={false}
           actions={
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                className="rounded-[10px]"
+                className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
                 onClick={() => window.print()}
               >
                 <Printer className="mr-1.5 h-4 w-4" />
-                Imprimir
+                Imprimir agora
               </Button>
               <Button asChild variant="outline" size="sm" className="rounded-[10px]">
                 <Link href={`/pedidos/${id}/etiqueta?pares=1`}>Imprimir pares</Link>
@@ -135,11 +199,7 @@ function PedidoEtiquetaInner() {
                   <Link href={`/pedidos/${id}/etiqueta`}>Só pedido</Link>
                 </Button>
               )}
-              <Button
-                asChild
-                size="sm"
-                className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-              >
+              <Button asChild variant="outline" size="sm" className="rounded-[10px]">
                 <Link href="/kanban">
                   <KanbanSquare className="mr-1.5 h-4 w-4" />
                   Kanban
@@ -156,18 +216,20 @@ function PedidoEtiquetaInner() {
         />
       </div>
 
-      <div className="mx-auto max-w-[900px] space-y-8 px-5 py-8 md:px-8">
+      <div className="wq-print-label mx-auto max-w-[900px] space-y-8 px-5 py-8 md:px-8">
         {!pairsMode ? (
-          <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-8 text-center print:border-0 print:p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--wq-text-muted)]">
-              {typeof window !== "undefined"
-                ? localStorage.getItem("shopDisplayName") ||
-                  localStorage.getItem("shopName") ||
-                  "Worqera"
-                : "Worqera"}{" "}
-              · Pedido
+          <div
+            className="rounded-2xl border bg-white p-8 text-center print:border-0 print:p-4"
+            style={{ borderColor: `${ink}33` }}
+          >
+            <BrandHeader />
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--wq-text-muted)]">
+              Pedido
             </p>
-            <p className="mt-4 font-mono text-6xl font-semibold tracking-tight text-[var(--wq-ink)] md:text-7xl">
+            <p
+              className="mt-3 font-mono text-6xl font-semibold tracking-tight md:text-7xl"
+              style={{ color: ink }}
+            >
               {code}
             </p>
             <p className="mt-3 text-lg text-[var(--wq-text)]">{clientName}</p>
@@ -185,7 +247,9 @@ function PedidoEtiquetaInner() {
             ) : (
               <div className="mx-auto mt-8 h-48 w-48 animate-pulse rounded-lg bg-[var(--wq-paper)]" />
             )}
-            <p className="mt-3 font-mono text-xs text-[var(--wq-text-muted)]">/p/{code}</p>
+            <p className="mt-3 font-mono text-xs text-[var(--wq-text-muted)]">
+              Escaneie para acompanhar
+            </p>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
@@ -194,12 +258,17 @@ function PedidoEtiquetaInner() {
               return (
                 <div
                   key={pairCode}
-                  className="rounded-2xl border border-[var(--wq-border)] bg-white p-6 text-center print:break-inside-avoid"
+                  className="rounded-2xl border bg-white p-6 text-center print:break-inside-avoid"
+                  style={{ borderColor: `${ink}33` }}
                 >
+                  <BrandHeader compact />
                   <p className="text-xs uppercase tracking-[0.15em] text-[var(--wq-text-muted)]">
                     Par {index + 1}
                   </p>
-                  <p className="mt-2 font-mono text-4xl font-semibold text-[var(--wq-ink)]">
+                  <p
+                    className="mt-2 font-mono text-4xl font-semibold"
+                    style={{ color: ink }}
+                  >
                     {pairCode}
                   </p>
                   <p className="mt-2 text-sm text-[var(--wq-text)]">{item.shoeModel || "Tênis"}</p>

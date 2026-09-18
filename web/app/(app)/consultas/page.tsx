@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 
 export default function ConsultasHubPage() {
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Consultas"
         subtitle="Escolha o que deseja buscar"

@@ -33,9 +33,14 @@ function absolutePath(key) {
   return full;
 }
 
-function publicUrl(key) {
+function isPublicBrandingKey(key) {
+  return /^shops\/[^/]+\/branding\//.test(normalizeKey(key));
+}
+
+function publicUrl(key, { publicAccess } = {}) {
   const safe = normalizeKey(key);
-  const rel = `/api/v1/files/${safe}`;
+  const usePublic = publicAccess === true || isPublicBrandingKey(safe);
+  const rel = usePublic ? `/api/v1/public/files/${safe}` : `/api/v1/files/${safe}`;
   const base = (process.env.PUBLIC_API_URL || '').replace(/\/+$/, '');
   return base ? `${base}${rel}` : rel;
 }
@@ -46,6 +51,10 @@ function photosPrefix(shopId, orderId) {
 
 function pdfsPrefix(shopId, orderId) {
   return `shops/${shopId}/orders/${orderId}/pdfs/`;
+}
+
+function brandingPrefix(shopId) {
+  return `shops/${shopId}/branding/`;
 }
 
 async function ensureDirFor(filePath) {
@@ -63,13 +72,20 @@ async function putBuffer(key, buffer, contentType) {
         ContentType: contentType || 'application/octet-stream',
       })
       .promise();
-    return { key: safe, url: publicUrl(safe), location: result.Location };
+    return {
+      key: safe,
+      url: publicUrl(safe, { publicAccess: isPublicBrandingKey(safe) }),
+      location: result.Location,
+    };
   }
 
   const full = absolutePath(safe);
   await ensureDirFor(full);
   await fsp.writeFile(full, buffer);
-  return { key: safe, url: publicUrl(safe) };
+  return {
+    key: safe,
+    url: publicUrl(safe, { publicAccess: isPublicBrandingKey(safe) }),
+  };
 }
 
 async function getBuffer(key) {
@@ -212,5 +228,7 @@ module.exports = {
   deletePrefix,
   photosPrefix,
   pdfsPrefix,
+  brandingPrefix,
+  isPublicBrandingKey,
   normalizeKey,
 };

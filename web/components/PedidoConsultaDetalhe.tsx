@@ -24,6 +24,13 @@ import { listSectorsV1, reopenOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 
+const TAG_LABEL: Record<string, string> = {
+  qualidade: "Qualidade",
+  acabamento: "Acabamento",
+  prazo: "Prazo",
+  atendimento: "Atendimento",
+}
+
 type SectorOpt = { id: string; name: string; slug?: string; isTerminal?: boolean }
 
 function formatDate(value?: string | null) {
@@ -86,6 +93,7 @@ export function PedidoConsultaDetalhe({
   const [sectors, setSectors] = useState<SectorOpt[]>([])
   const [sectorId, setSectorId] = useState("")
   const [reopening, setReopening] = useState(false)
+  const [delivering, setDelivering] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -141,6 +149,8 @@ export function PedidoConsultaDetalhe({
   if (!open) return null
 
   const delivered = order?.status === "delivered"
+  const ready = order?.status === "ready"
+  const canReopen = delivered || ready
   const code = order?.code || order?.codigo || "…"
   const history = Array.isArray(order?.setoresHistorico)
     ? order.setoresHistorico
@@ -159,15 +169,33 @@ export function PedidoConsultaDetalhe({
       const updated = await reopenOrderV1(orderId, {
         sectorId,
         status: "in_progress",
-        note: "reaberto pela consulta",
+        note: "reaberto — retorno / retrabalho",
       })
-      toast.success("Pedido reaberto no kanban")
+      toast.success("Pedido reaberto no kanban — mesmo código")
       syncForm(updated)
       onReopened?.(updated)
     } catch (err: any) {
       toast.error(err?.message || "Falha ao reabrir")
     } finally {
       setReopening(false)
+    }
+  }
+
+  const markDelivered = async () => {
+    if (!orderId) return
+    setDelivering(true)
+    try {
+      const updated = await updateOrderService(orderId, {
+        status: "delivered",
+        deliveredAt: new Date().toISOString(),
+      })
+      toast.success("Pedido marcado como entregue")
+      syncForm(updated)
+      onSaved?.(updated)
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao marcar entregue")
+    } finally {
+      setDelivering(false)
     }
   }
 
@@ -246,17 +274,60 @@ export function PedidoConsultaDetalhe({
                     {pairCount(order)} pares
                   </Badge>
                 )}
+                {order.feedback?.score ? (
+                  <Badge className="rounded-full border-0 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]">
+                    Feedback {order.feedback.score}/5
+                  </Badge>
+                ) : null}
                 <span className="text-xs text-[var(--wq-text-muted)]">
                   {formatDate(order.createdAt || order.dataCriacao)}
                 </span>
               </div>
 
-              {delivered && (
+              {order.feedback?.score ? (
+                <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                    Avaliação do cliente
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {order.feedback.score}/5
+                    {Array.isArray(order.feedback.tags) && order.feedback.tags.length
+                      ? ` · ${order.feedback.tags.map((t: string) => TAG_LABEL[t] || t).join(", ")}`
+                      : ""}
+                  </p>
+                  {order.feedback.comment ? (
+                    <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+                      “{order.feedback.comment}”
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {ready && !delivered && (
+                <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+                  <p className="text-sm font-semibold text-emerald-900">Cliente retirou?</p>
+                  <p className="text-xs text-emerald-800/80">
+                    Marca como entregue — some do kanban e libera o pedido no histórico finalizado.
+                  </p>
+                  <Button
+                    className="w-full rounded-[10px] bg-emerald-700 text-white hover:bg-emerald-800"
+                    disabled={delivering}
+                    onClick={markDelivered}
+                  >
+                    {delivering ? "Salvando…" : "Marcar como entregue"}
+                  </Button>
+                </div>
+              )}
+
+              {canReopen && (
                 <div className="space-y-3 rounded-xl border border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
                   <div>
-                    <p className="text-sm font-semibold">Voltar ao kanban</p>
+                    <p className="text-sm font-semibold">
+                      {ready ? "Cliente voltou / retrabalho" : "Voltar ao kanban"}
+                    </p>
                     <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
-                      Escolha o setor onde o pedido está hoje. Depois edite fotos e valores abaixo.
+                      Reabre o <strong>mesmo pedido</strong> (mesmo código e histórico). Use quando o
+                      serviço não ficou ok — não crie outro pedido.
                     </p>
                   </div>
                   <Select value={sectorId} onValueChange={setSectorId}>

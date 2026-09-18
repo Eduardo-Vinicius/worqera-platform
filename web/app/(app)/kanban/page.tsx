@@ -465,10 +465,21 @@ export default function KanbanPage() {
   const executeMove = async (orderIdValue: string, toSectorId: string, note?: string) => {
     setMoving(true)
     try {
-      await moveKanbanOrderV1(orderIdValue, { toSectorId, note })
+      const moved: any = await moveKanbanOrderV1(orderIdValue, { toSectorId, note })
       const destVisible = visibleColumnIds.has(toSectorId)
       const destName = sectorNameById.get(toSectorId) || "setor"
-      toast.success(destVisible ? `Movido para ${destName}` : `Encaminhado para ${destName}`)
+      const wa = moved?.whatsappSuggest
+      if (wa?.url) {
+        toast.success(destVisible ? `Movido para ${destName}` : `Encaminhado para ${destName}`, {
+          action: {
+            label: "Avisar no WhatsApp",
+            onClick: () => window.open(wa.url, "_blank", "noopener,noreferrer"),
+          },
+          duration: 8000,
+        })
+      } else {
+        toast.success(destVisible ? `Movido para ${destName}` : `Encaminhado para ${destName}`)
+      }
       setPendingMove(null)
       setOffPathNote("")
       setActiveDragId(null)
@@ -701,18 +712,18 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="flex h-[calc(100dvh-3.5rem)] min-h-[480px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
+      <div className="relative flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] min-h-[420px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
         <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
             subtitle={
               isSectorRole
-                ? "Sua fila · abra o pedido para encaminhar às cegas"
-                : "Board em tela cheia · arraste · atalhos j/k · 1-9 · Enter · n"
+                ? "Sua fila · abra o pedido para encaminhar"
+                : "Board · arraste · atalhos j/k · 1-9 · Enter · n"
             }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--wq-text-muted)]" />
               <Input
                 value={codeQuery}
@@ -727,7 +738,7 @@ export default function KanbanPage() {
                   }
                 }}
                 placeholder="Código…"
-                className="h-8 w-[120px] rounded-[10px] pl-8 text-sm md:w-[140px]"
+                className="h-8 w-full rounded-[10px] pl-8 text-sm sm:w-[120px] md:w-[140px]"
                 aria-label="Buscar código no kanban"
               />
             </div>
@@ -737,24 +748,29 @@ export default function KanbanPage() {
               className={cn("rounded-[10px]", filterLate && "bg-[var(--wq-warn)]")}
               onClick={() => setFilterLate((v) => !v)}
             >
-              Só atrasados
+              <span className="sm:hidden">Atrasados</span>
+              <span className="hidden sm:inline">Só atrasados</span>
             </Button>
             <Button variant="outline" size="sm" className="rounded-[10px]" onClick={load}>
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-              Atualizar
+              <RefreshCw className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Atualizar</span>
             </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-[10px]">
-              <Link href="/settings/setores">
-                <Settings className="mr-1.5 h-4 w-4" />
-                Setores
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90">
-              <Link href="/pedidos/novo">
-                <Plus className="mr-1.5 h-4 w-4" />
-                Novo
-              </Link>
-            </Button>
+            {!isSectorRole ? (
+              <Button asChild variant="outline" size="sm" className="hidden rounded-[10px] sm:inline-flex">
+                <Link href="/settings/setores">
+                  <Settings className="mr-1.5 h-4 w-4" />
+                  Setores
+                </Link>
+              </Button>
+            ) : null}
+            {!isSectorRole ? (
+              <Button asChild size="sm" className="hidden rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90 sm:inline-flex">
+                <Link href="/pedidos/novo">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Novo
+                </Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -764,13 +780,25 @@ export default function KanbanPage() {
         {loading ? (
           <p className="py-16 text-center text-sm text-[var(--wq-text-muted)]">Carregando board…</p>
         ) : columns.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-8 text-center">
+          <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-6 text-center sm:p-8">
             <p className="text-[var(--wq-text-muted)]">Cadastre setores para montar o kanban.</p>
             <Button asChild className="mt-4 bg-[var(--wq-action)]">
               <Link href="/settings/setores">Configurar setores</Link>
             </Button>
           </div>
         ) : (
+          <>
+            {columns.every((c) => filterOrders(c.orders, filterLate).length === 0) && !isSectorRole ? (
+              <div className="mb-3 shrink-0 rounded-2xl border border-dashed border-[var(--wq-border)] bg-white px-4 py-5 text-center">
+                <p className="font-medium text-[var(--wq-text)]">Fila vazia</p>
+                <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+                  Crie um pedido para ver o board em ação.
+                </p>
+                <Button asChild className="mt-3 rounded-[10px] bg-[var(--wq-action)]">
+                  <Link href="/pedidos/novo">Novo pedido</Link>
+                </Button>
+              </div>
+            ) : null}
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {/* Mobile: sector chips + one column */}
             <div className="flex min-h-0 flex-1 flex-col space-y-3 md:hidden">
@@ -790,7 +818,7 @@ export default function KanbanPage() {
                       )}
                     >
                       <span className="h-2 w-2 rounded-full" style={{ background: col.sector.color }} />
-                      {col.sector.name}
+                      <span className="max-w-[9rem] truncate">{col.sector.name}</span>
                       <Badge variant="outline" className="font-mono text-[10px]">
                         {filterOrders(col.orders, filterLate).length}
                       </Badge>
@@ -880,6 +908,7 @@ export default function KanbanPage() {
               ) : null}
             </DragOverlay>
           </DndContext>
+          </>
         )}
       </div>
 
@@ -1131,6 +1160,16 @@ export default function KanbanPage() {
           </div>
         </div>
       )}
+
+      {!isSectorRole ? (
+        <Link
+          href="/pedidos/novo"
+          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--wq-action)] text-white shadow-lg md:hidden"
+          aria-label="Novo pedido"
+        >
+          <Plus className="h-6 w-6" />
+        </Link>
+      ) : null}
     </div>
   )
 }

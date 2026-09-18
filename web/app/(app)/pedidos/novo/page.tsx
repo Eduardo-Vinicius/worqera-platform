@@ -775,7 +775,7 @@ export default function NewOrderPage() {
       localStorage.removeItem(DRAFT_KEY);
       const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
       if (pedidoId) {
-        router.push(`/pedidos/${pedidoId}/etiqueta`);
+        router.push(`/pedidos/${pedidoId}/etiqueta?print=1`);
       } else {
         router.push("/kanban");
       }
@@ -815,7 +815,7 @@ export default function NewOrderPage() {
   )
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Novo pedido"
         subtitle="Cliente, tênis e pagamento no balcão"
@@ -1612,8 +1612,8 @@ export default function NewOrderPage() {
             </aside>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_92%,transparent)] px-4 py-3 backdrop-blur md:left-[246px]">
-            <div className="mx-auto flex max-w-[1100px] items-center gap-3">
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_92%,transparent)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
+            <div className="mx-auto flex max-w-[1100px] flex-wrap items-center gap-2 sm:gap-3">
               <div className="min-w-0 flex-1 text-xs text-[var(--wq-text-muted)]">
                 <p className="truncate font-semibold text-[var(--wq-text)]">
                   Total R$ {getTotalPrice().toFixed(2)} · Sinal R$ {signalValue.toFixed(2)}

@@ -12,6 +12,7 @@ import {
 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
+import { Check, CreditCard } from "lucide-react"
 
 export default function BillingPage() {
   const [sub, setSub] = useState<any>(null)
@@ -67,11 +68,24 @@ export default function BillingPage() {
         sub.trialEndsAt &&
         new Date(sub.trialEndsAt).getTime() < Date.now()))
 
+  const trialLeft =
+    sub?.status === "trialing" && sub?.trialEndsAt
+      ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / 86400000))
+      : null
+
+  const includes = [
+    "Kanban por setores ilimitado",
+    "Pedidos, clientes e consultas",
+    "TVs Cliente e Oficina",
+    "Equipe com papéis (owner, admin, setor)",
+    "Pagamento seguro via AbacatePay",
+  ]
+
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Assinatura"
-        subtitle="Trial e plano Worqera Pro"
+        subtitle="Trial, plano Pro e cobrança segura"
         actions={
           !locked ? (
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -81,20 +95,27 @@ export default function BillingPage() {
         }
       />
 
-      <div className="mx-auto max-w-lg space-y-4 px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-lg space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
         {locked && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
             Operações (kanban, pedidos, clientes) estão bloqueadas até a assinatura estar ativa.
           </div>
         )}
+
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">
           <CardHeader>
             <CardTitle>Status</CardTitle>
-            <CardDescription>
+            <CardDescription className="break-words">
               {loading
                 ? "Carregando…"
                 : sub
-                  ? `${sub.status}${sub.trialEndsAt ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}` : ""}`
+                  ? `${sub.status}${
+                      trialLeft != null
+                        ? ` · ${trialLeft} dia${trialLeft === 1 ? "" : "s"} restantes`
+                        : sub.trialEndsAt
+                          ? ` · trial até ${new Date(sub.trialEndsAt).toLocaleDateString("pt-BR")}`
+                          : ""
+                    }`
                   : "Sem assinatura"}
             </CardDescription>
           </CardHeader>
@@ -102,12 +123,23 @@ export default function BillingPage() {
             <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
               <p className="font-semibold">{products[0]?.name || "Worqera Pro"}</p>
               <p className="text-sm text-[var(--wq-text-muted)]">
-                {products[0]?.description || "Kanban, pedidos, clientes e indicadores para sua oficina."}
+                {products[0]?.description ||
+                  "Kanban, pedidos, clientes e indicadores para sua oficina."}
               </p>
               <p className="mt-2 font-[family-name:var(--font-display)] text-lg">
-                {products[0]?.priceLabel || products[0]?.price || "Plano PRO"}
+                {products[0]?.priceLabel || products[0]?.price || "Pro · R$ 247/mês"}
               </p>
             </div>
+
+            <ul className="space-y-2">
+              {includes.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-[var(--wq-text)]">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand)]" />
+                  <span className="min-w-0 break-words">{item}</span>
+                </li>
+              ))}
+            </ul>
+
             <Button
               className="w-full rounded-[11px] bg-[var(--wq-brand)] hover:bg-[var(--wq-brand-deep)]"
               disabled={busy || sub?.status === "active"}
@@ -118,19 +150,22 @@ export default function BillingPage() {
                 : busy
                   ? "Processando…"
                   : locked
-                    ? "Solicitar ativação"
+                    ? "Assinar agora"
                     : "Ativar plano"}
             </Button>
-            <p className="text-xs text-[var(--wq-text-muted)]">
-              AbacatePay está desligado em produção por enquanto. Fale com a Worqera para ativar
-              a assinatura ou estender o trial. Em dev, o checkout pode simular ativação local.
+
+            <p className="mt-2 text-sm text-[var(--wq-text-muted)]">
+              Early R$ 147 · Pro R$ 247/mês · equipe ilimitada. Cobrança via AbacatePay ou PIX.
+              Indique pelo link em Empresa (?ref=) — 1 mês grátis quando a oficina assinar.
             </p>
+
             <Button asChild variant="outline" className="w-full rounded-[11px]">
               <a
-                href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20quero%20ativar%20o%20Worqera"
+                href="https://wa.me/5511985591053?text=Ol%C3%A1%2C%20quero%20ativar%20o%20Worqera"
                 target="_blank"
                 rel="noopener noreferrer"
               >
+                <CreditCard className="mr-2 h-4 w-4" />
                 Falar com a Worqera no WhatsApp
               </a>
             </Button>

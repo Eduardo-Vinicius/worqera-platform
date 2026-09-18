@@ -62,13 +62,17 @@ function brandedSubject(shop, subject) {
 
 function wrapCompanyHtml(shop, bodyHtml) {
   const name = companyDisplayName(shop);
+  const primary = String(shop?.branding?.primaryColor || '').trim() || '#7d26de';
+  const deep = String(shop?.branding?.primaryColor || '').trim()
+    ? primary
+    : '#4f0fa6';
   const logo = shop?.branding?.logoUrl
     ? `<img src="${shop.branding.logoUrl}" alt="${name}" style="max-height:40px;margin-bottom:12px" />`
     : '';
   return `<div style="font-family:Inter,system-ui,sans-serif;color:#110f17;line-height:1.5">
-  <div style="border-bottom:2px solid #7d26de;padding-bottom:12px;margin-bottom:16px">
+  <div style="border-bottom:2px solid ${primary};padding-bottom:12px;margin-bottom:16px">
     ${logo}
-    <div style="font-size:18px;font-weight:600;color:#4f0fa6">${name}</div>
+    <div style="font-size:18px;font-weight:600;color:${deep}">${name}</div>
   </div>
   ${bodyHtml}
   <p style="margin-top:28px;font-size:12px;color:#64748b">Enviado pela Worqera · gestão de pedidos</p>

@@ -1,5 +1,15 @@
 # Worqera API — Change log
 
+## 2026-09-17
+
+- **Cliente notify:** `Sector.notifyEmailOnEnter`; `orderNotify` (created/moved/ready); `Shop.notifications.email.enabled`; `POST /public/.../feedback`; reopen ready+delivered (`action: reopen`); `Order.feedback`.
+- **Branding:** `branding.accentColor`; `POST /shops/current/logo` (multipart ≤2MB); `GET /public/files/*` só `shops/*/branding/`; public order retorna logo/cores/phone; mailer usa `primaryColor`; `Shop.adminNote` + patch platform.
+- **Wow:** digest semanal owner (`POST /alerts/weekly-digest` + `scripts/send-weekly-digests.js`); WhatsApp suggest no move do kanban (`whatsappSuggest` wa.me).
+- **Observabilidade:** `GET /health` + `GET /health/ready` (Mongo ping); request log JSON + correlation id.
+- **Ops:** `scripts/mongo-backup.sh` (retenção 7d); `scripts/send-trial-reminders.js` (D-2 / D-0).
+- **Orders:** `POST /orders/demo`; `GET /orders/export.csv` (owner).
+- **ACL:** metrics continua owner-only.
+
 ## 2026-09-15
 
 - **ACL:** rotas `/metrics` (v1 + legado) restritas a role `owner` (admin de loja não vê financeiro/métricas).

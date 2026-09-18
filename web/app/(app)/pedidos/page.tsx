@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Loader2, Package, Plus, Search } from "lucide-react"
+import { Loader2, Download, Package, Plus, Search } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { PedidoConsultaDetalhe } from "@/components/PedidoConsultaDetalhe"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { getPedidosConsultaService } from "@/lib/apiService"
-import { listSectorsV1 } from "@/lib/apiV1"
+import { createDemoOrderV1, exportOrdersCsvV1, listSectorsV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 
@@ -65,7 +65,45 @@ export default function PedidosPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [sectorMeta, setSectorMeta] = useState<Record<string, { name: string; color: string }>>({})
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [demoBusy, setDemoBusy] = useState(false)
+  const [exportBusy, setExportBusy] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setIsOwner(String(localStorage.getItem("role") || "").toLowerCase() === "owner")
+  }, [])
+
+  const createDemo = async () => {
+    setDemoBusy(true)
+    try {
+      await createDemoOrderV1()
+      toast.success("Pedido de exemplo criado")
+      await runSearch({ tab: "ativos" })
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao criar exemplo")
+    } finally {
+      setDemoBusy(false)
+    }
+  }
+
+  const exportCsv = async () => {
+    setExportBusy(true)
+    try {
+      const blob = await exportOrdersCsvV1()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `worqera-pedidos-finalizados-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("CSV baixado")
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao exportar")
+    } finally {
+      setExportBusy(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -147,17 +185,33 @@ export default function PedidosPage() {
   }
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Pedidos"
         subtitle="Ativos, finalizados e edição · mais recentes primeiro"
         actions={
-          <Button asChild className="rounded-[11px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90">
-            <Link href="/pedidos/novo">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Novo pedido
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isOwner ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-[10px]"
+                disabled={exportBusy}
+                onClick={exportCsv}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                <span className="hidden sm:inline">{exportBusy ? "Exportando…" : "Exportar CSV"}</span>
+                <span className="sm:hidden">CSV</span>
+              </Button>
+            ) : null}
+            <Button asChild className="rounded-[11px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90">
+              <Link href="/pedidos/novo">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Novo pedido
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -184,10 +238,10 @@ export default function PedidosPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[220px] flex-1">
+          <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
-              className="h-10 rounded-[10px] pl-9"
+              className="h-10 w-full rounded-[10px] pl-9"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -230,12 +284,26 @@ export default function PedidosPage() {
             Carregando…
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--wq-border)] py-14 text-center">
+          <div className="rounded-2xl border border-dashed border-[var(--wq-border)] px-4 py-12 text-center sm:py-14">
             <Package className="mx-auto mb-3 h-10 w-10 opacity-40" />
-            <p className="text-[var(--wq-text-muted)]">Nenhum pedido neste filtro.</p>
-            <Button asChild className="mt-4 rounded-[10px] bg-[var(--wq-action)]">
-              <Link href="/pedidos/novo">Criar pedido</Link>
-            </Button>
+            <p className="font-medium text-[var(--wq-text)]">Nenhum pedido neste filtro</p>
+            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+              Crie o primeiro pedido ou gere um exemplo para conhecer o kanban.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="rounded-[10px] bg-[var(--wq-action)]">
+                <Link href="/pedidos/novo">Criar pedido</Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-[10px]"
+                disabled={demoBusy}
+                onClick={createDemo}
+              >
+                {demoBusy ? "Criando…" : "Pedido de exemplo"}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">

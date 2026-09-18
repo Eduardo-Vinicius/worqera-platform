@@ -54,12 +54,25 @@ async function createInvite(shopId, createdByUserId, { email, role, sectorIds, a
   const url = `${base}/invite/${raw}`;
 
   const company = shop?.branding?.displayName || shop?.name || 'a oficina';
+  const roleHint =
+    nextRole === 'sector'
+      ? 'Sua conta é de <strong>setor</strong>: você vê <strong>só a sua fila</strong> no kanban e encaminha pedidos sem ver as outras colunas.'
+      : nextRole === 'admin'
+        ? 'Você entra como <strong>admin</strong> da oficina.'
+        : 'Você entra como <strong>atendimento</strong> (recepção / pedidos).';
   await sendMail({
     to: normalizedEmail,
     shop,
-    subject: 'Convite para a equipe',
-    text: `Você foi convidado para ${company} no Worqera.\n\nAceite em: ${url}\n\nExpira em 7 dias.`,
-    html: `<p>Você foi convidado para a equipe de <strong>${company}</strong>.</p><p><a href="${url}">Aceitar convite</a></p><p>Expira em 7 dias.</p>`,
+    subject: `Convite · ${company}`,
+    text: `Você foi convidado para ${company} no Worqera.\n\n${
+      nextRole === 'sector'
+        ? 'Conta de setor: você vê só a sua fila no kanban.\n\n'
+        : ''
+    }Aceite em: ${url}\n\nExpira em 7 dias.`,
+    html: `<p>Você foi convidado para a equipe de <strong>${company}</strong> no Worqera.</p>
+      <p>${roleHint}</p>
+      <p><a href="${url}" style="display:inline-block;background:#0D9488;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Aceitar convite</a></p>
+      <p style="font-size:12px;color:#64748b">Expira em 7 dias.</p>`,
   });
 
   const out = {

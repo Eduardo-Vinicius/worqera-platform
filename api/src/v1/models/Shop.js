@@ -13,7 +13,10 @@ const shopSchema = new mongoose.Schema(
       address: { type: String, default: '' },
       logoUrl: { type: String, default: '' },
       primaryColor: { type: String, default: '' },
+      accentColor: { type: String, default: '' },
     },
+    /** Platform-only free-text note (objeção, PIX, plano). */
+    adminNote: { type: String, default: '' },
     tvSettings: {
       client: {
         title: { type: String, default: '' },
@@ -41,6 +44,10 @@ const shopSchema = new mongoose.Schema(
           publicLink: { type: String, default: '' },
         },
       },
+      email: {
+        /** Master switch for client order-status emails */
+        enabled: { type: Boolean, default: true },
+      },
     },
     partnerCode: { type: String, default: null, trim: true, uppercase: true },
     referredByPartnerCode: { type: String, default: null, trim: true, uppercase: true },
@@ -48,6 +55,7 @@ const shopSchema = new mongoose.Schema(
     onboarding: {
       completedAt: { type: Date, default: null },
       lastDigestAt: { type: Date, default: null },
+      lastWeeklyDigestAt: { type: Date, default: null },
     },
   },
   { timestamps: true }

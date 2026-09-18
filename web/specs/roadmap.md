@@ -1,6 +1,8 @@
 # Worqera Web — Roadmap
 
-**Atualizado:** 2026-09-15 (landing `/` + branding)
+**Atualizado:** 2026-09-16 (LP conversão + plano próxima sessão)
+
+Plano detalhado: [`../../docs/superpowers/plans/2026-09-16-worqera-next-session.md`](../../docs/superpowers/plans/2026-09-16-worqera-next-session.md)
 
 Inventário: [feature-inventory.md](./feature-inventory.md) · Landing: [`../../docs/superpowers/specs/2026-09-15-worqera-landing-page.md`](../../docs/superpowers/specs/2026-09-15-worqera-landing-page.md)
 
@@ -80,4 +82,41 @@ Inventário: [feature-inventory.md](./feature-inventory.md) · Landing: [`../../
 
 ## Ordem restante
 
-Invite branding fino → CNAME opcional → AbacatePay quando ligar → Meta Cloud API se necessário
+Rebuild PRD web+api → smoke mobile CdT → Meta Cloud API (opcional, hoje wa.me)
+
+---
+
+## Quick-wins web (status 2026-09-17)
+
+| ID | Item | Status |
+|----|------|--------|
+| QW-15 | Empty states + CTA | **feito** |
+| QW-16 | Pedido demo / onboarding | **feito** |
+| QW-17 | Kanban mobile FAB + chips truncate | **feito** |
+| QW-18 | Skeleton loading | **feito** |
+| QW-19 | PWA manifest | **feito** |
+| QW-20 | 403/404 amigáveis | **feito** |
+| QW-21 | Mobile shell profissional (overflow/bleed) | **feito** |
+| QW-22 | Billing UX + export CSV UI | **feito** |
+| QW-23 | Digest semanal + WhatsApp suggest no move | **feito** |
+| QW-24 | Branding por loja (logo+cores+superfícies) | **feito** |
+| QW-25 | Admin shops nota interna | **feito** |
+| QW-26 | Rate limit consulta pública | **feito** |
+| QW-27 | Feedback CSAT pertinente + ver no detalhe | **feito** |
+| QW-28 | Marcar entregue no detalhe | **feito** |
+| QW-29 | Convite setor copy “só sua fila” | **feito** |
+
+## Propostas SaaS (backlog priorizado)
+
+1. ~~Digest semanal owner~~ **feito**
+2. ~~Export CSV~~ **feito**
+3. **Trial e-mails** D-2 / D-0 + recibo AbacatePay  
+4. **WhatsApp auto** Cloud API (adiado; hoje wa.me)  
+5. **Metas SLA** simples no dashboard owner  
+6. ~~Platform admin trial/pedidos/nota~~ **feito (base)**  
+
+## Observabilidade (web + ops)
+
+- [ ] Badge “Sistema ok” owner quando API health passa (opcional)  
+- [ ] Sentry front (env DSN) — stack sem reproduzir bug do cliente  
+- Ver API roadmap: `/health`, logs JSON, healthcheck Docker

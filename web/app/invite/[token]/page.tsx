@@ -75,7 +75,14 @@ export default function InviteAcceptPage() {
         {invite?.shop?.name && (
           <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
             {invite.shop.name}
-            {invite.role ? ` · ${invite.role}` : ""}
+            {invite.role
+              ? ` · ${invite.role === "sector" ? "Setor (só sua fila)" : invite.role}`
+              : ""}
+          </p>
+        )}
+        {invite?.role === "sector" && (
+          <p className="mt-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-2 text-center text-xs text-[var(--wq-text-muted)]">
+            Você vai ver <strong className="text-[var(--wq-text)]">só a sua fila</strong> no kanban.
           </p>
         )}
 

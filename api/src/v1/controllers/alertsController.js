@@ -10,3 +10,8 @@ exports.sendDigest = wrap(async (req, res) => {
   const result = await alertsService.sendDelayDigest(req.shopId);
   res.status(200).json(result);
 });
+
+exports.sendWeeklyDigest = wrap(async (req, res) => {
+  const result = await alertsService.sendWeeklyDigest(req.shopId);
+  res.status(200).json(result);
+});

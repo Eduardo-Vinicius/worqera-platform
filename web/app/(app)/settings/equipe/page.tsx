@@ -236,7 +236,7 @@ export default function EquipePage() {
     sectors.find((s) => String(s._id) === String(id))?.name || id
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Equipe"
         subtitle="Logins da oficina (owner / admin / atendimento / setor)"
@@ -314,6 +314,12 @@ export default function EquipePage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
             Convidar por e-mail
           </h2>
+          <p className="text-xs text-[var(--wq-text-muted)]">
+            <strong className="text-[var(--wq-text)]">Setor</strong> = vê só a sua fila no kanban e
+            encaminha às cegas. <strong className="text-[var(--wq-text)]">Atendimento</strong> =
+            recepção / pedidos. <strong className="text-[var(--wq-text)]">Admin</strong> = configura a
+            oficina.
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>E-mail</Label>
@@ -325,7 +331,7 @@ export default function EquipePage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Role</Label>
+              <Label>Papel</Label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger className="rounded-[10px]">
                   <SelectValue />
@@ -333,14 +339,17 @@ export default function EquipePage() {
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="atendimento">Atendimento</SelectItem>
-                  <SelectItem value="sector">Setor</SelectItem>
+                  <SelectItem value="sector">Setor (só a fila)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           {inviteRole === "sector" && (
             <div className="space-y-2">
-              <Label>Setores visíveis</Label>
+              <Label>Setores visíveis (a fila dela)</Label>
+              <p className="text-xs text-[var(--wq-text-muted)]">
+                Essa pessoa só vê pedidos nesses setores — não vê o resto do kanban.
+              </p>
               <SectorChips
                 selected={inviteSectors}
                 onToggle={(id) => toggleSector(id, setInviteSectors)}

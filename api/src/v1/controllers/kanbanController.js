@@ -15,5 +15,16 @@ exports.moveOrder = wrap(async (req, res) => {
     req.auth.userId,
     req.body || {}
   );
-  res.status(200).json(serializeOrder(order));
+  const { buildMoveWhatsAppSuggest } = require('../services/whatsappSuggest');
+  const Sector = require('../models/Sector');
+  const toSector = order.currentSectorId
+    ? await Sector.findById(order.currentSectorId).lean()
+    : null;
+  const whatsappSuggest = await buildMoveWhatsAppSuggest(req.shopId, order, toSector).catch(
+    () => null
+  );
+  res.status(200).json({
+    ...serializeOrder(order),
+    whatsappSuggest: whatsappSuggest || undefined,
+  });
 });

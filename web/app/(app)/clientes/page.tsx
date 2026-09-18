@@ -108,7 +108,7 @@ export default function ClientsPage() {
   const countLabel = `${filteredClients.length} ${filteredClients.length === 1 ? "cliente" : "clientes"}`
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Clientes"
         actions={
@@ -121,14 +121,14 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1320px] space-y-4 px-5 py-6 md:px-8">
-        <div className="relative">
+      <div className="mx-auto max-w-[1320px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <div className="relative min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
           <Input
             placeholder="Buscar por nome, telefone, CPF ou e-mail…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-12 rounded-[10px] border-[var(--wq-border)] bg-white pl-9 text-base"
+            className="h-11 w-full rounded-[10px] border-[var(--wq-border)] bg-white pl-9 text-base sm:h-12"
           />
         </div>
 
@@ -141,9 +141,14 @@ export default function ClientsPage() {
             <p className="text-sm text-[var(--wq-text-muted)]">{countLabel}</p>
 
             {filteredClients.length === 0 ? (
-              <div className="rounded-[10px] border border-[var(--wq-border)] bg-white px-6 py-16 text-center">
+              <div className="rounded-2xl border border-dashed border-[var(--wq-border)] bg-white px-4 py-12 text-center sm:px-6 sm:py-16">
                 <p className="text-[var(--wq-text)]">
                   {clients.length === 0 ? "Nenhum cliente cadastrado." : "Nenhum cliente encontrado."}
+                </p>
+                <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+                  {clients.length === 0
+                    ? "Cadastre o primeiro cliente para começar a receber pedidos."
+                    : "Tente outro termo de busca."}
                 </p>
                 {clients.length === 0 ? (
                   <Button asChild className="mt-4 bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90">
@@ -160,7 +165,7 @@ export default function ClientsPage() {
                   return (
                     <li
                       key={client.id || idx}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--wq-paper)]"
+                      className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2.5 hover:bg-[var(--wq-paper)]"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-[var(--wq-text)]">{name}</p>
@@ -169,7 +174,7 @@ export default function ClientsPage() {
                           {cpf ? <span className="ml-2 text-xs">{cpf}</span> : null}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center">
+                      <div className="flex shrink-0 items-center gap-1">
                         <Button
                           type="button"
                           variant="ghost"
@@ -185,7 +190,7 @@ export default function ClientsPage() {
                           size="sm"
                           className="h-8 px-2.5 text-[var(--wq-text)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
                         >
-                          <Link href={pedidosHref(client)}>Ver pedidos</Link>
+                          <Link href={pedidosHref(client)}>Pedidos</Link>
                         </Button>
                       </div>
                     </li>
@@ -206,7 +211,7 @@ export default function ClientsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="nomeCompleto">Nome Completo</Label>
                 <Input
@@ -225,7 +230,7 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="telefone">Telefone</Label>
                 <Input
@@ -291,7 +296,7 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="cidade">Cidade</Label>
                 <Input

@@ -5,13 +5,17 @@ import Link from "next/link"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { getDashboardService } from "@/lib/apiService"
-import { getShopCurrentV1 } from "@/lib/apiV1"
+import { getShopCurrentV1, sendWeeklyDigestV1 } from "@/lib/apiV1"
+import { SetupChecklist } from "@/components/shell/SetupChecklist"
+import { ReferralCard } from "@/components/shell/ReferralCard"
+import { toast } from "sonner"
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
   KanbanSquare,
+  Mail,
   Monitor,
   Package,
   Plus,
@@ -47,8 +51,11 @@ export default function DashboardPage() {
   const [shopName, setShopName] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [isOwner, setIsOwner] = useState(false)
+  const [digestBusy, setDigestBusy] = useState(false)
 
   useEffect(() => {
+    setIsOwner(String(localStorage.getItem("role") || "").toLowerCase() === "owner")
     ;(async () => {
       try {
         const [payload, shop] = await Promise.all([
@@ -70,6 +77,21 @@ export default function DashboardPage() {
     })()
   }, [])
 
+  const sendWeekly = async () => {
+    setDigestBusy(true)
+    try {
+      const res = await sendWeeklyDigestV1()
+      toast.success(
+        res.sent > 0
+          ? `Digest enviado (${res.deliveredCount ?? 0} finalizados · ${res.delaysTotal ?? 0} atrasos)`
+          : "Nenhum e-mail enviado (sem owner com e-mail)"
+      )
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao enviar digest")
+    } finally {
+      setDigestBusy(false)
+    }
+  }
   const stats = data?.stats || {}
   const overdue = stats.overdue ?? 0
   const open = stats.openOrders ?? stats.activeOrders ?? 0
@@ -140,20 +162,38 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="-mx-5 -mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Visão geral"
         subtitle={shopName ? `${shopName}${firstName ? ` · Olá, ${firstName}` : ""}` : "Operação do dia"}
         actions={
-          <Button
-            asChild
-            className="rounded-[11px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]"
-          >
-            <Link href="/pedidos/novo">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Novo pedido
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isOwner ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-[10px]"
+                disabled={digestBusy}
+                onClick={sendWeekly}
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {digestBusy ? "Enviando…" : "Digest semanal"}
+                </span>
+                <span className="sm:hidden">Digest</span>
+              </Button>
+            ) : null}
+            <Button
+              asChild
+              className="rounded-[11px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]"
+            >
+              <Link href="/pedidos/novo">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Novo pedido
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -163,6 +203,9 @@ export default function DashboardPage() {
 
         {!loading && !error && (
           <>
+            <SetupChecklist openOrders={open} totalClients={clients} />
+            {isOwner ? <ReferralCard /> : null}
+
             {/* Hero strip */}
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
               <div className="flex flex-col gap-4 border-b border-[var(--wq-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--wq-brand)_12%,var(--wq-surface)),var(--wq-surface)_55%)] px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
@@ -190,6 +233,11 @@ export default function DashboardPage() {
                   <Button asChild size="sm" variant="outline" className="rounded-[10px]">
                     <Link href="/pedidos">Ver pedidos</Link>
                   </Button>
+                  {open === 0 ? (
+                    <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                      <Link href="/pedidos/novo">Criar primeiro pedido</Link>
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 

@@ -18,36 +18,79 @@ async function listShops({ q, status, limit = 50 } = {}) {
     .lean();
 
   const shopIds = shops.map((s) => s._id);
-  const [subs, memberCounts] = await Promise.all([
+  const [subs, memberCounts, orderStats] = await Promise.all([
     Subscription.find({ shopId: { $in: shopIds } }).lean(),
     Membership.aggregate([
       { $match: { shopId: { $in: shopIds }, active: true } },
       { $group: { _id: '$shopId', count: { $sum: 1 } } },
     ]),
+    (() => {
+      try {
+        const Order = require('../models/Order');
+        return Order.aggregate([
+          { $match: { shopId: { $in: shopIds } } },
+          {
+            $group: {
+              _id: '$shopId',
+              orderCount: { $sum: 1 },
+              openCount: {
+                $sum: {
+                  $cond: [
+                    { $in: ['$status', ['open', 'in_progress', 'ready']] },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              lastOrderAt: { $max: '$createdAt' },
+            },
+          },
+        ]);
+      } catch (_err) {
+        return Promise.resolve([]);
+      }
+    })(),
   ]);
 
   const subByShop = Object.fromEntries(subs.map((s) => [String(s.shopId), s]));
   const countByShop = Object.fromEntries(
     memberCounts.map((m) => [String(m._id), m.count])
   );
+  const ordersByShop = Object.fromEntries(
+    (orderStats || []).map((o) => [String(o._id), o])
+  );
 
-  return shops.map((shop) => ({
-    id: shop._id,
-    name: shop.name,
-    slug: shop.slug,
-    status: shop.status,
-    createdAt: shop.createdAt,
-    memberCount: countByShop[String(shop._id)] || 0,
-    subscription: subByShop[String(shop._id)]
-      ? {
-          status: subByShop[String(shop._id)].status,
-          trialEndsAt: subByShop[String(shop._id)].trialEndsAt,
-          planCode: subByShop[String(shop._id)].planCode,
-          currentPeriodEnd: subByShop[String(shop._id)].currentPeriodEnd,
-          provider: subByShop[String(shop._id)].provider,
-        }
-      : null,
-  }));
+  const now = Date.now();
+  return shops.map((shop) => {
+    const sub = subByShop[String(shop._id)];
+    const ord = ordersByShop[String(shop._id)];
+    let trialDaysLeft = null;
+    if (sub?.status === 'trialing' && sub?.trialEndsAt) {
+      trialDaysLeft = Math.ceil((new Date(sub.trialEndsAt).getTime() - now) / 86400000);
+    }
+    return {
+      id: shop._id,
+      name: shop.name,
+      slug: shop.slug,
+      status: shop.status,
+      createdAt: shop.createdAt,
+      adminNote: shop.adminNote || '',
+      memberCount: countByShop[String(shop._id)] || 0,
+      orderCount: ord?.orderCount || 0,
+      openCount: ord?.openCount || 0,
+      lastOrderAt: ord?.lastOrderAt || null,
+      trialDaysLeft,
+      subscription: sub
+        ? {
+            status: sub.status,
+            trialEndsAt: sub.trialEndsAt,
+            planCode: sub.planCode,
+            currentPeriodEnd: sub.currentPeriodEnd,
+            provider: sub.provider,
+          }
+        : null,
+    };
+  });
 }
 
 async function patchShop(shopId, updates = {}) {
@@ -67,6 +110,9 @@ async function patchShop(shopId, updates = {}) {
       throw err;
     }
     shop.status = updates.status;
+  }
+  if (updates.adminNote != null) {
+    shop.adminNote = String(updates.adminNote || '').slice(0, 2000);
   }
   await shop.save();
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { listDelayAlertsV1, sendDelayDigestV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
-import { X } from "lucide-react"
+import { Mail, X } from "lucide-react"
 
 function isOwner() {
   if (typeof window === "undefined") return false
@@ -61,8 +61,8 @@ export function DelayAlertsBanner() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-amber-200/80 bg-amber-50 px-4 py-2.5 text-sm text-amber-950 md:px-6">
-      <p className="min-w-0">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 bg-amber-50 px-3 py-2 text-sm text-amber-950 sm:gap-3 sm:px-4 sm:py-2.5 md:px-6">
+      <p className="min-w-0 flex-1 break-words">
         {total} pedido{total === 1 ? "" : "s"} em atraso.{" "}
         <Link
           href="/admin/metrics"
@@ -76,9 +76,11 @@ export function DelayAlertsBanner() {
           type="button"
           disabled={sending}
           onClick={sendDigest}
-          className="rounded-lg px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-white/60 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-amber-900 hover:bg-white/60 disabled:opacity-60"
+          title="Enviar digest"
         >
-          {sending ? "Enviando…" : "Enviar digest"}
+          <Mail className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{sending ? "Enviando…" : "Enviar digest"}</span>
         </button>
         <button
           type="button"

@@ -40,12 +40,23 @@ const sectorHistorySchema = new mongoose.Schema(
     employeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
     employeeName: { type: String, default: null },
     note: { type: String, default: null },
-    /** create | move | forward (sector blind handoff) */
+    /** create | move | forward | reopen */
     action: {
       type: String,
-      enum: ['create', 'move', 'forward'],
+      enum: ['create', 'move', 'forward', 'reopen'],
       default: 'move',
     },
+  },
+  { _id: false }
+);
+
+const orderFeedbackSchema = new mongoose.Schema(
+  {
+    score: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: '', trim: true, maxlength: 2000 },
+    /** What mattered most: qualidade | prazo | atendimento | acabamento */
+    tags: { type: [String], default: [] },
+    createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
@@ -85,6 +96,7 @@ const orderSchema = new mongoose.Schema(
     sectorPath: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Sector' }],
     sectorHistory: { type: [sectorHistorySchema], default: [] },
     comments: { type: [orderCommentSchema], default: [] },
+    feedback: { type: orderFeedbackSchema, default: null },
     status: {
       type: String,
       enum: ['open', 'in_progress', 'ready', 'delivered', 'cancelled'],

@@ -16,6 +16,13 @@ router.patch(
   shopController.patchCurrent
 );
 router.post(
+  '/current/logo',
+  ...guard,
+  requireRole('owner', 'admin'),
+  shopController.uploadLogoMiddleware,
+  shopController.uploadLogo
+);
+router.post(
   '/current/seed-catalog',
   ...guard,
   requireRole('owner', 'admin'),

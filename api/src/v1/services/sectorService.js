@@ -19,6 +19,8 @@ async function createSector(shopId, data) {
       color: data.color || '#2196F3',
       active: data.active != null ? data.active : true,
       isTerminal: !!data.isTerminal,
+      notifyEmailOnEnter:
+        data.notifyEmailOnEnter != null ? !!data.notifyEmailOnEnter : !!data.isTerminal,
     });
   } catch (e) {
     if (e.code === 11000) {
@@ -39,7 +41,7 @@ async function patchSector(shopId, id, updates) {
     err.code = 'NOT_FOUND';
     throw err;
   }
-  ['name', 'color', 'order', 'active', 'isTerminal'].forEach((k) => {
+  ['name', 'color', 'order', 'active', 'isTerminal', 'notifyEmailOnEnter'].forEach((k) => {
     if (updates[k] != null) sector[k] = updates[k];
   });
   if (updates.slug) sector.slug = slugify(updates.slug);

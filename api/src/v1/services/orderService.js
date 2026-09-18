@@ -255,6 +255,19 @@ async function createOrder(shopId, userId, data) {
     createdByUserId: userId,
   });
 
+  try {
+    const Shop = require('../models/Shop');
+    const shop = await Shop.findById(shopId).lean();
+    if (shop && clientEmail) {
+      const { notifyOrderStatusSafe } = require('./orderNotify');
+      notifyOrderStatusSafe(shop, order.toObject(), 'created', {
+        sectorName: startSector?.name,
+      });
+    }
+  } catch (_err) {
+    // ignore
+  }
+
   return order.toObject();
 }
 
@@ -468,6 +481,12 @@ async function patchOrder(shopId, id, userId, updates) {
     }
   }
   order.updatedByUserId = userId;
+  if (updates.status === 'delivered' && !order.deliveredAt) {
+    order.deliveredAt = updates.deliveredAt ? new Date(updates.deliveredAt) : new Date();
+  }
+  if (updates.status && updates.status !== 'delivered') {
+    // keep deliveredAt unless explicitly cleared
+  }
   await order.save();
   return order.toObject();
 }
@@ -479,6 +498,13 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     const err = new Error('Order not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  if (!['delivered', 'ready'].includes(String(order.status))) {
+    const err = new Error('Só é possível reabrir pedidos prontos ou entregues');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
     throw err;
   }
 
@@ -517,12 +543,76 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     movedByUserId: userId || null,
     movedByName: user?.name || 'Reabertura',
     movedByEmail: user?.email || null,
-    note: body.note || 'reaberto no kanban',
-    action: 'move',
+    note: body.note || 'reaberto — retrabalho / retorno do cliente',
+    action: 'reopen',
   });
 
   await order.save();
   return order.toObject();
+}
+
+async function submitPublicFeedback(code, { shopSlug, score, comment, tags } = {}) {
+  const normalizedCode = String(code || '').trim();
+  if (!normalizedCode || !shopSlug) {
+    const err = new Error('shop e código obrigatórios');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const n = Number(score);
+  if (!Number.isFinite(n) || n < 1 || n > 5) {
+    const err = new Error('Nota de 1 a 5');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
+  const ALLOWED_TAGS = new Set(['qualidade', 'prazo', 'atendimento', 'acabamento']);
+  const cleanTags = (Array.isArray(tags) ? tags : [])
+    .map((t) => String(t || '').toLowerCase().trim())
+    .filter((t) => ALLOWED_TAGS.has(t))
+    .slice(0, 4);
+
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findOne({ slug: String(shopSlug).trim().toLowerCase() }).lean();
+  if (!shop) {
+    const err = new Error('Shop not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const order = await Order.findOne({ code: normalizedCode, shopId: shop._id });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (!['ready', 'delivered'].includes(String(order.status))) {
+    const err = new Error('Feedback só após pedido pronto ou entregue');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  if (order.feedback?.score) {
+    const err = new Error('Feedback já enviado');
+    err.status = 409;
+    err.code = 'CONFLICT';
+    throw err;
+  }
+
+  order.feedback = {
+    score: Math.round(n),
+    comment: String(comment || '').trim().slice(0, 2000),
+    tags: cleanTags,
+    createdAt: new Date(),
+  };
+  await order.save();
+  return {
+    ok: true,
+    feedback: order.feedback,
+  };
 }
 
 async function deleteOrder(shopId, id) {
@@ -661,6 +751,10 @@ async function getPublicOrderByCode(code, { shopSlug } = {}) {
       ? {
           name: shop.branding?.displayName || shop.name,
           slug: shop.slug,
+          logoUrl: shop.branding?.logoUrl || '',
+          primaryColor: shop.branding?.primaryColor || '',
+          accentColor: shop.branding?.accentColor || '',
+          phone: shop.branding?.phone || '',
         }
       : null,
     clientName: order.clientName,
@@ -675,6 +769,15 @@ async function getPublicOrderByCode(code, { shopSlug } = {}) {
       : null,
     dueAt: order.dueAt,
     updatedAt: order.updatedAt,
+    feedback: order.feedback?.score
+      ? {
+          score: order.feedback.score,
+          comment: order.feedback.comment || '',
+          tags: Array.isArray(order.feedback.tags) ? order.feedback.tags : [],
+          createdAt: order.feedback.createdAt,
+        }
+      : null,
+    canFeedback: ['ready', 'delivered'].includes(String(order.status)) && !order.feedback?.score,
   };
 }
 
@@ -720,9 +823,79 @@ async function addOrderComment(shopId, orderId, userId, { text, authorName } = {
   return order.toObject();
 }
 
+function csvEscape(value) {
+  const s = value == null ? '' : String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function toIso(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toISOString();
+  } catch (_err) {
+    return '';
+  }
+}
+
+async function exportDeliveredOrdersCsv(shopId) {
+  const orders = await Order.find({ shopId, status: 'delivered' })
+    .sort({ deliveredAt: -1, updatedAt: -1, _id: -1 })
+    .select('code clientName status createdAt deliveredAt updatedAt pricing shoeModel')
+    .lean();
+
+  const header = [
+    'code',
+    'clientName',
+    'status',
+    'createdAt',
+    'deliveredAt',
+    'pricing.total',
+    'shoeModel',
+  ];
+  const lines = [header.join(',')];
+  for (const o of orders) {
+    const deliveredOrUpdated = o.deliveredAt || o.updatedAt;
+    lines.push(
+      [
+        csvEscape(o.code),
+        csvEscape(o.clientName),
+        csvEscape(o.status),
+        csvEscape(toIso(o.createdAt)),
+        csvEscape(toIso(deliveredOrUpdated)),
+        csvEscape(o.pricing?.total != null ? o.pricing.total : 0),
+        csvEscape(o.shoeModel),
+      ].join(',')
+    );
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+const DEMO_CLIENT_NAME = 'Cliente demonstração';
+
+async function createDemoOrder(shopId, userId) {
+  const clientService = require('./clientService');
+  let client = await Client.findOne({ shopId, name: DEMO_CLIENT_NAME }).lean();
+  if (!client) {
+    client = await clientService.createClient(shopId, { name: DEMO_CLIENT_NAME });
+    client = client.toObject ? client.toObject() : client;
+  }
+
+  return createOrder(shopId, userId, {
+    clientId: client._id,
+    clientName: DEMO_CLIENT_NAME,
+    shoeModel: 'Tênis demonstração',
+    notes: 'Pedido de exemplo — pode excluir',
+    status: 'open',
+    pricing: { total: 0, deposit: 0 },
+  });
+}
+
 module.exports = {
   listOrders,
   createOrder,
+  createDemoOrder,
+  exportDeliveredOrdersCsv,
   getOrder,
   patchOrder,
   reopenOrder,
@@ -731,6 +904,7 @@ module.exports = {
   replaceOrderPhotos,
   uploadItemPhotos,
   getPublicOrderByCode,
+  submitPublicFeedback,
   nextOrderCode,
   servicesTotal,
 };
