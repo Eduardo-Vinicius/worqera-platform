@@ -3,6 +3,9 @@
 ## 2026-09-19
 
 - **Platform admin:** login sem membership → home `/admin/shops` (console Worqera); JWT `platformAdmin`; botão Ativar Premium.
+- **Onboarding:** 2 passos; “configurar depois”; link Setores não entra em loop; tour dashboard discreto (3 itens); removido banner WhatsApp.
+- **Trial banner:** texto explícito + âmbar nos últimos 7 dias (não dispensável).
+- **Verificar e-mail:** signup manda link; login bloqueia até confirmar; `/verify-email` + reenvio.
 - **Novo pedido:** envia `clientEmail`; aviso se cliente sem e-mail (PDF/link automático).
 - Empresa: copy do e-mail (PDF no create + avaliação no pronto).
 

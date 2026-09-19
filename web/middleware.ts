@@ -41,7 +41,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/p/') ||
     pathname.startsWith('/invite/') ||
     pathname === '/forgot-password' ||
-    pathname === '/reset-password'
+    pathname === '/reset-password' ||
+    pathname.startsWith('/verify-email')
   ) {
     if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
       const payload = decodeJwtPayload(token);

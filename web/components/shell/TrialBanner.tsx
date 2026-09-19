@@ -17,6 +17,7 @@ export function TrialBanner() {
   const [href, setHref] = useState("/billing")
   const [dismissed, setDismissed] = useState(false)
   const [locked, setLocked] = useState(false)
+  const [urgent, setUrgent] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -38,8 +39,9 @@ export function TrialBanner() {
           (status === "trialing" && left != null && left <= 0)
 
         setLocked(isLocked)
+        setUrgent(Boolean(status === "trialing" && left != null && left <= 7))
 
-        if (!isLocked && sessionStorage.getItem("wq-trial-banner-dismissed") === "1") {
+        if (!isLocked && left != null && left > 7 && sessionStorage.getItem("wq-trial-banner-dismissed") === "1") {
           setDismissed(true)
           return
         }
@@ -47,10 +49,16 @@ export function TrialBanner() {
         if (status === "trialing" && left != null) {
           if (left <= 0) {
             setMessage("Trial expirado — o sistema está bloqueado até assinar.")
-          } else if (left <= 3) {
-            setMessage(`Trial acaba em ${left} dia${left === 1 ? "" : "s"}.`)
+          } else if (left === 1) {
+            setMessage(
+              "Atenção: seu trial Worqera acaba amanhã. Assine agora para não perder o acesso à oficina."
+            )
+          } else if (left <= 7) {
+            setMessage(
+              `Atenção: seu trial Worqera expira em ${left} dias. Regularize a assinatura para continuar usando o sistema sem interrupção.`
+            )
           } else {
-            setMessage(`Trial ativo · ${left} dias restantes`)
+            setMessage(`Trial ativo · ${left} dias restantes · depois é preciso assinar para continuar.`)
           }
           setHref("/billing")
         } else if (status === "expired" || status === "canceled" || status === "past_due") {
@@ -58,7 +66,7 @@ export function TrialBanner() {
           setHref("/billing")
         }
       } catch {
-        // silent — banner is optional
+        // silent
       }
     })()
     return () => {
@@ -70,24 +78,26 @@ export function TrialBanner() {
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 text-sm sm:gap-3 sm:px-4 sm:py-2.5 md:px-6 ${
+      className={`flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2.5 text-sm sm:gap-3 sm:px-4 md:px-6 ${
         locked
-          ? "border-red-200 bg-red-50 text-red-950"
-          : "border-[var(--wq-brand)]/20 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+          ? "border-red-300 bg-red-100 text-red-950"
+          : urgent
+            ? "border-amber-400 bg-amber-100 text-amber-950"
+            : "border-[var(--wq-brand)]/20 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
       }`}
     >
-      <p className="min-w-0 flex-1 break-words">
+      <p className="min-w-0 flex-1 break-words font-medium">
         {message}{" "}
         <Link
           href={href}
-          className={`font-semibold underline-offset-2 hover:underline ${
-            locked ? "text-red-700" : "text-[var(--wq-brand)]"
+          className={`font-bold underline underline-offset-2 ${
+            locked ? "text-red-800" : urgent ? "text-amber-900" : "text-[var(--wq-brand)]"
           }`}
         >
-          Regularizar →
+          Ir para Billing →
         </Link>
       </p>
-      {!locked && (
+      {!locked && !urgent && (
         <button
           type="button"
           aria-label="Dispensar"

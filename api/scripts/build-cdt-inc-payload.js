@@ -11,6 +11,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const SHOP_SLUG = process.env.SHOP_SLUG || 'casa-do-tenis';
+
 const IN = path.join(__dirname, 'data/cdt-report001-inc-orders.jsonl');
 const OUT = path.join(__dirname, 'data/cdt-inc-payload.json');
 
@@ -70,9 +72,9 @@ const dates = [...new Set(orders.map((o) => o.date))].sort();
 
 const payload = {
   version: 1,
-  shopSlug: 'casa-do-tenis',
+  shopSlug: SHOP_SLUG,
   source: 'carga-incremental-manual',
-  sourceLabel: `Carga incremental · ${dates[0] || '?'}→${dates[dates.length - 1] || '?'}`,
+  sourceLabel: `Carga incremental · ${SHOP_SLUG} · ${dates[0] || '?'}→${dates[dates.length - 1] || '?'}`,
   builtAt: new Date().toISOString(),
   orderCount: orders.length,
   dateMin: dates[0] || null,
@@ -86,10 +88,12 @@ console.log(
   JSON.stringify(
     {
       out: OUT,
+      shopSlug: SHOP_SLUG,
       orderCount: orders.length,
       dateMin: payload.dateMin,
       dateMax: payload.dateMax,
       sizeMb: mb,
+      tip: 'No servidor use SHOP_SLUG=' + SHOP_SLUG + ' no docker exec',
     },
     null,
     2

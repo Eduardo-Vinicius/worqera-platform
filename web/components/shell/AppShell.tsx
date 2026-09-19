@@ -72,6 +72,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return
     if (pathname.startsWith("/onboarding")) return
     if (pathname.startsWith("/admin/shops")) return
+    // Allow settings while onboarding so "editar setores" doesn't loop back
+    if (pathname.startsWith("/settings")) return
+    if (pathname.startsWith("/verify-email")) return
     try {
       if (localStorage.getItem("platformAdmin") === "1") return
       if (localStorage.getItem("wq-needs-onboarding") === "1") {

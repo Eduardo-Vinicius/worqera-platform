@@ -48,7 +48,9 @@ exports.signup = wrap(async (req, res) => {
     partnerCode,
     ref: ref || req.query?.ref,
   });
-  setRefreshCookie(res, result.refreshToken);
+  if (result.refreshToken) {
+    setRefreshCookie(res, result.refreshToken);
+  }
   return res.status(201).json(result);
 });
 
@@ -95,6 +97,18 @@ exports.forgotPassword = wrap(async (req, res) => {
 exports.resetPassword = wrap(async (req, res) => {
   const { token, password } = req.body || {};
   const result = await authService.resetPassword({ token, password });
+  res.status(200).json(result);
+});
+
+exports.verifyEmail = wrap(async (req, res) => {
+  const token = req.body?.token || req.query?.token;
+  const result = await authService.verifyEmail(token);
+  res.status(200).json(result);
+});
+
+exports.resendVerification = wrap(async (req, res) => {
+  const email = req.body?.email;
+  const result = await authService.resendEmailVerification(email);
   res.status(200).json(result);
 });
 

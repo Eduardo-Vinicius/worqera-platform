@@ -34,6 +34,9 @@ router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', forgotLimit, authController.forgotPassword);
 router.post('/reset-password', forgotLimit, authController.resetPassword);
+router.post('/verify-email', forgotLimit, authController.verifyEmail);
+router.get('/verify-email', forgotLimit, authController.verifyEmail);
+router.post('/resend-verification', forgotLimit, authController.resendVerification);
 router.get('/me', auth, authController.me);
 
 module.exports = router;

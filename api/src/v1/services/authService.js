@@ -93,11 +93,15 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     throw err;
   }
 
+  const verifyRaw = crypto.randomBytes(32).toString('hex');
   const passwordHash = await hashPassword(password);
   const user = await User.create({
     email: normalizedEmail,
     passwordHash,
     name: name || normalizedEmail.split('@')[0],
+    emailVerifiedAt: null,
+    emailVerifyTokenHash: crypto.createHash('sha256').update(verifyRaw).digest('hex'),
+    emailVerifyExpires: new Date(Date.now() + 48 * 60 * 60 * 1000),
   });
 
   const referredBy = String(partnerCode || ref || '')
@@ -145,10 +149,11 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     }))
   );
 
-  const accessToken = signAccessToken({ user, membership });
-  const refreshToken = signRefreshToken(user);
+  await sendEmailVerificationMail(user.email, verifyRaw);
 
+  // No session until e-mail confirmed
   return {
+    requiresEmailVerification: true,
     user: { id: user._id, email: user.email, name: user.name },
     shop: { id: shop._id, name: shop.name, slug: shop.slug },
     membership: {
@@ -161,10 +166,34 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
       trialEndsAt: subscription.trialEndsAt,
       planCode: subscription.planCode,
     },
-    token: accessToken,
-    accessToken,
-    refreshToken,
+    message: 'Enviamos um link de confirmação para o seu e-mail. Confirme para entrar.',
   };
+}
+
+async function sendEmailVerificationMail(to, rawToken) {
+  const base = (process.env.PUBLIC_WEB_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
+  const url = `${base}/verify-email?token=${encodeURIComponent(rawToken)}`;
+  try {
+    const { sendMail } = require('./mailer');
+    await sendMail({
+      to,
+      subject: 'Confirme seu e-mail — Worqera',
+      text: `Confirme seu e-mail para ativar a conta Worqera:\n\n${url}\n\nLink válido por 48 horas.`,
+      html: `<p>Confirme seu e-mail para ativar a conta <strong>Worqera</strong>:</p>
+        <p><a href="${url}" style="display:inline-block;background:#7d26de;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600">Confirmar e-mail</a></p>
+        <p style="font-size:13px;color:#64748b">Ou abra: <a href="${url}">${url}</a></p>
+        <p style="font-size:13px;color:#64748b">Válido por 48 horas.</p>`,
+    });
+  } catch (err) {
+    console.error('[auth] verify email failed', err.message);
+  }
+}
+
+function needsEmailVerification(user) {
+  if (!user) return false;
+  if (user.emailVerifiedAt) return false;
+  if (isPlatformAdminEmail(user.email)) return false;
+  return Boolean(user.emailVerifyTokenHash);
 }
 
 async function login({ email, password }) {
@@ -183,6 +212,15 @@ async function login({ email, password }) {
     err.status = 401;
     err.code = 'UNAUTHORIZED';
     err.detail = 'Invalid credentials';
+    throw err;
+  }
+
+  if (needsEmailVerification(user)) {
+    const err = new Error('Email not verified');
+    err.status = 403;
+    err.code = 'EMAIL_NOT_VERIFIED';
+    err.detail =
+      'Confirme seu e-mail pelo link que enviamos. Se não chegou, use “Reenviar confirmação”.';
     throw err;
   }
 
@@ -300,6 +338,54 @@ async function resetPassword({ token, password }) {
   return { ok: true };
 }
 
+async function verifyEmail(token) {
+  if (!token) {
+    const err = new Error('token required');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
+  const user = await User.findOne({
+    emailVerifyTokenHash: hash,
+    emailVerifyExpires: { $gt: new Date() },
+  });
+  if (!user) {
+    const err = new Error('Invalid or expired verification link');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    err.detail = 'Link inválido ou expirado. Peça um novo e-mail de confirmação.';
+    throw err;
+  }
+  user.emailVerifiedAt = new Date();
+  user.emailVerifyTokenHash = null;
+  user.emailVerifyExpires = null;
+  await user.save();
+  return { ok: true, email: user.email };
+}
+
+async function resendEmailVerification(email) {
+  const normalized = String(email || '')
+    .toLowerCase()
+    .trim();
+  const out = { ok: true };
+  const user = normalized ? await User.findOne({ email: normalized }) : null;
+  if (!user) return out;
+  if (user.emailVerifiedAt) {
+    out.alreadyVerified = true;
+    return out;
+  }
+  const raw = crypto.randomBytes(32).toString('hex');
+  user.emailVerifyTokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+  user.emailVerifyExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  await user.save();
+  await sendEmailVerificationMail(user.email, raw);
+  if (process.env.NODE_ENV !== 'production') {
+    out.devToken = raw;
+  }
+  return out;
+}
+
 async function me(userId) {
   const user = await User.findById(userId).lean();
   if (!user) {
@@ -360,6 +446,8 @@ module.exports = {
   me,
   requestPasswordReset,
   resetPassword,
+  verifyEmail,
+  resendEmailVerification,
   hashPassword,
   verifyPassword,
   signAccessToken,

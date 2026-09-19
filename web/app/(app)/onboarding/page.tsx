@@ -5,11 +5,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   createDemoOrderV1,
-  createServiceV1,
   listSectorsV1,
   patchShopCurrentV1,
   seedShopCatalogV1,
@@ -24,8 +21,6 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [sectors, setSectors] = useState<Sector[]>([])
   const [loadingSectors, setLoadingSectors] = useState(true)
-  const [serviceName, setServiceName] = useState("")
-  const [servicePrice, setServicePrice] = useState("0")
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -52,53 +47,17 @@ export default function OnboardingPage() {
     }
   }, [])
 
-  const finish = async () => {
+  const finish = async (dest = "/dashboard") => {
     setBusy(true)
     try {
       await patchShopCurrentV1({ onboardingComplete: true })
       try {
         localStorage.removeItem("wq-needs-onboarding")
       } catch {}
-      toast.success("Onboarding concluído")
-      router.push("/kanban")
+      toast.success("Pode configurar o resto quando quiser")
+      router.push(dest)
     } catch (err: any) {
       toast.error(err?.message || "Falha ao concluir")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const createService = async () => {
-    if (!serviceName.trim()) {
-      toast.error("Informe o nome do serviço")
-      return
-    }
-    setBusy(true)
-    try {
-      await createServiceV1({
-        name: serviceName.trim(),
-        defaultPrice: Number(servicePrice) || 0,
-        active: true,
-        sortOrder: 1,
-      })
-      toast.success("Serviço criado")
-      setStep(3)
-    } catch (err: any) {
-      toast.error(err?.message || "Falha ao criar serviço")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const applyDefaultCatalog = async () => {
-    setBusy(true)
-    try {
-      const res = await seedShopCatalogV1()
-      if (res.seeded > 0) toast.success(`${res.seeded} serviços padrão aplicados`)
-      else toast.message(`Catálogo já tinha ${res.existing} serviço(s)`)
-      setStep(3)
-    } catch (err: any) {
-      toast.error(err?.message || "Falha ao aplicar catálogo")
     } finally {
       setBusy(false)
     }
@@ -108,7 +67,7 @@ export default function OnboardingPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Bem-vindo ao Worqera"
-        subtitle="Configure a oficina em 3 passos rápidos"
+        subtitle="2 passos rápidos — o resto você configura depois"
         actions={
           <Button
             type="button"
@@ -116,16 +75,16 @@ export default function OnboardingPage() {
             size="sm"
             className="rounded-[10px] text-[var(--wq-text-muted)]"
             disabled={busy}
-            onClick={finish}
+            onClick={() => finish("/dashboard")}
           >
-            Pular
+            Configurar depois
           </Button>
         }
       />
 
-      <div className="mx-auto max-w-[560px] space-y-6 px-5 py-8 md:px-8">
+      <div className="mx-auto max-w-[520px] space-y-6 px-5 py-8 md:px-8">
         <div className="flex gap-2">
-          {[1, 2, 3].map((n) => (
+          {[1, 2].map((n) => (
             <div
               key={n}
               className={`h-1.5 flex-1 rounded-full ${
@@ -138,21 +97,15 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-white p-5">
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
-              1. Seus setores (únicos da empresa)
+              1. Seu kanban já tem setores
             </h2>
             <p className="text-sm text-[var(--wq-text-muted)]">
-              O kanban é 100% seu: cada loja cadastra os nomes que quiser. Abaixo é só um ponto de
-              partida — renomeie, apague ou crie novos em Setores.
+              Criamos um fluxo inicial. Você pode renomear ou mudar em{" "}
+              <strong className="font-medium text-[var(--wq-text)]">Setores</strong> depois —
+              sem pressa.
             </p>
             {loadingSectors ? (
               <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
-            ) : sectors.length === 0 ? (
-              <p className="text-sm text-[var(--wq-text-muted)]">
-                Nenhum setor ainda — a API cria padrões no signup.{" "}
-                <Link href="/settings/setores" className="text-[var(--wq-brand)] underline-offset-2 hover:underline">
-                  Abrir setores
-                </Link>
-              </p>
             ) : (
               <ul className="space-y-1.5">
                 {sectors.map((s, i) => (
@@ -166,13 +119,6 @@ export default function OnboardingPage() {
                 ))}
               </ul>
             )}
-            <p className="text-xs text-[var(--wq-text-muted)]">
-              Pode seguir com estes e personalizar depois em{" "}
-              <Link href="/settings/setores" className="text-[var(--wq-brand)] underline-offset-2 hover:underline">
-                Setores
-              </Link>
-              — nenhuma outra empresa vê o seu fluxo.
-            </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 type="button"
@@ -181,8 +127,14 @@ export default function OnboardingPage() {
               >
                 Continuar
               </Button>
-              <Button asChild type="button" variant="outline" className="rounded-[10px]">
-                <Link href="/settings/setores">Editar setores</Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-[10px]"
+                disabled={busy}
+                onClick={() => finish("/settings/setores")}
+              >
+                Ir para Setores e sair do tour
               </Button>
             </div>
           </div>
@@ -191,114 +143,42 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-white p-5">
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
-              2. Primeiro serviço
+              2. Ver o kanban funcionando
             </h2>
             <p className="text-sm text-[var(--wq-text-muted)]">
-              Cadastre um serviço do catálogo (nome + preço). Usado no novo pedido.
-            </p>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="svc-name">Nome</Label>
-                <Input
-                  id="svc-name"
-                  className="rounded-[10px]"
-                  placeholder="Ex.: Limpeza profunda"
-                  value={serviceName}
-                  onChange={(e) => setServiceName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="svc-price">Preço (R$)</Label>
-                <Input
-                  id="svc-price"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className="rounded-[10px] w-36"
-                  value={servicePrice}
-                  onChange={(e) => setServicePrice(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                type="button"
-                disabled={busy}
-                className="rounded-[10px] bg-[var(--wq-brand)] hover:bg-[var(--wq-brand-deep)]"
-                onClick={createService}
-              >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar e continuar"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                className="rounded-[10px]"
-                onClick={applyDefaultCatalog}
-              >
-                Aplicar catálogo padrão
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-[10px]"
-                onClick={() => setStep(3)}
-              >
-                Pular serviço
-              </Button>
-              <Button type="button" variant="ghost" className="rounded-[10px]" onClick={() => setStep(1)}>
-                Voltar
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-white p-5">
-            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
-              3. Criar o primeiro pedido
-            </h2>
-            <p className="text-sm text-[var(--wq-text-muted)]">
-              Crie um pedido real ou gere um exemplo para ver o kanban funcionando em segundos.
+              Gere um pedido de exemplo ou vá direto ao painel. Serviços e marca ficam em
+              Empresa / Serviços quando quiser.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button asChild className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90">
-                <Link href="/pedidos/novo">Novo pedido →</Link>
-              </Button>
               <Button
                 type="button"
-                variant="outline"
-                className="rounded-[10px]"
+                className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true)
                   try {
+                    await seedShopCatalogV1().catch(() => null)
                     await createDemoOrderV1()
                     toast.success("Pedido de exemplo criado")
-                    await patchShopCurrentV1({ onboardingComplete: true })
-                    try {
-                      localStorage.removeItem("wq-needs-onboarding")
-                    } catch {}
-                    router.push("/kanban")
+                    await finish("/kanban")
                   } catch (err: any) {
                     toast.error(err?.message || "Falha no exemplo")
-                  } finally {
                     setBusy(false)
                   }
                 }}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pedido de exemplo"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pedido exemplo + kanban"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="rounded-[10px]"
                 disabled={busy}
-                onClick={finish}
+                onClick={() => finish("/dashboard")}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Concluir"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ir ao painel"}
               </Button>
-              <Button type="button" variant="ghost" className="rounded-[10px]" onClick={() => setStep(2)}>
+              <Button type="button" variant="ghost" className="rounded-[10px]" onClick={() => setStep(1)}>
                 Voltar
               </Button>
             </div>

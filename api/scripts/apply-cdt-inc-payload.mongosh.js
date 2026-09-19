@@ -15,7 +15,6 @@
 
 const APPLY = String(process.env.APPLY || '0') === '1';
 const FORCE_UPDATE = String(process.env.FORCE_UPDATE || '0') === '1';
-const SHOP_SLUG = process.env.SHOP_SLUG || 'casa-do-tenis';
 const PAYLOAD_PATH =
   process.env.PAYLOAD_PATH || `${pwd()}/cdt-inc-payload.json`;
 
@@ -35,6 +34,10 @@ try {
 if (!payload || !Array.isArray(payload.orders) || !payload.orders.length) {
   die('Payload inválido (orders vazio)');
 }
+
+// Prioridade: env SHOP_SLUG > payload.shopSlug > casa-do-tenis
+const SHOP_SLUG =
+  process.env.SHOP_SLUG || payload.shopSlug || 'casa-do-tenis';
 
 const shop = db.shops.findOne({ slug: SHOP_SLUG });
 if (!shop) die(`Shop '${SHOP_SLUG}' não encontrado — rode o seed antes`);

@@ -7,6 +7,10 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     passwordResetTokenHash: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
+    /** null = not verified yet (new signups). Set on confirm link. */
+    emailVerifiedAt: { type: Date, default: null },
+    emailVerifyTokenHash: { type: String, default: null },
+    emailVerifyExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

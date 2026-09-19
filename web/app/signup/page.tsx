@@ -44,12 +44,17 @@ export default function SignupPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await signupV1({
+      const data = await signupV1({
         ...form,
         shopSlug: form.shopSlug || undefined,
         partnerCode: partnerCode || undefined,
         ref: partnerCode || undefined,
       })
+      if (data?.requiresEmailVerification) {
+        toast.success("Conta criada — confira seu e-mail para confirmar")
+        router.push(`/verify-email?pending=1&email=${encodeURIComponent(form.email)}`)
+        return
+      }
       try {
         localStorage.setItem("wq-needs-onboarding", "1")
       } catch {}

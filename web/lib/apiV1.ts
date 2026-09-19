@@ -107,7 +107,9 @@ export async function signupV1(input: {
     method: "POST",
     body: JSON.stringify(input),
   })
-  persistSession(data)
+  if (data?.accessToken || data?.token) {
+    persistSession(data)
+  }
   return data
 }
 
@@ -118,6 +120,20 @@ export async function loginV1(email: string, password: string) {
   })
   persistSession(data)
   return data
+}
+
+export async function verifyEmailV1(token: string) {
+  return v1Fetch<{ ok: boolean; email?: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  })
+}
+
+export async function resendVerificationV1(email: string) {
+  return v1Fetch<{ ok: boolean; alreadyVerified?: boolean }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
 }
 
 export async function meV1() {

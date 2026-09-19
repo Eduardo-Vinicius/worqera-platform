@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
+import { toast } from "sonner"
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
 
@@ -29,6 +30,12 @@ export default function LoginPage() {
         await loginV1(email, password)
       } catch (first) {
         const msg = String((first as Error)?.message || "")
+        const code = (first as any)?.code
+        if (code === "EMAIL_NOT_VERIFIED" || /confirm|e-mail|email not verified/i.test(msg)) {
+          toast.error("Confirme seu e-mail antes de entrar")
+          window.location.href = `/verify-email?pending=1&email=${encodeURIComponent(email)}`
+          return
+        }
         if (/failed to fetch|networkerror|load failed/i.test(msg)) {
           throw new Error(
             `Não conectou na API (${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001"}). Confirme make api-dev e abra o front em http://127.0.0.1:3000`

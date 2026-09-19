@@ -8,7 +8,6 @@ import { getDashboardService } from "@/lib/apiService"
 import { getShopCurrentV1, sendWeeklyDigestV1 } from "@/lib/apiV1"
 import { SetupChecklist } from "@/components/shell/SetupChecklist"
 import { ReferralCard } from "@/components/shell/ReferralCard"
-import { StatusPackBanner } from "@/components/shell/StatusPackBanner"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -226,7 +225,6 @@ export default function DashboardPage() {
         {!loading && !error && (
           <>
             <SetupChecklist openOrders={open} totalClients={clients} />
-            <StatusPackBanner />
 
             {nextActions.length > 0 ? (
               <section className="flex flex-wrap gap-2">
