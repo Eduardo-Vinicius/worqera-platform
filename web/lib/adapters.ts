@@ -28,7 +28,16 @@ export function adaptClient(raw: any) {
 
 function adaptPhotoUrls(rawPhotos: any): string[] {
   if (!Array.isArray(rawPhotos)) return [];
-  return rawPhotos.map((p: any) => (typeof p === "string" ? p : p?.url)).filter(Boolean);
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")
+  return rawPhotos
+    .map((p: any) => {
+      const u = typeof p === "string" ? p : p?.url
+      if (!u || typeof u !== "string") return null
+      if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("blob:")) return u
+      if (u.startsWith("/api/") && apiBase) return `${apiBase}${u}`
+      return u
+    })
+    .filter(Boolean) as string[]
 }
 
 function adaptSectorHistory(raw: any[]) {

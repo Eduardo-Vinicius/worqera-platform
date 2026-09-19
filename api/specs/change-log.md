@@ -2,6 +2,9 @@
 
 ## 2026-09-19
 
+- **Fotos:** URLs assinadas (`accessibleUrl` / S3 signed ou `?exp=&sig=`); `/files` aceita sig sem Bearer — corrige `<img>` quebrado em PRD. Garantir `PUBLIC_API_URL` na API.
+- **Laudo PDF:** redesign profissional por par (serviços, fotos, cliente não-nulo); gera no create; filename `laudo-{code}.pdf`.
+- **Avaliações:** `GET /alerts/feedback?score=` + `GET /alerts/feedback/export.csv`.
 - **Avaliações:** `GET /alerts/feedback` (lista paginada + média, distribuição 1–5, top tags); período `30d`/`90d`/`all`.
 - **Setor público:** `Sector.showOnPublic` (default true); `/p` e e-mail/Zap de move mascaram nome → “Em andamento” quando off.
 - **Consulta pública:** link exige slug + código + token secreto (`/p/{slug}/{code}?t=…`); create gera `publicToken`; get/notify/WA fazem backfill; QR/etiqueta/Zap/e-mail usam o mesmo formato.

@@ -476,7 +476,27 @@ export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdf
 
   const result = await response.json();
   const payload = resolveApiPayload(result);
-  return Array.isArray(payload) ? payload : [];
+  const raw = Array.isArray(payload)
+    ? payload
+    : Array.isArray(result?.pdfs)
+      ? result.pdfs
+      : Array.isArray(result?.data)
+        ? result.data
+        : [];
+  return raw
+    .map((p: any) => {
+      const key = String(p.key || p.fileName || p.nome || "");
+      const name = key.includes("/") ? key.slice(key.lastIndexOf("/") + 1) : key || "laudo.pdf";
+      const url = p.url || "";
+      if (!url) return null;
+      return {
+        url,
+        fileName: name,
+        nome: name,
+        createdAt: p.lastModified || p.createdAt || undefined,
+      } as PedidoPdfAsset;
+    })
+    .filter(Boolean) as PedidoPdfAsset[];
 }
 
 function parseUploadedPhotoUrls(payload: any): string[] {

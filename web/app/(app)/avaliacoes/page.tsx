@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Star } from "lucide-react"
+import { Download, Star } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { listFeedbackV1 } from "@/lib/apiV1"
+import { API_V1, feedbackExportCsvUrl, listFeedbackV1 } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 type Period = "30d" | "90d" | "all"
+type ScoreFilter = "all" | "1" | "2" | "3" | "4" | "5" | "1,2,3"
 
 const TAG_LABEL: Record<string, string> = {
   qualidade: "Qualidade",
@@ -38,14 +39,23 @@ function Stars({ score }: { score: number }) {
 
 export default function AvaliacoesPage() {
   const [period, setPeriod] = useState<Period>("90d")
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all")
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [data, setData] = useState<Awaited<ReturnType<typeof listFeedbackV1>> | null>(null)
+
+  const scoreParam = scoreFilter === "all" ? undefined : scoreFilter
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await listFeedbackV1({ period, page, limit: 30 })
+      const res = await listFeedbackV1({
+        period,
+        page,
+        limit: 30,
+        score: scoreParam,
+      })
       setData(res)
     } catch (err: any) {
       toast.error(err?.message || "Erro ao carregar avaliações")
@@ -53,23 +63,78 @@ export default function AvaliacoesPage() {
     } finally {
       setLoading(false)
     }
-  }, [period, page])
+  }, [period, page, scoreParam])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  const exportCsv = async () => {
+    setExporting(true)
+    try {
+      const path = feedbackExportCsvUrl({ period, score: scoreParam })
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""
+      const shopId =
+        typeof window !== "undefined" ? localStorage.getItem("shopId") || "" : ""
+      const res = await fetch(`${API_V1}${path}`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+          "X-Worqera-Shop": shopId,
+        },
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || err.message || "Falha ao exportar")
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `avaliacoes-${period}${scoreParam ? `-s${scoreParam.replace(/,/g, "")}` : ""}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("CSV exportado — abra no Excel")
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao exportar")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const summary = data?.summary
   const maxBar = Math.max(1, ...(summary ? Object.values(summary.distribution).map(Number) : [1]))
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1
+
+  const scoreChips: Array<{ id: ScoreFilter; label: string }> = [
+    { id: "all", label: "Todas" },
+    { id: "1,2,3", label: "Críticas (1–3)" },
+    { id: "1", label: "1★" },
+    { id: "2", label: "2★" },
+    { id: "3", label: "3★" },
+    { id: "4", label: "4★" },
+    { id: "5", label: "5★" },
+  ]
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Avaliações"
-        subtitle="Notas dos clientes no link público — use para melhorar o atendimento"
+        subtitle="Notas dos clientes no link público — filtre e exporte para métricas"
         actions={
           <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-[10px]"
+              disabled={exporting}
+              onClick={() => void exportCsv()}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              {exporting ? "Exportando…" : "Exportar Excel"}
+            </Button>
             {(
               [
                 { id: "30d" as const, label: "30 dias" },
@@ -95,6 +160,23 @@ export default function AvaliacoesPage() {
       />
 
       <div className="mx-auto max-w-[900px] space-y-5 px-5 py-6 md:px-8">
+        <div className="flex flex-wrap gap-1.5">
+          {scoreChips.map((c) => (
+            <Button
+              key={c.id}
+              size="sm"
+              variant={scoreFilter === c.id ? "default" : "outline"}
+              className="rounded-[10px]"
+              onClick={() => {
+                setPage(1)
+                setScoreFilter(c.id)
+              }}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
+
         {loading && !data ? (
           <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
         ) : null}
@@ -103,7 +185,7 @@ export default function AvaliacoesPage() {
           <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
             <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
-                Média
+                Média {scoreFilter !== "all" ? "(filtro)" : ""}
               </p>
               <div className="mt-2 flex items-end gap-3">
                 <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight text-[var(--wq-text)]">
@@ -162,8 +244,7 @@ export default function AvaliacoesPage() {
           {!loading && data && data.items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[var(--wq-border)] bg-white px-5 py-12 text-center">
               <p className="text-sm text-[var(--wq-text-muted)]">
-                Ainda sem avaliações neste período. Quando o pedido fica pronto, o cliente pode
-                avaliar no link público.
+                Nenhuma avaliação neste filtro. Ajuste período ou estrelas.
               </p>
             </div>
           ) : null}

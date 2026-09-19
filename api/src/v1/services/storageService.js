@@ -1,6 +1,7 @@
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 
 const BASE_DIR = () =>
   path.resolve(process.env.STORAGE_PATH || path.join(process.cwd(), 'uploads'));
@@ -39,12 +40,90 @@ function isPublicBrandingKey(key) {
   return /^shops\/[^/]+\/branding\//.test(normalizeKey(key));
 }
 
+function apiBaseUrl() {
+  return (process.env.PUBLIC_API_URL || process.env.WORQERA_PublicApiUrl || '').replace(/\/+$/, '');
+}
+
 function publicUrl(key, { publicAccess } = {}) {
   const safe = normalizeKey(key);
   const usePublic = publicAccess === true || isPublicBrandingKey(safe);
   const rel = usePublic ? `/api/v1/public/files/${safe}` : `/api/v1/files/${safe}`;
-  const base = (process.env.PUBLIC_API_URL || '').replace(/\/+$/, '');
+  const base = apiBaseUrl();
   return base ? `${base}${rel}` : rel;
+}
+
+function fileSignSecret() {
+  return process.env.FILE_URL_SECRET || process.env.JWT_SECRET || 'changeme';
+}
+
+function signFileAccess(key, exp) {
+  return crypto
+    .createHmac('sha256', fileSignSecret())
+    .update(`${normalizeKey(key)}.${exp}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+
+function verifyFileAccess(key, exp, sig) {
+  const e = Number(exp);
+  const s = String(sig || '');
+  if (!e || !s || e < Math.floor(Date.now() / 1000)) return false;
+  const expected = signFileAccess(key, e);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(s));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Browser-loadable URL for <img>/<a>.
+ * S3 → temporary signed getObject URL.
+ * Disk → /api/v1/files/...?exp=&sig= (no Bearer required).
+ */
+function accessibleUrl(key, { ttlSec = 6 * 3600 } = {}) {
+  const safe = normalizeKey(key);
+  if (!safe) return '';
+  if (isPublicBrandingKey(safe)) {
+    return publicUrl(safe, { publicAccess: true });
+  }
+  if (useS3()) {
+    return getS3().getSignedUrl('getObject', {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: safe,
+      Expires: Math.min(Math.max(Number(ttlSec) || 3600, 60), 7 * 24 * 3600),
+    });
+  }
+  const exp =
+    Math.floor(Date.now() / 1000) +
+    Math.min(Math.max(Number(ttlSec) || 3600, 60), 7 * 24 * 3600);
+  const sig = signFileAccess(safe, exp);
+  const base = publicUrl(safe);
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}exp=${exp}&sig=${sig}`;
+}
+
+/** Resolve stored photo object / legacy URL into a loadable URL. */
+function resolvePhotoUrl(photo) {
+  if (!photo) return null;
+  if (typeof photo === 'string') {
+    const s = photo.trim();
+    if (!s) return null;
+    const filesIdx = s.indexOf('/api/v1/files/');
+    if (filesIdx >= 0) {
+      const rest = s.slice(filesIdx + '/api/v1/files/'.length).split('?')[0];
+      try {
+        return accessibleUrl(decodeURIComponent(rest));
+      } catch {
+        return accessibleUrl(rest);
+      }
+    }
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    return accessibleUrl(s);
+  }
+  if (photo.key) return accessibleUrl(photo.key);
+  if (photo.url) return resolvePhotoUrl(photo.url);
+  return null;
 }
 
 function photosPrefix(shopId, orderId) {
@@ -76,7 +155,7 @@ async function putBuffer(key, buffer, contentType) {
       .promise();
     return {
       key: safe,
-      url: publicUrl(safe, { publicAccess: isPublicBrandingKey(safe) }),
+      url: accessibleUrl(safe),
       location: result.Location,
     };
   }
@@ -86,7 +165,7 @@ async function putBuffer(key, buffer, contentType) {
   await fsp.writeFile(full, buffer);
   return {
     key: safe,
-    url: publicUrl(safe, { publicAccess: isPublicBrandingKey(safe) }),
+    url: accessibleUrl(safe),
   };
 }
 
@@ -124,7 +203,7 @@ async function list(prefix) {
       .promise();
     return (result.Contents || []).map((obj) => ({
       key: obj.Key,
-      url: publicUrl(obj.Key),
+      url: accessibleUrl(obj.Key),
       size: obj.Size,
       lastModified: obj.LastModified,
     }));
@@ -149,7 +228,7 @@ async function list(prefix) {
         const stat = await fsp.stat(full);
         items.push({
           key: rel,
-          url: publicUrl(rel),
+          url: accessibleUrl(rel),
           size: stat.size,
           lastModified: stat.mtime,
         });
@@ -161,7 +240,6 @@ async function list(prefix) {
   if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
     await walk(dir, baseRel);
   } else {
-    // prefix may point at a folder that doesn't exist yet
     const parent = path.dirname(dir);
     const baseName = path.basename(dir);
     if (fs.existsSync(parent)) {
@@ -171,7 +249,12 @@ async function list(prefix) {
           const full = path.join(parent, entry.name);
           const rel = path.posix.join(path.dirname(baseRel), entry.name);
           const stat = await fsp.stat(full);
-          items.push({ key: rel, url: publicUrl(rel), size: stat.size, lastModified: stat.mtime });
+          items.push({
+            key: rel,
+            url: accessibleUrl(rel),
+            size: stat.size,
+            lastModified: stat.mtime,
+          });
         }
       }
     }
@@ -224,6 +307,9 @@ async function deletePrefix(prefix) {
 module.exports = {
   BASE_DIR,
   publicUrl,
+  accessibleUrl,
+  resolvePhotoUrl,
+  verifyFileAccess,
   putBuffer,
   getBuffer,
   list,

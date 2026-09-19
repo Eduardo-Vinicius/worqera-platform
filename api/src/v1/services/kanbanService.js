@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Sector = require('../models/Sector');
 const User = require('../models/User');
 const { effectiveItems } = require('./orderItems');
+const { resolvePhotoUrl } = require('./storageService');
 
 function canMoveAnywhere(role) {
   return ['owner', 'admin', 'atendimento'].includes(String(role || '').toLowerCase());
@@ -116,7 +117,7 @@ function summarizeCard(order) {
     dueAt: order.dueAt,
     status: order.status,
     currentSectorId: order.currentSectorId,
-    photoThumb: cover?.url || null,
+    photoThumb: resolvePhotoUrl(cover) || null,
     assigneeEmployeeId: order.assigneeEmployeeId,
     plannedSectorIds: Array.isArray(order.plannedSectorIds)
       ? order.plannedSectorIds.map((s) => String(s._id || s))

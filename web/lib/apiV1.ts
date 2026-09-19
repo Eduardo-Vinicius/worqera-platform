@@ -314,14 +314,18 @@ export async function listFeedbackV1(opts?: {
   period?: "30d" | "90d" | "all"
   page?: number
   limit?: number
+  /** Comma-separated scores, e.g. "1,2,3" */
+  score?: string
 }) {
   const q = new URLSearchParams()
   if (opts?.period) q.set("period", opts.period)
   if (opts?.page) q.set("page", String(opts.page))
   if (opts?.limit) q.set("limit", String(opts.limit))
+  if (opts?.score) q.set("score", opts.score)
   const qs = q.toString()
   return v1Fetch<{
     period: string
+    scores?: number[] | null
     page: number
     limit: number
     total: number
@@ -342,6 +346,17 @@ export async function listFeedbackV1(opts?: {
       createdAt?: string | null
     }>
   }>(`/alerts/feedback${qs ? `?${qs}` : ""}`)
+}
+
+export function feedbackExportCsvUrl(opts?: {
+  period?: "30d" | "90d" | "all"
+  score?: string
+}) {
+  const q = new URLSearchParams()
+  if (opts?.period) q.set("period", opts.period)
+  if (opts?.score) q.set("score", opts.score)
+  const qs = q.toString()
+  return `/alerts/feedback/export.csv${qs ? `?${qs}` : ""}`
 }
 
 export async function sendDelayDigestV1() {

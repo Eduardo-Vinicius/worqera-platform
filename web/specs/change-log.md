@@ -2,6 +2,10 @@
 
 ## 2026-09-19
 
+- **Kanban:** atrasado com borda/badge rosa (como reaberto); observação do pedido editável + anotações.
+- **Fotos:** adapter prefixa `NEXT_PUBLIC_API_URL` em paths relativos; API passa a assinar URLs.
+- **Laudo:** seção no detalhe do pedido (listar/abrir + gerar); botão Laudo no kanban; PDF no create.
+- **Avaliações:** filtro por estrela / críticas (1–3) + Exportar Excel (CSV).
 - **Avaliações:** nav `/avaliacoes` (média, distribuição, lista com estrelas); FeedbackBell → “Ver todas”.
 - **Setores:** toggle “Cliente vê” (`showOnPublic`) — oculta nome no link/QR público.
 - **Consulta pública:** `/p/{slug}/{código}?t=token` obrigatório; QR etiqueta, Zap e “Copiar link” incluem o token.

@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  FileText,
   MessageCircle,
   Plus,
   Printer,
@@ -35,7 +36,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { addOrderCommentV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderV1 } from "@/lib/apiV1"
-import { getPedidoService, updateOrderService } from "@/lib/apiService"
+import { getPedidoService, generateOrderPDFService, downloadBlobAsFile, updateOrderService } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
@@ -205,11 +206,13 @@ function KanbanCardBody({
     <div
       className={cn(
         "cursor-grab rounded-xl border bg-[var(--wq-surface)] p-3 shadow-sm active:cursor-grabbing",
-        order.reopened
-          ? "border-sky-300/70 border-l-[3px] border-l-sky-500 bg-[color-mix(in_srgb,#0ea5e9_8%,var(--wq-surface))]"
-          : cue.offFlow
-            ? "border-[var(--wq-warn)]/50 border-l-[3px] border-l-[var(--wq-warn)] bg-[color-mix(in_srgb,var(--wq-warn)_8%,var(--wq-surface))]"
-            : "border-[var(--wq-border)]",
+        late
+          ? "border-rose-300/80 border-l-[3px] border-l-rose-500 bg-[color-mix(in_srgb,#f43f5e_10%,var(--wq-surface))]"
+          : order.reopened
+            ? "border-sky-300/70 border-l-[3px] border-l-sky-500 bg-[color-mix(in_srgb,#0ea5e9_8%,var(--wq-surface))]"
+            : cue.offFlow
+              ? "border-[var(--wq-warn)]/50 border-l-[3px] border-l-[var(--wq-warn)] bg-[color-mix(in_srgb,var(--wq-warn)_8%,var(--wq-surface))]"
+              : "border-[var(--wq-border)]",
         focused && "ring-2 ring-[var(--wq-action)]",
         dragging && "opacity-40"
       )}
@@ -228,6 +231,11 @@ function KanbanCardBody({
           <span className="font-mono text-sm font-semibold tracking-tight text-[var(--wq-text)]">
             {orderCode(order)}
           </span>
+          {late && (
+            <Badge className="border-0 bg-rose-100 text-[10px] font-semibold text-rose-800">
+              Atrasado
+            </Badge>
+          )}
           {order.reopened && (
             <Badge className="border-0 bg-sky-100 text-[10px] font-semibold text-sky-800">
               Reaberto
@@ -238,13 +246,8 @@ function KanbanCardBody({
               Fora do fluxo
             </Badge>
           )}
-          {late && (
-            <Badge className="border-0 bg-[var(--wq-warn)]/15 text-[10px] text-[var(--wq-warn)]">
-              Atrasado
-            </Badge>
-          )}
           {order.priority != null && Number(order.priority) <= 1 && (
-            <Badge variant="outline" className="text-[10px]">
+            <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
               Alta
             </Badge>
           )}
@@ -458,6 +461,8 @@ export default function KanbanPage() {
   const [codeQuery, setCodeQuery] = useState("")
   const [commentDraft, setCommentDraft] = useState("")
   const [commenting, setCommenting] = useState(false)
+  const [notesDraft, setNotesDraft] = useState("")
+  const [savingNotes, setSavingNotes] = useState(false)
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
 
   const sensors = useSensors(
@@ -691,14 +696,30 @@ export default function KanbanPage() {
     setDetailOpen(true)
     setDetailLoading(true)
     setCommentDraft("")
+    setNotesDraft("")
     try {
       const data = await getPedidoService(id)
       setDetail(data)
+      setNotesDraft(String(data?.notes || data?.observacoes || ""))
     } catch (err: any) {
       toast.error(err?.message || "Erro ao abrir detalhe")
       setDetailOpen(false)
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  const saveNotes = async () => {
+    if (!detail?.id) return
+    setSavingNotes(true)
+    try {
+      const updated = await updateOrderService(String(detail.id), { notes: notesDraft })
+      setDetail(updated as DetailOrder)
+      toast.success("Observação salva")
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao salvar observação")
+    } finally {
+      setSavingNotes(false)
     }
   }
 
@@ -1092,8 +1113,16 @@ export default function KanbanPage() {
                       {detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "Cliente"}
                     </p>
                     {detail.dueAt && (
-                      <p className="text-xs text-[var(--wq-text-muted)]">
+                      <p
+                        className={cn(
+                          "text-xs",
+                          new Date(detail.dueAt).getTime() < Date.now()
+                            ? "font-semibold text-rose-700"
+                            : "text-[var(--wq-text-muted)]"
+                        )}
+                      >
                         Prazo {new Date(detail.dueAt).toLocaleDateString("pt-BR")}
+                        {new Date(detail.dueAt).getTime() < Date.now() ? " · atrasado" : ""}
                       </p>
                     )}
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1163,6 +1192,25 @@ export default function KanbanPage() {
                       >
                         <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
                         WhatsApp
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-[10px]"
+                        onClick={async () => {
+                          if (!detail.id) return
+                          try {
+                            const blob = await generateOrderPDFService(detail.id)
+                            downloadBlobAsFile(blob, `laudo-${detail.code || detail.id}.pdf`)
+                            toast.success("Laudo gerado")
+                          } catch (err: any) {
+                            toast.error(err?.message || "Falha ao gerar laudo")
+                          }
+                        }}
+                      >
+                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        Laudo
                       </Button>
                       <Button asChild size="sm" variant="outline" className="rounded-[10px]">
                         <Link href={`/pedidos/${detail.id}/etiqueta?print=1`}>
@@ -1241,28 +1289,53 @@ export default function KanbanPage() {
 
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      Comentários
+                      Observação do pedido
+                    </p>
+                    <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
+                      Anote o que o cliente pediu no telefone — fica no pedido para a equipe ver.
+                    </p>
+                    <Textarea
+                      value={notesDraft}
+                      onChange={(e) => setNotesDraft(e.target.value)}
+                      placeholder="Ex.: cliente pediu sola preta, buscar só após 18h…"
+                      className="min-h-[88px] rounded-[10px] bg-[var(--wq-surface)] text-sm"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={savingNotes}
+                      className="mt-2 rounded-[10px] bg-[var(--wq-brand)] text-white"
+                      onClick={() => void saveNotes()}
+                    >
+                      {savingNotes ? "Salvando…" : "Salvar observação"}
+                    </Button>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                      Histórico de anotações
                     </p>
                     <div className="space-y-2">
                       <Textarea
                         value={commentDraft}
                         onChange={(e) => setCommentDraft(e.target.value)}
-                        placeholder="Anotação sobre o pedido…"
-                        className="min-h-[72px] rounded-[10px] bg-[var(--wq-surface)] text-sm"
+                        placeholder="Nova anotação rápida (timeline)…"
+                        className="min-h-[64px] rounded-[10px] bg-[var(--wq-surface)] text-sm"
                       />
                       <Button
                         type="button"
                         size="sm"
                         disabled={commenting || !commentDraft.trim()}
-                        className="rounded-[10px] bg-[var(--wq-brand)] text-white"
+                        className="rounded-[10px]"
+                        variant="outline"
                         onClick={submitComment}
                       >
-                        {commenting ? "Salvando…" : "Adicionar comentário"}
+                        {commenting ? "Salvando…" : "Adicionar anotação"}
                       </Button>
                     </div>
                     <ul className="mt-3 space-y-2">
                       {commentsNewestFirst.length === 0 && (
-                        <li className="text-xs text-[var(--wq-text-muted)]">Nenhum comentário ainda.</li>
+                        <li className="text-xs text-[var(--wq-text-muted)]">Nenhuma anotação ainda.</li>
                       )}
                       {commentsNewestFirst.map((c, idx) => (
                         <li

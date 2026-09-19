@@ -1,4 +1,5 @@
 const { effectiveItems } = require('./services/orderItems');
+const { resolvePhotoUrl } = require('./services/storageService');
 
 function idOf(doc) {
   if (!doc) return null;
@@ -46,9 +47,7 @@ function serializeOrderItem(it) {
       name: s.name || '',
       price: Number(s.price) || 0,
     })),
-    photos: (it.photos || [])
-      .map((p) => (typeof p === 'string' ? p : p?.url))
-      .filter(Boolean),
+    photos: (it.photos || []).map((p) => resolvePhotoUrl(p)).filter(Boolean),
     notes: it.notes || null,
   };
 }
@@ -76,9 +75,7 @@ function serializeOrder(order) {
   const code = order.code || order.codigo || '';
   const shoeModel = order.shoeModel || order.modeloTenis || '';
   const photos = Array.isArray(order.photos) ? order.photos : [];
-  const photoUrls = photos
-    .map((p) => (typeof p === 'string' ? p : p?.url))
-    .filter(Boolean);
+  const photoUrls = photos.map((p) => resolvePhotoUrl(p)).filter(Boolean);
   const services = (Array.isArray(order.services) ? order.services : []).map((s) => ({
     id: s.id || null,
     name: s.name || s.nome || '',

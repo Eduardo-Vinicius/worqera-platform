@@ -286,6 +286,14 @@ async function createOrder(shopId, userId, data) {
     // ignore
   }
 
+  // Always persist laudo PDF (email may attach a fresh copy on notify)
+  try {
+    const { generateOrderPdfSafe } = require('./pdfService');
+    generateOrderPdfSafe(shopId, order._id);
+  } catch (_err) {
+    // ignore
+  }
+
   return order.toObject();
 }
 

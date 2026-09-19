@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { getClienteByIdService } from "@/lib/apiService";
+import { getClienteByIdService, updateOrderService } from "@/lib/apiService";
 import { getShopCurrentV1 } from "@/lib/apiV1";
 import {
   buildWaMeUrl,
@@ -109,6 +109,8 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   const [renewedPhotos, setRenewedPhotos] = useState<Record<number, boolean>>({});
   const [waUrl, setWaUrl] = useState("");
   const [itemSingular, setItemSingular] = useState("peça");
+  const [notesDraft, setNotesDraft] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
   const hasRefreshedOnOpenRef = useRef(false);
   const lastRefreshIdRef = useRef<string | null>(null);
   const lastClientFetchRef = useRef<string | null>(null);
@@ -119,9 +121,12 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
     refreshState,
     pdfState,
     zipState,
+    pdfs,
+    pdfsLoading,
     refreshPedido,
     generateAndDownloadPdf,
     downloadFotosZip,
+    listPdfs,
   } = usePedidoAssets(pedido?.id, pedido);
 
   const pedidoAtual = (pedidoAtualizado || pedido) as PedidoDetalhes | null;
@@ -212,6 +217,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   useEffect(() => {
     if (pedido) {
       setPedido(pedido);
+      setNotesDraft(String(pedido.observacoes || (pedido as any).notes || ""));
     }
   }, [pedido, setPedido]);
 
@@ -229,7 +235,8 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
         }
       })
       .catch(() => null);
-  }, [open, pedidoAtual?.id, refreshPedido, onPedidoUpdated]);
+    void listPdfs();
+  }, [open, pedidoAtual?.id, refreshPedido, onPedidoUpdated, listPdfs]);
 
   // Reset do estado quando o modal fecha
   useEffect(() => {
@@ -351,7 +358,8 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
 
   const handleGeneratePdf = async () => {
     try {
-      await generateAndDownloadPdf(`pedido-${pedidoAtual.id}.pdf`);
+      const code = pedidoAtual?.codigo || pedidoAtual?.code || pedidoAtual?.id
+      await generateAndDownloadPdf(`laudo-${code}.pdf`)
     } catch {
       // estado de erro tratado pelo hook
     }
@@ -635,14 +643,38 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           )}
           
           {/* Observações do pedido */}
-          {pedidoAtual.observacoes && (
-            <div className="border-t pt-3 mt-4">
-              <div><strong>Observações do Pedido:</strong></div>
-              <div className="whitespace-pre-wrap text-sm mt-1 p-2 bg-gray-50 rounded border">
-                {pedidoAtual.observacoes}
-              </div>
-            </div>
-          )}
+          <div className="border-t pt-3 mt-4">
+            <div className="font-semibold mb-2">Observação do pedido</div>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              placeholder="Ex.: cliente ligou — quer sola preta / buscar só à tarde…"
+              rows={3}
+              className="w-full rounded-[10px] border border-[var(--wq-border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--wq-brand)]"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              disabled={savingNotes || !pedidoAtual?.id}
+              onClick={async () => {
+                if (!pedidoAtual?.id) return
+                setSavingNotes(true)
+                try {
+                  const updated = await updateOrderService(pedidoAtual.id, { notes: notesDraft })
+                  setPedido(updated)
+                  onPedidoUpdated?.(updated as PedidoDetalhes)
+                } catch (err: any) {
+                  setErrorCliente(err?.message || "Falha ao salvar observação")
+                } finally {
+                  setSavingNotes(false)
+                }
+              }}
+            >
+              {savingNotes ? "Salvando…" : "Salvar observação"}
+            </Button>
+          </div>
           
           {/* Dados completos do cliente */}
           {cliente && (
@@ -667,8 +699,16 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           )}
 
           <div className="border-t pt-3 mt-4">
-            <div className="font-semibold mb-2">Assets</div>
+            <div className="font-semibold mb-2">Laudo (PDF)</div>
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGeneratePdf}
+                disabled={pdfState === "loading"}
+              >
+                {pdfState === "loading" ? "Gerando laudo…" : "Gerar / baixar laudo"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -680,20 +720,35 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleGeneratePdf}
-                disabled={pdfState === "loading"}
-              >
-                {pdfState === "loading" ? "Gerando PDF..." : "Gerar/Baixar PDF"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={handleDownloadZip}
                 disabled={zipState === "loading"}
               >
                 {zipState === "loading" ? "Baixando ZIP..." : "Baixar fotos (.zip)"}
               </Button>
             </div>
+
+            {pdfsLoading ? (
+              <p className="mt-2 text-xs text-slate-500">Carregando laudos salvos…</p>
+            ) : pdfs.length > 0 ? (
+              <ul className="mt-2 space-y-1.5">
+                {pdfs.map((p, i) => (
+                  <li key={p.url || i}>
+                    <a
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-[var(--wq-brand)] underline underline-offset-2"
+                    >
+                      {p.fileName || p.nome || `Laudo ${i + 1}`}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                Nenhum laudo salvo ainda — gere um acima (também é criado ao abrir o pedido).
+              </p>
+            )}
 
             {(assetsError || refreshState === "success" || pdfState === "success" || zipState === "success") && (
               <div className={`text-sm mt-2 ${assetsError ? "text-red-600" : "text-green-600"}`}>

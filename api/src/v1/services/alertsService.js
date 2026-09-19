@@ -281,23 +281,37 @@ async function getOwnerInbox(shopId) {
 
 /**
  * Paginated feedback list + summary for Avaliações screen.
- * @param {{ period?: '30d'|'90d'|'all', page?: number, limit?: number }} opts
+ * @param {{ period?: '30d'|'90d'|'all', page?: number, limit?: number, score?: string|number|number[] }} opts
  */
-async function listFeedback(shopId, opts = {}) {
-  const period = String(opts.period || '90d').toLowerCase();
-  const page = Math.max(1, Number(opts.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 30));
-  const skip = (page - 1) * limit;
+function parseScoreFilter(score) {
+  if (score == null || score === '' || score === 'all') return null;
+  const raw = Array.isArray(score) ? score : String(score).split(',');
+  const nums = raw
+    .map((s) => Number(String(s).trim()))
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 5);
+  return nums.length ? [...new Set(nums)] : null;
+}
 
+function buildFeedbackFilter(shopId, opts = {}) {
+  const period = String(opts.period || '90d').toLowerCase();
+  const scores = parseScoreFilter(opts.score);
   const filter = {
     shopId,
-    'feedback.score': { $gte: 1 },
+    'feedback.score': scores ? { $in: scores } : { $gte: 1 },
   };
   if (period === '30d') {
     filter['feedback.createdAt'] = { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) };
   } else if (period !== 'all') {
     filter['feedback.createdAt'] = { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) };
   }
+  return { filter, period, scores };
+}
+
+async function listFeedback(shopId, opts = {}) {
+  const page = Math.max(1, Number(opts.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 30));
+  const skip = (page - 1) * limit;
+  const { filter, period, scores } = buildFeedbackFilter(shopId, opts);
 
   const [agg, items, total] = await Promise.all([
     Order.aggregate([
@@ -351,6 +365,7 @@ async function listFeedback(shopId, opts = {}) {
 
   return {
     period,
+    scores: scores || null,
     page,
     limit,
     total,
@@ -368,6 +383,42 @@ async function listFeedback(shopId, opts = {}) {
   };
 }
 
+function csvEscape(value) {
+  const s = value == null ? '' : String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+async function exportFeedbackCsv(shopId, opts = {}) {
+  const { filter, period, scores } = buildFeedbackFilter(shopId, opts);
+  const items = await Order.find(filter)
+    .sort({ 'feedback.createdAt': -1 })
+    .limit(5000)
+    .select('code clientName status feedback')
+    .lean();
+
+  const header = ['code', 'clientName', 'score', 'tags', 'comment', 'status', 'createdAt'];
+  const lines = [header.join(',')];
+  for (const o of items) {
+    lines.push(
+      [
+        csvEscape(o.code),
+        csvEscape(o.clientName || ''),
+        csvEscape(o.feedback?.score),
+        csvEscape(Array.isArray(o.feedback?.tags) ? o.feedback.tags.join('|') : ''),
+        csvEscape(o.feedback?.comment || ''),
+        csvEscape(o.status),
+        csvEscape(o.feedback?.createdAt ? new Date(o.feedback.createdAt).toISOString() : ''),
+      ].join(',')
+    );
+  }
+  return {
+    csv: `${lines.join('\n')}\n`,
+    filename: `avaliacoes-${period}${scores ? `-s${scores.join('')}` : ''}.csv`,
+    count: items.length,
+  };
+}
+
 module.exports = {
   listDelayAlerts,
   sendDelayDigest,
@@ -375,4 +426,5 @@ module.exports = {
   sendWeeklyDigest,
   getOwnerInbox,
   listFeedback,
+  exportFeedbackCsv,
 };
