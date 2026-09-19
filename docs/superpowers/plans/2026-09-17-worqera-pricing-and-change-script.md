@@ -10,12 +10,15 @@ Atualizado: 2026-09-17 · Preços oficiais abaixo.
 | Plano | Preço | Quem recebe | Mensagem |
 |-------|-------|-------------|----------|
 | **Early** | **R$ 147/mês** | Só as **10 primeiras** oficinas · preço **travado 12 meses** | “Você entrou cedo; trava esse valor por 1 ano.” |
-| **Pro** | **R$ 247/mês** | Padrão público (LP “Recomendado”) | “Uma oficina, equipe ilimitada, sem cobrança por usuário.” |
-| **Business** | **R$ 397/mês** | Alto volume / 2ª unidade / quer onboarding feito | “Prioridade + setup assistido.” |
-| **Pro anual** | **R$ 2.470/ano** (~R$ 206/mês) | Quem pede desconto | “2 meses de desconto; paga à vista ou 12× se combinar.” |
-| **Setup** | **R$ 297** uma vez | Opcional (grátis só Early se você quiser acelerar) | “1h: setores, equipe, TV, 1º fluxo.” |
+| **Pro** | **R$ 247/mês** | Padrão público (LP “Recomendado”) · self-serve | “Uma oficina, equipe ilimitada, sem cobrança por usuário.” |
+| **Business** | **R$ 399/mês** | Quer setup + prioridade, sem pacote de carga | “Prioridade + setup assistido.” |
+| **Business Premium** | **R$ 499/mês** | Olho brilhou / troca de Infor+ / quer você junto | “Customização + acompanhamento + carga atualizada.” |
+| **Pro anual** | **R$ 2.470/ano** (~R$ 206/mês) | Quem pede desconto no Pro | “2 meses de desconto.” |
+| **Premium anual** | **R$ 4.990/ano** (~R$ 416/mês) | Premium com desconto | “~2 meses off; trava valor.” |
+| **Setup avulso** | **R$ 297** uma vez | Só se comprar Pro sem Business | “1h: setores, equipe, TV, 1º fluxo.” |
 
-**Não existe Basic barato.** Early ≠ plano pior — é Pro com desconto de pioneiro.
+**Não existe Basic barato.** Early ≠ plano pior — é Pro com desconto de pioneiro.  
+**Premium 499** = produto + serviço (carga + follow-up). Não misturar com Early.
 
 ### Suas 3 lojas atuais
 | Cliente | Cobrar | Observação |
@@ -50,9 +53,57 @@ Se o cliente achar caro: não baixe para R$ 97. Ofereça **anual**, **Early (se 
 | R$ 206 (anual) | **49** |
 | R$ 247 (Pro) | **41** |
 | R$ 297 mix | **34** |
-| 30×Pro + 10×Business | **40** → ~R$ 11,4k |
+| 30×Pro + 10×Premium | **40** → ~R$ 12,4k |
 
-**Caminho realista:** converter 3 Early → fechar 10 Early → resto em Pro 247 → ~40 Pro = ~10k.
+**Caminho realista:** 3–5 Premium (499) + resto Pro 247. Poucos Premium pagam bem o suporte; volume fica no Pro.
+
+---
+
+## 3b) Qual plano oferecer (próximas vendas)
+
+| Sinal do cliente | Ofereça | Preço |
+|------------------|---------|-------|
+| Signup frio / trial LP | Pro | **247** |
+| Pediu desconto / early adopter | Early (se ≤10) | **147** |
+| Quer “alguém me configura” | Business | **399** |
+| “Vai revolucionar” / troca Infor+ / 2 unidades / quer carga | **Premium** | **499** |
+| 2ª loja do mesmo dono | Mesmo plano da 1ª | **×N lojas** (nunca 1 preço pra 2) |
+
+**Regra de ouro:** se o olho brilhou → **499**, não 147.
+
+### O que entra no Premium (R$ 499) — diga na proposta
+1. **Customização** — setores, serviços, marca, Status Pack (consulta + WA)  
+2. **Acompanhamento** — 1 call/mês + WhatsApp prioritário (resposta em 1 dia útil)  
+3. **Carga atualizada** — import histórico na entrada + **1 refresh/mês** (PDF/CSV → Mongo)  
+
+Fora do Premium: carga extra = **R$ 197** avulsa.
+
+---
+
+## 3c) Entrega (playbook pós-venda)
+
+**D0 — Fechou**
+1. PIX / cartão · registrar: loja | plano | valor | início | renovação  
+2. Criar shop (ou liberar trial → active)  
+3. Agendar setup 60–90 min  
+
+**D1 — Setup (na call)**
+1. Vertical / setores / serviços (kit ou custom)  
+2. Marca + link `/p/{slug}/`  
+3. 1 pedido real + etiqueta + “Avisar WA”  
+4. Se Premium: receber PDF/CSV e **agendar carga** (não prometer na hora se for grande)
+
+**D2–D7 — Carga (Premium)**
+1. Extrair no Mac → payload → `/tmp` + mongosh (como CdT)  
+2. Confirmar na UI Finalizados + 1 código amostra com o cliente  
+3. Treinar 1 pessoa da loja no kanban + consulta  
+
+**Mensal (Premium)**
+- 1 call curta ou async: “o que travou?”  
+- 1 janela de carga (eles mandam PDF até dia X)  
+- Se não mandaram arquivo: call mesmo assim (não “devolver” o mês)
+
+**Não faça:** suporte infinito no WhatsApp sem plano Premium; carga semanal grátis; Early com serviço de Premium.
 
 ---
 
@@ -148,16 +199,16 @@ Se hesitar: oferecer **setup grátis** ou **anual**.
 - [ ] Quantas das 3 Early já pagaram?  
 - [ ] Quantas vagas Early restam (meta: 10)?  
 - [ ] Trials que vencem em 7 dias — mensagem enviada?  
-- [ ] MRR atual = (early×147) + (pro×247) + (biz×397)  
-- [ ] Distância até R$ 10k = (10000 − MRR) / 247 ≈ lojas Pro faltando  
+- [ ] MRR atual = (early×147) + (pro×247) + (biz×399) + (premium×499)  
+- [ ] Distância até R$ 10k = (10000 − MRR) / 247 ≈ lojas Pro faltando (ou /499 se mirar Premium)  
 
 ---
 
 ## 10) LP e produto
 
-- LP mostra: Early **147** · Pro **247** (recomendado) · Business **397**  
-- Billing interno: alinhar copy ao Pro; Early pode ser manual no início  
-- Reajuste futuro: após 10 Early, **só Pro 247** para novos; Early some da LP ou vira “esgotado”
+- LP mostra: Early **147** · Pro **247** (recomendado) · Business **399** · Premium sob conversa (**499**)  
+- Billing interno: alinhar copy ao Pro; Early/Premium podem ser manuais no início  
+- Reajuste futuro: após 10 Early, **só Pro 247** na LP; Premium continua sob proposta  
 
 ---
 
@@ -168,5 +219,6 @@ Se hesitar: oferecer **setup grátis** ou **anual**.
 | 2026-09-17 | Descartado R$ 97 como preço público (barato demais) |
 | 2026-09-17 | Early **147** / Pro **247** / Business **397** / anual **2470** |
 | 2026-09-17 | Sem Basic; Pro no centro; Early escasso |
+| 2026-09-19 | Business **399** · **Premium 499** (custom + acompanhamento + carga) · carga extra R$ 197 |
 
 Quando mudar preço, atualize **esta seção** e a LP no mesmo dia.

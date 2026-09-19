@@ -2,6 +2,7 @@
 
 ## 2026-09-19
 
+- **Platform admin:** JWT `platformAdmin`; login sem shop membership liberado; patch shop aceita `planCode` + ativa Premium manual.
 - **E-mail pedido:** create envia PDF em anexo + link público; ready reforça CTA de avaliação no `/p`.
 - Mailer: suporte a `attachments` (SMTP).
 

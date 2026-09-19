@@ -146,9 +146,26 @@ async function patchShop(shopId, updates = {}) {
       err.code = 'VALIDATION_ERROR';
       throw err;
     }
+    const $set = { status: updates.subscriptionStatus };
+    if (updates.subscriptionStatus === 'active') {
+      $set.trialEndsAt = null;
+      $set.provider = 'Manual';
+      if (!subscription?.currentPeriodEnd) {
+        $set.currentPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      }
+    }
+    if (updates.planCode != null) {
+      $set.planCode = String(updates.planCode).slice(0, 64);
+    }
     subscription = await Subscription.findOneAndUpdate(
       { shopId },
-      { $set: { status: updates.subscriptionStatus } },
+      { $set },
+      { new: true, upsert: true }
+    ).lean();
+  } else if (updates.planCode != null) {
+    subscription = await Subscription.findOneAndUpdate(
+      { shopId },
+      { $set: { planCode: String(updates.planCode).slice(0, 64) } },
       { new: true, upsert: true }
     ).lean();
   }

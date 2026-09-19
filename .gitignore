@@ -71,6 +71,7 @@ api/scripts/data/*.jsonl
 api/scripts/data/cdt-report001-clients.json
 api/scripts/data/cdt-report001-qa.json
 api/scripts/data/cdt-prd-payload.json
+api/scripts/data/cdt-inc-payload.json
 !api/scripts/data/cdt-open-snapshot.example.csv
 report001.pdf
 report001*.pdf

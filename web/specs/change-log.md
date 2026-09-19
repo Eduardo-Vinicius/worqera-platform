@@ -2,6 +2,7 @@
 
 ## 2026-09-19
 
+- **Platform admin:** login sem membership → home `/admin/shops` (console Worqera); JWT `platformAdmin`; botão Ativar Premium.
 - **Novo pedido:** envia `clientEmail`; aviso se cliente sem e-mail (PDF/link automático).
 - Empresa: copy do e-mail (PDF no create + avaliação no pronto).
 

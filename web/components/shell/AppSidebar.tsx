@@ -51,6 +51,7 @@ export function AppSidebar({
   const isOwner = role === "owner"
   const isOwnerAdmin = role === "admin" || role === "owner"
   const isSector = role === "sector"
+  const isPlatformOnly = platformAdmin && (role === "platform" || !role)
 
   return (
     <aside
@@ -61,11 +62,11 @@ export function AppSidebar({
     >
       <div className="border-b border-white/10 px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
         <Link
-          href={isSector ? "/kanban" : "/dashboard"}
+          href={isPlatformOnly ? "/admin/shops" : isSector ? "/kanban" : "/dashboard"}
           onClick={onNavigate}
           className="flex min-w-0 items-center gap-3"
         >
-          {logoUrl ? (
+          {logoUrl && !isPlatformOnly ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
@@ -77,10 +78,10 @@ export function AppSidebar({
           )}
           <div className="min-w-0">
             <div className="truncate font-[family-name:var(--font-display)] text-base tracking-wide text-white sm:text-lg">
-              {shopName}
+              {isPlatformOnly ? "Worqera Platform" : shopName}
             </div>
             <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-              {appName}
+              {isPlatformOnly ? "Console" : appName}
             </div>
           </div>
         </Link>
@@ -89,6 +90,7 @@ export function AppSidebar({
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {NAV_SECTIONS.map((section) => {
           const items = section.items.filter((item) => {
+            if (isPlatformOnly) return Boolean(item.platformOnly)
             if (item.platformOnly) return platformAdmin
             if (item.ownerOnly && !isOwner) return false
             if (item.ownerAdminOnly && !isOwnerAdmin) return false
@@ -99,7 +101,7 @@ export function AppSidebar({
           return (
             <div key={section.title}>
               <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {section.title}
+                {isPlatformOnly ? "Plataforma" : section.title}
               </div>
               <ul className="space-y-1">
                 {items.map((item) => {

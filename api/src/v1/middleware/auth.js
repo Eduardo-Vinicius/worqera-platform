@@ -21,6 +21,7 @@ function auth(req, res, next) {
       role: decoded.role,
       shopId: decoded.shopId || null,
       membershipId: decoded.membershipId || null,
+      platformAdmin: Boolean(decoded.platformAdmin),
       raw: decoded,
     };
     return next();

@@ -87,6 +87,11 @@ function persistSession(data: {
   if (role) localStorage.setItem("role", String(role))
   if (data.platformAdmin === true) localStorage.setItem("platformAdmin", "1")
   else if (data.platformAdmin === false) localStorage.removeItem("platformAdmin")
+  if (data.platformAdmin === true && !shopId) {
+    localStorage.setItem("shopName", "Worqera Platform")
+    localStorage.setItem("shopDisplayName", "Worqera Platform")
+    localStorage.setItem("role", "platform")
+  }
 }
 
 export async function signupV1(input: {
@@ -120,6 +125,7 @@ export async function meV1() {
   if (data?.platformAdmin === true) localStorage.setItem("platformAdmin", "1")
   else localStorage.removeItem("platformAdmin")
   const shop = data?.memberships?.[0]?.shop
+  if (shop?.id) localStorage.setItem("shopId", String(shop.id))
   if (shop?.name) localStorage.setItem("shopName", String(shop.name))
   if (shop?.branding?.displayName) {
     localStorage.setItem("shopDisplayName", String(shop.branding.displayName))
@@ -137,6 +143,11 @@ export async function meV1() {
       primaryColor: shop.branding.primaryColor || "",
       accentColor: shop.branding.accentColor || "",
     })
+  }
+  if (data?.platformAdmin === true && !shop?.id) {
+    localStorage.setItem("shopName", "Worqera Platform")
+    localStorage.setItem("shopDisplayName", "Worqera Platform")
+    if (!localStorage.getItem("role")) localStorage.setItem("role", "platform")
   }
   return data
 }
@@ -318,6 +329,7 @@ export async function patchPlatformShopV1(
     status: string
     extendTrialDays: number
     subscriptionStatus: string
+    planCode: string
     adminNote: string
   }>
 ) {

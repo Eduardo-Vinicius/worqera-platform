@@ -27,7 +27,8 @@ function platformAdminEmails() {
     .filter(Boolean);
 }
 
-function homeForRole(role: string) {
+function homeForRole(role: string, platformAdmin = false) {
+  if (platformAdmin) return '/admin/shops';
   return role === 'sector' ? '/kanban' : '/dashboard';
 }
 
@@ -45,7 +46,8 @@ export function middleware(request: NextRequest) {
     if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
       const payload = decodeJwtPayload(token);
       const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
-      return NextResponse.redirect(new URL(homeForRole(role), request.url));
+      const platformAdmin = Boolean(payload?.platformAdmin);
+      return NextResponse.redirect(new URL(homeForRole(role, platformAdmin), request.url));
     }
     return NextResponse.next();
   }
@@ -57,11 +59,37 @@ export function middleware(request: NextRequest) {
   const payload = decodeJwtPayload(token);
   const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
   const email = String(payload?.email ?? '').toLowerCase();
+  const platformAdmin =
+    Boolean(payload?.platformAdmin) || platformAdminEmails().includes(email);
+
+  // Pure platform admin (no shop): land on Oficinas, skip shop dashboard
+  if (
+    platformAdmin &&
+    !payload?.shopId &&
+    (pathname === '/dashboard' || pathname === '/')
+  ) {
+    return NextResponse.redirect(new URL('/admin/shops', request.url));
+  }
 
   if (pathname.startsWith('/admin/shops')) {
     const allowed = platformAdminEmails();
-    if (!allowed.length || !allowed.includes(email)) {
+    const ok =
+      Boolean(payload?.platformAdmin) ||
+      (allowed.length > 0 && allowed.includes(email));
+    if (!ok) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Pure platform admin (no shop membership): only Oficinas + logout paths
+  if (platformAdmin && role === 'platform') {
+    const allowed =
+      pathname.startsWith('/admin/shops') ||
+      pathname.startsWith('/forbidden') ||
+      pathname.startsWith('/login');
+    if (!allowed) {
+      return NextResponse.redirect(new URL('/admin/shops', request.url));
     }
     return NextResponse.next();
   }
@@ -74,7 +102,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   } else if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {
-    if (role !== 'admin' && role !== 'owner') {
+    if (role !== 'admin' && role !== 'owner' && !platformAdmin) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   }

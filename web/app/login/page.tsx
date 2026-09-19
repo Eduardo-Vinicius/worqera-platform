@@ -36,7 +36,8 @@ export default function LoginPage() {
         }
         await loginService(email, password)
       }
-      window.location.href = "/dashboard"
+      window.location.href =
+        localStorage.getItem("platformAdmin") === "1" ? "/admin/shops" : "/dashboard"
     } catch (err: any) {
       setError(err.message || "Erro ao autenticar")
     } finally {

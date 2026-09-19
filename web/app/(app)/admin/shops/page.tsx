@@ -104,6 +104,23 @@ export default function PlatformShopsPage() {
     }
   }
 
+  const activatePremium = async (id: string) => {
+    try {
+      await patchPlatformShopV1(id, {
+        subscriptionStatus: "active",
+        planCode: "WORQERA_PREMIUM",
+        status: "active",
+        adminNote:
+          (noteDrafts[id] || "").trim() ||
+          "Business Premium R$499 · Manual · custom + carga + acompanhamento",
+      })
+      toast.success("Assinatura Premium ativa (como CdT)")
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao ativar Premium")
+    }
+  }
+
   const saveNote = async (id: string) => {
     setSavingNote(id)
     try {
@@ -250,6 +267,16 @@ export default function PlatformShopsPage() {
                   </p>
                   <p className="font-mono text-sm">{s.memberCount ?? "—"}</p>
                   <div className="flex flex-wrap gap-1.5">
+                    {s.subscription?.status !== "active" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 rounded-[8px] bg-[var(--wq-action)] text-xs text-white hover:bg-[var(--wq-action)]/90"
+                        onClick={() => activatePremium(s.id)}
+                      >
+                        Ativar Premium
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       size="sm"

@@ -22,6 +22,9 @@ export function TrialBanner() {
     let cancelled = false
     ;(async () => {
       try {
+        if (localStorage.getItem("platformAdmin") === "1" && !localStorage.getItem("shopId")) {
+          return
+        }
         const res = await getSubscriptionV1()
         const sub = res?.subscription || res
         if (!sub || cancelled) return

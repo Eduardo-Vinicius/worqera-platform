@@ -37,10 +37,64 @@ Esperado no dry-run (PDFs 2+3, since 14/09): ~**69** códigos únicos, `willUpda
 
 ---
 
-## Servidor (PRD) — direto no Mongo Docker
+## Servidor (PRD) — caminho recomendado: `/tmp` + mongosh (igual carga histórica)
 
-Mongo de PRD **não** publica porta no host (`worqera-mongodb` só na rede `worqera-internal`).  
-Rode um container one-shot na mesma rede, com o repo montado.
+**Sem PDF, sem npm, sem Docker Node.** Gera JSON no Mac (~10 KB), `scp` pra `/tmp/cdt`, aplica no container Mongo.
+
+### A) No Mac — gerar + enviar
+
+```bash
+cd /Users/eduardo/Documents/Repo/worqera-platform
+
+# JSONL já existe após make cdt-inc-dry; se não:
+# make cdt-inc-dry
+
+node api/scripts/build-cdt-inc-payload.js
+# → api/scripts/data/cdt-inc-payload.json (~69 pedidos)
+
+ssh -i ~/Downloads/ssh-key.key ubuntu@168.75.68.246 'mkdir -p /tmp/cdt && chmod 700 /tmp/cdt'
+
+scp -i ~/Downloads/ssh-key.key \
+  api/scripts/data/cdt-inc-payload.json \
+  api/scripts/apply-cdt-inc-payload.mongosh.js \
+  ubuntu@168.75.68.246:/tmp/cdt/
+```
+
+### B) No servidor — dry-run (não grava)
+
+```bash
+ssh -i ~/Downloads/ssh-key.key ubuntu@168.75.68.246
+
+sudo docker cp /tmp/cdt/cdt-inc-payload.json worqera-mongodb:/tmp/cdt-inc-payload.json
+sudo docker cp /tmp/cdt/apply-cdt-inc-payload.mongosh.js worqera-mongodb:/tmp/apply-cdt-inc-payload.mongosh.js
+
+sudo docker exec -e PAYLOAD_PATH=/tmp/cdt-inc-payload.json \
+  worqera-mongodb \
+  mongosh 'mongodb://127.0.0.1:27017/worqera?replicaSet=rs0' \
+  --file /tmp/apply-cdt-inc-payload.mongosh.js
+```
+
+Confira: `willInsert`, `alreadyInMongo`, `sampleNew`.
+
+### C) Apply (só novos)
+
+```bash
+sudo docker exec -e APPLY=1 -e PAYLOAD_PATH=/tmp/cdt-inc-payload.json \
+  worqera-mongodb \
+  mongosh 'mongodb://127.0.0.1:27017/worqera?replicaSet=rs0' \
+  --file /tmp/apply-cdt-inc-payload.mongosh.js
+```
+
+### D) Limpar
+
+```bash
+rm -rf /tmp/cdt
+sudo docker exec worqera-mongodb rm -f /tmp/cdt-inc-payload.json /tmp/apply-cdt-inc-payload.mongosh.js
+```
+
+---
+
+## Servidor — alternativa Docker Node (não preferida)
 
 ### 1) No Mac — subir PDFs + código
 

@@ -22,6 +22,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ""
   const fullBleed = isFullBleed(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [platformConsole, setPlatformConsole] = useState(false)
+
+  useEffect(() => {
+    try {
+      const isPlatform = localStorage.getItem("platformAdmin") === "1"
+      const noShop = !localStorage.getItem("shopId")
+      setPlatformConsole(isPlatform && (noShop || pathname.startsWith("/admin/shops")))
+    } catch {
+      setPlatformConsole(pathname.startsWith("/admin/shops"))
+    }
+  }, [pathname])
 
   useEffect(() => {
     let cancelled = false
@@ -34,6 +45,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           const { applyBrandCssVars, readBrandFromStorage } = await import("@/lib/shopBrand")
           applyBrandCssVars(readBrandFromStorage())
           window.dispatchEvent(new Event("wq-session-updated"))
+          const isPlatform = me?.platformAdmin === true
+          const noShop = !(me?.memberships?.[0]?.shop?.id || localStorage.getItem("shopId"))
+          setPlatformConsole(Boolean(isPlatform && (noShop || pathname.startsWith("/admin/shops"))))
         }
       } catch {
         // ignore
@@ -42,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [pathname])
 
   useEffect(() => {
     const syncBrand = async () => {
@@ -57,7 +71,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return
     if (pathname.startsWith("/onboarding")) return
+    if (pathname.startsWith("/admin/shops")) return
     try {
+      if (localStorage.getItem("platformAdmin") === "1") return
       if (localStorage.getItem("wq-needs-onboarding") === "1") {
         window.location.href = "/onboarding"
       }
@@ -119,8 +135,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               {process.env.NEXT_PUBLIC_APP_NAME || "Worqera"}
             </span>
           </div>
-          <TrialBanner />
-          <DelayAlertsBanner />
+          {platformConsole ? null : <TrialBanner />}
+          {platformConsole ? null : <DelayAlertsBanner />}
         </div>
         <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
           <div
@@ -135,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
-      <QuickOrderJump />
+      {platformConsole ? null : <QuickOrderJump />}
     </div>
   )
 }

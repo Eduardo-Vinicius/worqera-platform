@@ -42,13 +42,15 @@ async function verifyPassword(plain, hash) {
 }
 
 function signAccessToken({ user, membership }) {
+  const platformAdmin = isPlatformAdminEmail(user.email);
   return jwt.sign(
     {
       sub: String(user._id),
       email: user.email,
-      role: membership?.role || null,
+      role: membership?.role || (platformAdmin ? 'platform' : null),
       shopId: membership ? String(membership.shopId) : null,
       membershipId: membership ? String(membership._id) : null,
+      platformAdmin: Boolean(platformAdmin),
     },
     JWT_SECRET(),
     { expiresIn: JWT_EXPIRES() }
@@ -201,6 +203,7 @@ async function login({ email, password }) {
       role: m.role,
       sectorIds: m.sectorIds,
     })),
+    platformAdmin: isPlatformAdminEmail(user.email),
     token: accessToken,
     accessToken,
     refreshToken,
