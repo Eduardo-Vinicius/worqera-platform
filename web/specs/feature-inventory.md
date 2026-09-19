@@ -13,8 +13,9 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 | `/dashboard` | KPIs, recentes, atalhos TV Cliente/Chão (nova aba, sem shell), novo pedido/cliente | Emails flag off |
 | `/dashboard/setores` | Cards por setor + lista pedidos; poll 30s | Orfã no nav |
 | `/status` | Redirect `/kanban` | |
-| `/pedidos/novo` | Multi-tênis (`items[]`), sticky CTA, pós-create → etiqueta | Catálogo ainda com fallback local |
-| `/pedidos/[id]/etiqueta` | Código grande + QR `/p/{code}`; modo pares `{code}-n` | |
+| `/pedidos/novo` | Multi-tênis (`items[]`), sticky CTA, pós-create → `/sucesso` | Catálogo ainda com fallback local |
+| `/pedidos/[id]/sucesso` | QR + laudo (preview/imprimir/baixar) + Zap / e-mail / etiqueta | |
+| `/pedidos/[id]/etiqueta` | Código grande + QR `/p/{slug}/{code}?t=`; modo pares `{code}-n` | |
 | `/pedidos` | Lista + badge `N pares` + filtro garantia | |
 | `/settings/servicos` | CRUD catálogo `/services` | |
 | `/clientes` | Lista, busca, edit modal, máscara PII | |

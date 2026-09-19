@@ -4,7 +4,7 @@
 
 ## Em uma frase
 
-Next.js 15 com landing, AppShell, kanban multi-coluna, **Loop do Cliente** (etiqueta → consulta → wa.me), e-mail ao criar (PDF+link) e ao pronto (avaliar), dashboard com tour da operação, branding + `itemLabel` por empresa.
+Next.js 15 com landing, AppShell, kanban multi-coluna, **Loop do Cliente** (pós-criar com laudo+QR → etiqueta → consulta → wa.me), e-mail ao criar (PDF+link) e ao pronto (avaliar), dashboard com tour da operação, branding + `itemLabel` por empresa.
 
 **Specs:** [onda Loop/home](../../docs/superpowers/specs/2026-09-18-worqera-onda-loop-home-multivertical-design.md) · [verticais](../../docs/superpowers/specs/2026-09-18-worqera-verticais-candidatas.md) · [avaliações/setor público](../../docs/superpowers/specs/2026-09-19-avaliacoes-setor-publico-design.md) · [app brief](../../docs/superpowers/specs/2026-09-18-worqera-app-nativo-brief.md)
 

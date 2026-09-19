@@ -2,6 +2,7 @@
 
 ## 2026-09-19
 
+- **Pós-criar pedido:** `/pedidos/[id]/sucesso` — QR + preview do laudo (imprimir/baixar) + Zap / e-mail rascunho / etiqueta; create redireciona pra cá.
 - **Kanban:** atrasado com borda/badge rosa (como reaberto); observação do pedido editável + anotações.
 - **Fotos:** adapter prefixa `NEXT_PUBLIC_API_URL` em paths relativos; API passa a assinar URLs.
 - **Laudo:** seção no detalhe do pedido (listar/abrir + gerar); botão Laudo no kanban; PDF no create.

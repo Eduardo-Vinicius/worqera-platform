@@ -889,7 +889,7 @@ export default function NewOrderPage() {
       localStorage.removeItem(DRAFT_KEY);
       const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
       if (pedidoId) {
-        router.push(`/pedidos/${pedidoId}/etiqueta?print=1`);
+        router.push(`/pedidos/${pedidoId}/sucesso`);
       } else {
         router.push("/kanban");
       }

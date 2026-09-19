@@ -112,6 +112,7 @@ function serializeOrder(order) {
     plannedSectorIds,
     clientName: order.clientName || '',
     clientPhone: order.clientPhone || null,
+    clientEmail: order.clientEmail || null,
     dueAt: order.dueAt || null,
     warranty: order.warranty || {},
     garantia: order.warranty || {},

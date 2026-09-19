@@ -2,6 +2,7 @@
 
 ## 2026-09-19
 
+- **Serializer:** `clientEmail` exposto no pedido (pós-criar / status de e-mail).
 - **Fotos:** URLs assinadas (`accessibleUrl` / S3 signed ou `?exp=&sig=`); `/files` aceita sig sem Bearer — corrige `<img>` quebrado em PRD. Garantir `PUBLIC_API_URL` na API.
 - **Laudo PDF:** redesign profissional por par (serviços, fotos, cliente não-nulo); gera no create; filename `laudo-{code}.pdf`.
 - **Avaliações:** `GET /alerts/feedback?score=` + `GET /alerts/feedback/export.csv`.
