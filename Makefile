@@ -1,6 +1,6 @@
 .PHONY: help api-dev api-down api-seed api-health api-prod-up api-prod-down \
 	web-dev web-install web-prod-up web-prod-down \
-	cdt-extract cdt-import-dry cdt-import
+	cdt-extract cdt-import-dry cdt-import cdt-inc-dry cdt-inc
 
 help:
 	@echo "Worqera monorepo"
@@ -13,6 +13,8 @@ help:
 	@echo "  make web-prod-up      - Front prod (sharednet, sem ports)"
 	@echo "  make web-prod-down    - Derruba stack web prod"
 	@echo "  make cdt-extract / cdt-import-dry / cdt-import"
+	@echo "  make cdt-inc-dry      - Incremental 14/09→hoje (PDFs 2+3) dry-run"
+	@echo "  make cdt-inc          - Incremental apply no Mongo local/PRD (URI no .env)"
 
 api-dev:
 	@$(MAKE) -C api dev
@@ -53,3 +55,10 @@ cdt-import-dry:
 
 cdt-import:
 	@cd api && node scripts/import-cdt-report001.js --apply
+
+# Incremental: report001 (2).pdf + (3).pdf · desde 2026-09-14 · até hoje · skip codes já no Mongo
+cdt-inc-dry:
+	@node api/scripts/import-cdt-report001-incremental.js
+
+cdt-inc:
+	@node api/scripts/import-cdt-report001-incremental.js --apply

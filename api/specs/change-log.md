@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-09-19
+
+- **E-mail pedido:** create envia PDF em anexo + link público; ready reforça CTA de avaliação no `/p`.
+- Mailer: suporte a `attachments` (SMTP).
+
 ## 2026-09-18 (noite+)
 
 - **Starter Kits:** `POST /shops/current/apply-starter-kit` — setores + serviços + vertical/itemLabel.

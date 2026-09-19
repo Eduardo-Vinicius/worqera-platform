@@ -513,10 +513,20 @@ export default function NewOrderPage() {
       const match =
         list.find((client: any) => client.id === createdId) ||
         list.find((client: any) => String(client.nomeCompleto || "").toLowerCase() === nomeCompleto.toLowerCase())
+      const email = newClient.email.trim()
       if (match?.id) {
         selectClient(match)
       } else if (createdId) {
-        selectClient({ id: createdId, nomeCompleto, telefone })
+        const fallback = {
+          id: createdId,
+          nomeCompleto,
+          telefone,
+          email: email || null,
+        }
+        setClients((prev: any[]) =>
+          prev.some((c) => String(c.id) === createdId) ? prev : [fallback, ...prev]
+        )
+        selectClient(fallback)
       }
       setShowNewClient(false)
       setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" })
@@ -809,6 +819,10 @@ export default function NewOrderPage() {
         clienteId: formData.clientId,
         clientId: formData.clientId,
         clientName: selectedClient?.nomeCompleto || "",
+        clientEmail:
+          selectedClient?.email ||
+          selectedClient?.clientEmail ||
+          "",
         items: mapItemsToCreatePayload(filledItems),
         fotos: [],
         precoTotal: getTotalPrice(),
@@ -859,7 +873,14 @@ export default function NewOrderPage() {
         setUploadProgress(100);
       }
 
-      toast.success("Pedido criado com sucesso!");
+      const hasEmail = Boolean(
+        selectedClient?.email || selectedClient?.clientEmail
+      )
+      toast.success(
+        hasEmail
+          ? "Pedido criado — e-mail com PDF e link público a caminho"
+          : "Pedido criado com sucesso!"
+      )
       setIsLoading(false);
       // revoke previews to free memory
       items.forEach((item) => {
@@ -980,8 +1001,23 @@ export default function NewOrderPage() {
                         {selectedClient.nomeCompleto || selectedClient.name}
                       </p>
                       <p className="truncate text-xs text-[var(--wq-text-muted)]">
-                        {[selectedClient.telefone || selectedClient.phone, selectedClient.cpf].filter(Boolean).join(" · ") || "Sem telefone/CPF"}
+                        {[
+                          selectedClient.telefone || selectedClient.phone,
+                          selectedClient.email,
+                          selectedClient.cpf,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Sem telefone/e-mail/CPF"}
                       </p>
+                      {!(selectedClient.email || selectedClient.clientEmail) ? (
+                        <p className="mt-1 text-[11px] text-[var(--wq-warn)]">
+                          Sem e-mail — não enviaremos PDF/link automático. Cadastre o e-mail no cliente.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">
+                          Ao criar: e-mail com PDF + link público de acompanhamento.
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1100,14 +1136,17 @@ export default function NewOrderPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="new-client-email">Email</Label>
+                        <Label htmlFor="new-client-email">Email (PDF + link do pedido)</Label>
                         <Input
                           id="new-client-email"
                           type="email"
                           value={newClient.email}
                           onChange={(e) => setNewClient((prev) => ({ ...prev, email: e.target.value }))}
-                          placeholder="Opcional"
+                          placeholder="cliente@email.com"
                         />
+                        <p className="text-[11px] text-[var(--wq-text-muted)]">
+                          Com e-mail, o cliente recebe o PDF e o link público ao criar o pedido.
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">

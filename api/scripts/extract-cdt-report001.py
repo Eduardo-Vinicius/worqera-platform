@@ -47,6 +47,8 @@ HEADER_CRUMBS = {
     "e",
     "er",
     "as",
+    "r",
+    "so",
     "do",
     "da",
     "de",
@@ -64,8 +66,10 @@ HEADER_CRUMBS = {
     "servicos",
     "serviços",
     "receb",
+    "recebe",
     "recebido",
     "atras",
+    "atra",
     "atraso",
     "descontos",
     "desconto",
@@ -102,10 +106,18 @@ def strip_header_crumbs(name: str) -> str:
     parts = name.split()
     while parts:
         token = parts[0].lower().strip(".-")
-        if token in HEADER_CRUMBS or token.startswith("receb") or token.startswith("atras"):
+        if (
+            token in HEADER_CRUMBS
+            or token.startswith("receb")
+            or token.startswith("atras")
+            or token.startswith("atra")
+        ):
             parts = parts[1:]
             continue
         break
+    # Also drop leftover "R" alone after Recebe
+    while parts and parts[0].lower() in {"r", "o", "a", "e"}:
+        parts = parts[1:]
     return " ".join(parts)
 
 
@@ -153,8 +165,15 @@ def name_before_code(text: str, code_start: int) -> str:
 
 def normalize_text(raw: str) -> str:
     text = raw.replace("\r", "\n")
+    # Heal PDF line breaks inside codes / dates (CdT exports often split mid-token)
     text = re.sub(r"(\d{3,5})\s*\n\s*(-\d{2})", r"\1\2", text)
+    text = re.sub(r"(\d{3,5}-)\s*\n\s*(\d{2})", r"\1\2", text)
+    # 14/09/\n2026
     text = re.sub(r"(\d{2}/\d{2}/)\s*\n\s*(\d{4})", r"\1\2", text)
+    # 15/09/2\n026  (year split after first digit)
+    text = re.sub(r"(\d{2}/\d{2}/)(\d)\s*\n\s*(\d{3})", r"\1\2\3", text)
+    # 15/09\n/2026
+    text = re.sub(r"(\d{2}/\d{2})\s*\n\s*(/\d{4})", r"\1\2", text)
     text = re.sub(r"R\$\s*\n\s*", "R$", text)
     text = re.sub(r"R\$\s+", "R$", text)
     text = re.sub(r"[ \t]+", " ", text)
@@ -215,24 +234,53 @@ def main() -> int:
         "--out-dir",
         default=str(Path(__file__).resolve().parent / "data"),
     )
+    ap.add_argument(
+        "--since",
+        default="",
+        help="Keep rows with date >= YYYY-MM-DD (inclusive). Empty = all.",
+    )
+    ap.add_argument(
+        "--until",
+        default="",
+        help="Keep rows with date <= YYYY-MM-DD (inclusive). Empty = all.",
+    )
+    ap.add_argument(
+        "--out-prefix",
+        default="cdt-report001",
+        help="Output basename (orders.jsonl / clients.json / qa.json)",
+    )
+    ap.add_argument(
+        "--skip-full-qa",
+        action="store_true",
+        help="Do not require historical 1072-row totals (use for incremental PDFs).",
+    )
     args = ap.parse_args()
 
     pdf_path = Path(args.pdf)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    prefix = args.out_prefix
 
     reader = PdfReader(str(pdf_path))
     raw = "\n".join((p.extract_text() or "") for p in reader.pages)
     text = normalize_text(raw)
     rows = extract_rows(text)
+    rows_before_filter = len(rows)
 
-    orders_path = out_dir / "cdt-report001-orders.jsonl"
+    since = (args.since or "").strip()
+    until = (args.until or "").strip()
+    if since:
+        rows = [r for r in rows if r["date"] >= since]
+    if until:
+        rows = [r for r in rows if r["date"] <= until]
+
+    orders_path = out_dir / f"{prefix}-orders.jsonl"
     with orders_path.open("w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     clients = sorted({r["clientName"] for r in rows})
-    clients_path = out_dir / "cdt-report001-clients.json"
+    clients_path = out_dir / f"{prefix}-clients.json"
     clients_path.write_text(json.dumps(clients, ensure_ascii=False, indent=2), encoding="utf-8")
 
     codes = [r["code"] for r in rows]
@@ -241,11 +289,18 @@ def main() -> int:
     sum_total = round(sum(r["total"] for r in rows), 2)
     sum_received = round(sum(r["received"] for r in rows), 2)
     dirty = [r["clientName"] for r in rows if "R$" in r["clientName"] or re.search(r"\d{20}", r["clientName"])]
+    dates = sorted({r["date"] for r in rows}) if rows else []
 
+    incremental = bool(since or until or args.skip_full_qa)
     qa = {
         "pdf": str(pdf_path),
         "pages": len(reader.pages),
+        "rowsExtracted": rows_before_filter,
         "rows": len(rows),
+        "since": since or None,
+        "until": until or None,
+        "dateMin": dates[0] if dates else None,
+        "dateMax": dates[-1] if dates else None,
         "uniqueCodes": len(set(codes)),
         "duplicateCodes": dup_codes[:50],
         "duplicateCodeCount": len(dup_codes),
@@ -258,17 +313,23 @@ def main() -> int:
         "sampleNames": [r["clientName"] for r in rows[:8]],
         "expectedRows": 1072,
         "expectedServices": 443639.99,
-        "rowsOk": len(rows) == 1072,
-        "servicesOk": abs(sum_services - 443639.99) < 0.05,
+        "rowsOk": incremental or len(rows) == 1072,
+        "servicesOk": incremental or abs(sum_services - 443639.99) < 0.05,
         "namesOk": len(dirty) == 0,
         "sample": rows[:3],
     }
-    qa_path = out_dir / "cdt-report001-qa.json"
+    qa_path = out_dir / f"{prefix}-qa.json"
     qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps({k: qa[k] for k in qa if k != "sample"}, ensure_ascii=False, indent=2))
     print(f"Wrote {orders_path}")
-    if not qa["rowsOk"] or not qa["servicesOk"] or not qa["namesOk"]:
+    if not rows:
+        print("WARNING: zero rows — check PDF / normalize", file=sys.stderr)
+        return 2
+    if not qa["namesOk"]:
+        print("WARNING: dirty client names — review before apply", file=sys.stderr)
+        return 2
+    if not incremental and (not qa["rowsOk"] or not qa["servicesOk"]):
         print("WARNING: QA mismatch — review parser before import apply", file=sys.stderr)
         return 2
     return 0

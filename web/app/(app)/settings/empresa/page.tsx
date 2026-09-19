@@ -638,8 +638,10 @@ export default function EmpresaPage() {
                 Enviar e-mails de status (criado / coluna / pronto)
               </label>
               <p className="text-xs text-[var(--wq-text-muted)]">
-                Precisa de e-mail no pedido + SMTP configurado na API. Sem SMTP, o mailer só loga no
-                console (dev). Quais colunas disparam: em{" "}
+                <strong>Criado:</strong> PDF do pedido em anexo + link público.{" "}
+                <strong>Pronto:</strong> aviso de retirada + pedido de avaliação no mesmo link.
+                Precisa de e-mail no cliente + SMTP na API. Sem SMTP, só loga no console (dev).
+                Colunas que disparam “avançou”: em{" "}
                 <a href="/settings/setores" className="underline">
                   Setores
                 </a>

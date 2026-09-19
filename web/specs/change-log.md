@@ -1,5 +1,10 @@
 # Worqera Web — Change log
 
+## 2026-09-19
+
+- **Novo pedido:** envia `clientEmail`; aviso se cliente sem e-mail (PDF/link automático).
+- Empresa: copy do e-mail (PDF no create + avaliação no pronto).
+
 ## 2026-09-18 (noite+)
 
 - **Starter Kits:** `POST /shops/current/apply-starter-kit` (general/footwear/laundry/repair).

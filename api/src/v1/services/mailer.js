@@ -79,10 +79,22 @@ function wrapCompanyHtml(shop, bodyHtml) {
 </div>`;
 }
 
-async function sendMail({ to, subject, html, text, shop }) {
+async function sendMail({ to, subject, html, text, shop, attachments }) {
   if (!to) {
     return { ok: false, skipped: true, reason: 'no-recipient' };
   }
+
+  const files = Array.isArray(attachments)
+    ? attachments
+        .filter((a) => a && (a.content || a.path))
+        .map((a) => ({
+          filename: a.filename || 'anexo.pdf',
+          content: a.content,
+          path: a.path,
+          contentType: a.contentType || 'application/pdf',
+          cid: a.cid,
+        }))
+    : [];
 
   const payload = {
     from: brandedFrom(shop),
@@ -90,11 +102,13 @@ async function sendMail({ to, subject, html, text, shop }) {
     subject: brandedSubject(shop, subject),
     html: html ? wrapCompanyHtml(shop, html) : undefined,
     text: text || undefined,
+    attachments: files.length ? files : undefined,
   };
 
   const emailEnabled = envBool('WORQERA_Email__Enabled', true);
   const smtp = smtpConfig();
   const preferSes = envBool('WORQERA_Email__PreferSes', false);
+  const hasAttachments = files.length > 0;
 
   const hasAwsCreds = Boolean(
     process.env.AWS_ACCESS_KEY_ID ||
@@ -102,7 +116,9 @@ async function sendMail({ to, subject, html, text, shop }) {
       process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
   );
 
+  // SES sendEmail API does not support attachments — use SMTP when anexos existem
   if (
+    !hasAttachments &&
     preferSes &&
     process.env.SES_FROM_EMAIL &&
     process.env.AWS_REGION &&
@@ -141,15 +157,16 @@ async function sendMail({ to, subject, html, text, shop }) {
       auth: { user: smtp.user, pass: smtp.pass },
     });
     await transporter.sendMail(payload);
-    return { ok: true, provider: 'smtp' };
+    return { ok: true, provider: 'smtp', attachments: files.length };
   }
 
   console.info('[mailer:dev]', {
     to: payload.to,
     subject: payload.subject,
     text: payload.text || '(html)',
+    attachments: files.map((f) => f.filename),
   });
-  return { ok: true, provider: 'console', preview: true };
+  return { ok: true, provider: 'console', preview: true, attachments: files.length };
 }
 
 module.exports = {

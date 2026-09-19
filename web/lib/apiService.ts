@@ -669,6 +669,7 @@ export async function createPedidoService(pedido: {
   clienteId?: string;
   clientId?: string;
   clientName: string;
+  clientEmail?: string;
   modeloTenis?: string;
   shoeModel?: string;
   servicos?: Array<{
