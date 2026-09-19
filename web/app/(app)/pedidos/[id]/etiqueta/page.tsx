@@ -9,14 +9,17 @@ import { Button } from "@/components/ui/button"
 import { getPedidoService } from "@/lib/apiService"
 import { getShopCurrentV1 } from "@/lib/apiV1"
 import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } from "@/lib/shopBrand"
-import { Printer, KanbanSquare, Plus } from "lucide-react"
+import { Printer, KanbanSquare, Plus, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
+import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
+import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
 
 type OrderLabel = {
   id?: string
   code?: string
   clientName?: string
-  client?: { name?: string; nomeCompleto?: string }
+  clientPhone?: string
+  client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
   items?: Array<{ shoeModel?: string }>
   itemCount?: number
   shoeModel?: string
@@ -36,6 +39,9 @@ function PedidoEtiquetaInner() {
   const [brandName, setBrandName] = useState("Worqera")
   const [logoUrl, setLogoUrl] = useState("")
   const [ink, setInk] = useState("#0F172A")
+  const [waCreatedUrl, setWaCreatedUrl] = useState("")
+  const [itemSingular, setItemSingular] = useState("peça")
+  const [shopDoc, setShopDoc] = useState<any>(null)
 
   const code = order?.code || "—"
   const clientName =
@@ -45,6 +51,12 @@ function PedidoEtiquetaInner() {
     if (order?.shoeModel) return [{ shoeModel: order.shoeModel }]
     return []
   }, [order])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("wq-loop-label-seen", "1")
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const stored = readBrandFromStorage()
@@ -58,6 +70,9 @@ function PedidoEtiquetaInner() {
         const doc = shop?.shop || shop
         setBrandName(doc?.branding?.displayName || doc?.name || "Worqera")
         setLogoUrl(doc?.branding?.logoUrl || "")
+        setShopDoc(doc)
+        const noun = resolveItemNoun(doc)
+        setItemSingular(noun.singular)
         const c = resolveBrandColors(doc?.branding)
         setInk(deepenHex(c.primary))
       } catch {
@@ -123,6 +138,26 @@ function PedidoEtiquetaInner() {
   }, [order, ink])
 
   useEffect(() => {
+    if (!order?.code || !shopDoc) {
+      setWaCreatedUrl("")
+      return
+    }
+    const phone =
+      order.clientPhone ||
+      order.client?.phone ||
+      order.client?.telefone ||
+      ""
+    const built = buildOrderWaFromShop({
+      shop: shopDoc,
+      phone,
+      code: order.code,
+      clientName: order.clientName || order.client?.nomeCompleto || order.client?.name || "",
+      templateKey: "created",
+    })
+    setWaCreatedUrl(built?.url || "")
+  }, [order, shopDoc])
+
+  useEffect(() => {
     if (!autoPrint || loading || !order || !qrDataUrl) return
     const t = setTimeout(() => window.print(), 400)
     return () => clearTimeout(t)
@@ -178,10 +213,21 @@ function PedidoEtiquetaInner() {
       <div className="print:hidden">
         <AppHeader
           title="Etiqueta do pedido"
-          subtitle="Imprima e cole no produto · QR abre a consulta pública"
+          subtitle="Imprima, cole no produto e avise o cliente no Zap · QR abre a consulta"
           showHealth={false}
           actions={
             <div className="flex flex-wrap gap-2">
+              {waCreatedUrl ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-[10px] bg-[var(--wq-success)] text-white hover:bg-[var(--wq-success)]/90"
+                  onClick={() => window.open(waCreatedUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <MessageCircle className="mr-1.5 h-4 w-4" />
+                  Avisar no WhatsApp
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="sm"
@@ -234,7 +280,7 @@ function PedidoEtiquetaInner() {
             </p>
             <p className="mt-3 text-lg text-[var(--wq-text)]">{clientName}</p>
             <p className="text-sm text-[var(--wq-text-muted)]">
-              {items.length} {items.length === 1 ? "par" : "pares"}
+              {items.length} {items.length === 1 ? itemSingular : `${itemSingular}(s)`}
               {items[0]?.shoeModel
                 ? ` · ${items
                     .map((i) => i.shoeModel)
@@ -263,7 +309,7 @@ function PedidoEtiquetaInner() {
                 >
                   <BrandHeader compact />
                   <p className="text-xs uppercase tracking-[0.15em] text-[var(--wq-text-muted)]">
-                    Par {index + 1}
+                    {capitalizeNoun(itemSingular)} {index + 1}
                   </p>
                   <p
                     className="mt-2 font-mono text-4xl font-semibold"
@@ -271,7 +317,9 @@ function PedidoEtiquetaInner() {
                   >
                     {pairCode}
                   </p>
-                  <p className="mt-2 text-sm text-[var(--wq-text)]">{item.shoeModel || "Tênis"}</p>
+                  <p className="mt-2 text-sm text-[var(--wq-text)]">
+                    {item.shoeModel || capitalizeNoun(itemSingular)}
+                  </p>
                   <p className="text-xs text-[var(--wq-text-muted)]">
                     Pedido {code} · {clientName}
                   </p>

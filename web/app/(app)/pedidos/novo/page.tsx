@@ -765,7 +765,7 @@ export default function NewOrderPage() {
     const filledItems = filterFilledItems(items)
     const tooManyPhotos = filledItems.some((item) => item.photos.length > MAX_PHOTOS)
     if (tooManyPhotos) {
-      toast.error(`Máximo de ${MAX_PHOTOS} fotos por tênis`);
+      toast.error(`Máximo de ${MAX_PHOTOS} fotos por item`);
       return;
     }
 
@@ -911,7 +911,7 @@ export default function NewOrderPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Novo pedido"
-        subtitle="Cliente, tênis e pagamento no balcão"
+        subtitle="Cliente, itens e pagamento no balcão"
         actions={
           <Button asChild variant="outline" size="sm" className="rounded-[10px]">
             <Link href="/pedidos">Voltar à lista</Link>

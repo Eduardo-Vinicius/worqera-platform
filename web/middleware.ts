@@ -94,6 +94,19 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // atendimento: ops only — no settings / billing / funcionários / admin
+  if (role === 'atendimento') {
+    const blocked =
+      pathname.startsWith('/settings') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/funcionarios') ||
+      pathname.startsWith('/billing') ||
+      pathname.startsWith('/onboarding');
+    if (blocked) {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

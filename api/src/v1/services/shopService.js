@@ -108,6 +108,12 @@ async function patchCurrentShop(shopId, updates) {
     }
   }
 
+  if (updates.vertical != null) {
+    const allowed = new Set(['general', 'footwear', 'laundry', 'repair', 'custom']);
+    const v = String(updates.vertical || '').toLowerCase();
+    if (allowed.has(v)) shop.vertical = v;
+  }
+
   if (updates.branding != null && typeof updates.branding === 'object') {
     const b = updates.branding;
     shop.branding = shop.branding || {};
@@ -119,6 +125,10 @@ async function patchCurrentShop(shopId, updates) {
     if (b.logoUrl != null) shop.branding.logoUrl = String(b.logoUrl || '').trim();
     if (b.primaryColor != null) shop.branding.primaryColor = normalizeHexColor(b.primaryColor);
     if (b.accentColor != null) shop.branding.accentColor = normalizeHexColor(b.accentColor);
+    if (b.itemLabel != null) shop.branding.itemLabel = String(b.itemLabel || '').trim().slice(0, 40);
+    if (b.itemLabelPlural != null) {
+      shop.branding.itemLabelPlural = String(b.itemLabelPlural || '').trim().slice(0, 40);
+    }
   }
 
   if (updates.tvSettings != null && typeof updates.tvSettings === 'object') {
@@ -371,6 +381,153 @@ async function seedDefaultCatalog(shopId) {
   return { ok: true, seeded: DEFAULT_SERVICES.length, existing: 0 };
 }
 
+const STARTER_KITS = {
+  general: {
+    vertical: 'general',
+    itemLabel: 'peça',
+    itemLabelPlural: 'peças',
+    sectors: [
+      { name: 'Recebido', slug: 'recebido', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Em produção', slug: 'em-producao', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Controle', slug: 'controle', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Pronto para retirada', slug: 'pronto', order: 4, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Serviço padrão', defaultPrice: 50, sortOrder: 1 },
+      { name: 'Serviço expresso', defaultPrice: 80, sortOrder: 2 },
+      { name: 'Revisão', defaultPrice: 30, sortOrder: 3 },
+    ],
+  },
+  footwear: {
+    vertical: 'footwear',
+    itemLabel: 'tênis',
+    itemLabelPlural: 'tênis',
+    sectors: [
+      { name: 'Atendimento', slug: 'atendimento', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Sapataria', slug: 'sapataria', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Lavagem', slug: 'lavagem', order: 3, color: '#00BCD4', isTerminal: false },
+      { name: 'Acabamento', slug: 'acabamento', order: 4, color: '#9C27B0', isTerminal: false },
+      { name: 'Pronto', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Limpeza Simples', defaultPrice: 30, sortOrder: 1 },
+      { name: 'Limpeza Completa', defaultPrice: 50, sortOrder: 2 },
+      { name: 'Restauração', defaultPrice: 80, sortOrder: 3 },
+      { name: 'Troca de Sola', defaultPrice: 70, sortOrder: 4 },
+      { name: 'Costura', defaultPrice: 35, sortOrder: 5 },
+    ],
+  },
+  laundry: {
+    vertical: 'laundry',
+    itemLabel: 'roupa',
+    itemLabelPlural: 'roupas',
+    sectors: [
+      { name: 'Recepção', slug: 'recepcao', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Lavagem', slug: 'lavagem', order: 2, color: '#00BCD4', isTerminal: false },
+      { name: 'Secagem', slug: 'secagem', order: 3, color: '#FF9800', isTerminal: false },
+      { name: 'Passadoria', slug: 'passadoria', order: 4, color: '#9C27B0', isTerminal: false },
+      { name: 'Pronto', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Lavagem simples', defaultPrice: 25, sortOrder: 1 },
+      { name: 'Lavagem + passar', defaultPrice: 40, sortOrder: 2 },
+      { name: 'Delicados', defaultPrice: 55, sortOrder: 3 },
+    ],
+  },
+  repair: {
+    vertical: 'repair',
+    itemLabel: 'equipamento',
+    itemLabelPlural: 'equipamentos',
+    sectors: [
+      { name: 'Diagnóstico', slug: 'diagnostico', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Aguardando peça', slug: 'peca', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Reparo', slug: 'reparo', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Teste', slug: 'teste', order: 4, color: '#00BCD4', isTerminal: false },
+      { name: 'Pronto', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Diagnóstico', defaultPrice: 40, sortOrder: 1 },
+      { name: 'Reparo básico', defaultPrice: 90, sortOrder: 2 },
+      { name: 'Reparo completo', defaultPrice: 180, sortOrder: 3 },
+    ],
+  },
+};
+
+/**
+ * Apply a vertical starter kit: sets vertical/itemLabel, replaces sector columns
+ * (old ones deactivated), and seeds missing services by name.
+ * Shop can always rename/delete afterward — kit is a starting point only.
+ */
+async function applyStarterKit(shopId, { kit } = {}) {
+  const Sector = require('../models/Sector');
+  const ServiceCatalog = require('../models/ServiceCatalog');
+  const key = String(kit || 'general').toLowerCase();
+  const pack = STARTER_KITS[key];
+  if (!pack) {
+    const err = new Error('kit inválido');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    err.detail = `Use: ${Object.keys(STARTER_KITS).join(', ')}`;
+    throw err;
+  }
+
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    const err = new Error('Shop not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  shop.vertical = pack.vertical;
+  shop.branding = shop.branding || {};
+  shop.branding.itemLabel = pack.itemLabel;
+  shop.branding.itemLabelPlural = pack.itemLabelPlural;
+  await shop.save();
+
+  await Sector.updateMany({ shopId, active: true }, { $set: { active: false } });
+  const createdSectors = await Sector.insertMany(
+    pack.sectors.map((s) => ({
+      shopId,
+      name: s.name,
+      slug: s.slug,
+      order: s.order,
+      color: s.color,
+      isTerminal: Boolean(s.isTerminal),
+      notifyEmailOnEnter: Boolean(s.isTerminal),
+      active: true,
+    }))
+  );
+
+  let servicesAdded = 0;
+  for (const svc of pack.services) {
+    const exists = await ServiceCatalog.findOne({
+      shopId,
+      name: svc.name,
+      active: { $ne: false },
+    }).lean();
+    if (exists) continue;
+    await ServiceCatalog.create({
+      shopId,
+      name: svc.name,
+      defaultPrice: svc.defaultPrice,
+      sortOrder: svc.sortOrder,
+      active: true,
+      sectorPathHint: [],
+    });
+    servicesAdded += 1;
+  }
+
+  return {
+    ok: true,
+    kit: key,
+    vertical: pack.vertical,
+    sectorsCreated: createdSectors.length,
+    servicesAdded,
+    itemLabel: pack.itemLabel,
+  };
+}
+
 async function uploadShopLogo(shopId, file) {
   const storageService = require('./storageService');
   if (!file || !file.buffer) {
@@ -419,6 +576,8 @@ module.exports = {
   generatePartnerCode,
   slugify,
   seedDefaultCatalog,
+  applyStarterKit,
+  STARTER_KITS,
   listMembers,
   addMember,
   patchMember,

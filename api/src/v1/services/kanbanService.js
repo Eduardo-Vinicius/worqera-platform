@@ -92,6 +92,7 @@ function summarizeCard(order) {
     id: order._id,
     code: order.code,
     clientName: order.clientName,
+    clientPhone: order.clientPhone || null,
     shoeModel: items[0]?.shoeModel || order.shoeModel || '',
     itemCount: items.length,
     priority: order.priority,

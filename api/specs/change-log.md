@@ -1,5 +1,21 @@
 # Worqera API — Change log
 
+## 2026-09-18 (noite+)
+
+- **Starter Kits:** `POST /shops/current/apply-starter-kit` — setores + serviços + vertical/itemLabel.
+- **Ops:** doc cron trial reminders.
+
+## 2026-09-18 (noite)
+
+- **QW:** `employees` com `requireRole('owner','admin')`.
+- **Docs:** AS-IS app mirror + Status Pack / escala.
+
+## 2026-09-18
+
+- **Loop:** `whatsappSuggest` no `POST /orders` (template `created`); `buildOrderWhatsAppSuggest` compartilhado com move.
+- **Kanban card:** `clientPhone` no serialize do board.
+- **Multi-vertical:** `Shop.vertical` + `branding.itemLabel`/`itemLabelPlural`; signup default `general` com setores Recebido → Pronto.
+
 ## 2026-09-17
 
 - **Financeiro:** `GET /metrics/finance` com `today` (caixa do dia), top serviços via `items[].services`, labels PT de status.

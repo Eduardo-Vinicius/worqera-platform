@@ -381,6 +381,20 @@ export async function seedShopCatalogV1() {
   )
 }
 
+export async function applyStarterKitV1(kit: "general" | "footwear" | "laundry" | "repair") {
+  return v1Fetch<{
+    ok: boolean
+    kit: string
+    vertical: string
+    sectorsCreated: number
+    servicesAdded: number
+    itemLabel: string
+  }>("/shops/current/apply-starter-kit", {
+    method: "POST",
+    body: JSON.stringify({ kit }),
+  })
+}
+
 export async function listSectorsV1() {
   return v1Fetch<{ sectors: any[] }>("/sectors")
 }
@@ -587,8 +601,27 @@ export async function deleteServiceV1(id: string) {
 }
 
 export function clearSession() {
-  localStorage.removeItem("token")
-  localStorage.removeItem("refreshToken")
-  localStorage.removeItem("shopId")
+  try {
+    localStorage.removeItem("token")
+    localStorage.removeItem("refreshToken")
+    localStorage.removeItem("shopId")
+    localStorage.removeItem("user")
+    localStorage.removeItem("role")
+    localStorage.removeItem("shopName")
+    localStorage.removeItem("shopDisplayName")
+    localStorage.removeItem("userName")
+    localStorage.removeItem("email")
+    localStorage.removeItem("platformAdmin")
+  } catch {}
   document.cookie = "token=; path=/; max-age=0; samesite=lax"
+}
+
+/** Clears refresh cookie on API then local session. */
+export async function logoutV1() {
+  try {
+    await v1Fetch("/auth/logout", { method: "POST" })
+  } catch {
+    // still clear local
+  }
+  clearSession()
 }

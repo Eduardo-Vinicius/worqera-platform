@@ -8,6 +8,7 @@ import { getDashboardService } from "@/lib/apiService"
 import { getShopCurrentV1, sendWeeklyDigestV1 } from "@/lib/apiV1"
 import { SetupChecklist } from "@/components/shell/SetupChecklist"
 import { ReferralCard } from "@/components/shell/ReferralCard"
+import { StatusPackBanner } from "@/components/shell/StatusPackBanner"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -108,7 +109,7 @@ export default function DashboardPage() {
       label: "Pedidos abertos",
       value: open,
       icon: Package,
-      hint: "Em andamento na oficina",
+      hint: "Em andamento",
       tone: "text-[var(--wq-brand)]",
       ring: "border-[var(--wq-brand)]/25",
     },
@@ -145,6 +146,7 @@ export default function DashboardPage() {
       client: o.client?.name || o.clientName || "—",
       sector: o.currentSector?.name || o.setorAtual || "—",
       dueAt: o.dueAt || o.dataPrevistaEntrega,
+      status: o.status,
     }))
     .slice(0, 8)
 
@@ -153,6 +155,7 @@ export default function DashboardPage() {
   )
   const maxSector = Math.max(1, ...sectors.map((s) => s.count || 0))
   const clients = stats.totalClients ?? 0
+  const readyCount = hotQueue.filter((o) => o.status === "ready").length
 
   const shortcuts = [
     { href: "/pedidos/novo", label: "Novo pedido", icon: Plus, primary: true },
@@ -160,14 +163,30 @@ export default function DashboardPage() {
     { href: "/consultas", label: "Consultas", icon: Search },
     { href: "/clientes", label: "Clientes", icon: Users },
     { href: "/tv", label: "TV Cliente", icon: Tv, external: true },
-    { href: "/tv-dashboard", label: "TV Oficina", icon: Monitor, external: true },
+    { href: "/tv-dashboard", label: "TV chão", icon: Monitor, external: true },
   ]
+
+  const nextActions = [
+    overdue > 0
+      ? { href: "/kanban", label: `${overdue} atrasado${overdue === 1 ? "" : "s"}`, tone: "warn" as const }
+      : null,
+    readyCount > 0
+      ? { href: "/kanban", label: "Avisar prontos no Zap", tone: "ok" as const }
+      : null,
+    open === 0
+      ? { href: "/pedidos/novo", label: "Criar primeiro pedido", tone: "brand" as const }
+      : { href: "/pedidos/novo", label: "Novo pedido", tone: "brand" as const },
+  ].filter(Boolean) as Array<{ href: string; label: string; tone: "warn" | "ok" | "brand" }>
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Visão geral"
-        subtitle={shopName ? `${shopName}${firstName ? ` · Olá, ${firstName}` : ""}` : "Operação do dia"}
+        subtitle={
+          shopName
+            ? `${shopName}${firstName ? ` · Olá, ${firstName}` : ""}`
+            : "O que fazer agora na operação"
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {isOwner ? (
@@ -207,6 +226,28 @@ export default function DashboardPage() {
         {!loading && !error && (
           <>
             <SetupChecklist openOrders={open} totalClients={clients} />
+            <StatusPackBanner />
+
+            {nextActions.length > 0 ? (
+              <section className="flex flex-wrap gap-2">
+                {nextActions.map((a) => (
+                  <Link
+                    key={a.label}
+                    href={a.href}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                      a.tone === "warn"
+                        ? "border-[var(--wq-warn)]/40 bg-[color-mix(in_srgb,var(--wq-warn)_12%,var(--wq-surface))] text-[var(--wq-text)]"
+                        : a.tone === "ok"
+                          ? "border-[var(--wq-success)]/40 bg-[color-mix(in_srgb,var(--wq-success)_10%,var(--wq-surface))] text-[var(--wq-text)]"
+                          : "border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+                    }`}
+                  >
+                    {a.label}
+                    <ArrowRight className="h-3.5 w-3.5 opacity-70" />
+                  </Link>
+                ))}
+              </section>
+            ) : null}
 
             {/* Hero strip — mais compacto */}
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">

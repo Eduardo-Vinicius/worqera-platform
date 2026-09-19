@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Camera, Loader2, X } from "lucide-react"
+import { Camera, Loader2, MessageCircle, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,9 +20,11 @@ import {
   updateOrderService,
   uploadPedidoFotosService,
 } from "@/lib/apiService"
-import { listSectorsV1, reopenOrderV1 } from "@/lib/apiV1"
+import { listSectorsV1, reopenOrderV1, getShopCurrentV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
+import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
+import { resolveItemNoun } from "@/lib/itemNoun"
 
 const TAG_LABEL: Record<string, string> = {
   qualidade: "Qualidade",
@@ -104,6 +106,8 @@ export function PedidoConsultaDetalhe({
   const [notes, setNotes] = useState("")
   const [total, setTotal] = useState("")
   const [deposit, setDeposit] = useState("")
+  const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
+  const [itemSingular, setItemSingular] = useState("peça")
 
   const syncForm = (fresh: any) => {
     setOrder(fresh)
@@ -114,6 +118,23 @@ export function PedidoConsultaDetalhe({
     setTotal(String(fresh?.pricing?.total ?? fresh?.precoTotal ?? ""))
     setDeposit(String(fresh?.pricing?.deposit ?? ""))
   }
+
+  useEffect(() => {
+    if (!open) return
+    ;(async () => {
+      try {
+        const shop = await getShopCurrentV1()
+        const doc = (shop?.shop || shop) as ShopWaDoc & {
+          vertical?: string
+          branding?: { itemLabel?: string; itemLabelPlural?: string }
+        }
+        setShopDoc(doc)
+        setItemSingular(resolveItemNoun(doc).singular)
+      } catch {
+        setShopDoc(null)
+      }
+    })()
+  }, [open])
 
   useEffect(() => {
     if (!open || !orderId) return
@@ -305,10 +326,36 @@ export function PedidoConsultaDetalhe({
 
               {ready && !delivered && (
                 <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
-                  <p className="text-sm font-semibold text-emerald-900">Cliente retirou?</p>
+                  <p className="text-sm font-semibold text-emerald-900">Pronto para retirada</p>
                   <p className="text-xs text-emerald-800/80">
-                    Marca como entregue — some do kanban e libera o pedido no histórico finalizado.
+                    Avise o cliente no WhatsApp e, quando levar, marque como entregue.
                   </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full rounded-[10px] border-emerald-600 text-emerald-800 hover:bg-emerald-100"
+                    onClick={() => {
+                      const built = buildOrderWaFromShop({
+                        shop: shopDoc,
+                        phone: clientPhone || order?.clientPhone,
+                        code: String(code),
+                        clientName: clientName || order?.clientName || "",
+                        templateKey: "ready",
+                      })
+                      if (!built?.url) {
+                        toast.error(
+                          shopDoc?.notifications?.whatsapp?.enabled
+                            ? "Cliente sem telefone"
+                            : "Ative WhatsApp em Empresa"
+                        )
+                        return
+                      }
+                      window.open(built.url, "_blank", "noopener,noreferrer")
+                    }}
+                  >
+                    <MessageCircle className="mr-1.5 h-4 w-4" />
+                    Avisar cliente (pronto)
+                  </Button>
                   <Button
                     className="w-full rounded-[10px] bg-emerald-700 text-white hover:bg-emerald-800"
                     disabled={delivering}
@@ -374,7 +421,7 @@ export function PedidoConsultaDetalhe({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Modelo / tênis</Label>
+                  <Label className="text-xs">Modelo / {itemSingular}</Label>
                   <Input
                     className="rounded-[10px]"
                     value={shoeModel}

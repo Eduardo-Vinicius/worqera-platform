@@ -10,6 +10,7 @@ type Step = {
   label: string
   href: string
   done: boolean
+  hint?: string
 }
 
 export function SetupChecklist({
@@ -22,9 +23,11 @@ export function SetupChecklist({
   const [sectorsOk, setSectorsOk] = useState(false)
   const [teamOk, setTeamOk] = useState(false)
   const [brandOk, setBrandOk] = useState(false)
+  const [waOk, setWaOk] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [ready, setReady] = useState(false)
   const [open, setOpen] = useState(false)
+  const [printedOk, setPrintedOk] = useState(false)
 
   useEffect(() => {
     try {
@@ -33,6 +36,9 @@ export function SetupChecklist({
       }
       if (localStorage.getItem("wq-setup-checklist-open") === "1") {
         setOpen(true)
+      }
+      if (localStorage.getItem("wq-loop-label-seen") === "1") {
+        setPrintedOk(true)
       }
     } catch {}
     let cancelled = false
@@ -51,6 +57,7 @@ export function SetupChecklist({
         setTeamOk(mem.length > 1)
         const doc = shop?.shop || shop
         setBrandOk(Boolean(doc?.branding?.logoUrl || doc?.branding?.primaryColor))
+        setWaOk(Boolean(doc?.notifications?.whatsapp?.enabled))
       } catch {
         // ignore
       } finally {
@@ -64,31 +71,50 @@ export function SetupChecklist({
 
   if (dismissed || !ready) return null
 
-  // TV não entra no tour — abre em card próprio no dashboard (localStorage)
+  const hasOrder = openOrders > 0 || totalClients > 0
+
   const steps: Step[] = [
     {
       id: "sectors",
-      label: "Configurar setores do kanban",
+      label: "Montar seus setores do kanban",
       href: "/settings/setores",
       done: sectorsOk,
+      hint: "Nomes únicos da sua empresa",
     },
     {
       id: "brand",
-      label: "Colocar logo e cores da oficina",
+      label: "Marca: logo, cores e nome do item",
       href: "/settings/empresa",
       done: brandOk,
+      hint: "Cada empresa com a sua cara",
     },
     {
       id: "order",
       label: "Criar o primeiro pedido",
       href: "/pedidos/novo",
-      done: openOrders > 0 || totalClients > 0,
+      done: hasOrder,
+      hint: "Cliente + item + serviços",
+    },
+    {
+      id: "label",
+      label: "Imprimir etiqueta / QR",
+      href: hasOrder ? "/pedidos" : "/pedidos/novo",
+      done: printedOk || (hasOrder && waOk),
+      hint: "Cliente consulta pelo código",
+    },
+    {
+      id: "wa",
+      label: "Ativar WhatsApp (avisar cliente)",
+      href: "/settings/empresa",
+      done: waOk,
+      hint: "Loop: criado → move → pronto",
     },
     {
       id: "team",
-      label: "Convidar alguém da equipe",
+      label: "Convidar a equipe",
       href: "/settings/equipe",
       done: teamOk,
+      hint: "Opcional, mas escala",
     },
   ]
 
@@ -121,78 +147,101 @@ export function SetupChecklist({
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-      <div className="flex items-center gap-2 px-3 py-2">
-        <button
-          type="button"
-          onClick={toggle}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-          aria-expanded={open}
-        >
-          <span className="relative h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-[var(--wq-paper)]">
-            <span
-              className="absolute inset-y-0 left-0 rounded-full bg-[var(--wq-brand)] transition-[width]"
-              style={{ width: `${pct}%` }}
-            />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-[var(--wq-text)]">
-            <span className="font-medium">Setup</span>
-            <span className="text-[var(--wq-text-muted)]">
-              {" "}
+    <section className="overflow-hidden rounded-2xl border border-[var(--wq-brand)]/25 bg-[var(--wq-surface)] shadow-sm">
+      <div className="flex items-start gap-3 px-4 py-3.5 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-brand)]">
+              Tour da operação
+            </p>
+            <span className="rounded-md bg-[var(--wq-brand-soft)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--wq-brand)]">
               {doneCount}/{steps.length}
             </span>
-            {!open && next ? (
-              <span className="hidden text-[var(--wq-text-muted)] sm:inline"> · {next.label}</span>
-            ) : null}
-          </span>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-[var(--wq-text-muted)] transition-transform",
-              open && "rotate-180"
-            )}
-          />
-        </button>
-        {!open && next ? (
-          <Link
-            href={next.href}
-            className="shrink-0 rounded-lg bg-[var(--wq-brand)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--wq-brand-deep)]"
+          </div>
+          <h2 className="mt-0.5 text-sm font-semibold text-[var(--wq-text)] sm:text-base">
+            Loop do cliente (Status Pack): pedido → etiqueta → consulta → Zap
+          </h2>
+          <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
+            Próximo: {next.label}
+            {next.hint ? ` · ${next.hint}` : ""}
+          </p>
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
+            <div
+              className="h-full rounded-full bg-[var(--wq-brand)] transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={toggle}
+            className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)]"
+            aria-expanded={open}
+            aria-label={open ? "Recolher tour" : "Expandir tour"}
           >
-            Continuar
-          </Link>
-        ) : null}
-        <button
-          type="button"
-          onClick={dismiss}
-          className="shrink-0 rounded-md p-1 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
-          aria-label="Dispensar checklist"
-          title="Dispensar"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+            <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
+          </button>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)]"
+            aria-label="Dispensar tour"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {open ? (
-        <ul className="space-y-0.5 border-t border-[var(--wq-border)] px-2 py-2">
+        <ul className="divide-y divide-[var(--wq-border)] border-t border-[var(--wq-border)]">
           {steps.map((step) => (
             <li key={step.id}>
               <Link
                 href={step.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-[var(--wq-paper)]",
-                  step.done ? "text-[var(--wq-text-muted)]" : "text-[var(--wq-text)]"
-                )}
+                className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-[var(--wq-paper)] sm:px-5"
+                onClick={() => {
+                  if (step.id === "label") {
+                    try {
+                      localStorage.setItem("wq-loop-label-seen", "1")
+                    } catch {}
+                  }
+                }}
               >
                 {step.done ? (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--wq-success)] text-white">
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  </span>
                 ) : (
-                  <Circle className="h-3.5 w-3.5 shrink-0 text-[var(--wq-brand)]" />
+                  <Circle className="h-5 w-5 text-[var(--wq-text-muted)]" strokeWidth={1.5} />
                 )}
-                <span className={cn("truncate", step.done && "line-through")}>{step.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block text-sm font-medium",
+                      step.done ? "text-[var(--wq-text-muted)] line-through" : "text-[var(--wq-text)]"
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                  {step.hint ? (
+                    <span className="block text-[11px] text-[var(--wq-text-muted)]">{step.hint}</span>
+                  ) : null}
+                </span>
               </Link>
             </li>
           ))}
         </ul>
-      ) : null}
+      ) : (
+        <div className="border-t border-[var(--wq-border)] px-4 py-2.5 sm:px-5">
+          <Link
+            href={next.href}
+            className="text-sm font-semibold text-[var(--wq-brand)] hover:underline"
+          >
+            Continuar → {next.label}
+          </Link>
+        </div>
+      )}
     </section>
   )
 }

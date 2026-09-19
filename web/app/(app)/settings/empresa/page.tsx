@@ -9,8 +9,10 @@ import {
   getShopCurrentV1,
   patchShopCurrentV1,
   uploadShopLogoV1,
+  applyStarterKitV1,
 } from "@/lib/apiV1"
 import { DEFAULT_WA_TEMPLATES } from "@/lib/whatsapp"
+import { VERTICAL_PRESETS, type ShopVertical } from "@/lib/itemNoun"
 import {
   BRAND_PRESETS,
   applyBrandCssVars,
@@ -18,11 +20,12 @@ import {
   syncBrandToStorage,
 } from "@/lib/shopBrand"
 import { toast } from "sonner"
-import { ImagePlus, Loader2, RefreshCw } from "lucide-react"
+import { Copy, ImagePlus, Loader2, RefreshCw } from "lucide-react"
 
 export default function EmpresaPage() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [kitBusy, setKitBusy] = useState(false)
   const [fetching, setFetching] = useState(true)
   const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
@@ -43,6 +46,9 @@ export default function EmpresaPage() {
     tplMoved: DEFAULT_WA_TEMPLATES.moved,
     tplCreated: DEFAULT_WA_TEMPLATES.created,
     tplLink: DEFAULT_WA_TEMPLATES.publicLink,
+    vertical: "general" as ShopVertical,
+    itemLabel: "peça",
+    itemLabelPlural: "peças",
   })
 
   const livePreview = () => {
@@ -81,6 +87,9 @@ export default function EmpresaPage() {
       tplMoved: tpl.moved || DEFAULT_WA_TEMPLATES.moved,
       tplCreated: tpl.created || DEFAULT_WA_TEMPLATES.created,
       tplLink: tpl.publicLink || DEFAULT_WA_TEMPLATES.publicLink,
+      vertical: (doc?.vertical || "general") as ShopVertical,
+      itemLabel: doc?.branding?.itemLabel || "peça",
+      itemLabelPlural: doc?.branding?.itemLabelPlural || "peças",
     }
     setForm(next)
     syncBrandToStorage({
@@ -151,6 +160,7 @@ export default function EmpresaPage() {
       await patchShopCurrentV1({
         name: form.name,
         slug: form.slug,
+        vertical: form.vertical,
         branding: {
           displayName: form.displayName || form.name,
           emailFromName: form.emailFromName || form.displayName || form.name,
@@ -159,6 +169,8 @@ export default function EmpresaPage() {
           logoUrl: form.logoUrl,
           primaryColor: primary,
           accentColor: accent,
+          itemLabel: form.itemLabel || "peça",
+          itemLabelPlural: form.itemLabelPlural || "peças",
         },
         notifications: {
           email: {
@@ -233,7 +245,7 @@ export default function EmpresaPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Empresa"
-        subtitle="Marca da oficina — logo, cores, e-mails, TVs e link público"
+        subtitle="Marca da sua operação — logo, vertical, WhatsApp e link público"
       />
       <div className="mx-auto max-w-[1320px] px-5 py-6 md:px-8">
         {fetching ? (
@@ -268,6 +280,130 @@ export default function EmpresaPage() {
                 (v) => setForm((f) => ({ ...f, emailFromName: v })),
                 'Formato: "Sua Empresa via Worqera"'
               )}
+
+              <div className="space-y-2 border-t border-[var(--wq-border)] pt-4">
+                <Label htmlFor="vertical">Tipo de negócio</Label>
+                <select
+                  id="vertical"
+                  className="flex h-10 w-full rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 text-sm"
+                  value={form.vertical}
+                  onChange={(e) => {
+                    const v = e.target.value as ShopVertical
+                    const preset =
+                      v !== "custom" ? VERTICAL_PRESETS[v] : null
+                    setForm((f) => ({
+                      ...f,
+                      vertical: v,
+                      itemLabel: preset?.singular || f.itemLabel,
+                      itemLabelPlural: preset?.plural || f.itemLabelPlural,
+                    }))
+                  }}
+                >
+                  {(Object.keys(VERTICAL_PRESETS) as Array<keyof typeof VERTICAL_PRESETS>).map(
+                    (key) => (
+                      <option key={key} value={key}>
+                        {VERTICAL_PRESETS[key].label}
+                      </option>
+                    )
+                  )}
+                  <option value="custom">Personalizado</option>
+                </select>
+                <p className="text-xs text-[var(--wq-text-muted)]">
+                  Define como o produto chama o item no pedido (não trava setores — você configura).
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {field("itemLabel", "Nome do item (singular)", form.itemLabel, (v) =>
+                  setForm((f) => ({ ...f, itemLabel: v, vertical: "custom" }))
+                )}
+                {field("itemLabelPlural", "Nome do item (plural)", form.itemLabelPlural, (v) =>
+                  setForm((f) => ({ ...f, itemLabelPlural: v, vertical: "custom" }))
+                )}
+              </div>
+
+              <div className="space-y-2 border-t border-[var(--wq-border)] pt-4">
+                <p className="text-sm font-medium text-[var(--wq-text)]">Starter Kit (atalho)</p>
+                <p className="text-xs text-[var(--wq-text-muted)]">
+                  Aplica setores + serviços sugeridos e o nome do item. Setores antigos são
+                  desativados — você pode renomear tudo depois. Nada é travado.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["general", "Geral"],
+                      ["footwear", "Calçados"],
+                      ["laundry", "Lavanderia"],
+                      ["repair", "Assistência"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <Button
+                      key={key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-[10px]"
+                      disabled={kitBusy || loading}
+                      onClick={async () => {
+                        if (
+                          !window.confirm(
+                            `Aplicar kit “${label}”? Setores atuais serão desativados e novos criados. Serviços faltantes serão adicionados.`
+                          )
+                        ) {
+                          return
+                        }
+                        setKitBusy(true)
+                        try {
+                          const res = await applyStarterKitV1(key)
+                          toast.success(
+                            `Kit ${label}: ${res.sectorsCreated} setores · +${res.servicesAdded} serviços`
+                          )
+                          await load()
+                        } catch (err: any) {
+                          toast.error(err?.message || "Falha ao aplicar kit")
+                        } finally {
+                          setKitBusy(false)
+                        }
+                      }}
+                    >
+                      {kitBusy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {form.slug ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                      Link público base
+                    </p>
+                    <p className="truncate font-mono text-xs text-[var(--wq-text)]">
+                      /p/{form.slug}/CODIGO
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-[10px]"
+                    onClick={async () => {
+                      const origin =
+                        typeof window !== "undefined" ? window.location.origin : "https://worqera.com"
+                      const base = `${origin}/p/${form.slug}/`
+                      try {
+                        await navigator.clipboard.writeText(base)
+                        toast.success("Link base copiado")
+                      } catch {
+                        toast.message(base)
+                      }
+                    }}
+                  >
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copiar
+                  </Button>
+                </div>
+              ) : null}
               {field("phone", "Telefone / WhatsApp", form.phone, (v) =>
                 setForm((f) => ({ ...f, phone: v }))
               )}
@@ -502,7 +638,8 @@ export default function EmpresaPage() {
                 Enviar e-mails de status (criado / coluna / pronto)
               </label>
               <p className="text-xs text-[var(--wq-text-muted)]">
-                Precisa de e-mail no pedido + SMTP. Quais colunas disparam: em{" "}
+                Precisa de e-mail no pedido + SMTP configurado na API. Sem SMTP, o mailer só loga no
+                console (dev). Quais colunas disparam: em{" "}
                 <a href="/settings/setores" className="underline">
                   Setores
                 </a>
@@ -512,15 +649,19 @@ export default function EmpresaPage() {
 
             <section className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 sm:p-6">
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">
-                WhatsApp (wa.me)
+                Status Pack (cliente informado)
               </h2>
+              <p className="text-sm text-[var(--wq-text-muted)]">
+                Pacote que diferencia o Worqera: etiqueta/QR → consulta pública → WhatsApp no
+                create/move/pronto. Ligue o WhatsApp abaixo e use os templates.
+              </p>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={form.waEnabled}
                   onChange={(e) => setForm((f) => ({ ...f, waEnabled: e.target.checked }))}
                 />
-                Habilitar botões WhatsApp no pedido
+                Status Pack / WhatsApp (wa.me) ativo
               </label>
               {field("waPhone", "Telefone da loja (E.164 / BR)", form.waPhone, (v) =>
                 setForm((f) => ({ ...f, waPhone: v }))
@@ -538,7 +679,8 @@ export default function EmpresaPage() {
                 setForm((f) => ({ ...f, tplLink: v }))
               )}
               <p className="text-xs text-[var(--wq-text-muted)]">
-                Variáveis: {"{{code}} {{client}} {{link}} {{sector}} {{shop}}"}.
+                Variáveis: {"{{code}} {{client}} {{link}} {{sector}} {{shop}}"}. Cloud API fica pra
+                depois — hoje é 1 clique wa.me.
               </p>
             </section>
 

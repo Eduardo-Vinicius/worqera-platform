@@ -112,18 +112,29 @@ Rebuild PRD web+api → smoke mobile CdT → Meta Cloud API (opcional, hoje wa.m
 | QW-34 | Kanban drawer: copiar link / WA / imprimir | **feito** |
 | QW-35 | Novo pedido: data +3d chips + clientes recentes | **feito** |
 | QW-36 | Financeiro: caixa do dia + serviços multi-par + CSV | **feito** |
+| QW-37 | Loop: etiqueta Zap created + Avisar pronto sticky | **feito** |
+| QW-38 | Tour operação (checklist Loop) + home next-actions | **feito** |
+| QW-39 | Multi-vertical: itemLabel + Empresa tipo de negócio | **feito** |
+| QW-40 | Logout chama `POST /auth/logout` | **feito** |
+| QW-41 | Employees API `requireRole(owner,admin)` | **feito** |
+| QW-42 | MW: atendimento bloqueado em settings/billing/admin | **feito** |
+| QW-43 | Status Pack banner + copy Empresa | **feito** |
+| QW-44 | Starter Kits (`POST …/apply-starter-kit`) | **feito** |
+| QW-45 | Renomear setor inline + copiar link `/p` | **feito** |
 
 ## Propostas SaaS (backlog priorizado)
 
 1. ~~Digest semanal owner~~ **feito**
 2. ~~Export CSV~~ **feito**
-3. **Trial e-mails** D-2 / D-0 + recibo AbacatePay  
-4. **WhatsApp auto** Cloud API (adiado; hoje wa.me)  
+3. **Trial e-mails** D-2 / D-0 — script + [ops doc](../../docs/ops/trial-reminders.md); cron PRD  
+4. **WhatsApp auto** Cloud API (adiado; hoje Status Pack wa.me)  
 5. **Metas SLA** simples no dashboard owner  
 6. ~~Platform admin trial/pedidos/nota~~ **feito (base)**  
+7. **App nativo** — AS-IS em `docs/superpowers/specs/2026-09-18-worqera-app-asis-mirror.md`  
+8. ~~**Starter Kits** por vertical~~ **feito** (Empresa → Aplicar kit)  
 
 ## Observabilidade (web + ops)
 
-- [ ] Badge “Sistema ok” owner quando API health passa (opcional)  
+- [x] Badge “Sistema ok” (`SystemOkBadge` + `/health/ready`)  
 - [ ] Sentry front (env DSN) — stack sem reproduzir bug do cliente  
 - Ver API roadmap: `/health`, logs JSON, healthcheck Docker

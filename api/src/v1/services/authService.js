@@ -14,14 +14,12 @@ const JWT_EXPIRES = () => process.env.JWT_EXPIRES_IN || process.env.JWT_EXPIRES 
 const REFRESH_SECRET = () => process.env.REFRESH_SECRET || 'refreshchangeme';
 const REFRESH_EXPIRES = () => process.env.REFRESH_EXPIRES || '7d';
 
+/** Neutral defaults — each shop renames sectors; footwear seed stays CdT-specific. */
 const DEFAULT_SECTORS = [
-  { name: 'Atendimento', slug: 'atendimento', order: 1, color: '#2196F3', isTerminal: false },
-  { name: 'Sapataria', slug: 'sapataria', order: 2, color: '#FF9800', isTerminal: false },
-  { name: 'Costura', slug: 'costura', order: 3, color: '#9C27B0', isTerminal: false },
-  { name: 'Lavagem', slug: 'lavagem', order: 4, color: '#00BCD4', isTerminal: false },
-  { name: 'Acabamento', slug: 'acabamento', order: 5, color: '#4CAF50', isTerminal: false },
-  { name: 'Pintura', slug: 'pintura', order: 6, color: '#F44336', isTerminal: false },
-  { name: 'Atendimento final', slug: 'atendimento-final', order: 7, color: '#4CAF50', isTerminal: true },
+  { name: 'Recebido', slug: 'recebido', order: 1, color: '#2196F3', isTerminal: false },
+  { name: 'Em produção', slug: 'em-producao', order: 2, color: '#FF9800', isTerminal: false },
+  { name: 'Controle', slug: 'controle', order: 3, color: '#9C27B0', isTerminal: false },
+  { name: 'Pronto para retirada', slug: 'pronto', order: 4, color: '#4CAF50', isTerminal: true },
 ];
 
 function slugify(text) {
@@ -108,12 +106,15 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     name: shopName || `${user.name}'s Shop`,
     slug,
     status: 'active',
+    vertical: 'general',
     partnerCode: generatePartnerCode(),
     referredByPartnerCode: referredBy,
     branding: {
       displayName: shopName || user.name,
       emailFromName: shopName || user.name,
       legacyBrand: null,
+      itemLabel: 'peça',
+      itemLabelPlural: 'peças',
     },
   });
 

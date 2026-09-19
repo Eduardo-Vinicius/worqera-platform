@@ -1,10 +1,10 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-15 (carga CdT + consultas paginadas)
+**Atualizado:** 2026-09-18 (Loop WA create + multi-vertical)
 
 ## Em uma frase
 
-API Mongo `/api/v1` multi-tenant: signup+trial, members com roles, kanban por setor, **platform admin**, billing gate, scripts de import histórico CdT (`delivered` / códigos legacy).
+API Mongo `/api/v1` multi-tenant: signup+trial (`vertical: general`), members, kanban, **whatsappSuggest** em create/move, branding + itemLabel, platform admin, billing gate.
 
 ## LIVE
 
@@ -12,16 +12,17 @@ API Mongo `/api/v1` multi-tenant: signup+trial, members com roles, kanban por se
 |------|----------|
 | Health | `GET /health` |
 | Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`) |
-| Shop / members | `/shops/current`, `/shops/current/members` |
+| Shop / members | `/shops/current` (+ vertical, itemLabel) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
-| Sectors / kanban | filter + move para `role:sector` |
-| Services / clients / orders / employees | CRUD |
+| Sectors / kanban | board + move + `clientPhone` no card |
+| Orders | CRUD + `whatsappSuggest` no create |
+| Services / clients / employees | CRUD |
 | Billing | `/billing/*` + webhook HMAC |
 | Public / files | `/public/orders/:code`, `/files/*` |
 
 ## Env chave
 
-`PLATFORM_ADMIN_EMAILS` · `WORQERA_AbacatePay__WebhookSecret` · `ALLOW_INSECURE_WEBHOOK=1` só em dev
+`PLATFORM_ADMIN_EMAILS` · `WORQERA_AbacatePay__WebhookSecret` · `PUBLIC_WEB_URL` (links wa.me) · `ALLOW_INSECURE_WEBHOOK=1` só em dev
 
 ## Como rodar
 
@@ -34,5 +35,5 @@ make web-dev
 ## Próximo
 
 - AbacatePay create-session produção
-- Invite branding (Fase 3)
-- ZIP fotos todos items; limpar legado Dynamo
+- WhatsApp Cloud (fase 2)
+- Limpar legado Dynamo

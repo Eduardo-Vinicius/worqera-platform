@@ -34,12 +34,12 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { addOrderCommentV1, getKanbanV1, moveKanbanOrderV1 } from "@/lib/apiV1"
+import { addOrderCommentV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderV1 } from "@/lib/apiV1"
 import { getPedidoService, updateOrderService } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
-import { buildWaMeUrl, DEFAULT_WA_TEMPLATES, fillWaTemplate } from "@/lib/whatsapp"
+import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 
 type OrderCard = {
   _id?: string
@@ -47,6 +47,7 @@ type OrderCard = {
   code?: string
   codigo?: string
   clientName?: string
+  clientPhone?: string
   shoeModel?: string
   modeloTenis?: string
   priority?: number
@@ -171,6 +172,7 @@ function KanbanCardBody({
   sectorNameById,
   isTerminalColumn,
   onMarkDelivered,
+  onNotifyReady,
 }: {
   order: OrderCard
   focused?: boolean
@@ -182,6 +184,7 @@ function KanbanCardBody({
   sectorNameById?: Map<string, string>
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
+  onNotifyReady?: (order: OrderCard) => void
 }) {
   const late = order.dueAt && new Date(order.dueAt).getTime() < Date.now()
   const pairs = pairCount(order)
@@ -190,6 +193,10 @@ function KanbanCardBody({
     Boolean(isTerminalColumn) &&
     (order.status === "ready" || !order.status) &&
     Boolean(onMarkDelivered)
+  const showNotify =
+    Boolean(isTerminalColumn) &&
+    (order.status === "ready" || !order.status) &&
+    Boolean(onNotifyReady)
 
   return (
     <div
@@ -271,19 +278,37 @@ function KanbanCardBody({
           </p>
         )}
       </button>
-      {showDeliver ? (
-        <button
-          type="button"
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
-          onClick={(e) => {
-            e.stopPropagation()
-            onMarkDelivered?.(order)
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <Check className="h-3.5 w-3.5" />
-          Marcar entregue
-        </button>
+      {showNotify || showDeliver ? (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {showNotify ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--wq-success)]/40 bg-[color-mix(in_srgb,var(--wq-success)_12%,var(--wq-surface))] px-2 py-1.5 text-xs font-semibold text-[var(--wq-success)] hover:bg-[color-mix(in_srgb,var(--wq-success)_18%,var(--wq-surface))]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onNotifyReady?.(order)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Avisar pronto
+            </button>
+          ) : null}
+          {showDeliver ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarkDelivered?.(order)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <Check className="h-3.5 w-3.5" />
+              Marcar entregue
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   )
@@ -298,6 +323,7 @@ function DraggableCard({
   sectorNameById,
   isTerminalColumn,
   onMarkDelivered,
+  onNotifyReady,
 }: {
   order: OrderCard
   focused?: boolean
@@ -307,6 +333,7 @@ function DraggableCard({
   sectorNameById: Map<string, string>
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
+  onNotifyReady?: (order: OrderCard) => void
 }) {
   const id = orderId(order)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
@@ -325,6 +352,7 @@ function DraggableCard({
         sectorNameById={sectorNameById}
         isTerminalColumn={isTerminalColumn}
         onMarkDelivered={onMarkDelivered}
+        onNotifyReady={onNotifyReady}
       />
     </div>
   )
@@ -339,6 +367,7 @@ function DroppableColumn({
   sectorNameById,
   compact,
   onMarkDelivered,
+  onNotifyReady,
 }: {
   column: Column
   filterLate: boolean
@@ -348,6 +377,7 @@ function DroppableColumn({
   sectorNameById: Map<string, string>
   compact?: boolean
   onMarkDelivered?: (order: OrderCard) => void
+  onNotifyReady?: (order: OrderCard) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, filterLate)
@@ -369,7 +399,7 @@ function DroppableColumn({
         </span>
         {isTerminal ? (
           <Badge className="border-0 bg-emerald-100 text-[10px] font-semibold text-emerald-800">
-            Final
+            Pronto
           </Badge>
         ) : null}
         <Badge variant="outline" className="font-mono text-[11px]">
@@ -391,6 +421,7 @@ function DroppableColumn({
             sectorNameById={sectorNameById}
             isTerminalColumn={isTerminal}
             onMarkDelivered={onMarkDelivered}
+            onNotifyReady={onNotifyReady}
           />
         ))}
       </div>
@@ -424,6 +455,7 @@ export default function KanbanPage() {
   const [codeQuery, setCodeQuery] = useState("")
   const [commentDraft, setCommentDraft] = useState("")
   const [commenting, setCommenting] = useState(false)
+  const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -442,6 +474,7 @@ export default function KanbanPage() {
         },
         orders: (c.orders || []).map((o: any) => ({
           ...o,
+          clientPhone: o.clientPhone || o.client?.phone || o.client?.telefone || "",
           currentSectorId: o.currentSectorId
             ? String(o.currentSectorId._id || o.currentSectorId)
             : String(c.sector?._id || c.sector?.id || ""),
@@ -478,6 +511,14 @@ export default function KanbanPage() {
 
   useEffect(() => {
     load()
+    ;(async () => {
+      try {
+        const shop = await getShopCurrentV1()
+        setShopDoc((shop?.shop || shop) as ShopWaDoc)
+      } catch {
+        setShopDoc(null)
+      }
+    })()
   }, [load])
 
   const activeIndex = useMemo(
@@ -544,6 +585,27 @@ export default function KanbanPage() {
     } catch (err: any) {
       toast.error(err?.message || "Falha ao marcar entregue")
     }
+  }
+
+  const notifyReady = (order: OrderCard) => {
+    const code = orderCode(order)
+    const phone = (order as any).clientPhone || ""
+    const built = buildOrderWaFromShop({
+      shop: shopDoc,
+      phone,
+      code,
+      clientName: order.clientName || "",
+      templateKey: "ready",
+    })
+    if (!built?.url) {
+      toast.error(
+        shopDoc?.notifications?.whatsapp?.enabled
+          ? "Cliente sem telefone — cadastre no pedido"
+          : "Ative WhatsApp em Empresa → Notificações"
+      )
+      return
+    }
+    window.open(built.url, "_blank", "noopener,noreferrer")
   }
 
   const executeMove = async (orderIdValue: string, toSectorId: string, note?: string) => {
@@ -920,6 +982,7 @@ export default function KanbanPage() {
                   sectorNameById={sectorNameById}
                   compact
                   onMarkDelivered={markDelivered}
+                  onNotifyReady={notifyReady}
                 />
               )}
               {focusedCardId && (
@@ -978,6 +1041,7 @@ export default function KanbanPage() {
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
                   onMarkDelivered={markDelivered}
+                  onNotifyReady={notifyReady}
                 />
               ))}
             </div>
@@ -1063,32 +1127,27 @@ export default function KanbanPage() {
                             detail.client?.phone ||
                             detail.client?.telefone ||
                             ""
-                          if (!phone) {
-                            toast.error("Cliente sem telefone")
-                            return
-                          }
-                          const slug = localStorage.getItem("shopSlug") || ""
                           const code = detail.code || ""
-                          const origin = window.location.origin
-                          const link = slug
-                            ? `${origin}/p/${slug}/${encodeURIComponent(code)}`
-                            : `${origin}/p/${encodeURIComponent(code)}`
-                          const text = fillWaTemplate(DEFAULT_WA_TEMPLATES.publicLink, {
+                          const isReady = detail.status === "ready"
+                          const built = buildOrderWaFromShop({
+                            shop: shopDoc,
+                            phone,
                             code,
-                            client:
+                            clientName:
                               detail.clientName ||
                               detail.client?.nomeCompleto ||
                               detail.client?.name ||
                               "",
-                            link,
-                            shop: localStorage.getItem("shopName") || "Worqera",
+                            sectorName:
+                              sectorNameById.get(String(detail.currentSectorId || "")) || "",
+                            templateKey: isReady ? "ready" : "publicLink",
+                            requireEnabled: false,
                           })
-                          const url = buildWaMeUrl(phone, text)
-                          if (!url) {
-                            toast.error("Telefone inválido")
+                          if (!built?.url) {
+                            toast.error("Cliente sem telefone válido")
                             return
                           }
-                          window.open(url, "_blank", "noopener,noreferrer")
+                          window.open(built.url, "_blank", "noopener,noreferrer")
                         }}
                       >
                         <MessageCircle className="mr-1.5 h-3.5 w-3.5" />

@@ -103,12 +103,12 @@ export function validateOrderItems(items: OrderItemDraft[]): Record<string, stri
   const touched = items.filter(isItemTouched)
 
   if (touched.length === 0) {
-    errors.items = "Informe ao menos um tênis com modelo e serviços"
+    errors.items = "Informe ao menos um item com modelo e serviços"
     return errors
   }
 
   if (touched.some((item) => !isItemFilled(item))) {
-    errors.items = "Cada tênis preenchido deve ter modelo e ao menos um serviço"
+    errors.items = "Cada item preenchido deve ter modelo e ao menos um serviço"
   }
 
   const hasInvalidService = touched.some((item) =>

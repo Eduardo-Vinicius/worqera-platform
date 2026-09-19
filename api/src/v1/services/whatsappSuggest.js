@@ -45,12 +45,14 @@ const DEFAULT_TEMPLATES = {
 };
 
 /**
- * Build a WhatsApp suggest payload after a kanban move (or null if not applicable).
+ * Build a WhatsApp suggest payload for an order event (created / moved / ready / publicLink).
+ * @param {'created'|'moved'|'ready'|'publicLink'} templateKey
  */
-async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
+async function buildOrderWhatsAppSuggest(shopId, order, { templateKey, sectorName } = {}) {
   const Shop = require('../models/Shop');
   const Client = require('../models/Client');
 
+  const key = templateKey || 'publicLink';
   const shop = await Shop.findById(shopId).lean();
   const wa = shop?.notifications?.whatsapp;
   if (!wa?.enabled) return null;
@@ -58,10 +60,6 @@ async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
   let client = null;
   if (order.clientId) {
     client = await Client.findOne({ _id: order.clientId, shopId }).lean();
-  }
-  // Explicit opt-out only; historical clients default false but still allow when phone exists.
-  if (client && client.whatsappOptIn === false && client.phone) {
-    // still allow — opt-in is soft until UI collects consent widely
   }
 
   const phone = client?.phone || order.clientPhone || wa.shopPhoneE164 || '';
@@ -74,19 +72,15 @@ async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
   const slug = shop?.slug || '';
   const link = slug ? `${webBase}/p/${slug}/${code}` : `${webBase}/p/${code}`;
   const shopName = shop?.branding?.displayName || shop?.name || 'Worqera';
-  const sectorName = toSector?.name || '';
-  const isReady = Boolean(toSector?.isTerminal) || order.status === 'ready';
 
   const templates = wa.templates || {};
-  const tpl = isReady
-    ? templates.ready || DEFAULT_TEMPLATES.ready
-    : templates.moved || DEFAULT_TEMPLATES.moved;
+  const tpl = templates[key] || DEFAULT_TEMPLATES[key] || DEFAULT_TEMPLATES.publicLink;
 
   const text = fillWaTemplate(tpl, {
     code: String(code),
     client: order.clientName || client?.name || '',
     link,
-    sector: sectorName,
+    sector: sectorName || '',
     shop: shopName,
   });
   const url = buildWaMeUrl(phone, text);
@@ -96,10 +90,21 @@ async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
     url,
     text,
     phoneDigits: toWhatsAppE164Digits(phone),
-    template: isReady ? 'ready' : 'moved',
-    sectorName,
+    template: key,
+    sectorName: sectorName || '',
     code: String(code),
   };
+}
+
+/**
+ * Build a WhatsApp suggest payload after a kanban move (or null if not applicable).
+ */
+async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
+  const isReady = Boolean(toSector?.isTerminal) || order.status === 'ready';
+  return buildOrderWhatsAppSuggest(shopId, order, {
+    templateKey: isReady ? 'ready' : 'moved',
+    sectorName: toSector?.name || '',
+  });
 }
 
 module.exports = {
@@ -107,6 +112,7 @@ module.exports = {
   toWhatsAppE164Digits,
   fillWaTemplate,
   buildWaMeUrl,
+  buildOrderWhatsAppSuggest,
   buildMoveWhatsAppSuggest,
   DEFAULT_TEMPLATES,
 };

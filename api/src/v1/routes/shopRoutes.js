@@ -28,6 +28,12 @@ router.post(
   requireRole('owner', 'admin'),
   shopController.seedCatalog
 );
+router.post(
+  '/current/apply-starter-kit',
+  ...guard,
+  requireRole('owner', 'admin'),
+  shopController.applyStarterKit
+);
 router.get(
   '/current/members',
   ...guard,

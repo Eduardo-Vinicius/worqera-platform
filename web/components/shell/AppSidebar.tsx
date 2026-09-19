@@ -7,20 +7,10 @@ import { LogOut } from "lucide-react"
 import { NAV_SECTIONS, isNavActive } from "./nav"
 import { cn } from "@/lib/utils"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
+import { logoutV1 } from "@/lib/apiV1"
 
-function clearSession() {
-  try {
-    localStorage.removeItem("token")
-    localStorage.removeItem("refreshToken")
-    localStorage.removeItem("shopId")
-    localStorage.removeItem("user")
-    localStorage.removeItem("role")
-    localStorage.removeItem("shopName")
-    localStorage.removeItem("userName")
-    localStorage.removeItem("email")
-    localStorage.removeItem("platformAdmin")
-  } catch {}
-  document.cookie = "token=; Max-Age=0; path=/"
+async function handleLogout() {
+  await logoutV1()
   window.location.href = "/login"
 }
 
@@ -151,7 +141,7 @@ export function AppSidebar({
         </div>
         <button
           type="button"
-          onClick={clearSession}
+          onClick={() => void handleLogout()}
           className="flex w-full items-center gap-2 rounded-[11px] px-3 py-2 text-[13px] text-slate-300 hover:bg-white/5 hover:text-white"
         >
           <LogOut className="h-4 w-4" strokeWidth={1.7} />

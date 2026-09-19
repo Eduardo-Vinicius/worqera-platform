@@ -75,17 +75,17 @@ describe("filterFilledItems", () => {
 describe("validateOrderItems", () => {
   it("requires at least one item with modelo and services", () => {
     const errors = validateOrderItems([draft({}), draft({})])
-    assert.equal(errors.items, "Informe ao menos um tênis com modelo e serviços")
+    assert.equal(errors.items, "Informe ao menos um item com modelo e serviços")
   })
 
   it("rejects a single item with only modelo", () => {
     const errors = validateOrderItems([draft({ sneaker: "Air Max" })])
-    assert.equal(errors.items, "Cada tênis preenchido deve ter modelo e ao menos um serviço")
+    assert.equal(errors.items, "Cada item preenchido deve ter modelo e ao menos um serviço")
   })
 
   it("rejects a filled item missing modelo", () => {
     const errors = validateOrderItems([draft({ selectedServices: [limpeza] })])
-    assert.equal(errors.items, "Cada tênis preenchido deve ter modelo e ao menos um serviço")
+    assert.equal(errors.items, "Cada item preenchido deve ter modelo e ao menos um serviço")
   })
 
   it("rejects photo-only rows instead of silently omitting them", () => {
@@ -93,12 +93,12 @@ describe("validateOrderItems", () => {
       draft({ photos: [photoStub()] }),
       draft({ sneaker: "Dunk", selectedServices: [limpeza] }),
     ])
-    assert.equal(errors.items, "Cada tênis preenchido deve ter modelo e ao menos um serviço")
+    assert.equal(errors.items, "Cada item preenchido deve ter modelo e ao menos um serviço")
   })
 
   it("rejects notes-only rows instead of silently omitting them", () => {
     const errors = validateOrderItems([draft({ notes: " raspar sola " })])
-    assert.equal(errors.items, "Cada tênis preenchido deve ter modelo e ao menos um serviço")
+    assert.equal(errors.items, "Cada item preenchido deve ter modelo e ao menos um serviço")
   })
 
   it("accepts a complete item and ignores extra blank rows", () => {

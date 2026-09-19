@@ -5,6 +5,15 @@ const shopSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, lowercase: true, trim: true },
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    /**
+     * Business vertical — drives default copy/nouns. Seed CdT uses footwear;
+     * new signups default to general so Worqera is not sneaker-only.
+     */
+    vertical: {
+      type: String,
+      enum: ['general', 'footwear', 'laundry', 'repair', 'custom'],
+      default: 'general',
+    },
     branding: {
       displayName: { type: String, default: '' },
       emailFromName: { type: String, default: '' },
@@ -14,6 +23,9 @@ const shopSchema = new mongoose.Schema(
       logoUrl: { type: String, default: '' },
       primaryColor: { type: String, default: '' },
       accentColor: { type: String, default: '' },
+      /** Noun for the physical item on the order (peça, tênis, roupa…). */
+      itemLabel: { type: String, default: 'peça' },
+      itemLabelPlural: { type: String, default: 'peças' },
     },
     /** Platform-only free-text note (objeção, PIX, plano). */
     adminNote: { type: String, default: '' },

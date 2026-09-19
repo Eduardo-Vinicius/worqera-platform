@@ -138,11 +138,11 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-white p-5">
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
-              1. Setores do fluxo
+              1. Seus setores (únicos da empresa)
             </h2>
             <p className="text-sm text-[var(--wq-text-muted)]">
-              Revise os setores do kanban. Você pode usar os padrões e seguir, ou editar em
-              Configurações.
+              O kanban é 100% seu: cada loja cadastra os nomes que quiser. Abaixo é só um ponto de
+              partida — renomeie, apague ou crie novos em Setores.
             </p>
             {loadingSectors ? (
               <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
@@ -167,11 +167,11 @@ export default function OnboardingPage() {
               </ul>
             )}
             <p className="text-xs text-[var(--wq-text-muted)]">
-              Dica: use os padrões e continue — você pode ajustar depois em{" "}
+              Pode seguir com estes e personalizar depois em{" "}
               <Link href="/settings/setores" className="text-[var(--wq-brand)] underline-offset-2 hover:underline">
-                /settings/setores
+                Setores
               </Link>
-              .
+              — nenhuma outra empresa vê o seu fluxo.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Mail, Plus, Save } from "lucide-react"
+import { Mail, Plus, Save, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,8 @@ export default function SetoresSettingsPage() {
   const [notifyEmail, setNotifyEmail] = useState(false)
   const [isTerminal, setIsTerminal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState("")
 
   const load = async () => {
     setLoading(true)
@@ -105,11 +107,32 @@ export default function SetoresSettingsPage() {
     setSectors(copy)
   }
 
+  const startRename = (s: Sector) => {
+    setEditingId(s._id)
+    setEditName(s.name)
+  }
+
+  const saveRename = async (s: Sector) => {
+    const next = editName.trim()
+    if (!next || next === s.name) {
+      setEditingId(null)
+      return
+    }
+    try {
+      await updateSectorV1(s._id, { name: next })
+      toast.success("Setor renomeado")
+      setEditingId(null)
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao renomear")
+    }
+  }
+
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
-        title="Setores da oficina"
-        subtitle="Ordem = colunas do kanban · marque quais disparam e-mail ao cliente"
+        title="Setores da empresa"
+        subtitle="Só da sua loja — nomeie como quiser; a ordem vira as colunas do kanban"
         actions={
           <Button asChild variant="outline" size="sm" className="rounded-[10px]">
             <Link href="/kanban">Ver kanban</Link>
@@ -119,11 +142,12 @@ export default function SetoresSettingsPage() {
 
       <div className="mx-auto max-w-[800px] space-y-5 px-5 py-6 md:px-8">
         <p className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3 text-sm text-[var(--wq-text-muted)]">
-          Todo pedido precisa terminar em um setor{" "}
-          <strong className="text-[var(--wq-text)]">Final</strong> (ex.: Atendimento final) — a rota
-          sempre inclui essa coluna no fim. Com e-mail do cliente e SMTP: ao entrar numa coluna com
-          “E-mail”, o cliente recebe aviso; a coluna final marca pronto e avisa retirada. WhatsApp
-          continua pelo toast no kanban.
+          Cada empresa monta o fluxo dela (Lavagem → Costura, Diagnóstico → Peças, o que for). Os
+          nomes do signup são só um começo — renomeie, apague ou crie os seus. Todo pedido precisa
+          terminar em um setor{" "}
+          <strong className="text-[var(--wq-text)]">Final</strong> (pronto pra retirada). Com e-mail
+          do cliente e SMTP: coluna com “E-mail” avisa ao entrar; a final marca pronto. WhatsApp
+          segue pelo toast / Avisar pronto no kanban.
         </p>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">
@@ -196,7 +220,32 @@ export default function SetoresSettingsPage() {
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="truncate font-medium">{s.name}</span>
+                    {editingId === s._id ? (
+                      <Input
+                        autoFocus
+                        className="h-8 max-w-[220px] rounded-[8px]"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onBlur={() => void saveRename(s)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            void saveRename(s)
+                          }
+                          if (e.key === "Escape") setEditingId(null)
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="group inline-flex min-w-0 items-center gap-1.5 truncate text-left font-medium hover:text-[var(--wq-brand)]"
+                        onClick={() => startRename(s)}
+                        title="Clique para renomear"
+                      >
+                        <span className="truncate">{s.name}</span>
+                        <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60" />
+                      </button>
+                    )}
                     <span className="text-xs text-[var(--wq-text-muted)]">#{i + 1}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">

@@ -62,8 +62,10 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 - [x] `POST /orders/:id/items/:itemIndex/photos` (legado `/photos` = item 0, append)
 - [x] Warranty end date (+3m) no create se ativa sem `data`
 - [x] `listOrders` filter `clientId`
-- [ ] E-mail/WhatsApp auto v1
+- [ ] E-mail/WhatsApp **Cloud** auto v1 (hoje: wa.me suggest create+move)
 - [x] Seed catálogo serviços (ensure no seed CdT)
+- [x] Loop: `whatsappSuggest` no create + `Shop.vertical` / itemLabel
+- [x] Signup setores neutros (Recebido → Pronto)
 
 ### A5 — Billing — harden (stub checkout)
 
@@ -73,7 +75,7 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 
 ## Ordem restante
 
-Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp auto / digest semanal
+Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp Cloud quando demanda → app nativo (brief)
 
 ---
 

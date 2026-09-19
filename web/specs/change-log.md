@@ -1,5 +1,25 @@
 # Worqera Web — Change log
 
+## 2026-09-18 (noite+)
+
+- **Starter Kits:** `POST /shops/current/apply-starter-kit` (general/footwear/laundry/repair).
+- **QW web:** renomear setor no clique; Empresa — kits + copiar link `/p/{slug}/`.
+- **Ops:** `docs/ops/trial-reminders.md`.
+
+## 2026-09-18 (noite)
+
+- **QW:** logout → `POST /auth/logout`; employees API owner/admin; MW bloqueia atendimento em settings/billing/admin.
+- **Status Pack:** banner no dashboard se WA off; Empresa renomeia seção WhatsApp → Status Pack.
+- **Docs:** escala + Status Pack; **AS-IS app mirror** completo (auth→financeiro).
+
+## 2026-09-18
+
+- **Loop do Cliente:** etiqueta com “Avisar no WhatsApp” (template `created`); kanban “Avisar pronto” sticky na coluna terminal; drawer usa templates da Empresa; consulta com CTA avisar pronto.
+- **Tour:** SetupChecklist vira “Tour da operação” (setores → marca/item → pedido → etiqueta → Zap → equipe).
+- **Dashboard:** chips “o que fazer agora” (atrasados / avisar prontos / novo pedido); copy neutra.
+- **Multi-vertical:** Empresa — tipo de negócio + `itemLabel`/`itemLabelPlural`; copy core sem “tênis” obrigatório.
+- **Setores:** copy deixa claro que o fluxo é único por empresa.
+
 ## 2026-09-17
 
 - **Dashboard:** layout mais compacto; TV em card destacado (fora do tour); tour sem passo “abrir TV” que nunca marcava.

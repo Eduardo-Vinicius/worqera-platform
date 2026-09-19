@@ -37,7 +37,14 @@ exports.list = wrap(async (req, res) => {
 
 exports.create = wrap(async (req, res) => {
   const order = await orderService.createOrder(req.shopId, req.auth.userId, req.body || {});
-  res.status(201).json(serializeOrder(order));
+  const { buildOrderWhatsAppSuggest } = require('../services/whatsappSuggest');
+  const whatsappSuggest = await buildOrderWhatsAppSuggest(req.shopId, order, {
+    templateKey: 'created',
+  }).catch(() => null);
+  res.status(201).json({
+    ...serializeOrder(order),
+    whatsappSuggest: whatsappSuggest || undefined,
+  });
 });
 
 exports.createDemo = wrap(async (req, res) => {

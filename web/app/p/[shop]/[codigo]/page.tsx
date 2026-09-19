@@ -190,7 +190,7 @@ export default function PublicOrderByShopPage() {
 
               {data.canFeedback ? (
                 <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
-                  <p className="text-sm font-semibold">Como ficou o serviço no seu tênis?</p>
+                  <p className="text-sm font-semibold">Como ficou o serviço?</p>
                   <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
                     Nota rápida — ajuda a oficina a melhorar o próximo pedido
                   </p>

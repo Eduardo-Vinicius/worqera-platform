@@ -12,6 +12,7 @@ import {
   DEFAULT_WA_TEMPLATES,
   fillWaTemplate,
 } from "@/lib/whatsapp";
+import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun";
 import SetorProgress from "@/components/SetorProgress";
 import MoverSetorButton from "@/components/MoverSetorButton";
 import { usePedidoAssets } from "@/hooks/usePedidoAssets";
@@ -106,6 +107,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   const [errorCliente, setErrorCliente] = useState("");
   const [renewedPhotos, setRenewedPhotos] = useState<Record<number, boolean>>({});
   const [waUrl, setWaUrl] = useState("");
+  const [itemSingular, setItemSingular] = useState("peça");
   const hasRefreshedOnOpenRef = useRef(false);
   const lastRefreshIdRef = useRef<string | null>(null);
   const lastClientFetchRef = useRef<string | null>(null);
@@ -158,6 +160,9 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
       try {
         const shop = await getShopCurrentV1()
         const doc = shop?.shop || shop
+        if (!cancelled) {
+          setItemSingular(resolveItemNoun(doc).singular)
+        }
         const wa = doc?.notifications?.whatsapp
         if (!wa?.enabled) {
           if (!cancelled) setWaUrl("")
@@ -177,10 +182,12 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
         const origin = typeof window !== "undefined" ? window.location.origin : ""
         const link = slug ? `${origin}/p/${slug}/${code}` : `${origin}/p/${code}`
         const shopName = doc?.branding?.displayName || doc?.name || "Worqera"
-        const tpl =
-          wa.templates?.publicLink ||
-          wa.templates?.ready ||
-          DEFAULT_WA_TEMPLATES.publicLink
+        const isReady = String(pedidoAtual.status || "").toLowerCase() === "ready"
+        const tpl = isReady
+          ? wa.templates?.ready || DEFAULT_WA_TEMPLATES.ready
+          : wa.templates?.publicLink ||
+            wa.templates?.ready ||
+            DEFAULT_WA_TEMPLATES.publicLink
         const text = fillWaTemplate(tpl, {
           code: String(code),
           client: pedidoAtual.clientName || cliente?.nomeCompleto || "",
@@ -475,7 +482,10 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           )}
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-2">{/*Conteúdo com scroll*/}
-          <div><strong>Tênis:</strong> {pedidoAtual.modeloTenis || pedidoAtual.sneaker}</div>
+          <div>
+            <strong>{capitalizeNoun(itemSingular)}:</strong>{" "}
+            {pedidoAtual.modeloTenis || pedidoAtual.sneaker}
+          </div>
           <div className="space-y-1">
             <div><strong>Serviço:</strong> {servicoLabel || "-"}</div>
             {servicoLabel && (
@@ -598,7 +608,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           {/* Fotos */}
           {fotosValidas.length > 0 && (
             <div className="border-t pt-3 mt-4">
-              <div className="font-semibold mb-2">Fotos do Tênis:</div>
+              <div className="font-semibold mb-2">Fotos do {capitalizeNoun(itemSingular)}:</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {fotosValidas.map((foto, index) => (
                   <div key={index} className="relative">
