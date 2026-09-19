@@ -1,12 +1,12 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-09-19 (e-mail PDF + CSAT no pronto)
+**Atualizado:** 2026-09-19 (avaliações + setor público + token `/p`)
 
 ## Em uma frase
 
 Next.js 15 com landing, AppShell, kanban multi-coluna, **Loop do Cliente** (etiqueta → consulta → wa.me), e-mail ao criar (PDF+link) e ao pronto (avaliar), dashboard com tour da operação, branding + `itemLabel` por empresa.
 
-**Specs:** [onda Loop/home](../../docs/superpowers/specs/2026-09-18-worqera-onda-loop-home-multivertical-design.md) · [verticais](../../docs/superpowers/specs/2026-09-18-worqera-verticais-candidatas.md) · [app brief](../../docs/superpowers/specs/2026-09-18-worqera-app-nativo-brief.md)
+**Specs:** [onda Loop/home](../../docs/superpowers/specs/2026-09-18-worqera-onda-loop-home-multivertical-design.md) · [verticais](../../docs/superpowers/specs/2026-09-18-worqera-verticais-candidatas.md) · [avaliações/setor público](../../docs/superpowers/specs/2026-09-19-avaliacoes-setor-publico-design.md) · [app brief](../../docs/superpowers/specs/2026-09-18-worqera-app-nativo-brief.md)
 
 ## Stack
 
@@ -26,7 +26,9 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Novo pedido + `clientEmail` | LIVE (PDF/link auto) |
 | Serviços / Pedidos / etiqueta + Zap created | LIVE |
 | Empresa vertical + itemLabel + e-mail toggle | LIVE |
-| Consulta `/p` + `#avaliar` | LIVE |
+| Setores + **Cliente vê** (`showOnPublic`) | LIVE |
+| Avaliações `/avaliacoes` | LIVE |
+| Consulta `/p/{slug}/{code}?t=` + `#avaliar` | LIVE |
 | Billing lock UX | LIVE (AbacatePay) |
 | TV Cliente / TV chão | LIVE |
 

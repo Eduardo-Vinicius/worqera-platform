@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useParams } from "next/navigation"
+import { Suspense, useEffect, useMemo, useState } from "react"
+import { useParams, useSearchParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { getPublicOrderV1, submitPublicFeedbackV1 } from "@/lib/apiV1"
 import { hexToRgba, normalizeHex, resolveBrandColors } from "@/lib/shopBrand"
@@ -24,10 +24,12 @@ const FEEDBACK_TAGS = [
   { id: "atendimento", label: "Atendimento" },
 ] as const
 
-export default function PublicOrderByShopPage() {
+function PublicOrderByShopInner() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const shop = String(params?.shop || "")
   const code = String(params?.codigo || "")
+  const token = String(searchParams?.get("t") || searchParams?.get("token") || "")
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState("")
   const [score, setScore] = useState(0)
@@ -38,10 +40,14 @@ export default function PublicOrderByShopPage() {
 
   useEffect(() => {
     if (!code || !shop) return
-    getPublicOrderV1(code, shop)
+    if (!token) {
+      setError("Link incompleto — use o QR ou o link enviado pela oficina.")
+      return
+    }
+    getPublicOrderV1(code, shop, token)
       .then(setData)
       .catch((e) => setError(e.message || "Pedido não encontrado"))
-  }, [code, shop])
+  }, [code, shop, token])
 
   const sectorName = data?.currentSector?.name || data?.sectorName
   const sectorColor = normalizeHex(data?.currentSector?.color) || ""
@@ -73,7 +79,7 @@ export default function PublicOrderByShopPage() {
     setSending(true)
     setFbMsg("")
     try {
-      await submitPublicFeedbackV1(shop, code, { score, comment, tags })
+      await submitPublicFeedbackV1(shop, code, { score, comment, tags }, token)
       setData((d: any) => ({
         ...d,
         canFeedback: false,
@@ -120,7 +126,15 @@ export default function PublicOrderByShopPage() {
         </header>
 
         <div className="flex flex-1 flex-col px-5 py-6 sm:px-6">
-          {error && <p className="text-sm text-[var(--wq-danger)]">{error}</p>}
+          {error && (
+            <div className="space-y-2">
+              <p className="text-sm text-[var(--wq-danger)]">{error}</p>
+              <p className="text-xs text-[var(--wq-text-muted)]">
+                Use o link completo da etiqueta ou do WhatsApp:{" "}
+                <code className="font-mono">/p/oficina/código?t=…</code>
+              </p>
+            </div>
+          )}
           {!error && !data && (
             <p className="text-sm text-[var(--wq-text-muted)]">Buscando…</p>
           )}
@@ -292,5 +306,19 @@ export default function PublicOrderByShopPage() {
         </footer>
       </div>
     </div>
+  )
+}
+
+export default function PublicOrderByShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[100dvh] items-center justify-center text-sm text-[var(--wq-text-muted)]">
+          Carregando…
+        </div>
+      }
+    >
+      <PublicOrderByShopInner />
+    </Suspense>
   )
 }

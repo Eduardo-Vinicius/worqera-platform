@@ -178,14 +178,17 @@ exports.zipPhotos = wrap(async (req, res) => {
 
 exports.publicByCode = wrap(async (req, res) => {
   const shopSlug = req.params.shopSlug || req.query.shop || req.query.slug || null;
-  const order = await orderService.getPublicOrderByCode(req.params.code, { shopSlug });
+  const token = req.query.t || req.query.token || req.headers['x-public-token'] || null;
+  const order = await orderService.getPublicOrderByCode(req.params.code, { shopSlug, token });
   res.status(200).json(order);
 });
 
 exports.publicFeedback = wrap(async (req, res) => {
   const shopSlug = req.params.shopSlug || req.body?.shopSlug || req.query.shop || null;
+  const token = req.body?.t || req.body?.token || req.query.t || req.query.token || null;
   const result = await orderService.submitPublicFeedback(req.params.code, {
     shopSlug,
+    token,
     score: req.body?.score,
     comment: req.body?.comment,
     tags: req.body?.tags,

@@ -40,12 +40,14 @@ import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
+import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
 
 type OrderCard = {
   _id?: string
   id?: string
   code?: string
   codigo?: string
+  publicToken?: string | null
   clientName?: string
   clientPhone?: string
   shoeModel?: string
@@ -77,6 +79,7 @@ type ForwardTarget = { id: string; name: string; order?: number; isTerminal?: bo
 type DetailOrder = {
   id?: string
   code?: string
+  publicToken?: string | null
   clientName?: string
   clientPhone?: string
   client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
@@ -594,6 +597,7 @@ export default function KanbanPage() {
       shop: shopDoc,
       phone,
       code,
+      publicToken: order.publicToken,
       clientName: order.clientName || "",
       templateKey: "ready",
     })
@@ -1101,10 +1105,16 @@ export default function KanbanPage() {
                         onClick={async () => {
                           const slug = localStorage.getItem("shopSlug") || ""
                           const code = detail.code || ""
-                          const origin = window.location.origin
-                          const link = slug
-                            ? `${origin}/p/${slug}/${encodeURIComponent(code)}`
-                            : `${origin}/p/${encodeURIComponent(code)}`
+                          const link = buildPublicOrderUrl(
+                            window.location.origin,
+                            slug,
+                            code,
+                            detail.publicToken
+                          )
+                          if (!link || !detail.publicToken) {
+                            toast.error("Token do link ainda não disponível — reabra o pedido")
+                            return
+                          }
                           try {
                             await navigator.clipboard.writeText(link)
                             toast.success("Link público copiado")
@@ -1133,6 +1143,7 @@ export default function KanbanPage() {
                             shop: shopDoc,
                             phone,
                             code,
+                            publicToken: detail.publicToken,
                             clientName:
                               detail.clientName ||
                               detail.client?.nomeCompleto ||

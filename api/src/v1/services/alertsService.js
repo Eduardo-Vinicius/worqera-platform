@@ -279,10 +279,100 @@ async function getOwnerInbox(shopId) {
   };
 }
 
+/**
+ * Paginated feedback list + summary for Avaliações screen.
+ * @param {{ period?: '30d'|'90d'|'all', page?: number, limit?: number }} opts
+ */
+async function listFeedback(shopId, opts = {}) {
+  const period = String(opts.period || '90d').toLowerCase();
+  const page = Math.max(1, Number(opts.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(opts.limit) || 30));
+  const skip = (page - 1) * limit;
+
+  const filter = {
+    shopId,
+    'feedback.score': { $gte: 1 },
+  };
+  if (period === '30d') {
+    filter['feedback.createdAt'] = { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) };
+  } else if (period !== 'all') {
+    filter['feedback.createdAt'] = { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) };
+  }
+
+  const [agg, items, total] = await Promise.all([
+    Order.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
+          sum: { $sum: '$feedback.score' },
+          s1: { $sum: { $cond: [{ $eq: ['$feedback.score', 1] }, 1, 0] } },
+          s2: { $sum: { $cond: [{ $eq: ['$feedback.score', 2] }, 1, 0] } },
+          s3: { $sum: { $cond: [{ $eq: ['$feedback.score', 3] }, 1, 0] } },
+          s4: { $sum: { $cond: [{ $eq: ['$feedback.score', 4] }, 1, 0] } },
+          s5: { $sum: { $cond: [{ $eq: ['$feedback.score', 5] }, 1, 0] } },
+          tags: { $push: '$feedback.tags' },
+        },
+      },
+    ]),
+    Order.find(filter)
+      .sort({ 'feedback.createdAt': -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('code clientName status feedback')
+      .lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  const row = agg[0] || null;
+  const count = row?.count || 0;
+  const avg = count ? Math.round((row.sum / count) * 10) / 10 : 0;
+  const distribution = {
+    1: row?.s1 || 0,
+    2: row?.s2 || 0,
+    3: row?.s3 || 0,
+    4: row?.s4 || 0,
+    5: row?.s5 || 0,
+  };
+
+  const tagCounts = {};
+  for (const group of row?.tags || []) {
+    for (const t of Array.isArray(group) ? group : []) {
+      const key = String(t || '').trim().toLowerCase();
+      if (!key) continue;
+      tagCounts[key] = (tagCounts[key] || 0) + 1;
+    }
+  }
+  const topTags = Object.entries(tagCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([tag, n]) => ({ tag, count: n }));
+
+  return {
+    period,
+    page,
+    limit,
+    total,
+    summary: { avg, count, distribution, topTags },
+    items: items.map((o) => ({
+      id: String(o._id),
+      code: o.code,
+      clientName: o.clientName || '',
+      status: o.status,
+      score: o.feedback?.score,
+      comment: o.feedback?.comment || '',
+      tags: Array.isArray(o.feedback?.tags) ? o.feedback.tags : [],
+      createdAt: o.feedback?.createdAt || null,
+    })),
+  };
+}
+
 module.exports = {
   listDelayAlerts,
   sendDelayDigest,
   buildWeeklyStats,
   sendWeeklyDigest,
   getOwnerInbox,
+  listFeedback,
 };

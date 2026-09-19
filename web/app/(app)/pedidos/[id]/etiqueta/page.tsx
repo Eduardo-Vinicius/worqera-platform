@@ -12,11 +12,13 @@ import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } fro
 import { Printer, KanbanSquare, Plus, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
 import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
+import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
 
 type OrderLabel = {
   id?: string
   code?: string
+  publicToken?: string | null
   clientName?: string
   clientPhone?: string
   client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
@@ -97,12 +99,14 @@ function PedidoEtiquetaInner() {
 
   useEffect(() => {
     if (!order?.code || typeof window === "undefined") return
-    const publicUrl = (() => {
-      const slug = localStorage.getItem("shopSlug")
-      if (slug)
-        return `${window.location.origin}/p/${encodeURIComponent(slug)}/${encodeURIComponent(order.code)}`
-      return `${window.location.origin}/p/${encodeURIComponent(order.code)}`
-    })()
+    const slug = localStorage.getItem("shopSlug")
+    const publicUrl = buildPublicOrderUrl(
+      window.location.origin,
+      slug,
+      order.code,
+      order.publicToken
+    )
+    if (!publicUrl) return
     const dark = normalizeHex(ink) || "#0F172A"
     let cancelled = false
     ;(async () => {
@@ -120,7 +124,7 @@ function PedidoEtiquetaInner() {
             : [{ shoeModel: order.shoeModel || "" }]
         const pairUrls = await Promise.all(
           list.map((_, index) =>
-            QRCode.toDataURL(`${publicUrl}?item=${index + 1}`, {
+            QRCode.toDataURL(withPublicOrderQuery(publicUrl, "item", index + 1), {
               margin: 1,
               width: 180,
               color: { dark, light: "#FFFFFF" },
@@ -151,6 +155,7 @@ function PedidoEtiquetaInner() {
       shop: shopDoc,
       phone,
       code: order.code,
+      publicToken: order.publicToken,
       clientName: order.clientName || order.client?.nomeCompleto || order.client?.name || "",
       templateKey: "created",
     })

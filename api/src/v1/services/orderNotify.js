@@ -13,16 +13,15 @@ function emailEnabled(shop) {
 }
 
 function publicOrderUrl(shop, order, { hash } = {}) {
+  const { buildPublicOrderUrl } = require('../utils/publicOrderToken');
   const web = (process.env.PUBLIC_WEB_URL || process.env.NEXT_PUBLIC_WEB_URL || 'https://worqera.com').replace(
     /\/+$/,
     ''
   );
   const slug = shop?.slug || '';
   const code = order?.code || '';
-  let url = web;
-  if (slug && code) {
-    url = `${web}/p/${encodeURIComponent(slug)}/${encodeURIComponent(code)}`;
-  }
+  const token = order?.publicToken || '';
+  let url = buildPublicOrderUrl(web, slug, code, token) || web;
   if (hash) url = `${url}#${String(hash).replace(/^#/, '')}`;
   return url;
 }
@@ -121,6 +120,11 @@ async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
     if (!emailEnabled(shop)) return { ok: false, skipped: true, reason: 'email-disabled' };
     const to = String(order.clientEmail || '').trim();
     if (!to) return { ok: false, skipped: true, reason: 'no-email' };
+
+    if (!order.publicToken) {
+      const { ensureOrderPublicToken } = require('../utils/publicOrderToken');
+      await ensureOrderPublicToken(order);
+    }
 
     const shopName = companyDisplayName(shop);
     const code = order.code || '';

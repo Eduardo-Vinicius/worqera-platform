@@ -11,6 +11,8 @@ const sectorSchema = new mongoose.Schema(
     isTerminal: { type: Boolean, default: false },
     /** When true, entering this sector emails the client (if shop email on + clientEmail). */
     notifyEmailOnEnter: { type: Boolean, default: false },
+    /** When false, public /p hides real name and shows "Em andamento". Default true (legacy = visible). */
+    showOnPublic: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

@@ -147,13 +147,20 @@ export function FeedbackBell({ className }: { className?: string }) {
                 </Link>
               ))}
             </div>
-            <div className="border-t border-[var(--wq-border)] px-3 py-2">
+            <div className="border-t border-[var(--wq-border)] px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
               <Link
-                href="/pedidos?status=ready"
+                href="/avaliacoes"
                 onClick={() => setOpen(false)}
                 className="text-xs font-medium text-[var(--wq-brand)] hover:underline"
               >
-                Ver pedidos prontos →
+                Ver todas as avaliações →
+              </Link>
+              <Link
+                href="/pedidos?status=ready"
+                onClick={() => setOpen(false)}
+                className="text-xs font-medium text-[var(--wq-text-muted)] hover:underline"
+              >
+                Pedidos prontos
               </Link>
             </div>
           </div>

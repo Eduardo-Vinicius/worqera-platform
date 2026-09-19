@@ -310,6 +310,40 @@ export async function getAlertsInboxV1() {
   }>("/alerts/inbox")
 }
 
+export async function listFeedbackV1(opts?: {
+  period?: "30d" | "90d" | "all"
+  page?: number
+  limit?: number
+}) {
+  const q = new URLSearchParams()
+  if (opts?.period) q.set("period", opts.period)
+  if (opts?.page) q.set("page", String(opts.page))
+  if (opts?.limit) q.set("limit", String(opts.limit))
+  const qs = q.toString()
+  return v1Fetch<{
+    period: string
+    page: number
+    limit: number
+    total: number
+    summary: {
+      avg: number
+      count: number
+      distribution: Record<"1" | "2" | "3" | "4" | "5", number> | Record<number, number>
+      topTags: Array<{ tag: string; count: number }>
+    }
+    items: Array<{
+      id: string
+      code: string
+      clientName: string
+      status?: string
+      score?: number
+      comment?: string
+      tags?: string[]
+      createdAt?: string | null
+    }>
+  }>(`/alerts/feedback${qs ? `?${qs}` : ""}`)
+}
+
 export async function sendDelayDigestV1() {
   return v1Fetch<{ ok: boolean; sent: number; total: number }>("/alerts/delays/digest", {
     method: "POST",
@@ -433,6 +467,7 @@ export async function createSectorV1(body: {
   order?: number
   isTerminal?: boolean
   notifyEmailOnEnter?: boolean
+  showOnPublic?: boolean
 }) {
   return v1Fetch("/sectors", { method: "POST", body: JSON.stringify(body) })
 }
@@ -552,24 +587,38 @@ export async function completeCheckoutDevV1() {
   })
 }
 
-export async function getPublicOrderV1(code: string, shopSlug?: string) {
+export async function getPublicOrderV1(
+  code: string,
+  shopSlug?: string,
+  token?: string | null
+) {
+  const t = String(token || "").trim()
+  const tokenQs = t ? `t=${encodeURIComponent(t)}` : ""
   if (shopSlug) {
+    const qs = tokenQs ? `?${tokenQs}` : ""
     return v1Fetch(
-      `/public/shops/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(code)}`
+      `/public/shops/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(code)}${qs}`
     )
   }
-  const qs = shopSlug ? `?shop=${encodeURIComponent(shopSlug)}` : ""
+  const parts = [
+    shopSlug ? `shop=${encodeURIComponent(shopSlug)}` : "",
+    tokenQs,
+  ].filter(Boolean)
+  const qs = parts.length ? `?${parts.join("&")}` : ""
   return v1Fetch(`/public/orders/${encodeURIComponent(code)}${qs}`)
 }
 
 export async function submitPublicFeedbackV1(
   shopSlug: string,
   code: string,
-  body: { score: number; comment?: string; tags?: string[] }
+  body: { score: number; comment?: string; tags?: string[]; t?: string; token?: string },
+  token?: string | null
 ) {
+  const t = String(token || body.t || body.token || "").trim()
+  const payload = { ...body, t: t || undefined }
   return v1Fetch(
     `/public/shops/${encodeURIComponent(shopSlug)}/orders/${encodeURIComponent(code)}/feedback`,
-    { method: "POST", body: JSON.stringify(body) }
+    { method: "POST", body: JSON.stringify(payload) }
   )
 }
 

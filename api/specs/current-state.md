@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-19 (e-mail PDF + link + CSAT)
+**Atualizado:** 2026-09-19 (avaliações + setor público + token `/p`)
 
 ## Em uma frase
 
@@ -14,11 +14,12 @@ API Mongo `/api/v1` multi-tenant: signup+trial (`vertical: general`), members, k
 | Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`) |
 | Shop / members | `/shops/current` (+ vertical, itemLabel, starter kit) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
-| Sectors / kanban | board + move + `clientPhone` no card; e-mail on terminal |
-| Orders | CRUD + `whatsappSuggest` + e-mail create (PDF) / ready (CSAT) |
+| Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |
+| Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready |
+| Alerts | inbox + **`GET /alerts/feedback`** (lista + summary) |
 | Services / clients / employees | CRUD |
 | Billing | `/billing/*` + webhook HMAC |
-| Public / files | `/public/orders/:code` + feedback; `/files/*` |
+| Public / files | `/public/shops/:slug/orders/:code?t=` + feedback; `/files/*` |
 
 ## Env chave
 

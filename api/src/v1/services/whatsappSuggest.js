@@ -65,12 +65,21 @@ async function buildOrderWhatsAppSuggest(shopId, order, { templateKey, sectorNam
   const phone = client?.phone || order.clientPhone || wa.shopPhoneE164 || '';
   if (!phone) return null;
 
+  if (!order.publicToken) {
+    const { ensureOrderPublicToken } = require('../utils/publicOrderToken');
+    await ensureOrderPublicToken(order);
+  }
+
   const webBase = String(
     process.env.PUBLIC_WEB_URL || process.env.WORQERA_PublicWebUrl || 'https://worqera.com'
   ).replace(/\/$/, '');
   const code = order.code || '';
   const slug = shop?.slug || '';
-  const link = slug ? `${webBase}/p/${slug}/${code}` : `${webBase}/p/${code}`;
+  const token = order.publicToken || '';
+  const { buildPublicOrderUrl } = require('../utils/publicOrderToken');
+  const link =
+    buildPublicOrderUrl(webBase, slug, code, token) ||
+    (slug ? `${webBase}/p/${slug}/${code}` : `${webBase}/p/${code}`);
   const shopName = shop?.branding?.displayName || shop?.name || 'Worqera';
 
   const templates = wa.templates || {};
@@ -101,9 +110,11 @@ async function buildOrderWhatsAppSuggest(shopId, order, { templateKey, sectorNam
  */
 async function buildMoveWhatsAppSuggest(shopId, order, toSector) {
   const isReady = Boolean(toSector?.isTerminal) || order.status === 'ready';
+  const sectorName =
+    toSector?.showOnPublic === false ? 'Em andamento' : toSector?.name || '';
   return buildOrderWhatsAppSuggest(shopId, order, {
     templateKey: isReady ? 'ready' : 'moved',
-    sectorName: toSector?.name || '',
+    sectorName,
   });
 }
 

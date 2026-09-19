@@ -64,6 +64,22 @@ async function getKanban(shopId, membership) {
         .lean()
     : [];
 
+  const { newPublicToken } = require('../utils/publicOrderToken');
+  const missingToken = orders.filter((o) => !o.publicToken);
+  if (missingToken.length) {
+    const ops = missingToken.map((o) => {
+      const token = newPublicToken();
+      o.publicToken = token;
+      return {
+        updateOne: {
+          filter: { _id: o._id, publicToken: null },
+          update: { $set: { publicToken: token } },
+        },
+      };
+    });
+    await Order.bulkWrite(ops, { ordered: false });
+  }
+
   const bySector = Object.fromEntries(sectorIds.map((id) => [String(id), []]));
   for (const order of orders) {
     const key = String(order.currentSectorId);
@@ -91,6 +107,7 @@ function summarizeCard(order) {
   return {
     id: order._id,
     code: order.code,
+    publicToken: order.publicToken || null,
     clientName: order.clientName,
     clientPhone: order.clientPhone || null,
     shoeModel: items[0]?.shoeModel || order.shoeModel || '',
@@ -218,8 +235,10 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     if (shouldMail && shop) {
       const { notifyOrderStatusSafe } = require('./orderNotify');
       const kind = toSector.isTerminal || order.status === 'ready' ? 'ready' : 'moved';
+      const publicSectorName =
+        toSector.showOnPublic === false ? 'Em andamento' : toSector.name;
       notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, kind, {
-        sectorName: toSector.name,
+        sectorName: publicSectorName,
       });
     }
   } catch (_err) {

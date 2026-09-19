@@ -248,6 +248,7 @@ async function createOrder(shopId, userId, data) {
     },
     photos: normalized.photos,
     items: normalized.items,
+    publicToken: require('../utils/publicOrderToken').newPublicToken(),
     currentSectorId: startSector?._id || null,
     plannedSectorIds,
     sectorPath: startSector ? [startSector._id] : [],
@@ -389,14 +390,15 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
 }
 
 async function getOrder(shopId, id) {
-  const order = await Order.findOne({ _id: id, shopId }).lean();
+  const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
     throw err;
   }
-  return order;
+  await ensureOrderPublicToken(order);
+  return order.toObject();
 }
 
 async function patchOrder(shopId, id, userId, updates) {
@@ -588,12 +590,13 @@ async function reopenOrder(shopId, id, userId, body = {}) {
   return order.toObject();
 }
 
-async function submitPublicFeedback(code, { shopSlug, score, comment, tags } = {}) {
+async function submitPublicFeedback(code, { shopSlug, token, score, comment, tags } = {}) {
   const normalizedCode = String(code || '').trim();
-  if (!normalizedCode || !shopSlug) {
-    const err = new Error('shop e código obrigatórios');
-    err.status = 400;
-    err.code = 'VALIDATION_ERROR';
+  const normalizedToken = String(token || '').trim();
+  if (!normalizedCode || !shopSlug || !normalizedToken) {
+    const err = new Error('Link incompleto (loja, código e token)');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
     throw err;
   }
   const n = Number(score);
@@ -613,13 +616,17 @@ async function submitPublicFeedback(code, { shopSlug, score, comment, tags } = {
   const Shop = require('../models/Shop');
   const shop = await Shop.findOne({ slug: String(shopSlug).trim().toLowerCase() }).lean();
   if (!shop) {
-    const err = new Error('Shop not found');
+    const err = new Error('Order not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
     throw err;
   }
 
-  const order = await Order.findOne({ code: normalizedCode, shopId: shop._id });
+  const order = await Order.findOne({
+    code: normalizedCode,
+    shopId: shop._id,
+    publicToken: normalizedToken,
+  });
   if (!order) {
     const err = new Error('Order not found');
     err.status = 404;
@@ -731,47 +738,47 @@ async function replaceOrderPhotos(shopId, orderId, files) {
   return uploadItemPhotos(shopId, orderId, 0, files);
 }
 
-async function getPublicOrderByCode(code, { shopSlug } = {}) {
+async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
   const normalizedCode = String(code || '').trim();
+  const normalizedToken = String(token || '').trim();
+  const slug = String(shopSlug || '').trim().toLowerCase();
+
   if (!normalizedCode) {
     const err = new Error('code required');
     err.status = 400;
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
-
-  let shopId = null;
-  if (shopSlug) {
-    const Shop = require('../models/Shop');
-    const shop = await Shop.findOne({ slug: String(shopSlug).trim().toLowerCase() }).lean();
-    if (!shop) {
-      const err = new Error('Shop not found');
-      err.status = 404;
-      err.code = 'NOT_FOUND';
-      throw err;
-    }
-    shopId = shop._id;
-  } else {
-    // Codes are per-shop (0001…). Without slug, refuse if ambiguous.
-    const matches = await Order.find({ code: normalizedCode }).select('_id shopId').limit(2).lean();
-    if (!matches.length) {
-      const err = new Error('Order not found');
-      err.status = 404;
-      err.code = 'NOT_FOUND';
-      throw err;
-    }
-    if (matches.length > 1) {
-      const err = new Error('shop slug required (pass ?shop=slug or /p/{shop}/{code})');
-      err.status = 400;
-      err.code = 'SHOP_REQUIRED';
-      throw err;
-    }
-    shopId = matches[0].shopId;
+  if (!slug) {
+    const err = new Error('shop slug required (/p/{shop}/{code}?t=…)');
+    err.status = 400;
+    err.code = 'SHOP_REQUIRED';
+    throw err;
+  }
+  if (!normalizedToken || normalizedToken.length < 6) {
+    const err = new Error('Link incompleto — use o QR ou o link enviado (token ausente)');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
   }
 
-  const order = await Order.findOne({ code: normalizedCode, shopId })
-    .populate('currentSectorId', 'name slug color')
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findOne({ slug }).lean();
+  if (!shop) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const order = await Order.findOne({
+    shopId: shop._id,
+    code: normalizedCode,
+    publicToken: normalizedToken,
+  })
+    .populate('currentSectorId', 'name slug color showOnPublic')
     .lean();
+
   if (!order) {
     const err = new Error('Order not found');
     err.status = 404;
@@ -779,31 +786,48 @@ async function getPublicOrderByCode(code, { shopSlug } = {}) {
     throw err;
   }
 
-  const Shop = require('../models/Shop');
-  const shop = await Shop.findById(shopId).select('name slug branding').lean();
+  // Mask full name a bit for public surface
+  const rawName = String(order.clientName || '').trim();
+  const clientDisplay =
+    rawName.length <= 2
+      ? rawName
+      : `${rawName.split(/\s+/)[0]}${rawName.split(/\s+/).length > 1 ? ' …' : ''}`;
+
+  const sectorDoc = order.currentSectorId;
+  let currentSector = null;
+  if (sectorDoc) {
+    const visible = sectorDoc.showOnPublic !== false;
+    if (visible) {
+      currentSector = {
+        name: sectorDoc.name,
+        slug: sectorDoc.slug,
+        color: sectorDoc.color,
+        publicHidden: false,
+      };
+    } else {
+      currentSector = {
+        name: 'Em andamento',
+        slug: null,
+        color: null,
+        publicHidden: true,
+      };
+    }
+  }
 
   return {
     code: order.code,
-    shop: shop
-      ? {
-          name: shop.branding?.displayName || shop.name,
-          slug: shop.slug,
-          logoUrl: shop.branding?.logoUrl || '',
-          primaryColor: shop.branding?.primaryColor || '',
-          accentColor: shop.branding?.accentColor || '',
-          phone: shop.branding?.phone || '',
-        }
-      : null,
-    clientName: order.clientName,
+    shop: {
+      name: shop.branding?.displayName || shop.name,
+      slug: shop.slug,
+      logoUrl: shop.branding?.logoUrl || '',
+      primaryColor: shop.branding?.primaryColor || '',
+      accentColor: shop.branding?.accentColor || '',
+      phone: shop.branding?.phone || '',
+    },
+    clientName: clientDisplay,
     shoeModel: order.shoeModel,
     status: order.status,
-    currentSector: order.currentSectorId
-      ? {
-          name: order.currentSectorId.name,
-          slug: order.currentSectorId.slug,
-          color: order.currentSectorId.color,
-        }
-      : null,
+    currentSector,
     dueAt: order.dueAt,
     updatedAt: order.updatedAt,
     feedback: order.feedback?.score
@@ -816,6 +840,10 @@ async function getPublicOrderByCode(code, { shopSlug } = {}) {
       : null,
     canFeedback: ['ready', 'delivered'].includes(String(order.status)) && !order.feedback?.score,
   };
+}
+
+async function ensureOrderPublicToken(orderDoc) {
+  return require('../utils/publicOrderToken').ensureOrderPublicToken(orderDoc);
 }
 
 async function addOrderComment(shopId, orderId, userId, { text, authorName } = {}) {
@@ -942,6 +970,7 @@ module.exports = {
   uploadItemPhotos,
   getPublicOrderByCode,
   submitPublicFeedback,
+  ensureOrderPublicToken,
   nextOrderCode,
   servicesTotal,
 };

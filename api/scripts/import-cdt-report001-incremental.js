@@ -277,6 +277,7 @@ async function main() {
     clientsCreated += 1;
   }
 
+  const { newPublicToken } = require('../src/v1/utils/publicOrderToken');
   const ops = [];
   for (const row of workRows) {
     const createdAt = new Date(`${row.date}T15:00:00.000Z`);
@@ -338,6 +339,9 @@ async function main() {
             ...doc,
             createdAt,
             updatedAt: createdAt,
+          },
+          $setOnInsert: {
+            publicToken: newPublicToken(),
           },
         },
         upsert: true,

@@ -45,7 +45,7 @@ export function StatusPackBanner() {
         </p>
         <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
           Etiqueta + QR + consulta pública
-          {slug ? ` (/p/${slug}/código)` : ""} + WhatsApp no create/move/pronto.
+          {slug ? ` (/p/${slug}/código?t=…)` : ""} + WhatsApp no create/move/pronto.
         </p>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">

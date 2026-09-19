@@ -100,6 +100,7 @@ function serializeOrder(order) {
     _id: order._id,
     shopId: order.shopId,
     code,
+    publicToken: order.publicToken || null,
     shoeModel,
     photos: photoUrls,
     pricing: {

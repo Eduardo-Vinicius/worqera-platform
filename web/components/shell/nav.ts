@@ -14,6 +14,7 @@ import {
   UsersRound,
   Shield,
   Tv,
+  Star,
   type LucideIcon,
 } from "lucide-react"
 
@@ -45,6 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/pedidos", label: "Pedidos", icon: ClipboardList, hideForSector: true },
       { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true },
       { href: "/consultas", label: "Consultas", icon: Search },
+      { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true },
     ],
   },
   {

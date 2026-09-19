@@ -8,6 +8,7 @@ import {
   fillWaTemplate,
   type WaTemplateVars,
 } from "@/lib/whatsapp"
+import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
 
 export type WaTemplateKey = keyof typeof DEFAULT_WA_TEMPLATES
 
@@ -28,6 +29,7 @@ export function buildOrderWaFromShop(opts: {
   shop: ShopWaDoc | null | undefined
   phone?: string | null
   code: string
+  publicToken?: string | null
   clientName?: string
   sectorName?: string
   templateKey: WaTemplateKey
@@ -42,9 +44,9 @@ export function buildOrderWaFromShop(opts: {
 
   const origin = typeof window !== "undefined" ? window.location.origin : ""
   const slug = opts.shop?.slug || (typeof localStorage !== "undefined" ? localStorage.getItem("shopSlug") : "") || ""
-  const link = slug
-    ? `${origin}/p/${slug}/${encodeURIComponent(opts.code)}`
-    : `${origin}/p/${encodeURIComponent(opts.code)}`
+  const link =
+    buildPublicOrderUrl(origin, slug, opts.code, opts.publicToken) ||
+    `${origin}/p/${encodeURIComponent(opts.code)}`
   const shopName =
     opts.shop?.branding?.displayName ||
     opts.shop?.name ||

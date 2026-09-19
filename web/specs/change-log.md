@@ -2,6 +2,9 @@
 
 ## 2026-09-19
 
+- **Avaliações:** nav `/avaliacoes` (média, distribuição, lista com estrelas); FeedbackBell → “Ver todas”.
+- **Setores:** toggle “Cliente vê” (`showOnPublic`) — oculta nome no link/QR público.
+- **Consulta pública:** `/p/{slug}/{código}?t=token` obrigatório; QR etiqueta, Zap e “Copiar link” incluem o token.
 - **Platform admin:** login sem membership → home `/admin/shops` (console Worqera); JWT `platformAdmin`; botão Ativar Premium.
 - **Onboarding:** 2 passos; “configurar depois”; link Setores não entra em loop; tour dashboard discreto (3 itens); removido banner WhatsApp.
 - **Trial banner:** texto explícito + âmbar nos últimos 7 dias (não dispensável).

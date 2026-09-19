@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -9,28 +9,37 @@ import { getPublicOrderV1 } from "@/lib/apiV1"
 /**
  * Legacy `/p/{code}` — first segment is named `shop` to match `/p/[shop]/[codigo]`
  * (Next.js requires the same dynamic slug name at this level).
- * Prefer `/p/{shopSlug}/{code}` for multi-tenant safety.
+ * Prefer `/p/{shopSlug}/{code}?t=token` for multi-tenant safety.
  */
-export default function PublicOrderLegacyPage() {
+function PublicOrderLegacyInner() {
   const params = useParams()
   const search = useSearchParams()
   const code = String(params?.shop || "")
   const shopHint = search.get("shop") || ""
+  const token = String(search.get("t") || search.get("token") || "")
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState("")
 
   useEffect(() => {
     if (!code) return
-    getPublicOrderV1(code, shopHint || undefined)
+    if (!shopHint || !token) {
+      setError("Link incompleto — use o QR ou o link enviado pela oficina.")
+      return
+    }
+    getPublicOrderV1(code, shopHint, token)
       .then((res) => {
         setData(res)
         const slug = (res as any)?.shop?.slug
         if (slug && typeof window !== "undefined") {
-          window.history.replaceState(null, "", `/p/${slug}/${encodeURIComponent(code)}`)
+          window.history.replaceState(
+            null,
+            "",
+            `/p/${slug}/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`
+          )
         }
       })
       .catch((e) => setError(e.message || "Pedido não encontrado"))
-  }, [code, shopHint])
+  }, [code, shopHint, token])
 
   const sectorName = data?.currentSector?.name || data?.sectorName
 
@@ -42,8 +51,8 @@ export default function PublicOrderLegacyPage() {
           <div className="mt-4 space-y-2">
             <p className="text-sm text-[var(--wq-danger)]">{error}</p>
             <p className="text-xs text-[var(--wq-text-muted)]">
-              Use o link da etiqueta com a oficina:{" "}
-              <code className="font-mono">/p/&#123;oficina&#125;/&#123;código&#125;</code>
+              Use o link da etiqueta:{" "}
+              <code className="font-mono">/p/&#123;oficina&#125;/&#123;código&#125;?t=…</code>
             </p>
           </div>
         )}
@@ -62,17 +71,31 @@ export default function PublicOrderLegacyPage() {
                 </Badge>
               )}
             </div>
-            {data.shop?.slug && (
+            {data.shop?.slug && token ? (
               <Link
                 className="text-sm text-[var(--wq-brand)] underline"
-                href={`/p/${data.shop.slug}/${encodeURIComponent(data.code || code)}`}
+                href={`/p/${data.shop.slug}/${encodeURIComponent(data.code || code)}?t=${encodeURIComponent(token)}`}
               >
                 Link permanente
               </Link>
-            )}
+            ) : null}
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+export default function PublicOrderLegacyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--wq-text-muted)]">
+          Carregando…
+        </div>
+      }
+    >
+      <PublicOrderLegacyInner />
+    </Suspense>
   )
 }

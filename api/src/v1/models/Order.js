@@ -75,6 +75,11 @@ const orderSchema = new mongoose.Schema(
   {
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
     code: { type: String, required: true },
+    /**
+     * Secret segment for public /p links (QR, e-mail, WhatsApp).
+     * Required with shop slug + code — prevents guessing other orders.
+     */
+    publicToken: { type: String, default: null, index: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null },
     clientName: { type: String, default: '' },
     clientPhone: { type: String, default: null },
@@ -117,6 +122,7 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ shopId: 1, code: 1 }, { unique: true });
+orderSchema.index({ shopId: 1, code: 1, publicToken: 1 });
 orderSchema.index({ shopId: 1, currentSectorId: 1 });
 orderSchema.index({ shopId: 1, createdAt: 1 });
 orderSchema.index({ shopId: 1, dueAt: 1 });

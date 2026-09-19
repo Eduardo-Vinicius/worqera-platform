@@ -2,6 +2,9 @@
 
 ## 2026-09-19
 
+- **Avaliações:** `GET /alerts/feedback` (lista paginada + média, distribuição 1–5, top tags); período `30d`/`90d`/`all`.
+- **Setor público:** `Sector.showOnPublic` (default true); `/p` e e-mail/Zap de move mascaram nome → “Em andamento” quando off.
+- **Consulta pública:** link exige slug + código + token secreto (`/p/{slug}/{code}?t=…`); create gera `publicToken`; get/notify/WA fazem backfill; QR/etiqueta/Zap/e-mail usam o mesmo formato.
 - **Auth:** verificação de e-mail no signup (`verify-email` / `resend-verification`); login exige confirmação se houver token pendente.
 - **Platform admin:** JWT `platformAdmin`; login sem shop membership liberado; patch shop aceita `planCode` + ativa Premium manual.
 - **E-mail pedido:** create envia PDF em anexo + link público; ready reforça CTA de avaliação no `/p`.

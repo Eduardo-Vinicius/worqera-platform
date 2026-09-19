@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Mail, Plus, Save, Pencil } from "lucide-react"
+import { Eye, EyeOff, Mail, Plus, Save, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,7 @@ type Sector = {
   active: boolean
   isTerminal?: boolean
   notifyEmailOnEnter?: boolean
+  showOnPublic?: boolean
 }
 
 export default function SetoresSettingsPage() {
@@ -76,7 +77,11 @@ export default function SetoresSettingsPage() {
     }
   }
 
-  const toggleFlag = async (s: Sector, key: "notifyEmailOnEnter" | "isTerminal", value: boolean) => {
+  const toggleFlag = async (
+    s: Sector,
+    key: "notifyEmailOnEnter" | "isTerminal" | "showOnPublic",
+    value: boolean
+  ) => {
     try {
       const body: Record<string, unknown> = { [key]: value }
       if (key === "isTerminal" && value) body.notifyEmailOnEnter = true
@@ -146,8 +151,9 @@ export default function SetoresSettingsPage() {
           nomes do signup são só um começo — renomeie, apague ou crie os seus. Todo pedido precisa
           terminar em um setor{" "}
           <strong className="text-[var(--wq-text)]">Final</strong> (pronto pra retirada). Com e-mail
-          do cliente e SMTP: coluna com “E-mail” avisa ao entrar; a final marca pronto. WhatsApp
-          segue pelo toast / Avisar pronto no kanban.
+          do cliente e SMTP: coluna com “E-mail” avisa ao entrar; a final marca pronto. “Cliente vê”
+          controla se o nome do setor aparece no link/QR — desmarque etapas internas longas; o
+          cliente vê “Em andamento”. WhatsApp segue pelo toast / Avisar pronto no kanban.
         </p>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">
@@ -249,6 +255,26 @@ export default function SetoresSettingsPage() {
                     <span className="text-xs text-[var(--wq-text-muted)]">#{i + 1}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      title="Aparece no link/QR do cliente"
+                      onClick={() =>
+                        toggleFlag(s, "showOnPublic", s.showOnPublic === false ? true : false)
+                      }
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                        s.showOnPublic !== false
+                          ? "border-sky-300 bg-sky-50 text-sky-900"
+                          : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
+                      )}
+                    >
+                      {s.showOnPublic !== false ? (
+                        <Eye className="h-3 w-3" />
+                      ) : (
+                        <EyeOff className="h-3 w-3" />
+                      )}
+                      Cliente vê {s.showOnPublic !== false ? "on" : "off"}
+                    </button>
                     <button
                       type="button"
                       title="E-mail ao entrar nesta coluna"
