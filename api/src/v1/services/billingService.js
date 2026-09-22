@@ -4,14 +4,44 @@ const WebhookEvent = require('../models/WebhookEvent');
 
 const PRODUCTS = [
   {
+    code: 'WORQERA_BASIC',
+    name: 'Worqera Basic',
+    description: 'Operação: kanban, pedidos, consulta e TVs (sem financeiro)',
+    priceCents: 14700,
+    currency: 'BRL',
+    interval: 'month',
+  },
+  {
     code: 'WORQERA_PRO',
     name: 'Worqera Pro',
-    description: 'Kanban por setores, multi-usuário e trial de 7 dias',
-    priceCents: 9900,
+    description: 'Fila + caixa: financeiro, métricas, TV Financeiro, digest e branding',
+    priceCents: 29700,
+    currency: 'BRL',
+    interval: 'month',
+  },
+  {
+    code: 'WORQERA_BUSINESS',
+    name: 'Worqera Business',
+    description: 'Tudo do Pro + onboarding, carga de dados e acompanhamento Worqera',
+    priceCents: 49900,
     currency: 'BRL',
     interval: 'month',
   },
 ];
+
+const PLAN_CODES = new Set([
+  'WORQERA_BASIC',
+  'WORQERA_PRO',
+  'WORQERA_BUSINESS',
+  'WORQERA_PREMIUM', // legado (= Business)
+  'WORQERA_EARLY', // legado pioneiro
+]);
+
+function normalizePlanCode(code) {
+  const c = String(code || '').trim().toUpperCase();
+  if (c === 'WORQERA_PREMIUM') return 'WORQERA_BUSINESS';
+  return c;
+}
 
 /** Official AbacatePay webhook HMAC public key (docs). Override via env if rotated. */
 const ABACATE_PUBLIC_KEY =
@@ -336,4 +366,6 @@ module.exports = {
   authorizeWebhook,
   handleAbacateWebhook,
   PRODUCTS,
+  PLAN_CODES,
+  normalizePlanCode,
 };

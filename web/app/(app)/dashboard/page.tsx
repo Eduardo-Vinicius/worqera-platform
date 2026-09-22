@@ -22,7 +22,6 @@ import {
   Search,
   Tv,
   Users,
-  Wallet,
 } from "lucide-react"
 
 type DashboardPayload = {
@@ -53,13 +52,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [isOwner, setIsOwner] = useState(false)
-  const [canFinance, setCanFinance] = useState(false)
   const [digestBusy, setDigestBusy] = useState(false)
 
   useEffect(() => {
     const role = String(localStorage.getItem("role") || "").toLowerCase()
     setIsOwner(role === "owner")
-    setCanFinance(role === "owner" || role === "admin")
     ;(async () => {
       try {
         const [payload, shop] = await Promise.all([
@@ -165,19 +162,9 @@ export default function DashboardPage() {
     { href: "/kanban", label: "Kanban", icon: KanbanSquare },
     { href: "/consultas", label: "Consultas", icon: Search },
     { href: "/clientes", label: "Clientes", icon: Users },
-    canFinance
-      ? { href: "/admin/financeiro", label: "Financeiro", icon: Wallet }
-      : null,
     { href: "/tv", label: "TV Cliente", icon: Tv, external: true, desktopOnly: true },
-    { href: "/tv-dashboard", label: "TV chão", icon: Monitor, external: true, desktopOnly: true },
-  ].filter(Boolean) as Array<{
-    href: string
-    label: string
-    icon: typeof Plus
-    primary?: boolean
-    external?: boolean
-    desktopOnly?: boolean
-  }>
+    { href: "/tv-dashboard", label: "TV Oficina", icon: Monitor, external: true, desktopOnly: true },
+  ]
 
   const nextActions = [
     overdue > 0

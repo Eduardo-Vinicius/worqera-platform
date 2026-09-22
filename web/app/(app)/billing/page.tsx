@@ -127,7 +127,7 @@ export default function BillingPage() {
                   "Kanban, pedidos, clientes e indicadores para sua oficina."}
               </p>
               <p className="mt-2 font-[family-name:var(--font-display)] text-lg">
-                {products[0]?.priceLabel || products[0]?.price || "Pro · R$ 247/mês"}
+                {products[0]?.priceLabel || products[0]?.price || "Pro · R$ 297/mês"}
               </p>
             </div>
 
@@ -155,7 +155,7 @@ export default function BillingPage() {
             </Button>
 
             <p className="mt-2 text-sm text-[var(--wq-text-muted)]">
-              Early R$ 147 · Pro R$ 247/mês · equipe ilimitada. Cobrança via AbacatePay ou PIX.
+              Basic R$ 147 · Pro R$ 297/mês · Business R$ 499. Cobrança via AbacatePay ou PIX.
               Indique pelo link em Empresa (?ref=) — 1 mês grátis quando a oficina assinar.
             </p>
 

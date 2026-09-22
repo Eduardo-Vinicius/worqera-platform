@@ -39,7 +39,7 @@ function ProductBoard({ pt }: { pt: boolean }) {
           ],
         },
         {
-          name: "Floor",
+          name: "Workshop",
           cards: [
             { code: "0038", meta: "In progress" },
             { code: "0035", meta: "Glue" },

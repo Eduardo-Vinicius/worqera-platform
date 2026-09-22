@@ -33,7 +33,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Avaliações `/avaliacoes` | LIVE |
 | Consulta `/p/{slug}/{code}?t=` + `#avaliar` | LIVE |
 | Billing lock UX | LIVE (AbacatePay) |
-| TV Cliente / TV chão | LIVE |
+| TV Cliente / TV Oficina | LIVE |
 
 ## Próximo
 

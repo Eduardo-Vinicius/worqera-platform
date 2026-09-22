@@ -2,6 +2,21 @@ const Shop = require('../models/Shop');
 const Subscription = require('../models/Subscription');
 const Membership = require('../models/Membership');
 const User = require('../models/User');
+const { PLAN_CODES } = require('./billingService');
+
+function assertPlanCode(raw) {
+  const incoming = String(raw || '').trim().toUpperCase();
+  if (incoming === 'WORQERA_PREMIUM') return 'WORQERA_BUSINESS';
+  if (!PLAN_CODES.has(incoming)) {
+    const err = new Error(
+      'Invalid planCode. Use WORQERA_BASIC, WORQERA_PRO or WORQERA_BUSINESS'
+    );
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  return incoming;
+}
 
 async function listShops({ q, status, limit = 50 } = {}) {
   const filter = {};
@@ -155,7 +170,7 @@ async function patchShop(shopId, updates = {}) {
       }
     }
     if (updates.planCode != null) {
-      $set.planCode = String(updates.planCode).slice(0, 64);
+      $set.planCode = assertPlanCode(updates.planCode);
     }
     subscription = await Subscription.findOneAndUpdate(
       { shopId },
@@ -165,7 +180,7 @@ async function patchShop(shopId, updates = {}) {
   } else if (updates.planCode != null) {
     subscription = await Subscription.findOneAndUpdate(
       { shopId },
-      { $set: { planCode: String(updates.planCode).slice(0, 64) } },
+      { $set: { planCode: assertPlanCode(updates.planCode) } },
       { new: true, upsert: true }
     ).lean();
   }

@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Worqera",
     short_name: "Worqera",
-    description: "Gestão de pedidos e kanban para oficinas de serviço",
+    description: "Kanban por setores e gestão de pedidos para negócios com fila",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#f7f5fb",

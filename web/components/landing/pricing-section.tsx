@@ -4,16 +4,14 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
 import { Check } from "lucide-react"
-import { EARLY_TOTAL, getEarlySeatsLeft } from "@/lib/earlySeats"
 
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero assinar o Worqera Pro / Early.")
+  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 499).")
 
 export function PricingSection() {
   const { locale, t } = useLanguage()
   const pt = locale === "pt"
-  const earlyLeft = getEarlySeatsLeft()
 
   return (
     <section id="pricing" className="scroll-mt-24 border-t border-[var(--border)] py-16 sm:py-20 lg:py-24">
@@ -23,24 +21,12 @@ export function PricingSection() {
             {t.pricing.title}
           </h2>
           <p className="mt-3 text-base text-[var(--muted-foreground)] sm:text-lg">{t.pricing.subtitle}</p>
-          {earlyLeft > 0 ? (
-            <p className="mt-4 text-sm text-[var(--ink)]">
-              {pt
-                ? `Early R$ 147 — restam ${earlyLeft} de ${EARLY_TOTAL} vagas`
-                : `Early R$ 147 — ${earlyLeft} of ${EARLY_TOTAL} seats left`}
-            </p>
-          ) : (
-            <p className="mt-4 text-sm text-[var(--muted-foreground)]">
-              {pt ? "Early esgotado — novas oficinas no Pro." : "Early sold out — new shops on Pro."}
-            </p>
-          )}
         </div>
 
         <div className="mt-12 grid gap-4 md:grid-cols-3 lg:gap-5">
           {t.pricing.plans.map((plan) => {
-            const earlyGone = plan.name === "Early" && earlyLeft <= 0
-            const href = plan.name === "Business" || earlyGone ? WHATSAPP : "/signup"
-            const external = plan.name === "Business" || earlyGone
+            const isBusiness = plan.name === "Business"
+            const href = isBusiness ? WHATSAPP : "/signup"
             return (
               <div
                 key={plan.name}
@@ -48,7 +34,7 @@ export function PricingSection() {
                   plan.popular
                     ? "border-[var(--ink)] bg-[var(--surface)]"
                     : "border-[var(--border)] bg-[var(--surface)]"
-                } ${earlyGone ? "opacity-70" : ""}`}
+                }`}
               >
                 <div className="mb-5">
                   <div className="flex items-baseline justify-between gap-2">
@@ -93,9 +79,9 @@ export function PricingSection() {
                       : "w-full rounded-md border-[var(--border)] text-[var(--ink)]"
                   }
                 >
-                  {external ? (
+                  {isBusiness ? (
                     <a href={href} target="_blank" rel="noopener noreferrer">
-                      {earlyGone ? (pt ? "Early esgotado — falar" : "Early sold out — chat") : plan.cta}
+                      {plan.cta}
                     </a>
                   ) : (
                     <Link href={href}>{plan.cta}</Link>

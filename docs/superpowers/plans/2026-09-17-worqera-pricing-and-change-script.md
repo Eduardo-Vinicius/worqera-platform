@@ -1,224 +1,150 @@
 # Worqera — guia de precificação e conversão
 
 **Leia este arquivo antes de fechar preço com qualquer oficina.**  
-Atualizado: 2026-09-17 · Preços oficiais abaixo.
+Atualizado: **2026-09-22** · Preços oficiais abaixo.
 
 ---
 
 ## 1) Tabela oficial (memorizar)
 
-| Plano | Preço | Quem recebe | Mensagem |
-|-------|-------|-------------|----------|
-| **Early** | **R$ 147/mês** | Só as **10 primeiras** oficinas · preço **travado 12 meses** | “Você entrou cedo; trava esse valor por 1 ano.” |
-| **Pro** | **R$ 247/mês** | Padrão público (LP “Recomendado”) · self-serve | “Uma oficina, equipe ilimitada, sem cobrança por usuário.” |
-| **Business** | **R$ 399/mês** | Quer setup + prioridade, sem pacote de carga | “Prioridade + setup assistido.” |
-| **Business Premium** | **R$ 499/mês** | Olho brilhou / troca de Infor+ / quer você junto | “Customização + acompanhamento + carga atualizada.” |
-| **Pro anual** | **R$ 2.470/ano** (~R$ 206/mês) | Quem pede desconto no Pro | “2 meses de desconto.” |
-| **Premium anual** | **R$ 4.990/ano** (~R$ 416/mês) | Premium com desconto | “~2 meses off; trava valor.” |
-| **Setup avulso** | **R$ 297** uma vez | Só se comprar Pro sem Business | “1h: setores, equipe, TV, 1º fluxo.” |
+| Plano | Preço | Papel | O que inclui |
+|-------|-------|--------|----------------|
+| **Basic** | **R$ 147/mês** | Operação | Kanban, pedidos, clientes, consulta, etiqueta, TV Cliente/Oficina. **Sem** Financeiro, **sem** Métricas, **sem** TV Financeiro |
+| **Pro** | **R$ 297/mês** | Âncora (LP “Recomendado”) | Tudo do Basic + Financeiro do dono + Métricas + TV Financeiro + digest + branding |
+| **Business** | **R$ 499/mês** | Você lado a lado | Tudo do Pro + onboarding + carga/enriquecimento + 1 follow-up/mês + prioridade |
 
-**Não existe Basic barato.** Early ≠ plano pior — é Pro com desconto de pioneiro.  
-**Premium 499** = produto + serviço (carga + follow-up). Não misturar com Early.
+### Anuais (quando pedirem desconto)
 
-### Suas 3 lojas atuais
-| Cliente | Cobrar | Observação |
-|---------|--------|------------|
-| Casa do Tênis | Early **R$ 147** (ou 1–2 meses grátis **só** se case/depoimento + data de início da cobrança) | Âncora de prova social |
-| Loja 2 | Early **R$ 147** no fim do trial | Mesmo pacote |
-| Loja 3 | Early **R$ 147** no fim do trial | Mesmo pacote |
+| Plano | Preço | Equiv. |
+|-------|-------|--------|
+| **Pro anual** | **R$ 2.970/ano** | ~R$ 248/mês (~2 meses off) |
+| **Business anual** | **R$ 4.990/ano** | ~R$ 416/mês (~2 meses off) |
+| **Carga avulsa** | **R$ 197** | Fora do Business · 1 lote PDF/CSV → Mongo |
+| **Setup avulso** | **R$ 297** | 1h: setores, equipe, TV, 1º fluxo (quem fica no Pro) |
 
-Regra: **mesmo Early para os três**. Não inventar preço por amizade.
+**Frase:** Basic = fila · Pro = fila + caixa · Business = Worqera implementa e acompanha.
 
----
+**Early (legado):** lojas pioneiras já fechadas a R$ 147 com Pro completo — **honrar** o acordo; **não vender** Early novo. Depois do período combinado, sobem pra Pro (ou Basic se não usam financeiro).
 
-## 2) Por que esses números valorizam o produto
+### Gate de produto (TARGET)
+| Feature | Basic | Pro | Business |
+|---------|-------|-----|----------|
+| Kanban / pedidos / consulta / etiqueta | ✓ | ✓ | ✓ |
+| TV Cliente + Oficina | ✓ | ✓ | ✓ |
+| Financeiro + Métricas + TV Financeiro | — | ✓ | ✓ |
+| Branding / digest | — | ✓ | ✓ |
+| Carga + follow-up + prioridade humana | — | — | ✓ (serviço) |
 
-| Âncora | Uso na conversa |
-|--------|-----------------|
-| Valor operacional | “Se sobra 5h/semana, a R$ 30/h isso é ~R$ 600. O Pro é R$ 247.” |
-| Pro no centro | Cliente compara Early (147) e Business (397) → **Pro parece óbvio** |
-| Sem Basic | Ninguém “economiza” comprando um plano manco |
-| Early escasso | “Só 10 vagas” — urgência real, não desconto eterno |
-| Sem preço por usuário | Oficina pequena tem medo de headcount; diga **equipe ilimitada** |
-
-Se o cliente achar caro: não baixe para R$ 97. Ofereça **anual**, **Early (se ainda houver vaga)** ou **setup grátis no 1º mês**.
+Enforcement no app (ocultar `/admin/financeiro`, métricas, TV $ no Basic) = **próximo passo técnico** — até lá, venda pela tabela e liberação manual no `/admin/shops`.
 
 ---
 
-## 3) Meta R$ 10.000 / mês (guia rápido)
+## 2) Por que esses números
 
-| Preço médio | Lojas pagantes ≈ |
-|-------------|------------------|
-| R$ 147 | **68** |
-| R$ 206 (anual) | **49** |
-| R$ 247 (Pro) | **41** |
-| R$ 297 mix | **34** |
-| 30×Pro + 10×Premium | **40** → ~R$ 12,4k |
+| Âncora | Uso |
+|--------|-----|
+| Basic 147 | Entra barato **sem** desvalorizar o Pro — falta o caixa do dono |
+| Pro 297 no centro | Recomendado na LP; compara com Basic e Business e parece óbvio |
+| Business 499 | Serviço seu (carga + call) — **não** é plano de volume |
+| Sem R$ 99 | Evita ímã de suporte barato |
+| Sem preço por usuário | “Equipe ilimitada” no Basic e Pro |
 
-**Caminho realista:** 3–5 Premium (499) + resto Pro 247. Poucos Premium pagam bem o suporte; volume fica no Pro.
-
----
-
-## 3b) Qual plano oferecer (próximas vendas)
-
-| Sinal do cliente | Ofereça | Preço |
-|------------------|---------|-------|
-| Signup frio / trial LP | Pro | **247** |
-| Pediu desconto / early adopter | Early (se ≤10) | **147** |
-| Quer “alguém me configura” | Business | **399** |
-| “Vai revolucionar” / troca Infor+ / 2 unidades / quer carga | **Premium** | **499** |
-| 2ª loja do mesmo dono | Mesmo plano da 1ª | **×N lojas** (nunca 1 preço pra 2) |
-
-**Regra de ouro:** se o olho brilhou → **499**, não 147.
-
-### O que entra no Premium (R$ 499) — diga na proposta
-1. **Customização** — setores, serviços, marca, Status Pack (consulta + WA)  
-2. **Acompanhamento** — 1 call/mês + WhatsApp prioritário (resposta em 1 dia útil)  
-3. **Carga atualizada** — import histórico na entrada + **1 refresh/mês** (PDF/CSV → Mongo)  
-
-Fora do Premium: carga extra = **R$ 197** avulsa.
+Se achar caro: **anual**, setup no 1º mês, ou Basic (se só precisa da fila). **Não** inventar R$ 97.
 
 ---
 
-## 3c) Entrega (playbook pós-venda)
+## 3) Meta R$ 10.000 / mês
 
-**D0 — Fechou**
-1. PIX / cartão · registrar: loja | plano | valor | início | renovação  
-2. Criar shop (ou liberar trial → active)  
-3. Agendar setup 60–90 min  
+| Mix | Lojas ≈ |
+|-----|---------|
+| Só Pro 297 | **34** |
+| 25×Pro + 5×Business | ~R$ 9,9k |
+| 20×Pro + 8×Basic + 3×Business | ~R$ 8,7k → completar com Pro |
 
-**D1 — Setup (na call)**
-1. Vertical / setores / serviços (kit ou custom)  
-2. Marca + link `/p/{slug}/`  
-3. 1 pedido real + etiqueta + “Avisar WA”  
-4. Se Premium: receber PDF/CSV e **agendar carga** (não prometer na hora se for grande)
-
-**D2–D7 — Carga (Premium)**
-1. Extrair no Mac → payload → `/tmp` + mongosh (como CdT)  
-2. Confirmar na UI Finalizados + 1 código amostra com o cliente  
-3. Treinar 1 pessoa da loja no kanban + consulta  
-
-**Mensal (Premium)**
-- 1 call curta ou async: “o que travou?”  
-- 1 janela de carga (eles mandam PDF até dia X)  
-- Se não mandaram arquivo: call mesmo assim (não “devolver” o mês)
-
-**Não faça:** suporte infinito no WhatsApp sem plano Premium; carga semanal grátis; Early com serviço de Premium.
+**Volume no Pro.** Poucos Business (cap mental: quanto você aguenta de carga/mês).
 
 ---
 
-## 4) Como cobrar (operacional)
+## 3b) Qual plano oferecer
 
-### Agora (AbacatePay ainda off ou instável)
-1. Combinar plano e valor no WhatsApp  
-2. PIX mensal (nota: “Worqera Pro / Early — {loja} — {mês/ano}”)  
-3. Você libera no `/admin/shops` (active / +dias)  
-4. Mandar recibo simples por e-mail  
+| Sinal | Ofereça | Preço |
+|-------|---------|-------|
+| Signup frio / trial | **Pro** | **297** |
+| “Só preciso da fila / equipe” | Basic | **147** |
+| Quer dono ver caixa / TV $ | Pro | **297** |
+| Troca Infor / carga / “fica comigo” | **Business** | **499** |
+| 2ª loja do mesmo dono | Mesmo plano × N | nunca 1 preço pra 2 |
 
-### Meta (AbacatePay on)
-1. Trial 7d → `/billing` → checkout Pro R$ 247  
-2. Early: cupom / produto paralelo / ativação manual até ter cupom  
-3. Webhook → `active`  
-4. Falha → banner billing (já existe base)
+**Regra:** olho brilhou / quer você → **499**. Só operação → **147**. Dúvida → **297**.
 
-**Um caminho só por cliente.** Não misturar “às vezes PIX às vezes cartão sem registro”.
+### O que dizer no Business (499)
+1. Onboarding assistido (setores, serviços, marca, 1º fluxo)  
+2. Carga inicial + **1 refresh/mês** (PDF/CSV)  
+3. 1 follow-up/mês + WhatsApp prioritário (1 dia útil — **não** “24/7”)  
 
----
+Fora do Business: carga = **R$ 197** avulsa.
 
-## 5) Roteiro de conversão (siga na ordem)
-
-### Momento A — Signup / trial (dia 0)
-- Não falar preço demais; falar **7 dias grátis** + “Pro R$ 247 depois”  
-- Onboarding: setores → 1 pedido → kanban → TV se tiver tela  
-- Meta: **1 pedido real no dia 1**
-
-### Momento B — Dia 2–3 (check-in)
-WhatsApp:
-> “Oi {nome}! Como está o kanban? Quer que eu revise setores com você 15 min? Assim o trial rende.”
-
-Objetivo: uso real, não só conta criada.
-
-### Momento C — D-3 do trial
-> “Seu trial acaba em 3 dias. Plano Early (se ainda tiver vaga): R$ 147/mês travado 1 ano. Pro padrão: R$ 247. Prefere PIX ou cartão?”
-
-Se hesitar: oferecer **setup grátis** ou **anual**.
-
-### Momento D — D-1
-> “Amanhã o acesso de operação pausa sem assinatura. Posso ativar Early/Pro hoje pra não interromper a oficina.”
-
-### Momento E — Fechou
-1. Registrar: loja | plano | valor | data início | forma pagamento | renovação  
-2. Pedir: 2 frases de depoimento **ou** foto da TV/kanban (com permissão)  
-3. Agendar renovação +7/+30 no calendário  
-
-### Momento F — Não fechou
-- Estender **no máximo +7 dias uma vez** (platform admin)  
-- Anotar objeção (preço / hábito / outro sistema)  
-- Não ficar em trial eterno  
+**Não faça:** Business pra quem “usa o que tá lá”; carga semanal grátis; Basic com serviço de Business.
 
 ---
 
-## 6) Objeções e respostas
+## 4) Como cobrar
 
-| Objeção | Resposta |
-|---------|----------|
-| “Tá caro” | “O Pro é R$ 247. Early R$ 147 se ainda houver vaga. Baixar mais desvaloriza o suporte — posso fazer o setup com você esta semana.” |
-| “Quero só o básico” | “Não temos Basic: o Early já é o Pro completo com desconto de pioneiro.” |
-| “Vou pensar” | “Combinado. Trial até {data}. Te chamo D-3. Se quiser, marco 15 min pra fechar o fluxo agora.” |
-| “Posso pagar menos porque indico” | “Indicação: 1 mês grátis **depois** que a outra loja assinar. Seu plano continua Early/Pro.” |
-| “CdT não paga?” | Se for case: “X meses grátis em troca de depoimento + renovação em {data} no Early.” Documente. |
-| “Por usuário?” | “Não. Uma oficina = um Pro. Equipe ilimitada.” |
+### Agora (manual / PIX)
+1. Combinar plano no WhatsApp  
+2. PIX: `Worqera {Basic|Pro|Business} — {loja} — {mês/ano}`  
+3. Liberar em `/admin/shops` (`planCode` + active)  
+4. Recibo por e-mail  
 
----
-
-## 7) O que NÃO fazer na conversão
-
-- Não inventar preço na hora (R$ 80, R$ 120…)  
-- Não criar “Basic” sob pressão  
-- Não dar trial infinito  
-- Não prometer Meta Cloud / NF-e / app pra fechar  
-- Não cobrar por pedido no começo (confunde)  
+### Meta (AbacatePay)
+1. Trial 7d → `/billing` → checkout **Pro 297** (produto principal)  
+2. Basic / Business: produto paralelo ou ativação manual até ter SKUs  
 
 ---
 
-## 8) Frases prontas (copiar)
+## 5) Scripts curtos
 
-**Pitch 20s**  
-“Worqera é o kanban da sua oficina: setores, pedido com código, TV e consulta pro cliente. Pro R$ 247/mês, equipe ilimitada. Early R$ 147 pras 10 primeiras. 7 dias grátis.”
+**Pitch LP**  
+“Basic R$ 147 = fila. Pro R$ 297 = fila + caixa (recomendado). Business R$ 499 = a gente implementa e acompanha. 7 dias grátis.”
 
-**Fechamento**  
-“Fechamos Early a R$ 147 com renovação em {data}? Te mando o PIX e libero hoje.”
+**Trial acabando**  
+“Seu trial acaba em 3 dias. Pro R$ 297 (financeiro + métricas) ou Basic R$ 147 (só operação). Prefere PIX ou cartão?”
 
-**Indicação**  
-“Mandou uma oficina que assinou? Você ganha 1 mês. Ela entra no preço da tabela (Early se ainda tiver, senão Pro).”
+**“Tá caro”**  
+“Pro é R$ 297. Se só precisa da fila, Basic R$ 147. Baixar mais desvaloriza o suporte — posso fazer o setup com você no Business.”
+
+**“Quero o básico”**  
+“É o Basic: kanban, consulta, TVs. Financeiro e métricas ficam no Pro.”
+
+**Legado Early**  
+“Vocês entraram no Early pioneiro — mantemos o valor combinado até {data}. Depois: Pro 297 ou Basic 147 conforme usam financeiro.”
 
 ---
 
-## 9) Checklist semanal de receita
+## 6) Checklist semanal
 
-- [ ] Quantas das 3 Early já pagaram?  
-- [ ] Quantas vagas Early restam (meta: 10)?  
 - [ ] Trials que vencem em 7 dias — mensagem enviada?  
-- [ ] MRR atual = (early×147) + (pro×247) + (biz×399) + (premium×499)  
-- [ ] Distância até R$ 10k = (10000 − MRR) / 247 ≈ lojas Pro faltando (ou /499 se mirar Premium)  
+- [ ] MRR = (basic×147) + (pro×297) + (business×499) + (legado early×147)  
+- [ ] Distância até R$ 10k ≈ (10000 − MRR) / 297  
+- [ ] Quantos Business ativos vs capacidade de carga  
 
 ---
 
-## 10) LP e produto
+## 7) LP e produto
 
-- LP mostra: Early **147** · Pro **247** (recomendado) · Business **399** · Premium sob conversa (**499**)  
-- Billing interno: alinhar copy ao Pro; Early/Premium podem ser manuais no início  
-- Reajuste futuro: após 10 Early, **só Pro 247** na LP; Premium continua sob proposta  
+- LP: **Basic 147 · Pro 297 (recomendado) · Business 499**  
+- Billing copy alinhada ao Pro 297  
+- Gate Basic no app = backlog (planCode)  
+- Early: só legado, fora da LP  
 
 ---
 
-## 11) Histórico de decisão
+## 8) Histórico de decisão
 
 | Data | Decisão |
 |------|--------|
-| 2026-09-17 | Descartado R$ 97 como preço público (barato demais) |
-| 2026-09-17 | Early **147** / Pro **247** / Business **397** / anual **2470** |
-| 2026-09-17 | Sem Basic; Pro no centro; Early escasso |
-| 2026-09-19 | Business **399** · **Premium 499** (custom + acompanhamento + carga) · carga extra R$ 197 |
+| 2026-09-17 | Early 147 / Pro 247 / Business 397 · sem Basic |
+| 2026-09-19 | Business 399 · Premium 499 (serviço) · carga avulsa 197 |
+| **2026-09-22** | **Basic 147 / Pro 297 / Business 499** · Early só legado · Premium fundido no Business · sem R$ 99 |
 
 Quando mudar preço, atualize **esta seção** e a LP no mesmo dia.

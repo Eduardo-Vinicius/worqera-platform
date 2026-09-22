@@ -15,9 +15,9 @@ const plex = IBM_Plex_Sans({
 })
 
 export const metadata = {
-  title: "Worqera — A fila da sua oficina, sob controle",
+  title: "Worqera — A fila do seu negócio, sob controle",
   description:
-    "Kanban por setores e consulta pública por código. Do tênis à lavanderia — o mesmo loop. Teste grátis 7 dias.",
+    "Kanban por setores e consulta pública por código. Calçados, automotivo, lavanderia, atelier — o mesmo loop. Teste grátis 7 dias.",
 }
 
 export default function HomePage() {

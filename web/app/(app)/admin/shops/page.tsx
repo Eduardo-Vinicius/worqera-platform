@@ -30,6 +30,31 @@ type ShopRow = {
 
 type Filter = "all" | "trialing" | "trial_7d" | "active" | "suspended"
 
+const PLANS = [
+  { code: "WORQERA_BASIC", label: "Basic", price: "R$ 147" },
+  { code: "WORQERA_PRO", label: "Pro", price: "R$ 297" },
+  { code: "WORQERA_BUSINESS", label: "Business", price: "R$ 499" },
+] as const
+
+type PlanCode = (typeof PLANS)[number]["code"] | "WORQERA_EARLY" | "WORQERA_PREMIUM" | ""
+
+function planLabel(code?: string | null) {
+  const c = String(code || "").toUpperCase()
+  if (c === "WORQERA_BASIC") return "Basic · R$ 147"
+  if (c === "WORQERA_PRO") return "Pro · R$ 297"
+  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM") return "Business · R$ 499"
+  if (c === "WORQERA_EARLY") return "Early (legado) · R$ 147"
+  return c || "—"
+}
+
+function selectableCode(code?: string | null): PlanCode {
+  const c = String(code || "").toUpperCase()
+  if (c === "WORQERA_PREMIUM") return "WORQERA_BUSINESS"
+  if (c === "WORQERA_BASIC" || c === "WORQERA_PRO" || c === "WORQERA_BUSINESS") return c
+  if (c === "WORQERA_EARLY") return "WORQERA_BASIC"
+  return "WORQERA_PRO"
+}
+
 export default function PlatformShopsPage() {
   const [shops, setShops] = useState<ShopRow[]>([])
   const [q, setQ] = useState("")
@@ -37,7 +62,9 @@ export default function PlatformShopsPage() {
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
+  const [planDrafts, setPlanDrafts] = useState<Record<string, PlanCode>>({})
   const [savingNote, setSavingNote] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -54,6 +81,11 @@ export default function PlatformShopsPage() {
       setShops(list)
       setNoteDrafts(
         Object.fromEntries(list.map((s: ShopRow) => [s.id, s.adminNote || ""]))
+      )
+      setPlanDrafts(
+        Object.fromEntries(
+          list.map((s: ShopRow) => [s.id, selectableCode(s.subscription?.planCode)])
+        )
       )
     } catch (err: any) {
       toast.error(err?.message || "Erro ao listar oficinas")
@@ -85,39 +117,72 @@ export default function PlatformShopsPage() {
   }, [shops, filter])
 
   const extend = async (id: string) => {
+    setBusyId(id)
     try {
       await patchPlatformShopV1(id, { extendTrialDays: 7 })
       toast.success("Trial estendido +7 dias")
       await load()
     } catch (err: any) {
       toast.error(err?.message || "Falha ao estender")
+    } finally {
+      setBusyId(null)
     }
   }
 
   const setStatus = async (id: string, status: "active" | "suspended") => {
+    setBusyId(id)
     try {
       await patchPlatformShopV1(id, { status })
       toast.success(status === "suspended" ? "Oficina suspensa" : "Oficina reativada")
       await load()
     } catch (err: any) {
       toast.error(err?.message || "Falha ao atualizar")
+    } finally {
+      setBusyId(null)
     }
   }
 
-  const activatePremium = async (id: string) => {
+  const applyPlan = async (id: string) => {
+    const planCode = planDrafts[id] || "WORQERA_PRO"
+    const plan = PLANS.find((p) => p.code === planCode)
+    setBusyId(id)
     try {
       await patchPlatformShopV1(id, {
         subscriptionStatus: "active",
-        planCode: "WORQERA_PREMIUM",
+        planCode,
         status: "active",
         adminNote:
           (noteDrafts[id] || "").trim() ||
-          "Business Premium R$499 · Manual · custom + carga + acompanhamento",
+          `${plan?.label || planCode} ${plan?.price || ""} · Manual`.trim(),
       })
-      toast.success("Assinatura Premium ativa (como CdT)")
+      toast.success(`Plano ${plan?.label || planCode} aplicado`)
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao ativar Premium")
+      toast.error(err?.message || "Falha ao aplicar plano")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const revokePlan = async (id: string) => {
+    if (
+      !window.confirm(
+        "Revogar assinatura? A oficina volta para trial cancelado/expirado até você liberar de novo."
+      )
+    ) {
+      return
+    }
+    setBusyId(id)
+    try {
+      await patchPlatformShopV1(id, {
+        subscriptionStatus: "canceled",
+      })
+      toast.success("Assinatura revogada")
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao revogar")
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -159,10 +224,10 @@ export default function PlatformShopsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Oficinas (Worqera)"
-        subtitle={`${filtered.length} listada${filtered.length === 1 ? "" : "s"} · trial, pedidos, suspender`}
+        subtitle={`${filtered.length} listada${filtered.length === 1 ? "" : "s"} · plano, trial, suspender`}
       />
 
-      <div className="mx-auto max-w-[1100px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+      <div className="mx-auto max-w-[1180px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
         <div className="flex flex-wrap gap-2">
           <Input
             className="min-w-0 w-full max-w-sm rounded-[10px] sm:w-auto"
@@ -195,14 +260,15 @@ export default function PlatformShopsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-[var(--wq-border)] bg-white">
-          <div className="hidden min-w-[720px] grid-cols-[1.3fr_1fr_90px_90px_200px] gap-3 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)] md:grid">
+          <div className="hidden min-w-[860px] grid-cols-[1.2fr_1fr_1.4fr_70px_70px_160px] gap-3 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)] md:grid">
             <span>Oficina</span>
             <span>Assinatura</span>
+            <span>Plano</span>
             <span>Pedidos</span>
             <span>Membros</span>
             <span>Ações</span>
           </div>
-          <ul className="min-w-[720px] divide-y divide-[var(--wq-border)] md:min-w-0">
+          <ul className="min-w-[860px] divide-y divide-[var(--wq-border)] md:min-w-0">
             {loading && (
               <li className="px-4 py-10 text-center text-sm text-[var(--wq-text-muted)]">
                 Carregando…
@@ -218,11 +284,17 @@ export default function PlatformShopsPage() {
                 s.subscription?.status === "trialing" &&
                 s.trialDaysLeft != null &&
                 s.trialDaysLeft <= 3
+              const busy = busyId === s.id
+              const draft = planDrafts[s.id] || "WORQERA_PRO"
+              const current = String(s.subscription?.planCode || "").toUpperCase()
+              const dirty =
+                draft !== selectableCode(s.subscription?.planCode) ||
+                s.subscription?.status !== "active"
               return (
                 <li
                   key={s.id}
                   className={cn(
-                    "grid gap-2 px-4 py-3 md:grid-cols-[1.3fr_1fr_90px_90px_200px] md:items-center",
+                    "grid gap-2 px-4 py-3 md:grid-cols-[1.2fr_1fr_1.4fr_70px_70px_160px] md:items-start",
                     urgent && "bg-amber-50/80"
                   )}
                 >
@@ -234,6 +306,9 @@ export default function PlatformShopsPage() {
                   </div>
                   <div className="text-sm">
                     <p className="capitalize">{s.subscription?.status || "—"}</p>
+                    <p className="text-xs font-medium text-[var(--wq-text)]">
+                      {planLabel(s.subscription?.planCode)}
+                    </p>
                     {s.subscription?.status === "trialing" && s.trialDaysLeft != null ? (
                       <p
                         className={cn(
@@ -254,34 +329,69 @@ export default function PlatformShopsPage() {
                     ) : null}
                     {s.lastOrderAt ? (
                       <p className="text-[10px] text-[var(--wq-text-muted)]">
-                        último pedido{" "}
-                        {new Date(s.lastOrderAt).toLocaleDateString("pt-BR")}
+                        último pedido {new Date(s.lastOrderAt).toLocaleDateString("pt-BR")}
                       </p>
                     ) : (
                       <p className="text-[10px] text-[var(--wq-text-muted)]">sem pedidos</p>
                     )}
                   </div>
+
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <select
+                      className="h-8 w-full rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs"
+                      value={draft}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setPlanDrafts((d) => ({
+                          ...d,
+                          [s.id]: e.target.value as PlanCode,
+                        }))
+                      }
+                    >
+                      {PLANS.map((p) => (
+                        <option key={p.code} value={p.code}>
+                          {p.label} · {p.price}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 rounded-[8px] bg-[var(--wq-action)] px-2 text-xs text-white hover:bg-[var(--wq-action)]/90"
+                        disabled={busy || !dirty}
+                        onClick={() => applyPlan(s.id)}
+                      >
+                        {s.subscription?.status === "active" &&
+                        selectableCode(current) !== draft
+                          ? "Trocar plano"
+                          : "Ativar plano"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-[8px] px-2 text-xs"
+                        disabled={busy || s.subscription?.status === "canceled"}
+                        onClick={() => revokePlan(s.id)}
+                      >
+                        Revogar
+                      </Button>
+                    </div>
+                  </div>
+
                   <p className="font-mono text-sm">
                     {s.openCount ?? 0}
                     <span className="text-[var(--wq-text-muted)]">/{s.orderCount ?? 0}</span>
                   </p>
                   <p className="font-mono text-sm">{s.memberCount ?? "—"}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {s.subscription?.status !== "active" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-8 rounded-[8px] bg-[var(--wq-action)] text-xs text-white hover:bg-[var(--wq-action)]/90"
-                        onClick={() => activatePremium(s.id)}
-                      >
-                        Ativar Premium
-                      </Button>
-                    ) : null}
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       className="h-8 rounded-[8px] text-xs"
+                      disabled={busy}
                       onClick={() => extend(s.id)}
                     >
                       +7d trial
@@ -292,6 +402,7 @@ export default function PlatformShopsPage() {
                         size="sm"
                         variant="outline"
                         className="h-8 rounded-[8px] text-xs"
+                        disabled={busy}
                         onClick={() => setStatus(s.id, "active")}
                       >
                         Reativar
@@ -302,13 +413,14 @@ export default function PlatformShopsPage() {
                         size="sm"
                         variant="outline"
                         className="h-8 rounded-[8px] text-xs"
+                        disabled={busy}
                         onClick={() => setStatus(s.id, "suspended")}
                       >
                         Suspender
                       </Button>
                     )}
                   </div>
-                  <div className="md:col-span-5 mt-1 flex gap-2">
+                  <div className="md:col-span-6 mt-1 flex gap-2">
                     <Input
                       className="h-8 flex-1 rounded-[8px] text-xs"
                       placeholder="Nota interna (PIX, objeção, plano…)"
@@ -340,7 +452,8 @@ export default function PlatformShopsPage() {
           </ul>
         </div>
         <p className="text-xs text-[var(--wq-text-muted)]">
-          Pedidos = abertos / total. Destaque âmbar = trial ≤ 3 dias.
+          Plano: Basic 147 · Pro 297 · Business 499. Trocar = upgrade/downgrade. Revogar = cancela
+          assinatura (não suspende a loja). Pedidos = abertos / total.
         </p>
       </div>
     </div>

@@ -18,9 +18,9 @@ const jetbrains = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: `${process.env.NEXT_PUBLIC_APP_NAME || "Worqera"} — Gestão de pedidos para oficinas`,
+  title: `${process.env.NEXT_PUBLIC_APP_NAME || "Worqera"} — Fila e pedidos sob controle`,
   description:
-    "Kanban por setores, rastreio público e operação de oficina. Teste grátis a Worqera.",
+    "Kanban por setores, rastreio público e operação para oficinas, assistências e serviços. Teste grátis a Worqera.",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/favicon.ico" }],
     apple: [{ url: "/apple-icon.png" }],

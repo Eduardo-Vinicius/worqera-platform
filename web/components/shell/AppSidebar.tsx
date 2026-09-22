@@ -111,12 +111,14 @@ export function AppSidebar({
               </div>
               <ul className="space-y-0.5">
                 {items.map((item) => {
-                  const active = isNavActive(pathname, item.href)
+                  const active = !item.external && isNavActive(pathname, item.href)
                   const Icon = item.icon
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
+                        target={item.external ? "_blank" : undefined}
+                        rel={item.external ? "noopener noreferrer" : undefined}
                         onClick={onNavigate}
                         className={cn(
                           "flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-[13.5px] font-medium transition-colors",

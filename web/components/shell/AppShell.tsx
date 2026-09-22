@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Menu,
   Plus,
-  Wallet,
   X,
 } from "lucide-react"
 import { meV1, resendVerificationV1 } from "@/lib/apiV1"
@@ -113,14 +112,12 @@ function MobileBottomNav({ hidden }: { hidden?: boolean }) {
   if (pathname.startsWith("/pedidos/") && pathname.includes("/sucesso")) return null
 
   const isSector = role === "sector"
-  const canFinance = role === "owner" || role === "admin"
 
   const items = [
     { href: "/kanban", label: "Kanban", icon: KanbanSquare },
     !isSector ? { href: "/pedidos", label: "Pedidos", icon: ClipboardList } : null,
     !isSector ? { href: "/pedidos/novo", label: "Novo", icon: Plus, primary: true } : null,
     !isSector ? { href: "/dashboard", label: "Início", icon: LayoutDashboard } : null,
-    canFinance ? { href: "/admin/financeiro", label: "Finanças", icon: Wallet } : null,
   ].filter(Boolean) as Array<{
     href: string
     label: string

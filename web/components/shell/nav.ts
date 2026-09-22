@@ -14,6 +14,7 @@ import {
   UsersRound,
   Shield,
   Tv,
+  Monitor,
   Star,
   type LucideIcon,
 } from "lucide-react"
@@ -30,6 +31,8 @@ export type NavItem = {
   hideForSector?: boolean
   /** Platform Worqera super-admin only */
   platformOnly?: boolean
+  /** Open in a new tab (TV panels) */
+  external?: boolean
 }
 
 export type NavSection = {
@@ -65,6 +68,13 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Gestão",
     items: [
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true },
+      {
+        href: "/tv-financeiro",
+        label: "TV Financeiro",
+        icon: Monitor,
+        ownerAdminOnly: true,
+        external: true,
+      },
       { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
     ],
