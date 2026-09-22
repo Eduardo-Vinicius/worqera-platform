@@ -5,173 +5,127 @@ import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
 import { ArrowRight } from "lucide-react"
 
-function KanbanMock({ pt }: { pt: boolean }) {
-  const cols = pt
+function ProductBoard({ pt }: { pt: boolean }) {
+  const cols: Array<{
+    name: string
+    cards: Array<{ code: string; meta: string; ready?: boolean }>
+  }> = pt
     ? [
         {
-          name: "Recepção",
-          color: "#8b5cf6",
+          name: "Recebido",
           cards: [
-            { code: "3201-26", client: "Maria S.", meta: "2 pares" },
-            { code: "3204-26", client: "João P.", meta: "Prioridade" },
+            { code: "0041", meta: "2 pares" },
+            { code: "0043", meta: "Prioridade" },
           ],
         },
         {
           name: "Oficina",
-          color: "#6366f1",
           cards: [
-            { code: "3198-26", client: "Ana L.", meta: "Cola + solado" },
-            { code: "3195-26", client: "Carlos M.", meta: "Em andamento" },
+            { code: "0038", meta: "Em andamento" },
+            { code: "0035", meta: "Cola" },
           ],
         },
         {
-          name: "Entrega",
-          color: "#22c55e",
-          cards: [{ code: "3188-26", client: "Paula R.", meta: "Pronto" }],
+          name: "Pronto",
+          cards: [{ code: "0032", meta: "Retirada", ready: true }],
         },
       ]
     : [
         {
           name: "Intake",
-          color: "#8b5cf6",
           cards: [
-            { code: "3201-26", client: "Maria S.", meta: "2 pairs" },
-            { code: "3204-26", client: "John P.", meta: "Priority" },
+            { code: "0041", meta: "2 pairs" },
+            { code: "0043", meta: "Priority" },
           ],
         },
         {
-          name: "Workshop",
-          color: "#6366f1",
+          name: "Floor",
           cards: [
-            { code: "3198-26", client: "Ana L.", meta: "In progress" },
-            { code: "3195-26", client: "Carlos M.", meta: "Sole" },
+            { code: "0038", meta: "In progress" },
+            { code: "0035", meta: "Glue" },
           ],
         },
         {
           name: "Ready",
-          color: "#22c55e",
-          cards: [{ code: "3188-26", client: "Paula R.", meta: "Done" }],
+          cards: [{ code: "0032", meta: "Pickup", ready: true }],
         },
       ]
 
   return (
-    <div className="lp-float relative mx-auto w-full max-w-xl lg:max-w-none">
-      <div className="absolute -inset-4 rounded-[2rem] bg-primary/15 blur-2xl" aria-hidden />
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_60px_-28px_rgba(76,29,149,0.55)]">
-        <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-4 py-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-400/80" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
-          <span className="ml-2 text-xs font-medium text-muted-foreground">
-            {pt ? "Kanban · Oficina ao vivo" : "Kanban · Live workshop"}
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-2 bg-[var(--mock-bg)] p-3 sm:gap-3 sm:p-4">
-          {cols.map((col) => (
-            <div key={col.name} className="min-w-0 rounded-xl bg-[var(--mock-col)] p-2 shadow-sm sm:p-2.5">
-              <div className="mb-2 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: col.color }} />
-                <span className="truncate text-[10px] font-semibold tracking-wide text-foreground uppercase sm:text-[11px]">
-                  {col.name}
-                </span>
-              </div>
-              <div className="space-y-1.5 sm:space-y-2">
-                {col.cards.map((card) => (
-                  <div
-                    key={card.code}
-                    className="rounded-lg border border-border/80 bg-card px-2 py-1.5 sm:px-2.5 sm:py-2"
-                  >
-                    <div className="text-[11px] font-semibold text-foreground sm:text-xs">{card.code}</div>
-                    <div className="truncate text-[10px] text-muted-foreground sm:text-[11px]">{card.client}</div>
-                    <div className="mt-0.5 text-[9px] text-primary/90 sm:text-[10px]">{card.meta}</div>
-                  </div>
-                ))}
-              </div>
+    <div className="w-full border-y border-[var(--border)] bg-[var(--ink)] text-white sm:border sm:border-[var(--border)] sm:rounded-sm">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
+        <p className="text-[11px] font-medium tracking-[0.16em] text-white/50 uppercase">
+          {pt ? "Kanban · ao vivo" : "Kanban · live"}
+        </p>
+        <p className="lp-mono text-xs text-white/40">worqera</p>
+      </div>
+      <div className="grid grid-cols-3 gap-px bg-white/10">
+        {cols.map((col) => (
+          <div key={col.name} className="min-w-0 bg-[var(--ink)] p-3 sm:p-4">
+            <p className="mb-3 truncate text-[10px] font-semibold tracking-[0.14em] text-white/45 uppercase sm:text-[11px]">
+              {col.name}
+            </p>
+            <div className="space-y-2">
+              {col.cards.map((card) => (
+                <div
+                  key={card.code}
+                  className={`rounded-sm border px-2.5 py-2 ${
+                    card.ready
+                      ? "border-[var(--ready)]/40 bg-[var(--ready)]/10"
+                      : "border-white/10 bg-white/5"
+                  }`}
+                >
+                  <p className="lp-mono text-sm font-medium tracking-tight">{card.code}</p>
+                  <p className="mt-0.5 text-[11px] text-white/50">{card.meta}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 export function HeroSection() {
-  const { locale } = useLanguage()
+  const { locale, t } = useLanguage()
   const pt = locale === "pt"
 
   return (
-    <section className="relative flex min-h-[100dvh] items-center overflow-hidden pb-12 pt-20 sm:pb-16 sm:pt-24 lg:pb-20 lg:pt-28">
-      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-12 xl:gap-16">
-          <div className="lp-animate-in text-center lg:text-left">
-            <p className="lp-brand mb-4 text-sm font-semibold tracking-[0.22em] text-primary uppercase">
-              Worqera
-            </p>
-
-            <h1 className="lp-brand mb-4 text-balance text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl xl:text-[3.35rem]">
-              {pt ? (
-                <>
-                  Pedidos sob controle.
-                  <span className="mt-1 block text-primary">Da recepção à entrega.</span>
-                </>
-              ) : (
-                <>
-                  Orders under control.
-                  <span className="mt-1 block text-primary">From intake to pickup.</span>
-                </>
-              )}
-            </h1>
-
-            <p className="mx-auto mb-8 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-              {pt
-                ? "Kanban por setores, rastreio para o cliente e equipe alinhada. Em minutos você vê a oficina inteira — e para de perder pedido."
-                : "Sector kanban, customer tracking, and an aligned team. See your whole workshop in minutes — and stop losing orders."}
-            </p>
-
-            <div className="mb-3 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start">
-              <Button
-                asChild
-                size="lg"
-                className="glow-primary h-12 rounded-xl bg-primary px-8 text-base font-medium text-primary-foreground hover:bg-secondary"
-              >
-                <Link href="/signup">
-                  {pt ? "Testar grátis por 7 dias" : "Try free for 7 days"}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="h-12 rounded-xl border-border bg-card px-8 text-base font-medium text-foreground hover:border-primary/30 hover:bg-muted/60"
-              >
-                <Link href="/login">{pt ? "Já tenho conta" : "I have an account"}</Link>
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              {pt
-                ? "Sem cartão · Setup em minutos · Cancele quando quiser"
-                : "No card · Setup in minutes · Cancel anytime"}
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground lg:justify-start">
-              {(pt
-                ? ["Usabilidade simples", "Pagamento seguro", "Feito para oficinas"]
-                : ["Simple to use", "Secure payments", "Built for workshops"]
-              ).map((item) => (
-                <span key={item} className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  {item}
-                </span>
-              ))}
-            </div>
+    <section className="relative overflow-hidden pt-14 sm:pt-16">
+      <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-16 lg:pt-20">
+        <div className="lp-animate-in mx-auto max-w-3xl text-center">
+          <p className="lp-display mb-5 text-sm font-semibold tracking-[0.28em] text-[var(--primary)] uppercase">
+            {t.hero.brand}
+          </p>
+          <h1 className="lp-display text-balance text-4xl font-semibold leading-[1.05] text-[var(--ink)] sm:text-5xl lg:text-[3.5rem]">
+            {t.hero.headline}
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-[var(--muted-foreground)] sm:text-lg">
+            {t.hero.sub}
+          </p>
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <Button asChild size="lg" className="lp-cta h-12 rounded-md px-8 text-base font-medium">
+              <Link href="/signup">
+                {t.hero.cta}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 rounded-md border-[var(--border)] bg-[var(--surface)] px-8 text-base font-medium text-[var(--ink)] hover:bg-[var(--muted)]"
+            >
+              <Link href="/login">{t.hero.secondary}</Link>
+            </Button>
           </div>
-
-          <div className="lp-animate-in-delay">
-            <KanbanMock pt={pt} />
-          </div>
+          <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t.hero.note}</p>
         </div>
+      </div>
+
+      <div className="lp-animate-in-delay mx-auto max-w-6xl px-0 sm:px-6">
+        <ProductBoard pt={pt} />
       </div>
     </section>
   )

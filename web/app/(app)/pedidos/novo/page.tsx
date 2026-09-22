@@ -889,6 +889,13 @@ export default function NewOrderPage() {
       localStorage.removeItem(DRAFT_KEY);
       const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
       if (pedidoId) {
+        try {
+          const notify = createdPedidoResponse?.emailNotify || null
+          sessionStorage.setItem(
+            `wq-email-notify:${pedidoId}`,
+            JSON.stringify(notify || { skipped: true, reason: hasEmail ? "unknown" : "no-email" })
+          )
+        } catch {}
         router.push(`/pedidos/${pedidoId}/sucesso`);
       } else {
         router.push("/kanban");
@@ -929,24 +936,24 @@ export default function NewOrderPage() {
   )
 
   return (
-    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Novo pedido"
         subtitle="Cliente, itens e pagamento no balcão"
         actions={
-          <Button asChild variant="outline" size="sm" className="rounded-[10px]">
-            <Link href="/pedidos">Voltar à lista</Link>
+          <Button asChild variant="outline" size="sm" className="h-9 rounded-[10px]">
+            <Link href="/pedidos">Voltar</Link>
           </Button>
         }
       />
 
-          <div className="mx-auto max-w-[1100px] px-5 py-6 pb-28 md:px-8">
-        <div className="mb-4 rounded-2xl border border-[var(--wq-border)] bg-white p-3">
+          <div className="mx-auto w-full max-w-[1400px] px-2.5 py-4 pb-36 sm:px-5 sm:py-6 md:px-6 lg:px-8">
+        <div className="mb-3 rounded-2xl border border-[var(--wq-border)] bg-white p-3 sm:mb-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
               Pedido rápido
             </p>
-            <Button type="button" variant="outline" size="sm" className="h-7 rounded-[8px] text-xs" onClick={saveCurrentAsTemplate}>
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-[8px] text-xs" onClick={saveCurrentAsTemplate}>
               Salvar template
             </Button>
           </div>
@@ -979,8 +986,8 @@ export default function NewOrderPage() {
           )}
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="space-y-8 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 md:p-6">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
+            <div className="space-y-6 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:space-y-8 sm:p-5 md:p-6">
               {/* Block 1 — Cliente */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
@@ -1169,9 +1176,9 @@ export default function NewOrderPage() {
               </section>
 
               {/* Block 2 — Pares */}
-              <section className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+              <section className="space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
                     <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
                       Pares
                     </h2>
@@ -1180,15 +1187,22 @@ export default function NewOrderPage() {
                       {items.length === 1 ? "par" : "pares"}
                     </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={addItem}>
-                    <Plus className="mr-1.5 h-4 w-4" />
-                    Adicionar par
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 shrink-0 rounded-[10px] px-3"
+                    onClick={addItem}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    <span className="sm:hidden">Par</span>
+                    <span className="hidden sm:inline">Adicionar par</span>
                   </Button>
                 </div>
                 {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
 
                 {items.length > 1 ? (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {items.map((it, idx) => {
                       const label = it.sneaker?.trim() || `Par ${idx + 1}`
                       const active = idx === Math.min(activeItemIndex, items.length - 1)
@@ -1197,7 +1211,7 @@ export default function NewOrderPage() {
                           key={it.id}
                           type="button"
                           onClick={() => setActiveItemIndex(idx)}
-                          className={`max-w-[11rem] truncate rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                          className={`h-10 max-w-[12rem] shrink-0 truncate rounded-lg border px-3 text-sm font-medium transition ${
                             active
                               ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
                               : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
@@ -1216,9 +1230,9 @@ export default function NewOrderPage() {
                   const item = items[itemIndex]
                   if (!item) return null
                   return (
-                    <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-[var(--wq-text)]">
+                    <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-3 sm:p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="min-w-0 text-sm font-semibold text-[var(--wq-text)]">
                           Par {itemIndex + 1}
                           {item.sneaker?.trim() ? (
                             <span className="font-normal text-[var(--wq-text-muted)]"> · {item.sneaker}</span>
@@ -1227,10 +1241,10 @@ export default function NewOrderPage() {
                         {items.length > 1 ? (
                           <button
                             type="button"
-                            className="text-sm text-[var(--wq-danger)] hover:underline"
+                            className="shrink-0 text-sm text-[var(--wq-danger)] hover:underline"
                             onClick={() => removeItem(itemIndex)}
                           >
-                            Remover este par
+                            Remover
                           </button>
                         ) : null}
                       </div>
@@ -1262,7 +1276,7 @@ export default function NewOrderPage() {
 
                       <div className="space-y-2">
                         <Label>Serviços</Label>
-                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {availableServices.map((service) => {
                             const isSelected = item.selectedServices.find((s) => s.id === service.id)
                             const inputId = `service-${itemIndex}-${service.id}`
@@ -1270,7 +1284,7 @@ export default function NewOrderPage() {
                               <label
                                 key={service.id}
                                 htmlFor={inputId}
-                                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 transition ${
+                                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2.5 transition ${
                                   isSelected
                                     ? "border-[var(--wq-brand)]/50 bg-[var(--wq-brand-soft)]"
                                     : "border-[var(--wq-border)] bg-[var(--wq-surface)] hover:bg-[var(--wq-paper)]"
@@ -1299,9 +1313,9 @@ export default function NewOrderPage() {
                             {item.selectedServices.map((service) => (
                               <div
                                 key={service.id}
-                                className="grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:grid-cols-[1fr_120px_auto]"
+                                className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:grid-cols-[1fr_120px_auto] sm:items-end"
                               >
-                                <div className="space-y-1 sm:col-span-1">
+                                <div className="space-y-1">
                                   <p className="text-sm font-medium text-[var(--wq-text)]">{service.name}</p>
                                   <Input
                                     value={service.description}
@@ -1309,7 +1323,7 @@ export default function NewOrderPage() {
                                       updateService(itemIndex, service.id, "description", e.target.value)
                                     }
                                     placeholder="Obs. do serviço"
-                                    className="h-9"
+                                    className="h-10"
                                   />
                                 </div>
                                 <div className="space-y-1">
@@ -1322,16 +1336,17 @@ export default function NewOrderPage() {
                                     onChange={(e) =>
                                       updateService(itemIndex, service.id, "price", Number(e.target.value))
                                     }
-                                    className="h-9"
+                                    className="h-10"
                                   />
                                 </div>
                                 <button
                                   type="button"
-                                  className="self-end rounded-md p-2 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-danger)]"
+                                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--wq-border)] px-3 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-danger)] sm:border-0 sm:px-2"
                                   onClick={() => toggleService(itemIndex, service.id, false)}
                                   aria-label="Remover serviço"
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="mr-1.5 h-4 w-4 sm:mr-0" />
+                                  <span className="text-sm sm:hidden">Remover</span>
                                 </button>
                               </div>
                             ))}
@@ -1353,7 +1368,7 @@ export default function NewOrderPage() {
                           />
                           <label
                             htmlFor={`photo-upload-${itemIndex}`}
-                            className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--wq-brand)] hover:underline"
+                            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
                           >
                             <Upload className="h-4 w-4" />
                             Adicionar fotos (máx. {MAX_PHOTOS})
@@ -1795,8 +1810,8 @@ export default function NewOrderPage() {
             </aside>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_92%,transparent)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
-            <div className="mx-auto flex max-w-[1100px] flex-wrap items-center gap-2 sm:gap-3">
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
+            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <div className="min-w-0 flex-1 text-xs text-[var(--wq-text-muted)]">
                 <p className="truncate font-semibold text-[var(--wq-text)]">
                   Total R$ {getTotalPrice().toFixed(2)} · Sinal R$ {signalValue.toFixed(2)}
@@ -1805,7 +1820,9 @@ export default function NewOrderPage() {
                   Restante R$ {remaining.toFixed(2)} · {items.length} {items.length === 1 ? "par" : "pares"}
                 </p>
               </div>
-              {renderSubmitButton()}
+              <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">
+                {renderSubmitButton()}
+              </div>
             </div>
           </div>
         </form>

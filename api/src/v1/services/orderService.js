@@ -47,6 +47,13 @@ async function nextOrderCode(shopId) {
 
 async function listOrders(shopId, query = {}) {
   const filter = { shopId };
+  const trash =
+    query.deleted === '1' ||
+    query.deleted === 'true' ||
+    query.trash === '1' ||
+    query.trash === 'true';
+  // `{ deletedAt: null }` matches null or missing
+  filter.deletedAt = trash ? { $ne: null } : null;
   if (query.status) {
     const statuses = String(query.status)
       .split(',')
@@ -273,17 +280,24 @@ async function createOrder(shopId, userId, data) {
     createdByUserId: userId,
   });
 
+  let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
   try {
     const Shop = require('../models/Shop');
     const shop = await Shop.findById(shopId).lean();
-    if (shop && clientEmail) {
-      const { notifyOrderStatusSafe } = require('./orderNotify');
-      notifyOrderStatusSafe(shop, order.toObject(), 'created', {
+    if (!shop) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-shop' };
+    } else if (!clientEmail) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-email' };
+      console.info('[orderCreate] email skip', { code: order.code, reason: 'no-email' });
+    } else {
+      const { notifyOrderStatus } = require('./orderNotify');
+      emailNotify = await notifyOrderStatus(shop, order.toObject(), 'created', {
         sectorName: startSector?.name,
       });
     }
-  } catch (_err) {
-    // ignore
+  } catch (err) {
+    emailNotify = { ok: false, error: err?.message || String(err) };
+    console.warn('[orderCreate] email failed', err?.message || err);
   }
 
   // Always persist laudo PDF (email may attach a fresh copy on notify)
@@ -294,7 +308,9 @@ async function createOrder(shopId, userId, data) {
     // ignore
   }
 
-  return order.toObject();
+  const doc = order.toObject();
+  doc.emailNotify = emailNotify;
+  return doc;
 }
 
 function ensureWarranty(raw = {}) {
@@ -418,6 +434,7 @@ async function patchOrder(shopId, id, userId, updates) {
     err.code = 'NOT_FOUND';
     throw err;
   }
+  assertNotDeleted(order);
 
   const fields = [
     'clientName',
@@ -545,6 +562,7 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     err.code = 'NOT_FOUND';
     throw err;
   }
+  assertNotDeleted(order);
 
   if (!['delivered', 'ready'].includes(String(order.status))) {
     const err = new Error('Só é possível reabrir pedidos prontos ou entregues');
@@ -667,15 +685,49 @@ async function submitPublicFeedback(code, { shopSlug, token, score, comment, tag
   };
 }
 
-async function deleteOrder(shopId, id) {
-  const order = await Order.findOneAndDelete({ _id: id, shopId }).lean();
+async function deleteOrder(shopId, id, userId) {
+  const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
     throw err;
   }
-  return order;
+  if (order.deletedAt) {
+    return order.toObject();
+  }
+  order.deletedAt = new Date();
+  order.deletedByUserId = userId || null;
+  order.updatedByUserId = userId || order.updatedByUserId;
+  await order.save();
+  return order.toObject();
+}
+
+async function restoreOrder(shopId, id, userId) {
+  const order = await Order.findOne({ _id: id, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (!order.deletedAt) {
+    return order.toObject();
+  }
+  order.deletedAt = null;
+  order.deletedByUserId = null;
+  order.updatedByUserId = userId || order.updatedByUserId;
+  await order.save();
+  return order.toObject();
+}
+
+function assertNotDeleted(order) {
+  if (order?.deletedAt) {
+    const err = new Error('Order is in the trash — restore it first');
+    err.status = 409;
+    err.code = 'ORDER_DELETED';
+    throw err;
+  }
 }
 
 function assertPhotoFiles(files) {
@@ -783,6 +835,7 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     shopId: shop._id,
     code: normalizedCode,
     publicToken: normalizedToken,
+    deletedAt: null,
   })
     .populate('currentSectorId', 'name slug color showOnPublic')
     .lean();
@@ -912,7 +965,7 @@ function toIso(d) {
 }
 
 async function exportDeliveredOrdersCsv(shopId) {
-  const orders = await Order.find({ shopId, status: 'delivered' })
+  const orders = await Order.find({ shopId, status: 'delivered', deletedAt: null })
     .sort({ deliveredAt: -1, updatedAt: -1, _id: -1 })
     .select('code clientName status createdAt deliveredAt updatedAt pricing shoeModel')
     .lean();
@@ -974,6 +1027,7 @@ module.exports = {
   reopenOrder,
   addOrderComment,
   deleteOrder,
+  restoreOrder,
   replaceOrderPhotos,
   uploadItemPhotos,
   getPublicOrderByCode,

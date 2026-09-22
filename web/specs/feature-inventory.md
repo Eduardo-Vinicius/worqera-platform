@@ -1,22 +1,22 @@
 # Worqera Web — Inventário de features
 
-**Atualizado:** 2026-09-15  
+**Atualizado:** 2026-09-22  
 Complementa [current-state.md](./current-state.md). Inventário canônico cross-stack: [`../../api/specs/feature-inventory.md`](../../api/specs/feature-inventory.md).
 
 ## Páginas × capacidades
 
 | Rota | Capacidades | Gaps |
 |------|-------------|------|
-| `/` | Landing marketing → signup/login | |
+| `/` | Landing premium multi-ramo (loop + ramos + trial) | |
 | `/login` | Login e-mail/senha | |
 | `/signup` | Trial 7 dias | |
-| `/dashboard` | KPIs, recentes, atalhos TV Cliente/Chão (nova aba, sem shell), novo pedido/cliente | Emails flag off |
+| `/dashboard` | KPIs compactos, atalhos (Financeiro p/ owner/admin), chips “o que fazer”, setores | |
 | `/dashboard/setores` | Cards por setor + lista pedidos; poll 30s | Orfã no nav |
 | `/status` | Redirect `/kanban` | |
 | `/pedidos/novo` | Multi-tênis (`items[]`), sticky CTA, pós-create → `/sucesso` | Catálogo ainda com fallback local |
 | `/pedidos/[id]/sucesso` | QR + laudo (preview/imprimir/baixar) + Zap / e-mail / etiqueta | |
 | `/pedidos/[id]/etiqueta` | Código grande + QR `/p/{slug}/{code}?t=`; modo pares `{code}-n` | |
-| `/pedidos` | Lista + badge `N pares` + filtro garantia | |
+| `/pedidos` | Lista + badge `N pares` + filtro garantia + aba **Lixeira** (recuperar) | |
 | `/settings/servicos` | CRUD catálogo `/services` | |
 | `/clientes` | Lista, busca, edit modal, máscara PII | |
 | `/clientes/novo` | Cadastro + ViaCEP | |
@@ -25,10 +25,11 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 | `/consultas/clientes` | Busca clientes + pedidos do selecionado | |
 | `/consultas/pedidos` | Busca pedidos, detalhe, PDF, etiqueta | |
 | `/funcionarios` | Create/edit/desativar, filtro setor (API) | |
-| `/admin/financeiro` | Receita/sinal/restante/despesas, períodos | |
+| `/admin/financeiro` | Hero líquido/bruto/vendidos + setores + top serviços; owner/admin only | |
 | `/admin/metrics` | Overview ops/SLA/produtividade | |
 | `/tv` | **TV Cliente** — sala de espera, códigos grandes, carousel | Fora da sidebar; atalho no dashboard |
 | `/tv-dashboard` | **TV Oficina** — fila por setor, flash; `?hot=1` | Fora da sidebar |
+| `/tv-financeiro` | **TV Financeiro** — líquido/bruto/meses/meta anual (2× YTD); owner/admin | `?meta=` override |
 | `/emails` | — | REMOVIDO (QW-14) |
 
 ## Kanban UI (carro-chefe) — comportamento atual

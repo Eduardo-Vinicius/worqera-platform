@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  Trash2,
   X,
 } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
@@ -35,12 +36,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { addOrderCommentV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderV1 } from "@/lib/apiV1"
+import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderV1 } from "@/lib/apiV1"
 import { getPedidoService, generateOrderPDFService, downloadBlobAsFile, updateOrderService } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
 
 type OrderCard = {
@@ -85,7 +87,13 @@ type DetailOrder = {
   clientPhone?: string
   client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
   shoeModel?: string
-  items?: Array<{ shoeModel?: string; services?: Array<{ name?: string; price?: number }> }>
+  items?: Array<{
+    shoeModel?: string
+    services?: Array<{ name?: string; price?: number }>
+    photos?: Array<string | { url?: string }>
+  }>
+  photos?: Array<string | { url?: string }>
+  fotos?: string[]
   plannedSectorIds?: string[]
   sectorHistory?: Array<{
     sectorId?: string
@@ -110,6 +118,24 @@ type DetailOrder = {
     authorName?: string
     createdAt?: string
   }>
+}
+
+function collectOrderPhotoUrls(order: DetailOrder | null | undefined): string[] {
+  if (!order) return []
+  const urls: string[] = []
+  const push = (u: unknown) => {
+    if (typeof u === "string" && u.trim()) urls.push(u.trim())
+    else if (u && typeof u === "object" && typeof (u as { url?: string }).url === "string") {
+      const url = String((u as { url?: string }).url || "").trim()
+      if (url) urls.push(url)
+    }
+  }
+  for (const u of order.fotos || []) push(u)
+  for (const u of order.photos || []) push(u)
+  for (const it of order.items || []) {
+    for (const u of it.photos || []) push(u)
+  }
+  return [...new Set(urls)]
 }
 
 function orderId(o: OrderCard) {
@@ -198,6 +224,7 @@ function KanbanCardBody({
     (order.status === "ready" || !order.status) &&
     Boolean(onMarkDelivered)
   const showNotify =
+    ENABLE_WA_ME &&
     Boolean(isTerminalColumn) &&
     (order.status === "ready" || !order.status) &&
     Boolean(onNotifyReady)
@@ -623,7 +650,7 @@ export default function KanbanPage() {
       const moved: any = await moveKanbanOrderV1(orderIdValue, { toSectorId, note })
       const destVisible = visibleColumnIds.has(toSectorId)
       const destName = sectorNameById.get(toSectorId) || "setor"
-      const wa = moved?.whatsappSuggest
+      const wa = ENABLE_WA_ME ? moved?.whatsappSuggest : null
       if (wa?.url) {
         toast.success(destVisible ? `Movido para ${destName}` : `Encaminhado para ${destName}`, {
           action: {
@@ -883,7 +910,7 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="relative flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] min-h-[420px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
+      <div className="relative flex h-[calc(100dvh-3.5rem-4.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[360px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
         <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
@@ -1155,44 +1182,46 @@ export default function KanbanPage() {
                         <Copy className="mr-1.5 h-3.5 w-3.5" />
                         Copiar link
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-[10px]"
-                        onClick={() => {
-                          const phone =
-                            detail.clientPhone ||
-                            detail.client?.phone ||
-                            detail.client?.telefone ||
-                            ""
-                          const code = detail.code || ""
-                          const isReady = detail.status === "ready"
-                          const built = buildOrderWaFromShop({
-                            shop: shopDoc,
-                            phone,
-                            code,
-                            publicToken: detail.publicToken,
-                            clientName:
-                              detail.clientName ||
-                              detail.client?.nomeCompleto ||
-                              detail.client?.name ||
-                              "",
-                            sectorName:
-                              sectorNameById.get(String(detail.currentSectorId || "")) || "",
-                            templateKey: isReady ? "ready" : "publicLink",
-                            requireEnabled: false,
-                          })
-                          if (!built?.url) {
-                            toast.error("Cliente sem telefone válido")
-                            return
-                          }
-                          window.open(built.url, "_blank", "noopener,noreferrer")
-                        }}
-                      >
-                        <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
-                        WhatsApp
-                      </Button>
+                      {ENABLE_WA_ME ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-[10px]"
+                          onClick={() => {
+                            const phone =
+                              detail.clientPhone ||
+                              detail.client?.phone ||
+                              detail.client?.telefone ||
+                              ""
+                            const code = detail.code || ""
+                            const isReady = detail.status === "ready"
+                            const built = buildOrderWaFromShop({
+                              shop: shopDoc,
+                              phone,
+                              code,
+                              publicToken: detail.publicToken,
+                              clientName:
+                                detail.clientName ||
+                                detail.client?.nomeCompleto ||
+                                detail.client?.name ||
+                                "",
+                              sectorName:
+                                sectorNameById.get(String(detail.currentSectorId || "")) || "",
+                              templateKey: isReady ? "ready" : "publicLink",
+                              requireEnabled: false,
+                            })
+                            if (!built?.url) {
+                              toast.error("Cliente sem telefone válido")
+                              return
+                            }
+                            window.open(built.url, "_blank", "noopener,noreferrer")
+                          }}
+                        >
+                          <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                          WhatsApp
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         size="sm"
@@ -1226,6 +1255,42 @@ export default function KanbanPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {(() => {
+                    const photoUrls = collectOrderPhotoUrls(detail)
+                    return (
+                      <div>
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                          Fotos {photoUrls.length ? `(${photoUrls.length})` : ""}
+                        </p>
+                        {photoUrls.length === 0 ? (
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Nenhuma foto neste pedido.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            {photoUrls.map((url, idx) => (
+                              <a
+                                key={`${url}-${idx}`}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="aspect-square overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt={`Foto ${idx + 1} do pedido ${detail.code || ""}`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
@@ -1412,6 +1477,31 @@ export default function KanbanPage() {
                   <Button asChild variant="outline" className="w-full rounded-[10px]">
                     <Link href={`/pedidos/${detail.id}/etiqueta`}>Ver etiqueta</Link>
                   </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full rounded-[10px] border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                    onClick={async () => {
+                      if (!detail.id) return
+                      const ok = window.confirm(
+                        `Excluir pedido #${detail.code || ""}?\nEle sai do kanban e vai para a lixeira em Pedidos (dá para recuperar).`
+                      )
+                      if (!ok) return
+                      try {
+                        await deleteOrderV1(String(detail.id))
+                        toast.success("Pedido movido para a lixeira")
+                        setDetailOpen(false)
+                        setDetail(null)
+                        await load()
+                      } catch (err: any) {
+                        toast.error(err?.message || "Não foi possível excluir")
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    Excluir pedido
+                  </Button>
                 </>
               )}
             </div>
@@ -1468,16 +1558,6 @@ export default function KanbanPage() {
           </div>
         </div>
       )}
-
-      {!isSectorRole ? (
-        <Link
-          href="/pedidos/novo"
-          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--wq-action)] text-white shadow-lg md:hidden"
-          aria-label="Novo pedido"
-        >
-          <Plus className="h-6 w-6" />
-        </Link>
-      ) : null}
     </div>
   )
 }

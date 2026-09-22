@@ -153,7 +153,7 @@ export default function SetoresSettingsPage() {
           <strong className="text-[var(--wq-text)]">Final</strong> (pronto pra retirada). Com e-mail
           do cliente e SMTP: coluna com “E-mail” avisa ao entrar; a final marca pronto. “Cliente vê”
           controla se o nome do setor aparece no link/QR — desmarque etapas internas longas; o
-          cliente vê “Em andamento”. WhatsApp segue pelo toast / Avisar pronto no kanban.
+          cliente vê “Em andamento”.
         </p>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">

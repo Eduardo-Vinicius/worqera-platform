@@ -26,9 +26,10 @@ import {
   getPedidoService,
   listPedidoPdfsService,
 } from "@/lib/apiService"
-import { getShopCurrentV1 } from "@/lib/apiV1"
+import { getShopCurrentV1, resendOrderEmailV1 } from "@/lib/apiV1"
 import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } from "@/lib/shopBrand"
 import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
 
 type OrderDoc = {
@@ -60,6 +61,8 @@ export default function PedidoSucessoPage() {
   const [pdfFileName, setPdfFileName] = useState("laudo.pdf")
   const [pdfStatus, setPdfStatus] = useState<"loading" | "ready" | "error">("loading")
   const [pdfError, setPdfError] = useState("")
+  const [emailNotify, setEmailNotify] = useState<any>(null)
+  const [resendingEmail, setResendingEmail] = useState(false)
   const blobRef = useRef<Blob | null>(null)
   const objectUrlRef = useRef("")
 
@@ -119,6 +122,10 @@ export default function PedidoSucessoPage() {
         setLoading(false)
       }
     })()
+    try {
+      const raw = sessionStorage.getItem(`wq-email-notify:${id}`)
+      if (raw) setEmailNotify(JSON.parse(raw))
+    } catch {}
   }, [id])
 
   useEffect(() => {
@@ -284,6 +291,54 @@ export default function PedidoSucessoPage() {
     window.location.href = `mailto:${encodeURIComponent(clientEmail)}?subject=${subject}&body=${body}`
   }
 
+  const emailStatusLabel = (() => {
+    if (!clientEmail) return "Cliente sem e-mail — não há envio automático."
+    if (!emailNotify) return "Status do envio ainda não chegou — use Reenviar e-mail se precisar."
+    if (emailNotify.ok && emailNotify.provider === "console") {
+      return "SMTP não entregou de verdade (modo console). Veja o log da API: [mailer:dev]."
+    }
+    if (emailNotify.ok) {
+      return `E-mail enviado (${emailNotify.provider || "smtp"}${
+        emailNotify.attachments ? ", com PDF" : ""
+      }).`
+    }
+    if (emailNotify.skipped) {
+      const map: Record<string, string> = {
+        "no-email": "Cliente sem e-mail no pedido.",
+        "email-disabled": "E-mail desligado em Empresa → notificações.",
+        missing: "Dados incompletos para enviar.",
+      }
+      return `Não enviou: ${map[emailNotify.reason] || emailNotify.reason || "ignorado"}.`
+    }
+    return `Falha no envio: ${emailNotify.error || "erro desconhecido"}. Confira o log da API ([mailer] / [orderNotify]).`
+  })()
+
+  const resendEmail = async () => {
+    if (!id) return
+    setResendingEmail(true)
+    try {
+      const result = await resendOrderEmailV1(id, "created")
+      const notify = result?.emailNotify || result
+      setEmailNotify(notify)
+      try {
+        sessionStorage.setItem(`wq-email-notify:${id}`, JSON.stringify(notify || null))
+      } catch {}
+      if (notify?.ok && notify?.provider !== "console") {
+        toast.success("E-mail reenviado")
+      } else if (notify?.ok && notify?.provider === "console") {
+        toast.message("Logado no console da API", {
+          description: "SMTP não está entregando — veja [mailer:dev] no terminal.",
+        })
+      } else {
+        toast.error(notify?.error || notify?.reason || "Não enviou")
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao reenviar e-mail")
+    } finally {
+      setResendingEmail(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 p-8 text-[var(--wq-text-muted)]">
@@ -342,12 +397,10 @@ export default function PedidoSucessoPage() {
                 {clientEmail ? ` · ${clientEmail}` : " · sem e-mail"}
               </p>
               {clientEmail ? (
-                <p className="mt-2 text-sm text-[var(--wq-success)]">
-                  Se o e-mail da loja estiver ativo, o laudo PDF e o link já foram enviados ao cliente.
-                </p>
+                <p className="mt-2 text-sm text-[var(--wq-text-muted)]">{emailStatusLabel}</p>
               ) : (
                 <p className="mt-2 text-sm text-amber-700">
-                  Cliente sem e-mail — imprima o laudo ou envie pelo WhatsApp com o QR/link.
+                  Cliente sem e-mail — imprima o laudo ou compartilhe o QR/link.
                 </p>
               )}
             </div>
@@ -480,7 +533,7 @@ export default function PedidoSucessoPage() {
             Enviar agora
           </h2>
           <div className="flex flex-wrap gap-2">
-            {waUrl ? (
+            {ENABLE_WA_ME && waUrl ? (
               <Button
                 type="button"
                 size="sm"
@@ -490,12 +543,24 @@ export default function PedidoSucessoPage() {
                 <MessageCircle className="mr-1.5 h-4 w-4" />
                 WhatsApp ao cliente
               </Button>
-            ) : (
+            ) : null}
+            {ENABLE_WA_ME && !waUrl ? (
               <Button type="button" variant="outline" size="sm" className="rounded-[10px]" disabled>
                 <MessageCircle className="mr-1.5 h-4 w-4" />
                 WhatsApp (sem telefone)
               </Button>
-            )}
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-[10px]"
+              disabled={!clientEmail || resendingEmail}
+              onClick={resendEmail}
+            >
+              <Mail className="mr-1.5 h-4 w-4" />
+              {resendingEmail ? "Reenviando…" : clientEmail ? "Reenviar e-mail" : "Sem e-mail"}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -504,8 +569,7 @@ export default function PedidoSucessoPage() {
               disabled={!clientEmail}
               onClick={openMailto}
             >
-              <Mail className="mr-1.5 h-4 w-4" />
-              {clientEmail ? "Abrir e-mail (rascunho)" : "Sem e-mail"}
+              Abrir e-mail (rascunho)
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
               <Link href={`/consultas/pedidos?q=${encodeURIComponent(code)}&tab=ativos`}>
@@ -514,7 +578,7 @@ export default function PedidoSucessoPage() {
             </Button>
           </div>
           <p className="mt-3 text-xs text-[var(--wq-text-muted)]">
-            Dica rápida: imprima o laudo + etiqueta, avise no Zap com o link, e o cliente já acompanha pelo QR.
+            Dica rápida: imprima o laudo + etiqueta; o cliente acompanha pelo QR.
           </p>
         </section>
       </div>

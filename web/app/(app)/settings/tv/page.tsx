@@ -79,7 +79,7 @@ export default function TvSettingsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="TVs"
-        subtitle={`Painéis da ${shopLabel || "empresa"} — Cliente e Oficina`}
+        subtitle={`Painéis da ${shopLabel || "empresa"} — Cliente, Oficina e Financeiro (admin)`}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -106,6 +106,11 @@ export default function TvSettingsPage() {
                 }}
               >
                 <ExternalLink className="mr-1 h-3.5 w-3.5" /> Oficina
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-[10px]">
+              <Link href="/tv-financeiro" target="_blank">
+                <ExternalLink className="mr-1 h-3.5 w-3.5" /> Financeiro
               </Link>
             </Button>
           </div>
@@ -224,6 +229,21 @@ export default function TvSettingsPage() {
                   />
                 </div>
               </div>
+            </section>
+
+            <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4 sm:p-5">
+              <h2 className="text-sm font-semibold text-[var(--wq-text)]">TV Financeiro</h2>
+              <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+                Painel privado (owner/admin): líquido e bruto do ano, barras mensais e meta anual
+                (padrão = 2× o bruto já realizado). Opcional:{" "}
+                <code className="rounded bg-[var(--wq-paper)] px-1 text-xs">?meta=500000</code>
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-3 rounded-[10px]">
+                <Link href="/tv-financeiro" target="_blank">
+                  <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                  Abrir TV Financeiro
+                </Link>
+              </Button>
             </section>
 
             <Button type="submit" disabled={loading} className="bg-[var(--wq-brand)]">

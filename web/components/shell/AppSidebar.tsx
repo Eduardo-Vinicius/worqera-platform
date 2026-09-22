@@ -56,11 +56,11 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex w-[246px] shrink-0 flex-col bg-[var(--wq-ink)] text-[var(--wq-on-ink)]",
+        "flex h-[100dvh] w-[246px] shrink-0 flex-col bg-[var(--wq-ink)] text-[var(--wq-on-ink)]",
         mobile && "h-full w-full max-w-none"
       )}
     >
-      <div className="border-b border-white/10 px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
+      <div className="shrink-0 border-b border-white/10 px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
         <Link
           href={isPlatformOnly ? "/admin/shops" : isSector ? "/kanban" : "/dashboard"}
           onClick={onNavigate}
@@ -87,8 +87,8 @@ export function AppSidebar({
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {NAV_SECTIONS.map((section) => {
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3">
+        {NAV_SECTIONS.map((section, sectionIndex) => {
           const items = section.items.filter((item) => {
             if (isPlatformOnly) return Boolean(item.platformOnly)
             if (item.platformOnly) return platformAdmin
@@ -99,11 +99,17 @@ export function AppSidebar({
           })
           if (!items.length) return null
           return (
-            <div key={section.title}>
-              <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <div
+              key={section.title}
+              className={cn(
+                "space-y-1 py-3",
+                sectionIndex > 0 && "border-t border-white/10"
+              )}
+            >
+              <div className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                 {isPlatformOnly ? "Plataforma" : section.title}
               </div>
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {items.map((item) => {
                   const active = isNavActive(pathname, item.href)
                   const Icon = item.icon
@@ -114,12 +120,16 @@ export function AppSidebar({
                         onClick={onNavigate}
                         className={cn(
                           "flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+                          mobile && "min-h-11 py-3 text-[15px]",
                           active
                             ? "bg-[var(--wq-brand-soft)] text-white"
                             : "text-slate-300 hover:bg-white/5 hover:text-white"
                         )}
                       >
-                        <Icon className="h-4 w-4 shrink-0 opacity-90" strokeWidth={1.7} />
+                        <Icon
+                          className={cn("h-4 w-4 shrink-0 opacity-90", mobile && "h-5 w-5")}
+                          strokeWidth={1.7}
+                        />
                         {item.label}
                       </Link>
                     </li>
@@ -131,20 +141,20 @@ export function AppSidebar({
         })}
       </nav>
 
-      <div className="border-t border-white/10 p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-9 w-9 rounded-full bg-[var(--wq-ink-2)] flex items-center justify-center text-sm font-semibold text-[var(--wq-brand)]">
+      <div className="shrink-0 border-t border-white/10 bg-[var(--wq-ink)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+        <div className="mb-2 flex items-center gap-3 sm:mb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--wq-ink-2)] text-sm font-semibold text-[var(--wq-brand)]">
             {String(userName).slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-white truncate">{userName}</div>
-            <div className="text-xs text-slate-400 truncate">{shopName}</div>
+            <div className="truncate text-sm font-medium text-white">{userName}</div>
+            <div className="truncate text-xs text-slate-400">{shopName}</div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => void handleLogout()}
-          className="flex w-full items-center gap-2 rounded-[11px] px-3 py-2 text-[13px] text-slate-300 hover:bg-white/5 hover:text-white"
+          className="flex min-h-11 w-full items-center gap-2 rounded-[11px] px-3 py-2.5 text-[13px] text-slate-300 hover:bg-white/5 hover:text-white"
         >
           <LogOut className="h-4 w-4" strokeWidth={1.7} />
           Sair

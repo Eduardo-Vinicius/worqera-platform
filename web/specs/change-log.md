@@ -1,8 +1,22 @@
 # Worqera Web — Change log
 
+## 2026-09-22
+
+- **Landing premium multi-ramo:** visual ink/papel sem glow roxo; hero + loop + ramos + prática + prova social; copy “fila sob controle”; fontes Instrument Sans + IBM Plex; sem theme toggle.
+- **WhatsApp wa.me:** oculto no produto (`ENABLE_WA_ME=false`) — botões/toasts/Status Pack/consulta pública; código permanece para religar depois. Contato comercial Worqera (landing/billing) mantido.
+- **TV Financeiro** (`/tv-financeiro`): painel full-screen privado (owner/admin) — líquido/bruto do ano, meses, meta anual (= 2× bruto YTD; override `?meta=`), refresh 60s; links em Financeiro e Configuração → TVs.
+- **Financeiro (owner/admin):** UI limpa com hero de **líquido**, bruto, vendidos, setores e top serviços; CSV; middleware/nav só Gestão.
+- **Sidebar:** `Sair` fixo no rodapé (`h-dvh` + footer sticky) — sem scroll no menu; Visão geral em primeiro; seções com divisor.
+- **Mobile:** bottom dock (Kanban / Pedidos / Novo / Início / Finanças); padding safe-area; kanban altura ajustada.
+- **Dashboard:** KPIs mais compactos no celular; atalho Financeiro; TVs só no desktop.
+
 ## 2026-09-19
 
-- **Pós-criar pedido:** `/pedidos/[id]/sucesso` — QR + preview do laudo (imprimir/baixar) + Zap / e-mail rascunho / etiqueta; create redireciona pra cá.
+- **Auth:** login liberado sem verificar e-mail (toast + banner dismissível); confirmação continua opcional.
+- **Layout:** shell/header até 1600px; dashboard mais largo; mobile — menu touch, novo pedido (pares/serviços/fotos/CTA sticky) e tabs de pedidos.
+- **Kanban:** drawer mostra fotos do pedido; botão Excluir → lixeira.
+- **Pedidos:** aba Lixeira + Recuperar (soft-delete).
+- **Pós-criar pedido:** `/pedidos/[id]/sucesso` — QR + preview do laudo (imprimir/baixar) + Zap / e-mail rascunho / etiqueta; create redireciona pra cá; status `emailNotify` + botão Reenviar.
 - **Kanban:** atrasado com borda/badge rosa (como reaberto); observação do pedido editável + anotações.
 - **Fotos:** adapter prefixa `NEXT_PUBLIC_API_URL` em paths relativos; API passa a assinar URLs.
 - **Laudo:** seção no detalhe do pedido (listar/abrir + gerar); botão Laudo no kanban; PDF no create.

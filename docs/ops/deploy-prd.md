@@ -56,3 +56,4 @@ Nginx: `upstream` → `server worqera-web:80;`
 - Backup semanal: `api/scripts/mongo-backup.sh` (cron no host).
 - Trial D-2/D-0: `node api/scripts/send-trial-reminders.js` (cron diário).
 - Digest semanal (owners): `node api/scripts/send-weekly-digests.js` (cron segundas) ou botão no dashboard.
+- E-mail: lab com Gmail → domínio + SES — ver `docs/ops/email-gmail-to-domain.md`.

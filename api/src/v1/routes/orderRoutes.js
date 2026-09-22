@@ -33,9 +33,11 @@ router.post(
 router.get('/:id/photos/zip', ...guard, orderController.zipPhotos);
 router.post('/:id/pdf', ...guard, orderController.generatePdf);
 router.get('/:id/pdfs', ...guard, orderController.listPdfs);
+router.post('/:id/resend-email', ...guard, orderController.resendEmail);
 router.get('/:id', ...guard, orderController.get);
 router.patch('/:id', ...guard, orderController.patch);
 router.post('/:id/reopen', ...guard, orderController.reopen);
+router.post('/:id/restore', ...guard, orderController.restore);
 router.post('/:id/comments', ...guard, orderController.addComment);
 router.delete('/:id', ...guard, orderController.remove);
 

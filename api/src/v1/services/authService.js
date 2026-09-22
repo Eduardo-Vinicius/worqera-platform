@@ -215,14 +215,8 @@ async function login({ email, password }) {
     throw err;
   }
 
-  if (needsEmailVerification(user)) {
-    const err = new Error('Email not verified');
-    err.status = 403;
-    err.code = 'EMAIL_NOT_VERIFIED';
-    err.detail =
-      'Confirme seu e-mail pelo link que enviamos. Se não chegou, use “Reenviar confirmação”.';
-    throw err;
-  }
+  // Soft gate: allow login without verification, but surface a warning for the UI.
+  const emailVerified = !needsEmailVerification(user);
 
   const memberships = await Membership.find({ userId: user._id, active: true }).lean();
   const primary = memberships[0] || null;
@@ -231,7 +225,12 @@ async function login({ email, password }) {
   const primaryShop = primary ? await Shop.findById(primary.shopId).lean() : null;
 
   return {
-    user: { id: user._id, email: user.email, name: user.name },
+    user: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      emailVerified,
+    },
     shop: primaryShop
       ? { id: primaryShop._id, name: primaryShop.name, slug: primaryShop.slug }
       : null,
@@ -242,6 +241,8 @@ async function login({ email, password }) {
       sectorIds: m.sectorIds,
     })),
     platformAdmin: isPlatformAdminEmail(user.email),
+    emailVerified,
+    emailVerificationRequired: !emailVerified,
     token: accessToken,
     accessToken,
     refreshToken,
@@ -406,8 +407,15 @@ async function me(userId) {
   const subByShop = Object.fromEntries(subscriptions.map((s) => [String(s.shopId), s]));
 
   return {
-    user: { id: user._id, email: user.email, name: user.name },
+    user: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      emailVerified: !needsEmailVerification(user),
+    },
     platformAdmin: isPlatformAdminEmail(user.email),
+    emailVerified: !needsEmailVerification(user),
+    emailVerificationRequired: needsEmailVerification(user),
     memberships: memberships.map((m) => {
       const shop = shopById[String(m.shopId)];
       const sub = subByShop[String(m.shopId)];

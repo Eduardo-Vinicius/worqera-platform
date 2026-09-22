@@ -1,36 +1,29 @@
 "use client"
 
 import "./landing.css"
-import { LanguageProvider, useLanguage } from "@/components/landing/language-provider"
+import { LanguageProvider } from "@/components/landing/language-provider"
 import { Header } from "@/components/landing/header"
 import { HeroSection } from "@/components/landing/hero-section"
-import { SolutionSection } from "@/components/landing/solution-section"
+import { LoopSection } from "@/components/landing/loop-section"
+import { TradesSection } from "@/components/landing/trades-section"
+import { PracticeSection } from "@/components/landing/practice-section"
 import { ClientsSection } from "@/components/landing/clients-section"
-import { HowItWorksSection } from "@/components/landing/how-it-works-section"
 import { PricingSection } from "@/components/landing/pricing-section"
-import { SecuritySection } from "@/components/landing/security-section"
 import { FaqSection } from "@/components/landing/faq-section"
-import { FinalCtaSection } from "@/components/landing/final-cta-section"
 import { Footer } from "@/components/landing/footer"
 
 function LandingInner() {
-  const { theme } = useLanguage()
-
   return (
-    <div
-      data-theme={theme}
-      className="lp min-h-screen overflow-x-hidden bg-background text-foreground antialiased"
-    >
+    <div className="lp min-h-screen overflow-x-hidden antialiased">
       <Header />
       <main>
         <HeroSection />
-        <SolutionSection />
-        <HowItWorksSection />
+        <LoopSection />
+        <TradesSection />
+        <PracticeSection />
         <ClientsSection />
         <PricingSection />
-        <SecuritySection />
         <FaqSection />
-        <FinalCtaSection />
       </main>
       <Footer />
     </div>

@@ -61,11 +61,13 @@ function persistSession(data: {
   accessToken?: string
   refreshToken?: string
   shop?: { id?: string; name?: string; slug?: string }
-  user?: { name?: string; email?: string }
+  user?: { name?: string; email?: string; emailVerified?: boolean }
   membership?: { shopId?: string; role?: string }
   memberships?: Array<{ shopId?: string; role?: string }>
   role?: string
   platformAdmin?: boolean
+  emailVerified?: boolean
+  emailVerificationRequired?: boolean
 }) {
   const token = data.token || data.accessToken
   if (token) {
@@ -91,6 +93,19 @@ function persistSession(data: {
     localStorage.setItem("shopName", "Worqera Platform")
     localStorage.setItem("shopDisplayName", "Worqera Platform")
     localStorage.setItem("role", "platform")
+  }
+  const verified =
+    data.emailVerified === true ||
+    data.user?.emailVerified === true ||
+    data.emailVerificationRequired === false
+  const needsVerify =
+    data.emailVerificationRequired === true ||
+    data.emailVerified === false ||
+    data.user?.emailVerified === false
+  if (needsVerify && !verified) {
+    localStorage.setItem("wq-email-unverified", "1")
+  } else if (verified || data.emailVerified === true) {
+    localStorage.removeItem("wq-email-unverified")
   }
 }
 
@@ -122,6 +137,16 @@ export async function loginV1(email: string, password: string) {
   return data
 }
 
+export async function resendOrderEmailV1(orderId: string, kind: "created" | "moved" | "ready" = "created") {
+  return v1Fetch<{ ok: boolean; emailNotify?: any }>(
+    `/orders/${encodeURIComponent(orderId)}/resend-email`,
+    {
+      method: "POST",
+      body: JSON.stringify({ kind }),
+    }
+  )
+}
+
 export async function verifyEmailV1(token: string) {
   return v1Fetch<{ ok: boolean; email?: string }>("/auth/verify-email", {
     method: "POST",
@@ -140,6 +165,11 @@ export async function meV1() {
   const data = await v1Fetch<any>("/auth/me")
   if (data?.platformAdmin === true) localStorage.setItem("platformAdmin", "1")
   else localStorage.removeItem("platformAdmin")
+  if (data?.emailVerificationRequired === true || data?.emailVerified === false) {
+    localStorage.setItem("wq-email-unverified", "1")
+  } else if (data?.emailVerified === true || data?.user?.emailVerified === true) {
+    localStorage.removeItem("wq-email-unverified")
+  }
   const shop = data?.memberships?.[0]?.shop
   if (shop?.id) localStorage.setItem("shopId", String(shop.id))
   if (shop?.name) localStorage.setItem("shopName", String(shop.name))
@@ -528,6 +558,14 @@ export async function addOrderCommentV1(orderId: string, text: string) {
     method: "POST",
     body: JSON.stringify({ text }),
   })
+}
+
+export async function deleteOrderV1(orderId: string) {
+  return v1Fetch(`/orders/${encodeURIComponent(orderId)}`, { method: "DELETE" })
+}
+
+export async function restoreOrderV1(orderId: string) {
+  return v1Fetch(`/orders/${encodeURIComponent(orderId)}/restore`, { method: "POST", body: "{}" })
 }
 
 export async function createDemoOrderV1() {

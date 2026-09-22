@@ -26,27 +26,27 @@ export function AppHeader({
     <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] backdrop-blur-md">
       <div
         className={cn(
-          "mx-auto flex max-w-[1320px] flex-col gap-3 px-3 py-3 sm:px-5 sm:py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8"
+          "mx-auto flex w-full max-w-[1600px] flex-col gap-2.5 px-2.5 py-2.5 sm:gap-3 sm:px-5 sm:py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 lg:px-8"
         )}
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-semibold tracking-tight text-[var(--wq-text)] sm:text-2xl">
+            <h1 className="truncate text-lg font-semibold tracking-tight text-[var(--wq-text)] sm:text-2xl">
               {title}
             </h1>
             {showHealth ? <SystemOkBadge className="hidden sm:inline-flex" /> : null}
           </div>
           {subtitle ? (
-            <p className="mt-0.5 line-clamp-2 break-words text-sm text-[var(--wq-text-muted)]">
+            <p className="mt-0.5 line-clamp-2 break-words text-xs text-[var(--wq-text-muted)] sm:text-sm">
               {subtitle}
             </p>
           ) : null}
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 md:shrink-0 md:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2 md:shrink-0 md:justify-end">
           {showHealth ? <SystemOkBadge className="sm:hidden" /> : null}
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-2 text-xs text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-2 text-xs text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
             title="Buscar pedido (⌘K)"
             onClick={() => window.dispatchEvent(new Event("wq-open-order-jump"))}
           >

@@ -60,6 +60,7 @@ async function getKanban(shopId, membership) {
         shopId,
         currentSectorId: { $in: sectorIds },
         status: { $nin: ['cancelled', 'delivered'] },
+        deletedAt: null,
       })
         .sort({ priority: -1, dueAt: 1, createdAt: 1 })
         .lean()
@@ -151,6 +152,12 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     const err = new Error('Order not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (order.deletedAt) {
+    const err = new Error('Order is in the trash — restore it first');
+    err.status = 409;
+    err.code = 'ORDER_DELETED';
     throw err;
   }
 

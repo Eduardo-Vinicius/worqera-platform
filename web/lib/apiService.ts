@@ -1157,6 +1157,9 @@ export async function getPedidosConsultaService(params: {
   funcionario?: string;
   dataInicio?: string;
   dataFim?: string;
+  deleted?: string;
+  trash?: string;
+  q?: string;
   limit?: number;
   lastKey?: string;
 } = {}, opts: { forceRefresh?: boolean } = {}) {

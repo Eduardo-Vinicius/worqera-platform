@@ -12,6 +12,7 @@ import {
   DEFAULT_WA_TEMPLATES,
   fillWaTemplate,
 } from "@/lib/whatsapp";
+import { ENABLE_WA_ME } from "@/lib/featureFlags";
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink";
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun";
 import SetorProgress from "@/components/SetorProgress";
@@ -436,7 +437,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
                 >
                   Copiar
                 </Button>
-                {waUrl ? (
+                {ENABLE_WA_ME && waUrl ? (
                   <Button asChild variant="ghost" size="sm" className="h-6 px-2 text-[var(--wq-success)]">
                     <a href={waUrl} target="_blank" rel="noopener noreferrer">
                       <MessageCircle className="mr-1 h-3.5 w-3.5" />

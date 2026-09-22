@@ -12,6 +12,7 @@ import {
   applyStarterKitV1,
 } from "@/lib/apiV1"
 import { DEFAULT_WA_TEMPLATES } from "@/lib/whatsapp"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { VERTICAL_PRESETS, type ShopVertical } from "@/lib/itemNoun"
 import {
   BRAND_PRESETS,
@@ -245,7 +246,7 @@ export default function EmpresaPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Empresa"
-        subtitle="Marca da sua operação — logo, vertical, WhatsApp e link público"
+        subtitle="Marca da sua operação — logo, vertical e link público"
       />
       <div className="mx-auto max-w-[1320px] px-5 py-6 md:px-8">
         {fetching ? (
@@ -404,7 +405,7 @@ export default function EmpresaPage() {
                   </Button>
                 </div>
               ) : null}
-              {field("phone", "Telefone / WhatsApp", form.phone, (v) =>
+              {field("phone", "Telefone", form.phone, (v) =>
                 setForm((f) => ({ ...f, phone: v }))
               )}
               {field("address", "Endereço", form.address, (v) =>
@@ -597,13 +598,23 @@ export default function EmpresaPage() {
                   >
                     Em andamento
                   </span>
-                  <button
-                    type="button"
-                    className="mt-2 w-full rounded-[10px] px-3 py-2.5 text-sm font-medium text-white"
-                    style={{ background: previewAccent }}
-                  >
-                    Falar no WhatsApp
-                  </button>
+                  {ENABLE_WA_ME ? (
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded-[10px] px-3 py-2.5 text-sm font-medium text-white"
+                      style={{ background: previewAccent }}
+                    >
+                      Falar no WhatsApp
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded-[10px] px-3 py-2.5 text-sm font-medium text-white"
+                      style={{ background: previewAccent }}
+                    >
+                      Ver pedido
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
@@ -649,6 +660,7 @@ export default function EmpresaPage() {
               </p>
             </section>
 
+            {ENABLE_WA_ME ? (
             <section className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 sm:p-6">
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">
                 Status Pack (cliente informado)
@@ -685,6 +697,7 @@ export default function EmpresaPage() {
                 depois — hoje é 1 clique wa.me.
               </p>
             </section>
+            ) : null}
 
             <Button
               type="submit"

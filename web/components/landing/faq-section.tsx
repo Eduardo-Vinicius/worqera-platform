@@ -1,35 +1,49 @@
 "use client"
 
+import { useState } from "react"
 import { useLanguage } from "@/components/landing/language-provider"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function FaqSection() {
   const { t } = useLanguage()
+  const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="relative py-14 sm:py-16 lg:py-24">
-      <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center sm:mb-12">
-          <h2 className="lp-brand mb-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t.faq.title}
-          </h2>
-          <p className="text-base text-muted-foreground sm:text-lg">{t.faq.subtitle}</p>
-        </div>
+    <section id="faq" className="scroll-mt-24 border-t border-[var(--border)] py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
+          {t.faq.title}
+        </h2>
 
-        <Accordion type="single" collapsible className="space-y-4">
-          {t.faq.items.map((item, index) => (
-            <AccordionItem
-              key={index}
-              value={`item-${index}`}
-              className="border border-border rounded-xl bg-card/50 backdrop-blur-sm px-6 data-[state=open]:border-primary/30"
-            >
-              <AccordionTrigger className="text-left hover:no-underline py-5">
-                <span className="font-semibold text-foreground">{item.question}</span>
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground pb-5">{item.answer}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <ul className="mt-10 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+          {t.faq.items.map((item, index) => {
+            const isOpen = open === index
+            return (
+              <li key={item.q}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-4 py-5 text-left"
+                  onClick={() => setOpen(isOpen ? null : index)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="text-base font-medium text-[var(--ink)] sm:text-lg">{item.q}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 shrink-0 text-[var(--muted-foreground)] transition-transform",
+                      isOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+                {isOpen ? (
+                  <p className="pb-5 pr-8 text-sm leading-relaxed text-[var(--muted-foreground)] sm:text-[15px]">
+                    {item.a}
+                  </p>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
       </div>
     </section>
   )

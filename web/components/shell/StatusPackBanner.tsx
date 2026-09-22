@@ -4,15 +4,21 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { MessageCircle, QrCode } from "lucide-react"
 import { getShopCurrentV1 } from "@/lib/apiV1"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 
 /**
  * Soft CTA: Status Pack (consulta + Zap) — productized Loop do Cliente.
+ * Hidden while ENABLE_WA_ME is false.
  */
 export function StatusPackBanner() {
   const [show, setShow] = useState(false)
   const [slug, setSlug] = useState("")
 
   useEffect(() => {
+    if (!ENABLE_WA_ME) {
+      setShow(false)
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {
@@ -32,7 +38,7 @@ export function StatusPackBanner() {
     }
   }, [])
 
-  if (!show) return null
+  if (!ENABLE_WA_ME || !show) return null
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">

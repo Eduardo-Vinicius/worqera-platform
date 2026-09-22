@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { getPublicOrderV1, submitPublicFeedbackV1 } from "@/lib/apiV1"
 import { hexToRgba, normalizeHex, resolveBrandColors } from "@/lib/shopBrand"
 import { cn } from "@/lib/utils"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberto",
@@ -130,7 +131,7 @@ function PublicOrderByShopInner() {
             <div className="space-y-2">
               <p className="text-sm text-[var(--wq-danger)]">{error}</p>
               <p className="text-xs text-[var(--wq-text-muted)]">
-                Use o link completo da etiqueta ou do WhatsApp:{" "}
+                Use o link completo da etiqueta:{" "}
                 <code className="font-mono">/p/oficina/código?t=…</code>
               </p>
             </div>
@@ -190,7 +191,7 @@ function PublicOrderByShopInner() {
                 </p>
               ) : null}
 
-              {phone ? (
+              {ENABLE_WA_ME && phone ? (
                 <a
                   href={`https://wa.me/${String(phone).replace(/\D/g, "")}`}
                   target="_blank"

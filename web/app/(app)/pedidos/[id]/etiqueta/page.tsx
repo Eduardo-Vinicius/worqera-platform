@@ -12,6 +12,7 @@ import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } fro
 import { Printer, KanbanSquare, Plus, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
 import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
 
@@ -218,11 +219,11 @@ function PedidoEtiquetaInner() {
       <div className="print:hidden">
         <AppHeader
           title="Etiqueta do pedido"
-          subtitle="Imprima, cole no produto e avise o cliente no Zap · QR abre a consulta"
+          subtitle="Imprima, cole no produto · QR abre a consulta"
           showHealth={false}
           actions={
             <div className="flex flex-wrap gap-2">
-              {waCreatedUrl ? (
+              {ENABLE_WA_ME && waCreatedUrl ? (
                 <Button
                   type="button"
                   size="sm"

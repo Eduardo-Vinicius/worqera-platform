@@ -97,9 +97,10 @@ export function middleware(request: NextRequest) {
 
   if (
     pathname.startsWith('/admin/financeiro') ||
-    pathname.startsWith('/admin/metrics')
+    pathname.startsWith('/admin/metrics') ||
+    pathname.startsWith('/tv-financeiro')
   ) {
-    if (role !== 'owner') {
+    if (role !== 'owner' && role !== 'admin') {
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   } else if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {

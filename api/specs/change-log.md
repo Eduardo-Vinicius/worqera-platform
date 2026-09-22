@@ -2,6 +2,9 @@
 
 ## 2026-09-19
 
+- **Auth:** login sem bloquear por e-mail não verificado — alerta dismissível no shell + toast no login.
+- **Pedidos:** soft-delete (`deletedAt`) + `POST /orders/:id/restore`; listas/kanban/público/CSV ignoram lixeira; `?deleted=1` lista trash.
+- **E-mail pedido:** create aguarda notify e devolve `emailNotify`; logs `[orderNotify]`/`[mailer]`; `POST /orders/:id/resend-email`; tela `/sucesso` mostra status + reenviar.
 - **Serializer:** `clientEmail` exposto no pedido (pós-criar / status de e-mail).
 - **Fotos:** URLs assinadas (`accessibleUrl` / S3 signed ou `?exp=&sig=`); `/files` aceita sig sem Bearer — corrige `<img>` quebrado em PRD. Garantir `PUBLIC_API_URL` na API.
 - **Laudo PDF:** redesign profissional por par (serviços, fotos, cliente não-nulo); gera no create; filename `laudo-{code}.pdf`.

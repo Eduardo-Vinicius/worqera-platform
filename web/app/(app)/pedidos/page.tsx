@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Loader2, Download, Package, Plus, Search } from "lucide-react"
+import { Loader2, Download, Package, Plus, RotateCcw, Search, Trash2 } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { PedidoConsultaDetalhe } from "@/components/PedidoConsultaDetalhe"
 import { Button } from "@/components/ui/button"
@@ -10,16 +10,17 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { getPedidosConsultaService } from "@/lib/apiService"
-import { createDemoOrderV1, exportOrdersCsvV1, listSectorsV1 } from "@/lib/apiV1"
+import { createDemoOrderV1, exportOrdersCsvV1, listSectorsV1, restoreOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 
-type StatusTab = "ativos" | "finalizados" | "todos"
+type StatusTab = "ativos" | "finalizados" | "todos" | "lixeira"
 
 const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   ativos: "open,in_progress,ready",
   finalizados: "delivered",
   todos: undefined,
+  lixeira: undefined,
 }
 
 function looksLikeCode(term: string) {
@@ -67,6 +68,7 @@ export default function PedidosPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [demoBusy, setDemoBusy] = useState(false)
   const [exportBusy, setExportBusy] = useState(false)
+  const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -149,7 +151,8 @@ export default function PedidosPage() {
           limit: 40,
           dataInicio: dataInicio || undefined,
           dataFim: dataFim || undefined,
-          status: STATUS_FILTER[statusTab],
+          status: statusTab === "lixeira" ? undefined : STATUS_FILTER[statusTab],
+          deleted: statusTab === "lixeira" ? "1" : undefined,
           lastKey: overrides?.cursor || undefined,
         }
         if (term) {
@@ -192,10 +195,10 @@ export default function PedidosPage() {
   }
 
   return (
-    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Pedidos"
-        subtitle="Ativos, finalizados e edição · mais recentes primeiro"
+        subtitle="Ativos, finalizados, lixeira · mais recentes primeiro"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {isOwner ? (
@@ -222,13 +225,14 @@ export default function PedidosPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1100px] space-y-4">
-        <div className="flex flex-wrap gap-2">
+      <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2.5 sm:px-5 md:px-6 lg:px-8">
+        <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             [
               ["ativos", "Ativos"],
               ["finalizados", "Finalizados"],
               ["todos", "Todos"],
+              ["lixeira", "Lixeira"],
             ] as const
           ).map(([id, label]) => (
             <Button
@@ -236,9 +240,16 @@ export default function PedidosPage() {
               type="button"
               size="sm"
               variant={tab === id ? "default" : "outline"}
-              className={`rounded-[10px] ${tab === id ? "bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90" : ""}`}
+              className={`h-10 shrink-0 rounded-[10px] ${
+                tab === id
+                  ? id === "lixeira"
+                    ? "bg-rose-600 hover:bg-rose-600/90"
+                    : "bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
+                  : ""
+              }`}
               onClick={() => setTabAndSearch(id)}
             >
+              {id === "lixeira" ? <Trash2 className="mr-1.5 h-3.5 w-3.5" /> : null}
               {label}
             </Button>
           ))}
@@ -293,30 +304,37 @@ export default function PedidosPage() {
         ) : orders.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--wq-border)] px-4 py-12 text-center sm:py-14">
             <Package className="mx-auto mb-3 h-10 w-10 opacity-40" />
-            <p className="font-medium text-[var(--wq-text)]">Nenhum pedido neste filtro</p>
-            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
-              Crie o primeiro pedido ou gere um exemplo para conhecer o kanban.
+            <p className="font-medium text-[var(--wq-text)]">
+              {tab === "lixeira" ? "Lixeira vazia" : "Nenhum pedido neste filtro"}
             </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <Button asChild className="rounded-[10px] bg-[var(--wq-action)]">
-                <Link href="/pedidos/novo">Criar pedido</Link>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-[10px]"
-                disabled={demoBusy}
-                onClick={createDemo}
-              >
-                {demoBusy ? "Criando…" : "Pedido de exemplo"}
-              </Button>
-            </div>
+            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+              {tab === "lixeira"
+                ? "Pedidos excluídos do kanban aparecem aqui para recuperar."
+                : "Crie o primeiro pedido ou gere um exemplo para conhecer o kanban."}
+            </p>
+            {tab === "lixeira" ? null : (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <Button asChild className="rounded-[10px] bg-[var(--wq-action)]">
+                  <Link href="/pedidos/novo">Criar pedido</Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-[10px]"
+                  disabled={demoBusy}
+                  onClick={createDemo}
+                >
+                  {demoBusy ? "Criando…" : "Pedido de exemplo"}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
             <div className="border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
               {orders.length}
-              {nextToken ? "+" : ""} pedidos · clique para editar
+              {nextToken ? "+" : ""} pedidos ·{" "}
+              {tab === "lixeira" ? "recuperar ou abrir" : "clique para editar"}
             </div>
             <ul className="divide-y divide-[var(--wq-border)]">
               {orders.map((order) => {
@@ -325,12 +343,13 @@ export default function PedidosPage() {
                 const setor = order.currentSectorId || order.setorAtual
                 const valor = order.pricing?.total ?? order.precoTotal ?? 0
                 const created = formatDate(order.createdAt || order.dataCriacao)
+                const deleted = formatDate(order.deletedAt)
                 return (
-                  <li key={id}>
+                  <li key={id} className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--wq-paper)]">
                     <button
                       type="button"
                       onClick={() => setDetailId(id)}
-                      className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--wq-paper)]"
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-left"
                     >
                       {setor && sectorMeta[String(setor)] && (
                         <span
@@ -350,6 +369,11 @@ export default function PedidosPage() {
                           {order.status && (
                             <Badge variant="outline">{statusLabel(order.status)}</Badge>
                           )}
+                          {tab === "lixeira" && deleted ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Excluído {deleted}
+                            </Badge>
+                          ) : null}
                         </div>
                         <p className="truncate text-sm text-[var(--wq-text-muted)]">
                           {[
@@ -363,6 +387,30 @@ export default function PedidosPage() {
                       </div>
                       <p className="text-sm font-semibold">{formatMoney(Number(valor))}</p>
                     </button>
+                    {tab === "lixeira" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-[10px]"
+                        disabled={restoreBusyId === id}
+                        onClick={async () => {
+                          setRestoreBusyId(id)
+                          try {
+                            await restoreOrderV1(id)
+                            toast.success(`Pedido #${code} recuperado`)
+                            await runSearch({ tab: "lixeira" })
+                          } catch (err: any) {
+                            toast.error(err?.message || "Falha ao recuperar")
+                          } finally {
+                            setRestoreBusyId(null)
+                          }
+                        }}
+                      >
+                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                        {restoreBusyId === id ? "…" : "Recuperar"}
+                      </Button>
+                    ) : null}
                   </li>
                 )
               })}

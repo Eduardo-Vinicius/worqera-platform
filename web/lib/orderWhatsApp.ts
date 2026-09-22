@@ -9,6 +9,7 @@ import {
   type WaTemplateVars,
 } from "@/lib/whatsapp"
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 
 export type WaTemplateKey = keyof typeof DEFAULT_WA_TEMPLATES
 
@@ -36,6 +37,8 @@ export function buildOrderWaFromShop(opts: {
   /** When false, still build if phone exists (for sticky ready CTA). Default true. */
   requireEnabled?: boolean
 }): { url: string; text: string } | null {
+  if (!ENABLE_WA_ME) return null
+
   const wa = opts.shop?.notifications?.whatsapp
   if (opts.requireEnabled !== false && !wa?.enabled) return null
 

@@ -41,9 +41,11 @@ exports.create = wrap(async (req, res) => {
   const whatsappSuggest = await buildOrderWhatsAppSuggest(req.shopId, order, {
     templateKey: 'created',
   }).catch(() => null);
+  const emailNotify = order.emailNotify || null;
   res.status(201).json({
     ...serializeOrder(order),
     whatsappSuggest: whatsappSuggest || undefined,
+    emailNotify: emailNotify || undefined,
   });
 });
 
@@ -96,7 +98,12 @@ exports.addComment = wrap(async (req, res) => {
 });
 
 exports.remove = wrap(async (req, res) => {
-  const order = await orderService.deleteOrder(req.shopId, req.params.id);
+  const order = await orderService.deleteOrder(req.shopId, req.params.id, req.auth.userId);
+  res.status(200).json(serializeOrder(order));
+});
+
+exports.restore = wrap(async (req, res) => {
+  const order = await orderService.restoreOrder(req.shopId, req.params.id, req.auth.userId);
   res.status(200).json(serializeOrder(order));
 });
 
@@ -141,6 +148,25 @@ exports.listPdfs = wrap(async (req, res) => {
   await orderService.getOrder(req.shopId, req.params.id);
   const pdfs = await pdfService.listOrderPdfs(req.shopId, req.params.id);
   res.status(200).json({ pdfs, data: pdfs });
+});
+
+exports.resendEmail = wrap(async (req, res) => {
+  const order = await orderService.getOrder(req.shopId, req.params.id);
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findById(req.shopId).lean();
+  const kind = String(req.body?.kind || 'created');
+  const allowed = new Set(['created', 'moved', 'ready']);
+  if (!allowed.has(kind)) {
+    const err = new Error('Invalid email kind');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const { notifyOrderStatus } = require('../services/orderNotify');
+  const emailNotify = await notifyOrderStatus(shop, order, kind, {
+    sectorName: undefined,
+  });
+  res.status(200).json({ ok: Boolean(emailNotify?.ok), emailNotify });
 });
 
 exports.zipPhotos = wrap(async (req, res) => {

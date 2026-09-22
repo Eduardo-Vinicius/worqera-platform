@@ -12,37 +12,32 @@ export function Footer() {
   const { locale, t } = useLanguage()
 
   return (
-    <footer className="border-t border-border bg-card py-10 sm:py-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-          <div className="flex items-center gap-3">
-            <WorqeraLogo className="h-8 w-8" />
-            <div>
-              <span className="lp-brand text-lg font-semibold tracking-tight text-foreground">Worqera</span>
-              <p className="text-sm text-muted-foreground">
-                {locale === "pt"
-                  ? "Gestão de pedidos para oficinas"
-                  : "Order management for workshops"}
-              </p>
-            </div>
+    <footer className="border-t border-[var(--border)] bg-[var(--surface)] py-10 sm:py-12">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 sm:px-6 md:flex-row md:items-end md:justify-between">
+        <div className="flex items-start gap-3">
+          <WorqeraLogo className="mt-0.5 h-7 w-7" />
+          <div>
+            <p className="lp-display text-lg font-semibold text-[var(--ink)]">Worqera</p>
+            <p className="mt-1 max-w-xs text-sm text-[var(--muted-foreground)]">{t.footer.tagline}</p>
+            <p className="mt-3 text-xs text-[var(--muted-foreground)]">{t.pricing.trust}</p>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
-            <Link href="/signup" className="hover:text-foreground">
-              {locale === "pt" ? "Testar grátis" : "Try free"}
-            </Link>
-            <Link href="/login" className="hover:text-foreground">
-              {locale === "pt" ? "Entrar" : "Sign in"}
-            </Link>
-            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-              WhatsApp
-            </a>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Worqera. {t.footer.rights}
-          </p>
         </div>
+
+        <div className="flex flex-wrap gap-5 text-sm text-[var(--muted-foreground)]">
+          <Link href="/signup" className="hover:text-[var(--ink)]">
+            {locale === "pt" ? "Testar grátis" : "Try free"}
+          </Link>
+          <Link href="/login" className="hover:text-[var(--ink)]">
+            {locale === "pt" ? "Entrar" : "Sign in"}
+          </Link>
+          <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--ink)]">
+            WhatsApp
+          </a>
+        </div>
+
+        <p className="text-xs text-[var(--muted-foreground)]">
+          © {new Date().getFullYear()} Worqera. {t.footer.rights}
+        </p>
       </div>
     </footer>
   )

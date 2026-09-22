@@ -24,6 +24,7 @@ import { listSectorsV1, reopenOrderV1, getShopCurrentV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
+import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { resolveItemNoun } from "@/lib/itemNoun"
 
 const TAG_LABEL: Record<string, string> = {
@@ -328,8 +329,9 @@ export function PedidoConsultaDetalhe({
                 <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
                   <p className="text-sm font-semibold text-emerald-900">Pronto para retirada</p>
                   <p className="text-xs text-emerald-800/80">
-                    Avise o cliente no WhatsApp e, quando levar, marque como entregue.
+                    Quando o cliente levar, marque como entregue.
                   </p>
+                  {ENABLE_WA_ME ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -356,6 +358,7 @@ export function PedidoConsultaDetalhe({
                     <MessageCircle className="mr-1.5 h-4 w-4" />
                     Avisar cliente (pronto)
                   </Button>
+                  ) : null}
                   <Button
                     className="w-full rounded-[10px] bg-emerald-700 text-white hover:bg-emerald-800"
                     disabled={delivering}

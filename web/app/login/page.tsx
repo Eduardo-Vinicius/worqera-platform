@@ -27,15 +27,14 @@ export default function LoginPage() {
     setError("")
     try {
       try {
-        await loginV1(email, password)
+        const data = await loginV1(email, password)
+        if (data?.emailVerificationRequired || data?.emailVerified === false) {
+          toast.message("E-mail ainda não confirmado", {
+            description: "Você pode usar o app normalmente. Confirme quando puder pelo link do cadastro.",
+          })
+        }
       } catch (first) {
         const msg = String((first as Error)?.message || "")
-        const code = (first as any)?.code
-        if (code === "EMAIL_NOT_VERIFIED" || /confirm|e-mail|email not verified/i.test(msg)) {
-          toast.error("Confirme seu e-mail antes de entrar")
-          window.location.href = `/verify-email?pending=1&email=${encodeURIComponent(email)}`
-          return
-        }
         if (/failed to fetch|networkerror|load failed/i.test(msg)) {
           throw new Error(
             `Não conectou na API (${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001"}). Confirme make api-dev e abra o front em http://127.0.0.1:3000`

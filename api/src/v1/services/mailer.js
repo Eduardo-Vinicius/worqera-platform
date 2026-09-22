@@ -150,14 +150,29 @@ async function sendMail({ to, subject, html, text, shop, attachments }) {
   }
 
   if (emailEnabled && smtp.user && smtp.pass) {
-    const transporter = nodemailer.createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.port === 465,
-      auth: { user: smtp.user, pass: smtp.pass },
-    });
-    await transporter.sendMail(payload);
-    return { ok: true, provider: 'smtp', attachments: files.length };
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: { user: smtp.user, pass: smtp.pass },
+      });
+      const info = await transporter.sendMail(payload);
+      console.info('[mailer] smtp ok', {
+        to: payload.to,
+        messageId: info?.messageId,
+        attachments: files.length,
+      });
+      return { ok: true, provider: 'smtp', attachments: files.length, messageId: info?.messageId };
+    } catch (err) {
+      console.error('[mailer] smtp failed', {
+        to: payload.to,
+        host: smtp.host,
+        user: smtp.user,
+        error: err?.message || String(err),
+      });
+      return { ok: false, provider: 'smtp', error: err?.message || String(err) };
+    }
   }
 
   console.info('[mailer:dev]', {
@@ -165,6 +180,7 @@ async function sendMail({ to, subject, html, text, shop, attachments }) {
     subject: payload.subject,
     text: payload.text || '(html)',
     attachments: files.map((f) => f.filename),
+    hint: 'SMTP user/pass ausentes — e-mail só no console',
   });
   return { ok: true, provider: 'console', preview: true, attachments: files.length };
 }

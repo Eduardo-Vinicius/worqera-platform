@@ -41,12 +41,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Operação",
     items: [
+      { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard, hideForSector: true },
       { href: "/kanban", label: "Kanban", icon: KanbanSquare },
       { href: "/pedidos", label: "Pedidos", icon: ClipboardList, hideForSector: true },
       { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true },
       { href: "/consultas", label: "Consultas", icon: Search },
       { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true },
-      { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard, hideForSector: true },
     ],
   },
   {
@@ -64,8 +64,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Gestão",
     items: [
-      { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerOnly: true },
-      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerOnly: true },
+      { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true },
+      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
     ],
   },

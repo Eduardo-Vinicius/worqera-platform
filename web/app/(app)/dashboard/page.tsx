@@ -22,6 +22,7 @@ import {
   Search,
   Tv,
   Users,
+  Wallet,
 } from "lucide-react"
 
 type DashboardPayload = {
@@ -52,10 +53,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [isOwner, setIsOwner] = useState(false)
+  const [canFinance, setCanFinance] = useState(false)
   const [digestBusy, setDigestBusy] = useState(false)
 
   useEffect(() => {
-    setIsOwner(String(localStorage.getItem("role") || "").toLowerCase() === "owner")
+    const role = String(localStorage.getItem("role") || "").toLowerCase()
+    setIsOwner(role === "owner")
+    setCanFinance(role === "owner" || role === "admin")
     ;(async () => {
       try {
         const [payload, shop] = await Promise.all([
@@ -161,16 +165,30 @@ export default function DashboardPage() {
     { href: "/kanban", label: "Kanban", icon: KanbanSquare },
     { href: "/consultas", label: "Consultas", icon: Search },
     { href: "/clientes", label: "Clientes", icon: Users },
-    { href: "/tv", label: "TV Cliente", icon: Tv, external: true },
-    { href: "/tv-dashboard", label: "TV chão", icon: Monitor, external: true },
-  ]
+    canFinance
+      ? { href: "/admin/financeiro", label: "Financeiro", icon: Wallet }
+      : null,
+    { href: "/tv", label: "TV Cliente", icon: Tv, external: true, desktopOnly: true },
+    { href: "/tv-dashboard", label: "TV chão", icon: Monitor, external: true, desktopOnly: true },
+  ].filter(Boolean) as Array<{
+    href: string
+    label: string
+    icon: typeof Plus
+    primary?: boolean
+    external?: boolean
+    desktopOnly?: boolean
+  }>
 
   const nextActions = [
     overdue > 0
       ? { href: "/kanban", label: `${overdue} atrasado${overdue === 1 ? "" : "s"}`, tone: "warn" as const }
       : null,
     readyCount > 0
-      ? { href: "/kanban", label: "Avisar prontos no Zap", tone: "ok" as const }
+      ? {
+          href: "/kanban",
+          label: readyCount === 1 ? "1 pronto na fila" : `${readyCount} prontos na fila`,
+          tone: "ok" as const,
+        }
       : null,
     open === 0
       ? { href: "/pedidos/novo", label: "Criar primeiro pedido", tone: "brand" as const }
@@ -178,7 +196,7 @@ export default function DashboardPage() {
   ].filter(Boolean) as Array<{ href: string; label: string; tone: "warn" | "ok" | "brand" }>
 
   return (
-    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
+    <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Visão geral"
         subtitle={
@@ -187,13 +205,13 @@ export default function DashboardPage() {
             : "O que fazer agora na operação"
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {isOwner ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="rounded-[10px]"
+                className="h-9 rounded-[10px]"
                 disabled={digestBusy}
                 onClick={sendWeekly}
                 title="Envia o resumo semanal por e-mail para os owners da loja"
@@ -207,18 +225,20 @@ export default function DashboardPage() {
             ) : null}
             <Button
               asChild
-              className="rounded-[11px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]"
+              size="sm"
+              className="h-9 rounded-[11px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]"
             >
               <Link href="/pedidos/novo">
                 <Plus className="mr-1.5 h-4 w-4" />
-                Novo pedido
+                <span className="sm:hidden">Novo</span>
+                <span className="hidden sm:inline">Novo pedido</span>
               </Link>
             </Button>
           </div>
         }
       />
 
-      <div className="mx-auto max-w-[1200px] space-y-4 px-3 pb-6 sm:px-5 md:px-8">
+      <div className="mx-auto w-full max-w-[1600px] space-y-3 px-2.5 pb-6 sm:space-y-4 sm:px-5 md:px-6 lg:px-8">
         {loading && <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>}
         {error && <p className="text-sm text-[var(--wq-danger)]">{error}</p>}
 
@@ -227,12 +247,12 @@ export default function DashboardPage() {
             <SetupChecklist openOrders={open} totalClients={clients} />
 
             {nextActions.length > 0 ? (
-              <section className="flex flex-wrap gap-2">
+              <section className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {nextActions.map((a) => (
                   <Link
                     key={a.label}
                     href={a.href}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                       a.tone === "warn"
                         ? "border-[var(--wq-warn)]/40 bg-[color-mix(in_srgb,var(--wq-warn)_12%,var(--wq-surface))] text-[var(--wq-text)]"
                         : a.tone === "ok"
@@ -247,14 +267,14 @@ export default function DashboardPage() {
               </section>
             ) : null}
 
-            {/* Hero strip — mais compacto */}
+            {/* Hero strip */}
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-              <div className="flex flex-col gap-3 border-b border-[var(--wq-border)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="flex flex-col gap-2.5 border-b border-[var(--wq-border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">
                     Hoje
                   </p>
-                  <h2 className="truncate text-lg font-semibold tracking-tight text-[var(--wq-text)]">
+                  <h2 className="truncate text-base font-semibold tracking-tight text-[var(--wq-text)] sm:text-xl">
                     {shopName || "Sua empresa"}
                   </h2>
                   <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
@@ -263,21 +283,21 @@ export default function DashboardPage() {
                     {trialLabel ? ` · ${trialLabel}` : ""}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="rounded-[10px] bg-[var(--wq-brand)] text-white">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <Button asChild size="sm" className="h-10 rounded-[10px] bg-[var(--wq-brand)] text-white sm:h-9">
                     <Link href="/kanban">
                       Kanban
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                     </Link>
                   </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                  <Button asChild size="sm" variant="outline" className="h-10 rounded-[10px] sm:h-9">
                     <Link href="/pedidos">Pedidos</Link>
                   </Button>
                 </div>
               </div>
 
               {overdue > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-warn)_10%,var(--wq-surface))] px-4 py-2.5 sm:px-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-warn)_10%,var(--wq-surface))] px-3 py-2.5 sm:px-5">
                   <p className="flex items-center gap-2 text-sm font-medium text-[var(--wq-text)]">
                     <AlertTriangle className="h-4 w-4 text-[var(--wq-warn)]" />
                     {overdue} atrasado(s)
@@ -288,17 +308,17 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-px bg-[var(--wq-border)] xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-px bg-[var(--wq-border)] md:grid-cols-4">
                 {kpis.map((kpi) => {
                   const Icon = kpi.icon
                   return (
-                    <div key={kpi.label} className="bg-[var(--wq-surface)] px-3.5 py-3 sm:px-4 sm:py-3.5">
+                    <div key={kpi.label} className="bg-[var(--wq-surface)] px-3 py-3 sm:px-4 sm:py-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--wq-text-muted)]">
                             {kpi.label}
                           </p>
-                          <p className="mt-1 text-2xl font-semibold leading-none tracking-tight text-[var(--wq-text)] sm:text-[28px]">
+                          <p className="mt-1 text-[24px] font-semibold leading-none tracking-tight text-[var(--wq-text)] sm:text-[32px]">
                             {kpi.value}
                           </p>
                           <p className="mt-1 hidden text-[11px] text-[var(--wq-text-muted)] sm:block">
@@ -326,7 +346,9 @@ export default function DashboardPage() {
                     href={s.href}
                     target={s.external ? "_blank" : undefined}
                     rel={s.external ? "noopener noreferrer" : undefined}
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                    className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                      s.desktopOnly ? "hidden sm:flex" : ""
+                    } ${
                       s.primary
                         ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]"
                         : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/50"
@@ -335,15 +357,15 @@ export default function DashboardPage() {
                     <Icon
                       className={`h-4 w-4 shrink-0 ${s.primary ? "text-[var(--wq-brand)]" : "text-[var(--wq-text-muted)]"}`}
                     />
-                    {s.label}
+                    <span className="truncate">{s.label}</span>
                   </Link>
                 )
               })}
             </nav>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
               <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-4 py-3">
+                <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-3 py-3 sm:px-4">
                   <div>
                     <h2 className="text-sm font-semibold text-[var(--wq-text)]">Fila recente</h2>
                     <p className="text-[11px] text-[var(--wq-text-muted)]">Até 8 pedidos</p>
@@ -367,7 +389,7 @@ export default function DashboardPage() {
                       <Link
                         key={order.id}
                         href="/consultas/pedidos"
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 transition hover:bg-[var(--wq-paper)]"
+                        className="flex min-h-12 items-center justify-between gap-3 px-3 py-2.5 transition hover:bg-[var(--wq-paper)] sm:px-4"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -399,9 +421,9 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                  <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-4 py-3">
+                  <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-3 py-3 sm:px-4">
                     <div>
                       <h2 className="text-sm font-semibold text-[var(--wq-text)]">Carga por setor</h2>
                       <p className="text-[11px] text-[var(--wq-text-muted)]">Distribuição do kanban</p>
@@ -410,7 +432,7 @@ export default function DashboardPage() {
                       Kanban →
                     </Link>
                   </div>
-                  <ul className="max-h-[280px] space-y-2.5 overflow-y-auto px-4 py-3">
+                  <ul className="max-h-[min(420px,50vh)] space-y-2.5 overflow-y-auto px-3 py-3 sm:px-4">
                     {sectors.length === 0 && (
                       <li className="text-sm text-[var(--wq-text-muted)]">Sem setores ativos.</li>
                     )}

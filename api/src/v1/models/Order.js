@@ -110,6 +110,9 @@ const orderSchema = new mongoose.Schema(
     priority: { type: Number, default: 1 },
     dueAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
+    /** Soft-delete — hidden from kanban/listas; recuperável na lixeira */
+    deletedAt: { type: Date, default: null },
+    deletedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     /** Set when reopened for rework; cleared when delivered again. */
     reopenedAt: { type: Date, default: null },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
@@ -128,6 +131,7 @@ orderSchema.index({ shopId: 1, createdAt: 1 });
 orderSchema.index({ shopId: 1, dueAt: 1 });
 orderSchema.index({ shopId: 1, status: 1 });
 orderSchema.index({ shopId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ shopId: 1, deletedAt: 1, createdAt: -1 });
 orderSchema.index({ shopId: 1, clientName: 1 });
 
 module.exports = mongoose.models.Order || mongoose.model('Order', orderSchema);

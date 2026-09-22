@@ -116,10 +116,27 @@ function buildHtml({ kind, title, body, link, trackLink, code, primary, pdfAttac
 
 async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
   try {
-    if (!shop || !order) return { ok: false, skipped: true, reason: 'missing' };
-    if (!emailEnabled(shop)) return { ok: false, skipped: true, reason: 'email-disabled' };
+    if (!shop || !order) {
+      console.info('[orderNotify] skip', { kind, reason: 'missing' });
+      return { ok: false, skipped: true, reason: 'missing' };
+    }
+    if (!emailEnabled(shop)) {
+      console.info('[orderNotify] skip', {
+        kind,
+        code: order.code,
+        reason: 'email-disabled',
+      });
+      return { ok: false, skipped: true, reason: 'email-disabled' };
+    }
     const to = String(order.clientEmail || '').trim();
-    if (!to) return { ok: false, skipped: true, reason: 'no-email' };
+    if (!to) {
+      console.info('[orderNotify] skip', {
+        kind,
+        code: order.code,
+        reason: 'no-email',
+      });
+      return { ok: false, skipped: true, reason: 'no-email' };
+    }
 
     if (!order.publicToken) {
       const { ensureOrderPublicToken } = require('../utils/publicOrderToken');
@@ -160,7 +177,7 @@ async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
         `\nSeu pedido está pronto para retirada.\nQuando puder, avalie o serviço: ${link}\n`;
     }
 
-    return await sendMail({
+    const result = await sendMail({
       to,
       subject,
       html,
@@ -168,15 +185,32 @@ async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
       shop,
       attachments: attachments.length ? attachments : undefined,
     });
+    console.info('[orderNotify]', {
+      kind,
+      code,
+      to,
+      ok: result?.ok !== false,
+      provider: result?.provider,
+      skipped: result?.skipped,
+      reason: result?.reason,
+      attachments: attachments.length,
+    });
+    return result;
   } catch (err) {
-    console.warn('[orderNotify]', err?.message || err);
-    return { ok: false, error: err?.message };
+    console.warn('[orderNotify] failed', {
+      kind,
+      code: order?.code,
+      error: err?.message || String(err),
+    });
+    return { ok: false, error: err?.message || String(err) };
   }
 }
 
 /** Non-blocking wrapper */
 function notifyOrderStatusSafe(shop, order, kind, extras) {
-  notifyOrderStatus(shop, order, kind, extras).catch(() => {});
+  notifyOrderStatus(shop, order, kind, extras).catch((err) => {
+    console.warn('[orderNotify] safe catch', err?.message || err);
+  });
 }
 
 module.exports = {
