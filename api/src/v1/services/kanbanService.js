@@ -2,8 +2,17 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Sector = require('../models/Sector');
 const User = require('../models/User');
-const { effectiveItems } = require('./orderItems');
+const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { resolvePhotoUrl } = require('./storageService');
+const {
+  asId,
+  ensureItemSectors,
+  computeRollupSectorId,
+  allItemsInTerminal,
+  buildSectorsById,
+  findItemOnOrder,
+  pairLabel,
+} = require('./itemSectors');
 
 function canMoveAnywhere(role) {
   return ['owner', 'admin', 'atendimento'].includes(String(role || '').toLowerCase());
@@ -14,19 +23,24 @@ function sectorIdSet(ids) {
 }
 
 /**
- * Sector role: may only act on orders currently in their sectors,
- * but may forward to any active shop sector (blind — they never see other queues).
+ * Sector role: may only act on items currently in their sectors,
+ * but may forward to any active shop sector (blind).
  */
-function assertSectorCanActOnOrder(membership, order) {
+function assertSectorCanActOnItem(membership, itemSectorId) {
   const allowed = sectorIdSet(membership.sectorIds);
-  const fromId = order.currentSectorId ? String(order.currentSectorId) : null;
+  const fromId = itemSectorId ? String(itemSectorId) : null;
   if (!fromId || !allowed.has(fromId)) {
-    const err = new Error('Cannot move order outside your sectors');
+    const err = new Error('Cannot move item outside your sectors');
     err.status = 403;
     err.code = 'FORBIDDEN_SECTOR';
     throw err;
   }
   return { allowed, fromId };
+}
+
+/** @deprecated use assertSectorCanActOnItem — kept for callers checking order rollup */
+function assertSectorCanActOnOrder(membership, order) {
+  return assertSectorCanActOnItem(membership, order.currentSectorId);
 }
 
 async function listForwardTargets(shopId) {
@@ -55,12 +69,19 @@ async function getKanban(shopId, membership) {
   }
 
   const sectorIds = sectors.map((s) => s._id);
+  const sectorIdStrs = new Set(sectorIds.map(String));
+  const allSectors = await Sector.find({ shopId, active: true }).sort({ order: 1 }).lean();
+  const sectorsById = buildSectorsById(allSectors);
+
   const orders = sectorIds.length
     ? await Order.find({
         shopId,
-        currentSectorId: { $in: sectorIds },
         status: { $nin: ['cancelled', 'delivered'] },
         deletedAt: null,
+        $or: [
+          { 'items.currentSectorId': { $in: sectorIds } },
+          { currentSectorId: { $in: sectorIds } },
+        ],
       })
         .sort({ priority: -1, dueAt: 1, createdAt: 1 })
         .lean()
@@ -83,9 +104,37 @@ async function getKanban(shopId, membership) {
   }
 
   const bySector = Object.fromEntries(sectorIds.map((id) => [String(id), []]));
+  const dirtyOrders = [];
+
   for (const order of orders) {
-    const key = String(order.currentSectorId);
-    if (bySector[key]) bySector[key].push(summarizeCard(order));
+    hydrateItemsIfEmpty(order);
+    const { dirty } = ensureItemSectors(order);
+    if (dirty) dirtyOrders.push(order);
+
+    const items = effectiveItems(order);
+    items.forEach((item, index) => {
+      const itemSector = asId(item.currentSectorId) || asId(order.currentSectorId);
+      if (!itemSector || !sectorIdStrs.has(itemSector)) return;
+      if (!bySector[itemSector]) return;
+      bySector[itemSector].push(summarizeItemCard(order, item, index, sectorsById));
+    });
+  }
+
+  if (dirtyOrders.length) {
+    await Promise.all(
+      dirtyOrders.map((o) =>
+        Order.updateOne(
+          { _id: o._id },
+          {
+            $set: {
+              items: o.items,
+              currentSectorId:
+                computeRollupSectorId(o.items, sectorsById) || o.currentSectorId,
+            },
+          }
+        )
+      )
+    );
   }
 
   return {
@@ -94,37 +143,49 @@ async function getKanban(shopId, membership) {
       sector: s,
       orders: bySector[String(s._id)] || [],
     })),
-    /** Names only — for blind "Encaminhar" without exposing other queues */
     forwardTargets,
   };
 }
 
-function summarizeCard(order) {
+function summarizeItemCard(order, item, index, sectorsById) {
   const items = effectiveItems(order);
-  const flatPhotos = Array.isArray(order.photos) ? order.photos : [];
-  const item0Photos =
-    items[0] && Array.isArray(items[0].photos) ? items[0].photos : [];
-  const photos = flatPhotos.length ? flatPhotos : item0Photos;
+  const photos = Array.isArray(item.photos) && item.photos.length
+    ? item.photos
+    : items.length === 1 && Array.isArray(order.photos)
+      ? order.photos
+      : [];
   const cover = photos.find((p) => p.isCover) || photos[0];
+  const itemSector = asId(item.currentSectorId) || asId(order.currentSectorId);
+  const itemId = item._id ? String(item._id) : `idx-${index}`;
   return {
     id: order._id,
+    orderId: String(order._id),
+    itemId,
+    cardKey: `${order._id}:${itemId}`,
     code: order.code,
+    pairLabel: pairLabel(order.code, index + 1),
+    itemIndex: index,
+    pairTotal: items.length,
     publicToken: order.publicToken || null,
     clientName: order.clientName,
     clientPhone: order.clientPhone || null,
-    shoeModel: items[0]?.shoeModel || order.shoeModel || '',
+    shoeModel: item.shoeModel || order.shoeModel || '',
     itemCount: items.length,
     priority: order.priority,
     dueAt: order.dueAt,
     status: order.status,
-    currentSectorId: order.currentSectorId,
+    currentSectorId: itemSector,
+    orderSectorId: asId(order.currentSectorId),
     photoThumb: resolvePhotoUrl(cover) || null,
     assigneeEmployeeId: order.assigneeEmployeeId,
-    plannedSectorIds: Array.isArray(order.plannedSectorIds)
-      ? order.plannedSectorIds.map((s) => String(s._id || s))
-      : [],
+    plannedSectorIds: Array.isArray(item.plannedSectorIds) && item.plannedSectorIds.length
+      ? item.plannedSectorIds.map((s) => String(s._id || s))
+      : Array.isArray(order.plannedSectorIds)
+        ? order.plannedSectorIds.map((s) => String(s._id || s))
+        : [],
     reopened: Boolean(order.reopenedAt),
     feedbackScore: order.feedback?.score || null,
+    itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
   };
 }
 
@@ -138,7 +199,7 @@ async function resolveMover(userId) {
   };
 }
 
-async function moveOrder(shopId, orderId, membership, userId, body) {
+async function moveOrderItem(shopId, orderId, itemId, membership, userId, body) {
   const { toSectorId, note, employeeId, employeeName } = body || {};
   if (!toSectorId || !mongoose.Types.ObjectId.isValid(toSectorId)) {
     const err = new Error('toSectorId required');
@@ -161,6 +222,17 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     throw err;
   }
 
+  hydrateItemsIfEmpty(order);
+  ensureItemSectors(order);
+
+  const { item, index } = findItemOnOrder(order, itemId);
+  if (!item) {
+    const err = new Error('Item not found on order');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
   const toSector = await Sector.findOne({ _id: toSectorId, shopId, active: true });
   if (!toSector) {
     const err = new Error('Target sector not found');
@@ -169,11 +241,13 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     throw err;
   }
 
-  const planned = Array.isArray(order.plannedSectorIds)
-    ? order.plannedSectorIds.map((s) => String(s._id || s))
-    : [];
+  const planned = Array.isArray(item.plannedSectorIds) && item.plannedSectorIds.length
+    ? item.plannedSectorIds.map((s) => String(s._id || s))
+    : Array.isArray(order.plannedSectorIds)
+      ? order.plannedSectorIds.map((s) => String(s._id || s))
+      : [];
   const toId = String(toSector._id);
-  const fromId = order.currentSectorId ? String(order.currentSectorId) : null;
+  const fromId = item.currentSectorId ? String(item.currentSectorId) : null;
   const offPath = planned.length > 0 && !planned.includes(toId);
   const noteText = String(note || '').trim();
   if (offPath && !noteText) {
@@ -186,8 +260,7 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
   const role = String(membership.role || '').toLowerCase();
   let action = 'move';
   if (!canMoveAnywhere(role)) {
-    const { allowed } = assertSectorCanActOnOrder(membership, order);
-    // Blind forward: any active sector is allowed; destination queue is never returned in GET /kanban
+    const { allowed } = assertSectorCanActOnItem(membership, item.currentSectorId);
     if (!allowed.has(toId)) {
       action = 'forward';
     }
@@ -198,16 +271,17 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     : noteText || (action === 'forward' ? 'encaminhado' : null);
 
   const { movedByName, movedByEmail } = await resolveMover(userId);
-
   const now = new Date();
-  if (order.sectorHistory?.length) {
-    const last = order.sectorHistory[order.sectorHistory.length - 1];
+
+  if (!Array.isArray(item.sectorHistory)) item.sectorHistory = [];
+  if (item.sectorHistory.length) {
+    const last = item.sectorHistory[item.sectorHistory.length - 1];
     if (last && !last.leftAt) last.leftAt = now;
   }
 
-  order.sectorHistory.push({
+  item.sectorHistory.push({
     sectorId: toSector._id,
-    fromSectorId: order.currentSectorId || null,
+    fromSectorId: item.currentSectorId || null,
     enteredAt: now,
     leftAt: null,
     movedByUserId: userId,
@@ -219,47 +293,130 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
     action,
   });
 
+  item.currentSectorId = toSector._id;
+  order.markModified('items');
+
+  // Order-level history summary
+  if (order.sectorHistory?.length) {
+    const last = order.sectorHistory[order.sectorHistory.length - 1];
+    if (last && !last.leftAt) last.leftAt = now;
+  }
+  order.sectorHistory.push({
+    sectorId: toSector._id,
+    fromSectorId: fromId,
+    enteredAt: now,
+    leftAt: null,
+    movedByUserId: userId,
+    movedByName,
+    movedByEmail,
+    employeeId: employeeId || null,
+    employeeName: employeeName || null,
+    note: historyNote
+      ? `${pairLabel(order.code, index + 1)}: ${historyNote}`
+      : pairLabel(order.code, index + 1),
+    action,
+  });
+
   if (!order.sectorPath.map(String).includes(String(toSector._id))) {
     order.sectorPath.push(toSector._id);
   }
 
-  order.currentSectorId = toSector._id;
-  order.updatedByUserId = userId;
+  const allSectors = await Sector.find({ shopId, active: true }).lean();
+  const sectorsById = buildSectorsById(allSectors);
+  const rollup = computeRollupSectorId(order.items, sectorsById);
+  if (rollup) {
+    order.currentSectorId = mongoose.Types.ObjectId.isValid(rollup)
+      ? new mongoose.Types.ObjectId(rollup)
+      : order.currentSectorId;
+  }
 
-  if (toSector.isTerminal) {
+  const wasReady = order.status === 'ready';
+  if (allItemsInTerminal(order.items, sectorsById)) {
     order.status = 'ready';
-  } else if (order.status === 'open') {
+  } else if (order.status === 'open' || order.status === 'ready') {
     order.status = 'in_progress';
   }
 
+  order.updatedByUserId = userId;
   await order.save();
 
-  // Client email: only when sector asks for it, or terminal (ready)
-  try {
-    const Shop = require('../models/Shop');
-    const shop = await Shop.findById(shopId).lean();
-    const shouldMail =
-      Boolean(toSector.notifyEmailOnEnter) || Boolean(toSector.isTerminal);
-    if (shouldMail && shop) {
-      const { notifyOrderStatusSafe } = require('./orderNotify');
-      const kind = toSector.isTerminal || order.status === 'ready' ? 'ready' : 'moved';
-      const publicSectorName =
-        toSector.showOnPublic === false ? 'Em andamento' : toSector.name;
-      notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, kind, {
-        sectorName: publicSectorName,
-      });
+  const becameReady = !wasReady && order.status === 'ready';
+  // Email only when the whole order becomes ready (all items terminal) — no per-column spam
+  if (becameReady) {
+    try {
+      const Shop = require('../models/Shop');
+      const shop = await Shop.findById(shopId).lean();
+      if (shop) {
+        const { notifyOrderStatusSafe } = require('./orderNotify');
+        const term = allSectors.find((s) => s.isTerminal);
+        const publicSectorName =
+          term?.showOnPublic === false ? 'Em andamento' : term?.name || 'Pronto';
+        notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, 'ready', {
+          sectorName: publicSectorName,
+        });
+      }
+    } catch (_err) {
+      // never block move
     }
-  } catch (_err) {
-    // never block move
+  } else if (order.items.length === 1 && Boolean(toSector.notifyEmailOnEnter) && !toSector.isTerminal) {
+    // Single-item orders: keep legacy sector enter notify
+    try {
+      const Shop = require('../models/Shop');
+      const shop = await Shop.findById(shopId).lean();
+      if (shop) {
+        const { notifyOrderStatusSafe } = require('./orderNotify');
+        const publicSectorName =
+          toSector.showOnPublic === false ? 'Em andamento' : toSector.name;
+        notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, 'moved', {
+          sectorName: publicSectorName,
+        });
+      }
+    } catch (_err) {
+      // ignore
+    }
   }
 
   return order.toObject();
 }
 
+/**
+ * Legacy move: single-item orders only. Multi-item requires itemId endpoint.
+ */
+async function moveOrder(shopId, orderId, membership, userId, body) {
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  hydrateItemsIfEmpty(order);
+  ensureItemSectors(order);
+  const items = order.items || [];
+  if (items.length > 1) {
+    const err = new Error(
+      'Pedido com vários itens: use POST /kanban/orders/:orderId/items/:itemId/move'
+    );
+    err.status = 400;
+    err.code = 'ITEM_MOVE_REQUIRED';
+    throw err;
+  }
+  const itemId = items[0]?._id;
+  if (!itemId) {
+    const err = new Error('Order has no items to move');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  return moveOrderItem(shopId, orderId, String(itemId), membership, userId, body);
+}
+
 module.exports = {
   getKanban,
   moveOrder,
+  moveOrderItem,
   canMoveAnywhere,
   listForwardTargets,
   assertSectorCanActOnOrder,
+  assertSectorCanActOnItem,
 };

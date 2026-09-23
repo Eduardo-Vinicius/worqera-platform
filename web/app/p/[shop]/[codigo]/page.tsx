@@ -31,6 +31,8 @@ function PublicOrderByShopInner() {
   const shop = String(params?.shop || "")
   const code = String(params?.codigo || "")
   const token = String(searchParams?.get("t") || searchParams?.get("token") || "")
+  const itemParam = Number(searchParams?.get("item") || "0")
+  const focusItemIndex = itemParam >= 1 ? itemParam : null
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState("")
   const [score, setScore] = useState(0)
@@ -52,6 +54,15 @@ function PublicOrderByShopInner() {
 
   const sectorName = data?.currentSector?.name || data?.sectorName
   const sectorColor = normalizeHex(data?.currentSector?.color) || ""
+  const focusItem =
+    focusItemIndex && Array.isArray(data?.items)
+      ? data.items.find((it: any) => Number(it.index) === focusItemIndex) ||
+        data.items[focusItemIndex - 1]
+      : null
+  const displaySectorName = focusItem?.currentSector?.name || sectorName
+  const displaySectorColor =
+    normalizeHex(focusItem?.currentSector?.color) || sectorColor
+  const displayModel = focusItem?.shoeModel || data?.shoeModel
   const shopName = data?.shop?.name
   const logoUrl = data?.shop?.logoUrl || ""
   const phone = data?.shop?.phone || ""
@@ -146,7 +157,9 @@ function PublicOrderByShopInner() {
                   Pedido
                 </p>
                 <p className="mt-1 break-all font-mono text-4xl font-semibold tracking-tight sm:text-5xl">
-                  {data.code || code}
+                  {focusItemIndex
+                    ? `${data.code || code}-${focusItemIndex}`
+                    : data.code || code}
                 </p>
                 {data.clientName ? (
                   <p className="mt-2 text-base text-[var(--wq-text-muted)]">{data.clientName}</p>
@@ -154,17 +167,17 @@ function PublicOrderByShopInner() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {sectorName && (
+                {displaySectorName && (
                   <Badge
                     className="rounded-full border-0 px-3 py-1 text-sm"
                     style={{
-                      background: sectorColor
-                        ? hexToRgba(sectorColor, 0.18)
+                      background: displaySectorColor
+                        ? hexToRgba(displaySectorColor, 0.18)
                         : colors.soft,
-                      color: sectorColor || colors.primary,
+                      color: displaySectorColor || colors.primary,
                     }}
                   >
-                    {sectorName}
+                    {displaySectorName}
                   </Badge>
                 )}
                 {statusLabel && (
@@ -177,8 +190,23 @@ function PublicOrderByShopInner() {
                 )}
               </div>
 
-              {data.shoeModel ? (
-                <p className="text-sm text-[var(--wq-text-muted)]">{data.shoeModel}</p>
+              {displayModel ? (
+                <p className="text-lg font-semibold text-[var(--wq-text)]">{displayModel}</p>
+              ) : null}
+
+              {Array.isArray(data.items) && data.items.length > 1 && !focusItemIndex ? (
+                <ul className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
+                  {data.items.map((it: any) => (
+                    <li key={it.index} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="font-medium text-[var(--wq-text)]">
+                        {it.shoeModel || `Item ${it.index}`}
+                      </span>
+                      <span className="text-xs text-[var(--wq-text-muted)]">
+                        {it.currentSector?.name || "—"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
 
               {data.dueAt ? (

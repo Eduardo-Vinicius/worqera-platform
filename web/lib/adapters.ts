@@ -106,9 +106,20 @@ export function adaptOrder(raw: any) {
         : [];
     return {
       ...it,
+      id: String(it.id || it._id || ""),
       shoeModel: it.shoeModel || it.modeloTenis || "",
       photos: itemPhotos,
       notes: it.notes ?? null,
+      plannedSectorIds: Array.isArray(it.plannedSectorIds)
+        ? it.plannedSectorIds.map((s: any) => String(s?._id || s)).filter(Boolean)
+        : [],
+      currentSectorId: it.currentSectorId
+        ? String(
+            typeof it.currentSectorId === "object"
+              ? it.currentSectorId._id || it.currentSectorId.id
+              : it.currentSectorId
+          )
+        : null,
     };
   });
   const shoeModel = items[0]?.shoeModel || raw.shoeModel || raw.modeloTenis || "";

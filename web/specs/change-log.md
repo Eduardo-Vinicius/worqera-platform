@@ -2,13 +2,17 @@
 
 ## 2026-09-22
 
+- **Partida independente por par** no cadastro; resumo união no pagamento; kanban “no plano / fora” usa o caminho do item.
+- **Pedidos / lixeira:** Excluir → lixeira (lista + detalhe + kanban); na lixeira: Recuperar ou **Apagar permanente** (owner/admin).
+- **Subitens kanban:** cards por item (`code-N`); DnD move item; entrega só com pedido `ready` (todos no terminal); etiqueta pares com modelo destacado acima do QR; consulta pública destaca `?item=`.
+- **Landing / pricing:** Basic 147 · Pro 297 · Business 499; copy multi-público sem “chão”.
 - **Landing premium multi-ramo:** visual ink/papel sem glow roxo; hero + loop + ramos + prática + prova social; copy “fila sob controle”; fontes Instrument Sans + IBM Plex; sem theme toggle.
 - **WhatsApp wa.me:** oculto no produto (`ENABLE_WA_ME=false`) — botões/toasts/Status Pack/consulta pública; código permanece para religar depois. Contato comercial Worqera (landing/billing) mantido.
 - **TV Financeiro** (`/tv-financeiro`): painel full-screen privado (owner/admin) — líquido/bruto do ano, meses, meta anual (= 2× bruto YTD; override `?meta=`), refresh 60s; links em Financeiro e Configuração → TVs.
 - **Financeiro (owner/admin):** UI limpa com hero de **líquido**, bruto, vendidos, setores e top serviços; CSV; middleware/nav só Gestão.
 - **Sidebar:** `Sair` fixo no rodapé (`h-dvh` + footer sticky) — sem scroll no menu; Visão geral em primeiro; seções com divisor.
-- **Mobile:** bottom dock (Kanban / Pedidos / Novo / Início / Finanças); padding safe-area; kanban altura ajustada.
-- **Dashboard:** KPIs mais compactos no celular; atalho Financeiro; TVs só no desktop.
+- **Mobile:** bottom dock (Kanban / Pedidos / Novo / Início); padding safe-area; kanban altura ajustada.
+- **Dashboard:** KPIs mais compactos no celular; TVs só no desktop (TV Oficina, sem “chão”).
 
 ## 2026-09-19
 

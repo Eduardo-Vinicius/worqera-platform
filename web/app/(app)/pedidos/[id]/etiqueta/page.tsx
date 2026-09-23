@@ -307,6 +307,7 @@ function PedidoEtiquetaInner() {
           <div className="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
             {items.map((item, index) => {
               const pairCode = `${code}-${index + 1}`
+              const model = String(item.shoeModel || "").trim() || capitalizeNoun(itemSingular)
               return (
                 <div
                   key={pairCode}
@@ -323,19 +324,25 @@ function PedidoEtiquetaInner() {
                   >
                     {pairCode}
                   </p>
-                  <p className="mt-2 text-sm text-[var(--wq-text)]">
-                    {item.shoeModel || capitalizeNoun(itemSingular)}
-                  </p>
-                  <p className="text-xs text-[var(--wq-text-muted)]">
-                    Pedido {code} · {clientName}
+                  <p
+                    className="mt-3 text-balance text-xl font-semibold leading-snug text-[var(--wq-text)] sm:text-2xl"
+                    style={{ color: ink }}
+                  >
+                    {model}
                   </p>
                   {pairQrs[index] ? (
                     <img
                       src={pairQrs[index]}
                       alt={`QR ${pairCode}`}
-                      className="mx-auto mt-4 h-32 w-32"
+                      className="mx-auto mt-4 h-36 w-36"
                     />
                   ) : null}
+                  <p className="mt-3 text-xs text-[var(--wq-text-muted)]">
+                    Pedido {code} · {clientName}
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] text-[var(--wq-text-muted)]">
+                    Escaneie para acompanhar
+                  </p>
                 </div>
               )
             })}

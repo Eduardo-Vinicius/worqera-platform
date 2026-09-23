@@ -1,7 +1,10 @@
 # Verticais candidatas — Worqera
 
-**Data:** 2026-09-18  
+**Data:** 2026-09-18 · **Atualizado:** 2026-09-22  
 **Princípio:** o core é **fila operacional multi-setor + consulta pública + aviso ao cliente**. O item físico muda; o loop não.
+
+**Posicionamento completo (públicos quentes/mornos/frios + planos + frases):**  
+[2026-09-22-worqera-publicos-posicionamento-design.md](./2026-09-22-worqera-publicos-posicionamento-design.md)
 
 ## Já suportado (config)
 
@@ -15,14 +18,23 @@
 
 Setores e catálogo de serviços são **sempre por empresa** — não hardcodar vertical no kanban.
 
-## Candidatas (próximas conversas de venda)
+## Candidatas (ordem quente — 90 dias)
 
 1. **Lavanderia / tinturaria** — alto volume, cliente liga muito  
 2. **Assistência técnica** (celulares, bikes, eletro) — série/IMEI no modelo  
-3. **Atelier / costura / reforma** — similar a calçados  
-4. **Chaveiro / serralheria** — tickets curtos  
-5. **Pet grooming** — “animal” como item  
-6. **Ótica / joalheria** — ticket alto, consulta importa  
+3. **Automotivo leve** (estética, funilaria pequena, detailing)  
+4. **Atelier / costura / reforma** — similar a calçados  
+5. **Pet grooming** — “animal” como item (morno)  
+6. **Ótica / joalheria** — ticket alto, consulta importa (morno)  
+7. **Chaveiro / serralheria** — tickets curtos (morno)  
+8. **Confeitaria com volume** — só se lead com equipe (morno)
+
+## Fora (não chase)
+
+- Imobiliário clássico (CRM / visitas)  
+- Solo Instagram / hobby artesanal  
+- Indústria / MRP / estoque profundo  
+- Clínica / agenda de horário  
 
 ## O que **não** fazer agora
 
@@ -33,4 +45,5 @@ Setores e catálogo de serviços são **sempre por empresa** — não hardcodar 
 ## Como vender
 
 Pitch único: *“Seu cliente para de ligar: código + QR + Zap quando fica pronto.”*  
-Prova: TV + kanban + consulta. Vertical só muda o nome do item e os setores.
+Prova: TV + kanban + consulta. Vertical só muda o nome do item e os setores.  
+Planos: Basic 147 · Pro 297 · Business 499 — ver spec de posicionamento.

@@ -9,5 +9,10 @@ const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, kanbanController.getBoard);
 router.post('/orders/:orderId/move', ...guard, kanbanController.moveOrder);
+router.post(
+  '/orders/:orderId/items/:itemId/move',
+  ...guard,
+  kanbanController.moveOrderItem
+);
 
 module.exports = router;

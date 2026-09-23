@@ -1,10 +1,10 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-09-22 (landing premium multi-ramo)
+**Atualizado:** 2026-09-22 (partida por par + lixeira purge)
 
 ## Em uma frase
 
-Next.js 15 com **landing premium multi-ramo** (fila + consulta), AppShell (Sair fixo + bottom dock), kanban, financeiro owner/admin, Loop do Cliente (laudo+QR+consulta; wa.me oculto).
+Next.js 15 com **landing premium multi-ramo** (fila + consulta), AppShell (Sair fixo + bottom dock), kanban **1 card/item**, partida por par no cadastro, financeiro owner/admin, Loop do Cliente (laudo+QR+consulta; wa.me oculto).
 
 **Specs:** [landing premium](../../docs/superpowers/specs/2026-09-22-worqera-landing-premium-multiramo-design.md) · [verticais](../../docs/superpowers/specs/2026-09-18-worqera-verticais-candidatas.md) · [avaliações/setor público](../../docs/superpowers/specs/2026-09-19-avaliacoes-setor-publico-design.md)
 
@@ -22,7 +22,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Equipe `/settings/equipe` | LIVE |
 | Oficinas `/admin/shops` | LIVE (allowlist) |
 | Dashboard / Tour Loop | LIVE (compacto mobile + atalho Finanças) |
-| Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`) |
+| Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item** |
 | Financeiro `/admin/financeiro` | LIVE (owner/admin; líquido em destaque) |
 | TV Financeiro `/tv-financeiro` | LIVE (owner/admin; meta 2× YTD) |
 | AppShell mobile dock | LIVE |

@@ -28,3 +28,26 @@ exports.moveOrder = wrap(async (req, res) => {
     whatsappSuggest: whatsappSuggest || undefined,
   });
 });
+
+exports.moveOrderItem = wrap(async (req, res) => {
+  const order = await kanbanService.moveOrderItem(
+    req.shopId,
+    req.params.orderId,
+    req.params.itemId,
+    req.membership,
+    req.auth.userId,
+    req.body || {}
+  );
+  const { buildMoveWhatsAppSuggest } = require('../services/whatsappSuggest');
+  const Sector = require('../models/Sector');
+  const toSectorId = req.body?.toSectorId;
+  const toSector = toSectorId ? await Sector.findById(toSectorId).lean() : null;
+  const whatsappSuggest =
+    order.status === 'ready'
+      ? await buildMoveWhatsAppSuggest(req.shopId, order, toSector).catch(() => null)
+      : null;
+  res.status(200).json({
+    ...serializeOrder(order),
+    whatsappSuggest: whatsappSuggest || undefined,
+  });
+});

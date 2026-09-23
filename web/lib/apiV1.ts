@@ -543,6 +543,20 @@ export async function moveKanbanOrderV1(
   })
 }
 
+export async function moveKanbanOrderItemV1(
+  orderId: string,
+  itemId: string,
+  body: { toSectorId: string; note?: string; employeeName?: string }
+) {
+  return v1Fetch(
+    `/kanban/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(itemId)}/move`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  )
+}
+
 export async function reopenOrderV1(
   orderId: string,
   body: { sectorId: string; status?: string; note?: string }
@@ -566,6 +580,11 @@ export async function deleteOrderV1(orderId: string) {
 
 export async function restoreOrderV1(orderId: string) {
   return v1Fetch(`/orders/${encodeURIComponent(orderId)}/restore`, { method: "POST", body: "{}" })
+}
+
+/** Permanent delete — order must already be in trash. Owner/admin only. */
+export async function purgeOrderV1(orderId: string) {
+  return v1Fetch(`/orders/${encodeURIComponent(orderId)}/purge`, { method: "DELETE" })
 }
 
 export async function createDemoOrderV1() {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Camera, Loader2, MessageCircle, X } from "lucide-react"
+import { Camera, Loader2, MessageCircle, Trash2, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +20,7 @@ import {
   updateOrderService,
   uploadPedidoFotosService,
 } from "@/lib/apiService"
-import { listSectorsV1, reopenOrderV1, getShopCurrentV1 } from "@/lib/apiV1"
+import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
@@ -84,12 +84,17 @@ export function PedidoConsultaDetalhe({
   onClose,
   onReopened,
   onSaved,
+  onDeleted,
+  allowDelete = true,
 }: {
   orderId: string | null
   open: boolean
   onClose: () => void
   onReopened?: (order: any) => void
   onSaved?: (order: any) => void
+  onDeleted?: () => void
+  /** Soft-delete / purge controls (hide on consultas se quiser só leitura) */
+  allowDelete?: boolean
 }) {
   const [order, setOrder] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
@@ -99,6 +104,8 @@ export function PedidoConsultaDetalhe({
   const [delivering, setDelivering] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [canPurge, setCanPurge] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [clientName, setClientName] = useState("")
@@ -122,6 +129,8 @@ export function PedidoConsultaDetalhe({
 
   useEffect(() => {
     if (!open) return
+    const role = String(localStorage.getItem("role") || "").toLowerCase()
+    setCanPurge(role === "owner" || role === "admin")
     ;(async () => {
       try {
         const shop = await getShopCurrentV1()
@@ -553,6 +562,72 @@ export function PedidoConsultaDetalhe({
                   <Link href={`/clientes/${order.clientId}`}>Ficha do cliente</Link>
                 </Button>
               )}
+
+              {allowDelete ? (
+                <div className="space-y-2 rounded-xl border border-[var(--wq-danger)]/25 bg-red-50/50 p-3">
+                  {order.deletedAt ? (
+                    canPurge ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-[10px] border-[var(--wq-danger)]/40 text-[var(--wq-danger)] hover:bg-red-100"
+                        disabled={deleting}
+                        onClick={async () => {
+                          const ok = window.confirm(
+                            `Apagar permanentemente o pedido #${code}?\nIsso não tem volta.`
+                          )
+                          if (!ok) return
+                          setDeleting(true)
+                          try {
+                            await purgeOrderV1(String(order.id || orderId))
+                            toast.success("Pedido apagado definitivamente")
+                            onDeleted?.()
+                            onClose()
+                          } catch (err: any) {
+                            toast.error(err?.message || "Falha ao apagar")
+                          } finally {
+                            setDeleting(false)
+                          }
+                        }}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        {deleting ? "Apagando…" : "Excluir permanente"}
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-[var(--wq-text-muted)]">
+                        Pedido na lixeira. Só owner/admin pode apagar de vez.
+                      </p>
+                    )
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full rounded-[10px] border-[var(--wq-danger)]/40 text-[var(--wq-danger)] hover:bg-red-100"
+                      disabled={deleting}
+                      onClick={async () => {
+                        const ok = window.confirm(
+                          `Excluir pedido #${code}?\nEle vai para a lixeira em Pedidos (dá para recuperar).`
+                        )
+                        if (!ok) return
+                        setDeleting(true)
+                        try {
+                          await deleteOrderV1(String(order.id || orderId))
+                          toast.success("Pedido movido para a lixeira")
+                          onDeleted?.()
+                          onClose()
+                        } catch (err: any) {
+                          toast.error(err?.message || "Falha ao excluir")
+                        } finally {
+                          setDeleting(false)
+                        }
+                      }}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      {deleting ? "Excluindo…" : "Excluir → lixeira"}
+                    </Button>
+                  )}
+                </div>
+              ) : null}
             </>
           )}
         </div>

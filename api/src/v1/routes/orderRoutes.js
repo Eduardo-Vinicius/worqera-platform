@@ -38,6 +38,7 @@ router.get('/:id', ...guard, orderController.get);
 router.patch('/:id', ...guard, orderController.patch);
 router.post('/:id/reopen', ...guard, orderController.reopen);
 router.post('/:id/restore', ...guard, orderController.restore);
+router.delete('/:id/purge', ...guard, requireRole('owner', 'admin'), orderController.purge);
 router.post('/:id/comments', ...guard, orderController.addComment);
 router.delete('/:id', ...guard, orderController.remove);
 

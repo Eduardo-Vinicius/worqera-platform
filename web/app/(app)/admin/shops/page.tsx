@@ -55,6 +55,16 @@ function selectableCode(code?: string | null): PlanCode {
   return "WORQERA_PRO"
 }
 
+function planBadgeClass(code?: string | null) {
+  const c = String(code || "").toUpperCase()
+  if (c === "WORQERA_BASIC" || c === "WORQERA_EARLY")
+    return "border-sky-300 bg-sky-50 text-sky-900"
+  if (c === "WORQERA_PRO") return "border-violet-300 bg-violet-50 text-violet-900"
+  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM")
+    return "border-amber-300 bg-amber-50 text-amber-950"
+  return "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
+}
+
 export default function PlatformShopsPage() {
   const [shops, setShops] = useState<ShopRow[]>([])
   const [q, setQ] = useState("")
@@ -115,6 +125,27 @@ export default function PlatformShopsPage() {
       return true
     })
   }, [shops, filter])
+
+  const planStats = useMemo(() => {
+    const counts = {
+      WORQERA_BASIC: 0,
+      WORQERA_PRO: 0,
+      WORQERA_BUSINESS: 0,
+      none: 0,
+    }
+    for (const s of shops) {
+      const code = selectableCode(s.subscription?.planCode)
+      if (s.subscription?.status === "active" || s.subscription?.status === "trialing") {
+        if (code === "WORQERA_BASIC") counts.WORQERA_BASIC += 1
+        else if (code === "WORQERA_PRO") counts.WORQERA_PRO += 1
+        else if (code === "WORQERA_BUSINESS") counts.WORQERA_BUSINESS += 1
+        else counts.none += 1
+      } else {
+        counts.none += 1
+      }
+    }
+    return counts
+  }, [shops])
 
   const extend = async (id: string) => {
     setBusyId(id)
@@ -224,10 +255,53 @@ export default function PlatformShopsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Oficinas (Worqera)"
-        subtitle={`${filtered.length} listada${filtered.length === 1 ? "" : "s"} · plano, trial, suspender`}
+        subtitle={`${filtered.length} listada${filtered.length === 1 ? "" : "s"} · planos Basic / Pro / Business`}
       />
 
       <div className="mx-auto max-w-[1180px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <section className="overflow-hidden rounded-2xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/50 p-4 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--wq-brand)]">
+                Planos Worqera
+              </p>
+              <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)] sm:text-2xl">
+                Ladder comercial
+              </h2>
+              <p className="text-xs text-[var(--wq-text-muted)] sm:text-sm">
+                Ative ou troque o plano por oficina · Basic 147 · Pro 297 · Business 499
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {PLANS.map((p) => {
+              const n =
+                p.code === "WORQERA_BASIC"
+                  ? planStats.WORQERA_BASIC
+                  : p.code === "WORQERA_PRO"
+                    ? planStats.WORQERA_PRO
+                    : planStats.WORQERA_BUSINESS
+              return (
+                <div
+                  key={p.code}
+                  className={cn(
+                    "rounded-xl border bg-white px-3 py-3 shadow-sm",
+                    planBadgeClass(p.code)
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold">{p.label}</p>
+                    <p className="font-mono text-sm font-semibold">{p.price}</p>
+                  </div>
+                  <p className="mt-1 text-xs opacity-80">
+                    {n} oficina{n === 1 ? "" : "s"} neste plano
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
         <div className="flex flex-wrap gap-2">
           <Input
             className="min-w-0 w-full max-w-sm rounded-[10px] sm:w-auto"
@@ -306,9 +380,14 @@ export default function PlatformShopsPage() {
                   </div>
                   <div className="text-sm">
                     <p className="capitalize">{s.subscription?.status || "—"}</p>
-                    <p className="text-xs font-medium text-[var(--wq-text)]">
+                    <span
+                      className={cn(
+                        "mt-1 inline-flex rounded-lg border px-2 py-0.5 text-xs font-semibold",
+                        planBadgeClass(s.subscription?.planCode)
+                      )}
+                    >
                       {planLabel(s.subscription?.planCode)}
-                    </p>
+                    </span>
                     {s.subscription?.status === "trialing" && s.trialDaysLeft != null ? (
                       <p
                         className={cn(
@@ -336,9 +415,12 @@ export default function PlatformShopsPage() {
                     )}
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-1.5">
+                  <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-[var(--wq-brand)]/25 bg-[var(--wq-brand-soft)]/40 p-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                      Plano
+                    </p>
                     <select
-                      className="h-8 w-full rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs"
+                      className="h-9 w-full rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs font-medium"
                       value={draft}
                       disabled={busy}
                       onChange={(e) =>
@@ -371,7 +453,7 @@ export default function PlatformShopsPage() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-8 rounded-[8px] px-2 text-xs"
+                        className="h-8 rounded-[8px] bg-white px-2 text-xs"
                         disabled={busy || s.subscription?.status === "canceled"}
                         onClick={() => revokePlan(s.id)}
                       >

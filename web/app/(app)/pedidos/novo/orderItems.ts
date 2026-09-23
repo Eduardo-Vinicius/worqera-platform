@@ -18,12 +18,16 @@ export type OrderItemDraft = {
   selectedServices: SelectedService[]
   photos: PhotoItem[]
   notes: string
+  /** Sector slug/id path for this pair (partida independente) */
+  flowOptionIds: string[]
 }
 
 export type CreatePedidoItemPayload = {
   shoeModel: string
   services: Array<{ id?: string; name: string; price: number }>
   notes?: string
+  flowOptionIds?: string[]
+  departamentosSelecionados?: Array<{ id: string; nome: string }>
 }
 
 export type OrderItemPatch = {
@@ -31,6 +35,7 @@ export type OrderItemPatch = {
   selectedServices?: SelectedService[]
   photos?: PhotoItem[]
   notes?: string
+  flowOptionIds?: string[]
 }
 
 let draftIdCounter = 0
@@ -50,6 +55,7 @@ export function emptyOrderItemDraft(): OrderItemDraft {
     selectedServices: [],
     photos: [],
     notes: "",
+    flowOptionIds: ["atendimento"],
   }
 }
 
@@ -95,6 +101,7 @@ export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoIt
       price: service.price,
     })),
     notes: item.notes.trim() || undefined,
+    flowOptionIds: item.flowOptionIds?.length ? [...item.flowOptionIds] : ["atendimento"],
   }))
 }
 
@@ -127,6 +134,7 @@ export function serializeItemsForDraft(items: OrderItemDraft[]) {
     sneaker: item.sneaker,
     selectedServices: item.selectedServices,
     notes: item.notes,
+    flowOptionIds: item.flowOptionIds || ["atendimento"],
   }))
 }
 
@@ -135,6 +143,7 @@ function draftFromStored(item: {
   sneaker?: string
   selectedServices?: SelectedService[]
   notes?: string
+  flowOptionIds?: string[]
 }): OrderItemDraft {
   return {
     id: typeof item?.id === "string" && item.id.length > 0 ? item.id : newOrderItemId(),
@@ -142,6 +151,10 @@ function draftFromStored(item: {
     selectedServices: Array.isArray(item?.selectedServices) ? item.selectedServices : [],
     photos: [],
     notes: typeof item?.notes === "string" ? item.notes : "",
+    flowOptionIds:
+      Array.isArray(item?.flowOptionIds) && item.flowOptionIds.length
+        ? item.flowOptionIds.map(String)
+        : ["atendimento"],
   }
 }
 
@@ -151,12 +164,24 @@ export function migrateDraftToItems(draft: {
     sneaker?: string
     selectedServices?: SelectedService[]
     notes?: string
+    flowOptionIds?: string[]
   }>
   formData?: { sneaker?: string }
   selectedServices?: SelectedService[]
+  selectedFlowOptions?: string[]
 } | null | undefined): OrderItemDraft[] {
   if (Array.isArray(draft?.items) && draft.items.length > 0) {
-    return draft.items.map(draftFromStored)
+    return draft.items.map((it) => {
+      const base = draftFromStored(it)
+      if (
+        (!it.flowOptionIds || !it.flowOptionIds.length) &&
+        Array.isArray(draft.selectedFlowOptions) &&
+        draft.selectedFlowOptions.length
+      ) {
+        return { ...base, flowOptionIds: draft.selectedFlowOptions.map(String) }
+      }
+      return base
+    })
   }
 
   return [
@@ -164,6 +189,9 @@ export function migrateDraftToItems(draft: {
       sneaker: typeof draft?.formData?.sneaker === "string" ? draft.formData.sneaker : "",
       selectedServices: Array.isArray(draft?.selectedServices) ? draft.selectedServices : [],
       notes: "",
+      flowOptionIds: Array.isArray(draft?.selectedFlowOptions)
+        ? draft.selectedFlowOptions.map(String)
+        : ["atendimento"],
     }),
   ]
 }

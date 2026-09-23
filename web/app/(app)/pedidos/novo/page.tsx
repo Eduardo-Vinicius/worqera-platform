@@ -39,7 +39,12 @@ import {
 } from "./orderItems"
 
 // Fallback se o catálogo `/services` estiver vazio
-const FALLBACK_SERVICES = [
+const FALLBACK_SERVICES: Array<{
+  id: string
+  name: string
+  suggestedPrice: number
+  sectorPathHint?: string[]
+}> = [
   { id: "limpeza-simples", name: "Limpeza Simples", suggestedPrice: 30 },
   { id: "limpeza-completa", name: "Limpeza Completa", suggestedPrice: 50 },
   { id: "restauracao", name: "Restauração", suggestedPrice: 80 },
@@ -111,7 +116,6 @@ export default function NewOrderPage() {
   const [items, setItems] = useState([emptyOrderItemDraft()])
   const [activeItemIndex, setActiveItemIndex] = useState(0)
   const [flowObservation, setFlowObservation] = useState("");
-  const [selectedFlowOptions, setSelectedFlowOptions] = useState<string[]>(["atendimento"]);
   const [flowSectors, setFlowSectors] = useState(FALLBACK_FLOW_SECTORS)
   const [prioridade, setPrioridade] = useState<string>("2")
   const [totalPrice, setTotalPrice] = useState(0)
@@ -153,6 +157,9 @@ export default function NewOrderPage() {
               id: String(s._id || s.id || s.name),
               name: s.name,
               suggestedPrice: Number(s.defaultPrice) || 0,
+              sectorPathHint: Array.isArray(s.sectorPathHint)
+                ? s.sectorPathHint.map(String)
+                : [],
             }))
           )
         }
@@ -181,14 +188,19 @@ export default function NewOrderPage() {
           }))
         if (!cancelled && list.length) {
           setFlowSectors(list)
-          setSelectedFlowOptions((prev) => {
-            const kept = prev.filter((id) =>
-              list.some((s) => s.id === id || s.slug === id)
-            )
-            if (kept.length) return kept
-            const start = list.find((s) => !s.isTerminal) || list[0]
-            return start ? [start.slug || start.id] : prev
-          })
+          setItems((prev) =>
+            prev.map((item) => {
+              const kept = (item.flowOptionIds || []).filter((id) =>
+                list.some((s) => s.id === id || s.slug === id)
+              )
+              if (kept.length) return { ...item, flowOptionIds: kept }
+              const start = list.find((s) => !s.isTerminal) || list[0]
+              return {
+                ...item,
+                flowOptionIds: start ? [start.slug || start.id] : ["atendimento"],
+              }
+            })
+          )
         }
       } catch {
         // keep fallback
@@ -203,14 +215,14 @@ export default function NewOrderPage() {
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) {
-      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(3) }))
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
       return
     }
     try {
       const draft = JSON.parse(raw);
       const { sneaker: _legacySneaker, ...restForm } = draft.formData || {};
       const nextForm = { ...restForm }
-      if (!nextForm.expectedDate) nextForm.expectedDate = dueInDays(3)
+      if (!nextForm.expectedDate) nextForm.expectedDate = dueInDays(15)
       setFormData((prev) => ({ ...prev, ...nextForm }));
       setItems(migrateDraftToItems(draft));
       if (typeof draft.totalPrice === "number") setTotalPrice(draft.totalPrice);
@@ -220,12 +232,9 @@ export default function NewOrderPage() {
       if (typeof draft.warrantyPrice === "number") setWarrantyPrice(draft.warrantyPrice);
       if (Array.isArray(draft.selectedAccessories)) setSelectedAccessories(draft.selectedAccessories);
       if (typeof draft.flowObservation === "string") setFlowObservation(draft.flowObservation);
-      if (Array.isArray(draft.selectedFlowOptions) && draft.selectedFlowOptions.length) {
-        setSelectedFlowOptions(draft.selectedFlowOptions);
-      }
       if (typeof draft.prioridade === "string") setPrioridade(draft.prioridade);
     } catch (err) {
-      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(3) }))
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
     }
   }, []);
 
@@ -241,11 +250,10 @@ export default function NewOrderPage() {
       warrantyPrice,
       selectedAccessories,
       flowObservation,
-      selectedFlowOptions,
       prioridade,
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-  }, [formData, items, totalPrice, signalType, signalValue, hasWarranty, warrantyPrice, selectedAccessories, flowObservation, selectedFlowOptions, prioridade]);
+  }, [formData, items, totalPrice, signalType, signalValue, hasWarranty, warrantyPrice, selectedAccessories, flowObservation, prioridade]);
 
   useEffect(() => {
     async function fetchdata() {
@@ -289,7 +297,61 @@ export default function NewOrderPage() {
       setActiveItemIndex(next.length - 1)
       return next
     })
-    toast.message("Novo par adicionado — preencha modelo e serviços")
+    toast.message("Novo par — preencha modelo, serviços e fotos")
+    requestAnimationFrame(() => {
+      document.getElementById("wq-item-block")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
+
+  const sectorsForItem = (item: OrderItemDraft) => {
+    const hintIds = new Set<string>()
+    for (const sel of item.selectedServices || []) {
+      const svc = availableServices.find((s) => s.id === sel.id)
+      for (const h of svc?.sectorPathHint || []) hintIds.add(String(h))
+    }
+    if (!hintIds.size) return []
+    return flowSectors.filter(
+      (s) => !s.isTerminal && (hintIds.has(s.id) || hintIds.has(s.slug))
+    )
+  }
+
+  /** União das partidas dos pares (resumo no rodapé / payload do pedido). */
+  const unionFlowOptionIds = (() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const it of items) {
+      for (const id of it.flowOptionIds || []) {
+        const key = String(id)
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(key)
+      }
+    }
+    return out.length ? out : ["atendimento"]
+  })()
+
+  const itemHasFlow = (item: OrderItemDraft, sectorKey: string, sectorId: string) => {
+    const ids = item.flowOptionIds || []
+    return ids.includes(sectorKey) || ids.includes(sectorId)
+  }
+
+  const toggleItemFlowOption = (itemIndex: number, id: string) => {
+    const sector = flowSectors.find((s) => s.id === id || s.slug === id)
+    const key = sector?.slug || sector?.id || id
+    setItems((prev) =>
+      prev.map((item, index) => {
+        if (index !== itemIndex) return item
+        const cur = item.flowOptionIds || []
+        const on = cur.includes(key) || cur.includes(id)
+        const next = on
+          ? cur.filter((x) => x !== key && x !== id)
+          : [...cur, key]
+        return {
+          ...item,
+          flowOptionIds: next.length ? next : ["atendimento"],
+        }
+      })
+    )
   }
 
   const removeItem = (itemIndex: number) => {
@@ -539,18 +601,6 @@ export default function NewOrderPage() {
     }
   }
 
-  const toggleFlowOption = (id: string) => {
-    setSelectedFlowOptions((prev) => {
-      const sector = flowSectors.find((s) => s.id === id || s.slug === id)
-      const key = sector?.slug || sector?.id || id
-      if (prev.includes(key) || prev.includes(id)) {
-        return prev.filter((item) => item !== key && item !== id)
-      }
-      return [...prev, key]
-    })
-  }
-
-  // Funções para gerenciar serviços selecionados
   const applyTemplate = (tpl: OrderTemplate) => {
     const selected = availableServices
       .filter((s) => tpl.serviceIds.includes(s.id))
@@ -562,7 +612,13 @@ export default function NewOrderPage() {
       }))
     setItems((prev) => {
       const next = [...prev]
-      const first = { ...next[0], selectedServices: selected }
+      const first = {
+        ...next[0],
+        selectedServices: selected,
+        flowOptionIds: tpl.flowOptionIds?.length
+          ? [...tpl.flowOptionIds]
+          : next[0].flowOptionIds || ["atendimento"],
+      }
       next[0] = first
       const newTotal = suggestedTotal(next, hasWarranty || Boolean(tpl.hasWarranty), warrantyPrice)
       setTotalPrice(newTotal)
@@ -570,7 +626,6 @@ export default function NewOrderPage() {
       if (signalType === "100") setSignalValue(newTotal)
       return next
     })
-    if (tpl.flowOptionIds.length) setSelectedFlowOptions(tpl.flowOptionIds)
     if (tpl.accessories.length) setSelectedAccessories(tpl.accessories)
     if (tpl.hasWarranty) setHasWarranty(true)
     toast.success(`Template “${tpl.name}” aplicado`)
@@ -587,7 +642,7 @@ export default function NewOrderPage() {
     const next = upsertOrderTemplate(templates, {
       name: name.trim(),
       serviceIds,
-      flowOptionIds: selectedFlowOptions,
+      flowOptionIds: items[0]?.flowOptionIds || ["atendimento"],
       accessories: selectedAccessories,
       hasWarranty,
     })
@@ -607,6 +662,8 @@ export default function NewOrderPage() {
     updateItemsAndTotal((prev) =>
       prev.map((item, index) => {
         if (index !== itemIndex) return item
+        let nextServices = item.selectedServices
+        let nextFlow = [...(item.flowOptionIds || [])]
         if (checked) {
           if (!service || item.selectedServices.find(s => s.id === serviceId)) return item
           const newService: SelectedService = {
@@ -615,7 +672,17 @@ export default function NewOrderPage() {
             price: service.suggestedPrice,
             description: ""
           };
-          return { ...item, selectedServices: [...item.selectedServices, newService] }
+          nextServices = [...item.selectedServices, newService]
+          for (const h of service.sectorPathHint || []) {
+            const sector = flowSectors.find(
+              (s) => s.id === String(h) || s.slug === String(h)
+            )
+            const key = sector?.slug || sector?.id || String(h)
+            if (key && !nextFlow.includes(key) && !nextFlow.includes(String(h))) {
+              nextFlow.push(key)
+            }
+          }
+          return { ...item, selectedServices: nextServices, flowOptionIds: nextFlow }
         }
         return { ...item, selectedServices: item.selectedServices.filter(s => s.id !== serviceId) }
       })
@@ -711,7 +778,7 @@ export default function NewOrderPage() {
     localStorage.removeItem(DRAFT_KEY);
     setFormData({
       clientId: "",
-      expectedDate: dueInDays(3),
+      expectedDate: dueInDays(15),
       department: "atendimento",
       observations: "",
     });
@@ -722,7 +789,6 @@ export default function NewOrderPage() {
     });
     setItems([emptyOrderItemDraft()]);
     setFlowObservation("");
-    setSelectedFlowOptions(["atendimento"]);
     setTotalPrice(0);
     setSignalType("50");
     setSignalValue(0);
@@ -801,7 +867,7 @@ export default function NewOrderPage() {
       // Observações apenas com o texto inserido pelo usuário
       const observacoesFinais = formData.observations || '';
 
-      const flowSelections = selectedFlowOptions
+      const flowSelections = unionFlowOptionIds
         .map((opt) => {
           const found = flowSectors.find(
             (s) => s.id === opt || s.slug === opt || s.name.toLowerCase() === opt.toLowerCase()
@@ -936,10 +1002,10 @@ export default function NewOrderPage() {
   )
 
   return (
-    <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
+    <div className="-mx-2.5 -mt-3 max-w-[100vw] overflow-x-hidden sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Novo pedido"
-        subtitle="Cliente, itens e pagamento no balcão"
+        subtitle="Cliente → pares → partida (setores) → pagamento"
         actions={
           <Button asChild variant="outline" size="sm" className="h-9 rounded-[10px]">
             <Link href="/pedidos">Voltar</Link>
@@ -947,7 +1013,7 @@ export default function NewOrderPage() {
         }
       />
 
-          <div className="mx-auto w-full max-w-[1400px] px-2.5 py-4 pb-36 sm:px-5 sm:py-6 md:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1400px] px-2.5 py-4 pb-40 sm:px-5 sm:py-6 md:px-6 lg:px-8">
         <div className="mb-3 rounded-2xl border border-[var(--wq-border)] bg-white p-3 sm:mb-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
@@ -1176,14 +1242,14 @@ export default function NewOrderPage() {
               </section>
 
               {/* Block 2 — Pares */}
-              <section className="space-y-3 sm:space-y-4">
+              <section id="wq-item-block" className="scroll-mt-24 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
                       Pares
                     </h2>
                     <p className="text-xs text-[var(--wq-text-muted)]">
-                      Um formulário por vez · {items.length}{" "}
+                      1) Modelo · 2) Serviços · 3) Fotos deste par · {items.length}{" "}
                       {items.length === 1 ? "par" : "pares"}
                     </p>
                   </div>
@@ -1191,11 +1257,11 @@ export default function NewOrderPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-10 shrink-0 rounded-[10px] px-3"
+                    className="h-10 shrink-0 rounded-[10px] border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] px-3 text-[var(--wq-text)]"
                     onClick={addItem}
                   >
                     <Plus className="mr-1 h-4 w-4" />
-                    <span className="sm:hidden">Par</span>
+                    <span className="sm:hidden">+ Par</span>
                     <span className="hidden sm:inline">Adicionar par</span>
                   </Button>
                 </div>
@@ -1354,8 +1420,52 @@ export default function NewOrderPage() {
                         ) : null}
                       </div>
 
+                      <div className="space-y-2 rounded-xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/80 p-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                            Partida deste par
+                          </p>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Setores só deste tênis · Final entra sozinha
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {flowSectors
+                            .filter((s) => !s.isTerminal)
+                            .map((sector) => {
+                              const key = sector.slug || sector.id
+                              const onPath = itemHasFlow(item, key, sector.id)
+                              const hinted = sectorsForItem(item).some(
+                                (h) => h.id === sector.id
+                              )
+                              return (
+                                <button
+                                  key={sector.id}
+                                  type="button"
+                                  onClick={() => toggleItemFlowOption(itemIndex, key)}
+                                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                    onPath
+                                      ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
+                                      : "border-[var(--wq-border)] bg-white text-[var(--wq-text)]"
+                                  }`}
+                                >
+                                  {sector.name}
+                                  {hinted && !onPath ? (
+                                    <span className="ml-1 text-[10px] opacity-70">sug.</span>
+                                  ) : null}
+                                </button>
+                              )
+                            })}
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
-                        <Label>Fotos</Label>
+                        <div>
+                          <Label>Fotos deste par</Label>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Só deste modelo · máx. {MAX_PHOTOS}
+                          </p>
+                        </div>
                         <div className="rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
                           <input
                             type="file"
@@ -1371,7 +1481,7 @@ export default function NewOrderPage() {
                             className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
                           >
                             <Upload className="h-4 w-4" />
-                            Adicionar fotos (máx. {MAX_PHOTOS})
+                            Tirar / adicionar fotos
                           </label>
                         </div>
 
@@ -1421,56 +1531,18 @@ export default function NewOrderPage() {
                 })()}
               </section>
 
-              {/* Block 2b — Rota e extras (sempre visível) */}
-              <section className="space-y-4">
+              {/* Block 2b — Acessórios (partida vai junto do pagamento) */}
+              <section className="space-y-3">
                 <div>
                   <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                    Rota na oficina
+                    Acessórios
                   </h2>
                   <p className="text-xs text-[var(--wq-text-muted)]">
-                    Começa em Atendimento · a última etapa Final entra sozinha
+                    O que o cliente deixou junto com o par
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {flowSectors
-                    .filter((s) => !s.isTerminal)
-                    .map((sector) => {
-                      const key = sector.slug || sector.id
-                      const checked = selectedFlowOptions.includes(key) || selectedFlowOptions.includes(sector.id)
-                      return (
-                        <button
-                          key={sector.id}
-                          type="button"
-                          onClick={() => toggleFlowOption(key)}
-                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                            checked
-                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
-                              : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
-                          }`}
-                        >
-                          {sector.name}
-                        </button>
-                      )
-                    })}
-                </div>
-                {errors.department ? (
-                  <p className="text-sm text-destructive">{errors.department}</p>
-                ) : null}
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="flowObservation">Obs. do fluxo</Label>
-                  <Textarea
-                    id="flowObservation"
-                    placeholder="Ex.: reforçar pintura nas laterais"
-                    value={flowObservation}
-                    onChange={(e) => setFlowObservation(e.target.value)}
-                    className="min-h-[72px]"
-                  />
-                </div>
-
                 <div className="space-y-2">
-                  <Label>Acessórios deixados</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {defaultAccessories.map((accessory) => {
                       const isSelected = selectedAccessories.includes(accessory)
@@ -1490,7 +1562,7 @@ export default function NewOrderPage() {
                       )
                     })}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex min-w-0 gap-2">
                     <Input
                       placeholder="Outro acessório…"
                       value={customAccessory}
@@ -1501,7 +1573,7 @@ export default function NewOrderPage() {
                           addCustomAccessory()
                         }
                       }}
-                      className="h-9"
+                      className="h-9 min-w-0 flex-1"
                     />
                     <Button
                       type="button"
@@ -1535,9 +1607,60 @@ export default function NewOrderPage() {
                 </div>
               </section>
 
-              {/* Block 3 — Pagamento + enviar */}
+              {/* Block 3 — Resumo partida + Pagamento + data */}
               <section className="space-y-4">
-                <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">Pagamento</h2>
+                <div className="space-y-3 rounded-2xl border-2 border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
+                  <div>
+                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                      Partida (resumo)
+                    </h2>
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      União dos pares · edite a partida{" "}
+                      <strong className="font-semibold text-[var(--wq-text)]">em cada par</strong>{" "}
+                      acima
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {flowSectors
+                      .filter((s) => !s.isTerminal)
+                      .map((sector) => {
+                        const key = sector.slug || sector.id
+                        const checked =
+                          unionFlowOptionIds.includes(key) || unionFlowOptionIds.includes(sector.id)
+                        return (
+                          <span
+                            key={sector.id}
+                            className={`min-h-10 rounded-xl border px-3.5 py-2 text-sm font-semibold ${
+                              checked
+                                ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
+                                : "border-[var(--wq-border)] bg-white/60 text-[var(--wq-text-muted)]"
+                            }`}
+                          >
+                            {sector.name}
+                          </span>
+                        )
+                      })}
+                  </div>
+                  {errors.department ? (
+                    <p className="text-sm text-destructive">{errors.department}</p>
+                  ) : null}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="flowObservation">Obs. do fluxo</Label>
+                    <Textarea
+                      id="flowObservation"
+                      placeholder="Ex.: reforçar pintura nas laterais"
+                      value={flowObservation}
+                      onChange={(e) => setFlowObservation(e.target.value)}
+                      className="min-h-[72px] bg-white"
+                    />
+                  </div>
+                </div>
+
+                <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                  Pagamento e entrega
+                </h2>
 
                 <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1686,7 +1809,7 @@ export default function NewOrderPage() {
                 {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
+                  <div className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
                     <Label htmlFor="expectedDate">Data prevista *</Label>
                     <Input
                       id="expectedDate"
@@ -1694,18 +1817,24 @@ export default function NewOrderPage() {
                       type="date"
                       value={formData.expectedDate}
                       onChange={handleInputChange}
-                      className={errors.expectedDate ? "border-destructive" : ""}
+                      className={errors.expectedDate ? "border-destructive" : "bg-white"}
                     />
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {[
-                        { d: 3, label: "+3 dias" },
-                        { d: 5, label: "+5 dias" },
-                        { d: 7, label: "+7 dias" },
-                      ].map((opt) => (
+                        { d: 15, label: "+15 dias" },
+                        { d: 30, label: "+30 dias" },
+                        { d: 40, label: "+40 dias" },
+                      ].map((opt) => {
+                        const active = formData.expectedDate === dueInDays(opt.d)
+                        return (
                         <button
                           key={opt.d}
                           type="button"
-                          className="rounded-full border border-[var(--wq-border)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40 hover:text-[var(--wq-text)]"
+                          className={`min-h-10 rounded-lg border px-2 text-xs font-semibold transition ${
+                            active
+                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                              : "border-[var(--wq-border)] bg-white text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          }`}
                           onClick={() => {
                             handleSelectChange("expectedDate", dueInDays(opt.d))
                             if (errors.expectedDate) {
@@ -1715,7 +1844,8 @@ export default function NewOrderPage() {
                         >
                           {opt.label}
                         </button>
-                      ))}
+                        )
+                      })}
                     </div>
                     {errors.expectedDate && <p className="text-sm text-destructive">{errors.expectedDate}</p>}
                   </div>
@@ -1810,14 +1940,18 @@ export default function NewOrderPage() {
             </aside>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
-            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-x-hidden border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
+            <div className="mx-auto flex w-full min-w-0 max-w-[1400px] flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <div className="min-w-0 flex-1 text-xs text-[var(--wq-text-muted)]">
                 <p className="truncate font-semibold text-[var(--wq-text)]">
                   Total R$ {getTotalPrice().toFixed(2)} · Sinal R$ {signalValue.toFixed(2)}
                 </p>
                 <p className="truncate">
-                  Restante R$ {remaining.toFixed(2)} · {items.length} {items.length === 1 ? "par" : "pares"}
+                  Restante R$ {remaining.toFixed(2)} · {items.length}{" "}
+                  {items.length === 1 ? "par" : "pares"}
+                  {unionFlowOptionIds.length
+                    ? ` · Partida: ${unionFlowOptionIds.length} setor${unionFlowOptionIds.length === 1 ? "" : "es"}`
+                    : ""}
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">

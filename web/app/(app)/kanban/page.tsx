@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderV1 } from "@/lib/apiV1"
+import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1 } from "@/lib/apiV1"
 import { getPedidoService, generateOrderPDFService, downloadBlobAsFile, updateOrderService } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
@@ -48,8 +48,14 @@ import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
 type OrderCard = {
   _id?: string
   id?: string
+  orderId?: string
+  itemId?: string
+  cardKey?: string
   code?: string
   codigo?: string
+  pairLabel?: string
+  itemIndex?: number
+  pairTotal?: number
   publicToken?: string | null
   clientName?: string
   clientPhone?: string
@@ -64,6 +70,7 @@ type OrderCard = {
   reopened?: boolean
   feedbackScore?: number | null
   status?: string
+  itemInTerminal?: boolean
 }
 
 type Column = {
@@ -88,9 +95,14 @@ type DetailOrder = {
   client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
   shoeModel?: string
   items?: Array<{
+    id?: string
+    _id?: string
     shoeModel?: string
     services?: Array<{ name?: string; price?: number }>
     photos?: Array<string | { url?: string }>
+    currentSectorId?: string | null
+    plannedSectorIds?: string[]
+    sectorHistory?: DetailOrder["sectorHistory"]
   }>
   photos?: Array<string | { url?: string }>
   fotos?: string[]
@@ -120,7 +132,16 @@ type DetailOrder = {
   }>
 }
 
-function collectOrderPhotoUrls(order: DetailOrder | null | undefined): string[] {
+function itemIdentity(it: { id?: string; _id?: string } | null | undefined) {
+  if (!it) return ""
+  return String(it.id || it._id || "").trim()
+}
+
+function collectOrderPhotoUrls(
+  order: DetailOrder | null | undefined,
+  focusItemId?: string | null,
+  focusItemIndex?: number | null
+): string[] {
   if (!order) return []
   const urls: string[] = []
   const push = (u: unknown) => {
@@ -130,19 +151,54 @@ function collectOrderPhotoUrls(order: DetailOrder | null | undefined): string[] 
       if (url) urls.push(url)
     }
   }
+  const items = order.items || []
+  const focusId = focusItemId ? String(focusItemId).trim() : ""
+  if ((focusId || focusItemIndex != null) && items.length) {
+    let focused =
+      (focusId ? items.find((it) => itemIdentity(it) === focusId) : null) || null
+    if (!focused && focusItemIndex != null && focusItemIndex >= 0 && focusItemIndex < items.length) {
+      focused = items[focusItemIndex]
+    }
+    // Focused card: never fall back to sibling / order-level photos
+    if (focused) {
+      for (const u of focused.photos || []) push(u)
+      return [...new Set(urls)]
+    }
+    return []
+  }
+  // Single-item or no focus: prefer item[0] photos, else flat order photos
+  if (items.length === 1) {
+    for (const u of items[0].photos || []) push(u)
+    if (urls.length) return [...new Set(urls)]
+  }
+  if (items.length > 1) {
+    for (const it of items) {
+      for (const u of it.photos || []) push(u)
+    }
+    if (urls.length) return [...new Set(urls)]
+  }
   for (const u of order.fotos || []) push(u)
   for (const u of order.photos || []) push(u)
-  for (const it of order.items || []) {
-    for (const u of it.photos || []) push(u)
-  }
   return [...new Set(urls)]
 }
 
 function orderId(o: OrderCard) {
-  return String(o._id || o.id || "")
+  return String(o.orderId || o._id || o.id || "")
+}
+
+function cardKey(o: OrderCard) {
+  if (o.cardKey) return String(o.cardKey)
+  const oid = orderId(o)
+  const iid = o.itemId ? String(o.itemId) : ""
+  return iid ? `${oid}:${iid}` : oid
 }
 
 function orderCode(o: OrderCard) {
+  if (o.pairLabel) return o.pairLabel
+  const total = Number(o.pairTotal || o.itemCount || 1)
+  if (total > 1 && o.itemIndex != null) {
+    return `${o.code || o.codigo || "—"}-${Number(o.itemIndex) + 1}`
+  }
   return o.code || o.codigo || "—"
 }
 
@@ -221,12 +277,12 @@ function KanbanCardBody({
   const cue = routeCue(order, columnSectorId || "", sectorNameById || new Map())
   const showDeliver =
     Boolean(isTerminalColumn) &&
-    (order.status === "ready" || !order.status) &&
+    order.status === "ready" &&
     Boolean(onMarkDelivered)
   const showNotify =
     ENABLE_WA_ME &&
     Boolean(isTerminalColumn) &&
-    (order.status === "ready" || !order.status) &&
+    order.status === "ready" &&
     Boolean(onNotifyReady)
 
   return (
@@ -280,7 +336,9 @@ function KanbanCardBody({
           )}
           {pairs > 1 && (
             <Badge variant="secondary" className="font-mono text-[10px]">
-              {pairs} pares
+              {typeof order.itemIndex === "number"
+                ? `${order.itemIndex + 1}/${pairs}`
+                : `${pairs} itens`}
             </Badge>
           )}
           {!cue.offFlow && cue.stepLabel && (
@@ -368,7 +426,7 @@ function DraggableCard({
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
 }) {
-  const id = orderId(order)
+  const id = cardKey(order)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
 
@@ -420,8 +478,8 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex h-full min-h-[calc(100vh-11rem)] flex-col rounded-2xl border bg-[var(--wq-paper)]/60",
-        compact ? "w-full" : "min-w-[300px] w-[min(360px,28vw)] flex-1",
+        "flex h-full min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border bg-[var(--wq-paper)]/60 md:min-h-[calc(100vh-11rem)]",
+        compact ? "w-full max-w-full" : "min-w-[280px] w-[min(360px,28vw)] flex-1",
         isOver ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]/30" : "border-[var(--wq-border)]"
       )}
     >
@@ -445,10 +503,10 @@ function DroppableColumn({
         )}
         {orders.map((o) => (
           <DraggableCard
-            key={orderId(o)}
+            key={cardKey(o)}
             order={o}
-            focused={focusedCardId === orderId(o)}
-            onFocus={() => onFocusCard(orderId(o))}
+            focused={focusedCardId === cardKey(o)}
+            onFocus={() => onFocusCard(cardKey(o))}
             onOpen={() => onOpenCard(o)}
             columnSectorId={column.sector._id}
             sectorNameById={sectorNameById}
@@ -474,10 +532,14 @@ export default function KanbanPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detail, setDetail] = useState<DetailOrder | null>(null)
+  const [detailItemId, setDetailItemId] = useState<string | null>(null)
+  const [detailItemIndex, setDetailItemIndex] = useState<number | null>(null)
   const isSectorRole = membershipRole === "sector"
 
   const [pendingMove, setPendingMove] = useState<{
     orderId: string
+    itemId?: string
+    cardKey: string
     toSectorId: string
     toSectorName: string
     card?: OrderCard | null
@@ -509,6 +571,16 @@ export default function KanbanPage() {
         },
         orders: (c.orders || []).map((o: any) => ({
           ...o,
+          orderId: o.orderId ? String(o.orderId) : String(o._id || o.id || ""),
+          itemId: o.itemId ? String(o.itemId) : undefined,
+          cardKey: o.cardKey
+            ? String(o.cardKey)
+            : o.itemId
+              ? `${o.orderId || o._id || o.id}:${o.itemId}`
+              : String(o._id || o.id || ""),
+          pairLabel: o.pairLabel || undefined,
+          itemIndex: o.itemIndex != null ? Number(o.itemIndex) : undefined,
+          pairTotal: o.pairTotal != null ? Number(o.pairTotal) : undefined,
           clientPhone: o.clientPhone || o.client?.phone || o.client?.telefone || "",
           currentSectorId: o.currentSectorId
             ? String(o.currentSectorId._id || o.currentSectorId)
@@ -583,14 +655,14 @@ export default function KanbanPage() {
       return
     }
     setFocusedCardId((prev) => {
-      if (prev && visibleOrders.some((o) => orderId(o) === prev)) return prev
-      return orderId(visibleOrders[0])
+      if (prev && visibleOrders.some((o) => cardKey(o) === prev)) return prev
+      return cardKey(visibleOrders[0])
     })
   }, [visibleOrders])
 
   const findCard = (id: string) => {
     for (const col of columns) {
-      const found = col.orders.find((o) => orderId(o) === id)
+      const found = col.orders.find((o) => cardKey(o) === id || orderId(o) === id)
       if (found) return found
     }
     return null
@@ -598,7 +670,7 @@ export default function KanbanPage() {
 
   const findCardSector = (id: string) => {
     for (const col of columns) {
-      if (col.orders.some((o) => orderId(o) === id)) return col.sector._id
+      if (col.orders.some((o) => cardKey(o) === id || orderId(o) === id)) return col.sector._id
     }
     return null
   }
@@ -644,10 +716,18 @@ export default function KanbanPage() {
     window.open(built.url, "_blank", "noopener,noreferrer")
   }
 
-  const executeMove = async (orderIdValue: string, toSectorId: string, note?: string) => {
+  const executeMove = async (
+    orderIdValue: string,
+    toSectorId: string,
+    note?: string,
+    itemIdValue?: string
+  ) => {
     setMoving(true)
     try {
-      const moved: any = await moveKanbanOrderV1(orderIdValue, { toSectorId, note })
+      const moved: any =
+        itemIdValue
+          ? await moveKanbanOrderItemV1(orderIdValue, itemIdValue, { toSectorId, note })
+          : await moveKanbanOrderV1(orderIdValue, { toSectorId, note })
       const destVisible = visibleColumnIds.has(toSectorId)
       const destName = sectorNameById.get(toSectorId) || "setor"
       const wa = ENABLE_WA_ME ? moved?.whatsappSuggest : null
@@ -683,19 +763,23 @@ export default function KanbanPage() {
     }
   }
 
-  const requestMove = async (toSectorId: string, orderIdValue?: string | null) => {
-    const id = orderIdValue
-    if (!id || !toSectorId) return
+  const requestMove = async (toSectorId: string, cardKeyValue?: string | null) => {
+    const key = cardKeyValue
+    if (!key || !toSectorId) return
+    const card = findCard(key)
+    const oid = card ? orderId(card) : key.includes(":") ? key.split(":")[0] : key
+    const iid = card?.itemId || (key.includes(":") ? key.split(":")[1] : undefined)
     const from =
-      findCardSector(id) ||
-      (detail && String(detail.id) === id ? String(detail.currentSectorId || "") : "")
+      findCardSector(key) ||
+      (detail && String(detail.id) === oid ? String(detail.currentSectorId || "") : "")
     if (from && from === toSectorId) return
-    const card = findCard(id)
     const toName = sectorNameById.get(toSectorId) || "setor"
-    const source = detail && String(detail.id) === id ? detail : card
+    const source = card || (detail && String(detail.id) === oid ? detail : null)
     if (isOffPath(source, toSectorId)) {
       setPendingMove({
-        orderId: id,
+        orderId: oid,
+        itemId: iid,
+        cardKey: key,
         toSectorId,
         toSectorName: toName,
         card,
@@ -703,7 +787,7 @@ export default function KanbanPage() {
       setOffPathNote("")
       return
     }
-    await executeMove(id, toSectorId)
+    await executeMove(oid, toSectorId, undefined, iid)
   }
 
   const moveRelative = async (order: OrderCard, dir: -1 | 1) => {
@@ -713,13 +797,19 @@ export default function KanbanPage() {
       toast.message(dir < 0 ? "Já é o primeiro setor" : "Já é o último setor")
       return
     }
-    await requestMove(target.sector._id, orderId(order))
+    await requestMove(target.sector._id, cardKey(order))
   }
 
   const openDetail = async (order: OrderCard) => {
     const id = orderId(order)
     if (!id) return
-    setFocusedCardId(id)
+    setFocusedCardId(cardKey(order))
+    setDetailItemId(order.itemId ? String(order.itemId) : null)
+    setDetailItemIndex(
+      typeof order.itemIndex === "number" && Number.isFinite(order.itemIndex)
+        ? Number(order.itemIndex)
+        : null
+    )
     setDetailOpen(true)
     setDetailLoading(true)
     setCommentDraft("")
@@ -799,7 +889,7 @@ export default function KanbanPage() {
       if (e.key === "j" || e.key === "k") {
         e.preventDefault()
         if (!visibleOrders.length) return
-        const ids = visibleOrders.map(orderId)
+        const ids = visibleOrders.map(cardKey)
         const cur = focusedCardId ? ids.indexOf(focusedCardId) : 0
         const next =
           e.key === "j"
@@ -811,14 +901,14 @@ export default function KanbanPage() {
 
       if (e.key === "Enter" && focusedCardId) {
         e.preventDefault()
-        const card = visibleOrders.find((o) => orderId(o) === focusedCardId)
+        const card = visibleOrders.find((o) => cardKey(o) === focusedCardId)
         if (card) openDetail(card)
         return
       }
 
       if (e.key === "n" && focusedCardId) {
         e.preventDefault()
-        const card = visibleOrders.find((o) => orderId(o) === focusedCardId)
+        const card = visibleOrders.find((o) => cardKey(o) === focusedCardId)
         if (card) moveRelative(card, 1)
       }
     }
@@ -850,12 +940,35 @@ export default function KanbanPage() {
     toast.message("Código não encontrado no board")
   }
 
-  const plannedIds = (detail?.plannedSectorIds || []).map(String)
+  const focusedDetailItem = (() => {
+    if (!detail?.items?.length) return null
+    if (detailItemId) {
+      const byId = detail.items.find((it) => itemIdentity(it) === String(detailItemId))
+      if (byId) return byId
+    }
+    if (detailItemIndex != null && detailItemIndex >= 0 && detailItemIndex < detail.items.length) {
+      return detail.items[detailItemIndex]
+    }
+    return null
+  })()
+
+  const plannedIds = (
+    focusedDetailItem?.plannedSectorIds?.length
+      ? focusedDetailItem.plannedSectorIds
+      : detail?.plannedSectorIds || []
+  ).map(String)
+  const detailCurrentSectorId = String(
+    focusedDetailItem?.currentSectorId || detail?.currentSectorId || ""
+  )
   const dragCard = activeDragId ? findCard(activeDragId) : null
   const plannedPathIds = plannedIds.length
     ? plannedIds
     : forwardTargets.map((t) => t.id)
-  const historyEntries = [...(detail?.sectorHistory || [])].reverse()
+  const historyEntries = [
+    ...((focusedDetailItem?.sectorHistory?.length
+      ? focusedDetailItem.sectorHistory
+      : detail?.sectorHistory) || []),
+  ].reverse()
   const commentsNewestFirst = [...(detail?.comments || [])].reverse()
 
   const plannedMoveTargets = (() => {
@@ -885,14 +998,19 @@ export default function KanbanPage() {
 
   const renderMoveButton = (target: ForwardTarget, planned: boolean) => {
     if (!detail) return null
-    const isCurrent = String(detail.currentSectorId) === target.id
+    const isCurrent = detailCurrentSectorId === target.id
     const blind = isSectorRole && !visibleColumnIds.has(target.id)
     return (
       <button
         key={`move-${target.id}`}
         type="button"
         disabled={isCurrent || moving}
-        onClick={() => requestMove(target.id, String(detail.id))}
+        onClick={() =>
+          requestMove(
+            target.id,
+            detailItemId ? `${String(detail.id)}:${detailItemId}` : String(detail.id)
+          )
+        }
         className={cn(
           "rounded-xl border px-3 py-2 text-left text-sm disabled:opacity-40",
           planned
@@ -910,8 +1028,8 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="relative flex h-[calc(100dvh-3.5rem-4.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[360px] flex-col md:h-[calc(100vh-0px)] md:min-h-[640px]">
-        <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 pt-0 sm:px-4 md:px-6">
+      <div className="relative flex h-[calc(100dvh-3.5rem-5.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[280px] max-h-[100dvh] max-w-[100vw] flex-col overflow-hidden md:h-[calc(100vh-0px)] md:min-h-[640px] md:max-h-none">
+        <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-2 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
             subtitle={
@@ -974,7 +1092,7 @@ export default function KanbanPage() {
       />
         </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-4 md:py-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden px-2 py-3 sm:px-3 md:px-4 md:py-4">
         {loading ? (
           <p className="py-16 text-center text-sm text-[var(--wq-text-muted)]">Carregando board…</p>
         ) : columns.length === 0 ? (
@@ -1207,7 +1325,7 @@ export default function KanbanPage() {
                                 detail.client?.name ||
                                 "",
                               sectorName:
-                                sectorNameById.get(String(detail.currentSectorId || "")) || "",
+                                sectorNameById.get(detailCurrentSectorId) || "",
                               templateKey: isReady ? "ready" : "publicLink",
                               requireEnabled: false,
                             })
@@ -1257,15 +1375,28 @@ export default function KanbanPage() {
                   </div>
 
                   {(() => {
-                    const photoUrls = collectOrderPhotoUrls(detail)
+                    const photoUrls = collectOrderPhotoUrls(detail, detailItemId, detailItemIndex)
+                    const focusLabel =
+                      detailItemId || detailItemIndex != null
+                        ? (() => {
+                            const byId = detailItemId
+                              ? detail.items?.find((it) => itemIdentity(it) === String(detailItemId))
+                              : null
+                            const byIdx =
+                              detailItemIndex != null ? detail.items?.[detailItemIndex] : null
+                            return (byId || byIdx)?.shoeModel || null
+                          })()
+                        : null
                     return (
                       <div>
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                          Fotos {photoUrls.length ? `(${photoUrls.length})` : ""}
+                          Fotos
+                          {focusLabel ? ` · ${focusLabel}` : ""}
+                          {photoUrls.length ? ` (${photoUrls.length})` : ""}
                         </p>
                         {photoUrls.length === 0 ? (
                           <p className="text-xs text-[var(--wq-text-muted)]">
-                            Nenhuma foto neste pedido.
+                            Nenhuma foto neste {detailItemId ? "item" : "pedido"}.
                           </p>
                         ) : (
                           <div className="grid grid-cols-3 gap-2">
@@ -1280,7 +1411,7 @@ export default function KanbanPage() {
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={url}
-                                  alt={`Foto ${idx + 1} do pedido ${detail.code || ""}`}
+                                  alt={`Foto ${idx + 1}`}
                                   className="h-full w-full object-cover"
                                   loading="lazy"
                                 />
@@ -1295,11 +1426,20 @@ export default function KanbanPage() {
                   <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
                       Caminho planejado
+                      {focusedDetailItem?.shoeModel
+                        ? ` · ${focusedDetailItem.shoeModel}`
+                        : ""}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {plannedPathIds.map((sid) => {
-                        const current = String(detail.currentSectorId) === sid
-                        const visited = (detail.sectorPath || []).map(String).includes(sid)
+                        const current = detailCurrentSectorId === sid
+                        const visited = (
+                          focusedDetailItem?.sectorHistory ||
+                          detail.sectorHistory ||
+                          []
+                        )
+                          .map((h) => String(h.sectorId || ""))
+                          .includes(sid)
                         return (
                           <span
                             key={sid}
@@ -1549,7 +1689,12 @@ export default function KanbanPage() {
                 disabled={moving || !offPathNote.trim()}
                 className="bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
                 onClick={() =>
-                  executeMove(pendingMove.orderId, pendingMove.toSectorId, offPathNote.trim())
+                  executeMove(
+                    pendingMove.orderId,
+                    pendingMove.toSectorId,
+                    offPathNote.trim(),
+                    pendingMove.itemId
+                  )
                 }
               >
                 Confirmar move

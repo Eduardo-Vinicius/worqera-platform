@@ -325,6 +325,7 @@ function ConsultasPedidosInner() {
         orderId={detailId}
         open={Boolean(detailId)}
         onClose={() => setDetailId(null)}
+        allowDelete={false}
         onReopened={() => {
           runSearch()
           setDetailId(null)

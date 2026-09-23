@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { getPedidosConsultaService } from "@/lib/apiService"
-import { createDemoOrderV1, exportOrdersCsvV1, listSectorsV1, restoreOrderV1 } from "@/lib/apiV1"
+import { createDemoOrderV1, deleteOrderV1, exportOrdersCsvV1, listSectorsV1, purgeOrderV1, restoreOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 
@@ -69,11 +69,16 @@ export default function PedidosPage() {
   const [demoBusy, setDemoBusy] = useState(false)
   const [exportBusy, setExportBusy] = useState(false)
   const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null)
+  const [purgeBusyId, setPurgeBusyId] = useState<string | null>(null)
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
+  const [canPurge, setCanPurge] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setIsOwner(String(localStorage.getItem("role") || "").toLowerCase() === "owner")
+    const role = String(localStorage.getItem("role") || "").toLowerCase()
+    setIsOwner(role === "owner")
+    setCanPurge(role === "owner" || role === "admin")
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("q")?.trim()
       if (fromUrl) {
@@ -309,7 +314,7 @@ export default function PedidosPage() {
             </p>
             <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
               {tab === "lixeira"
-                ? "Pedidos excluídos do kanban aparecem aqui para recuperar."
+                ? "Pedidos excluídos aparecem aqui. Recuperar ou apagar de vez."
                 : "Crie o primeiro pedido ou gere um exemplo para conhecer o kanban."}
             </p>
             {tab === "lixeira" ? null : (
@@ -334,7 +339,7 @@ export default function PedidosPage() {
             <div className="border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
               {orders.length}
               {nextToken ? "+" : ""} pedidos ·{" "}
-              {tab === "lixeira" ? "recuperar ou abrir" : "clique para editar"}
+              {tab === "lixeira" ? "recuperar · apagar de vez" : "abrir · excluir → lixeira"}
             </div>
             <ul className="divide-y divide-[var(--wq-border)]">
               {orders.map((order) => {
@@ -388,29 +393,86 @@ export default function PedidosPage() {
                       <p className="text-sm font-semibold">{formatMoney(Number(valor))}</p>
                     </button>
                     {tab === "lixeira" ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-[10px]"
+                          disabled={restoreBusyId === id || purgeBusyId === id}
+                          onClick={async () => {
+                            setRestoreBusyId(id)
+                            try {
+                              await restoreOrderV1(id)
+                              toast.success(`Pedido #${code} recuperado`)
+                              await runSearch({ tab: "lixeira" })
+                            } catch (err: any) {
+                              toast.error(err?.message || "Falha ao recuperar")
+                            } finally {
+                              setRestoreBusyId(null)
+                            }
+                          }}
+                        >
+                          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                          {restoreBusyId === id ? "…" : "Recuperar"}
+                        </Button>
+                        {canPurge ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-[10px] border-[var(--wq-danger)]/40 text-[var(--wq-danger)]"
+                            disabled={purgeBusyId === id || restoreBusyId === id}
+                            onClick={async () => {
+                              const ok = window.confirm(
+                                `Apagar permanentemente #${code}?\nIsso não tem volta.`
+                              )
+                              if (!ok) return
+                              setPurgeBusyId(id)
+                              try {
+                                await purgeOrderV1(id)
+                                toast.success(`Pedido #${code} apagado`)
+                                await runSearch({ tab: "lixeira" })
+                              } catch (err: any) {
+                                toast.error(err?.message || "Falha ao apagar")
+                              } finally {
+                                setPurgeBusyId(null)
+                              }
+                            }}
+                          >
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            {purgeBusyId === id ? "…" : "Apagar"}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : (
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="rounded-[10px]"
-                        disabled={restoreBusyId === id}
+                        className="rounded-[10px] text-[var(--wq-text-muted)]"
+                        disabled={deleteBusyId === id}
                         onClick={async () => {
-                          setRestoreBusyId(id)
+                          const ok = window.confirm(
+                            `Excluir #${code}?\nVai para a lixeira (dá para recuperar).`
+                          )
+                          if (!ok) return
+                          setDeleteBusyId(id)
                           try {
-                            await restoreOrderV1(id)
-                            toast.success(`Pedido #${code} recuperado`)
-                            await runSearch({ tab: "lixeira" })
+                            await deleteOrderV1(id)
+                            toast.success(`Pedido #${code} na lixeira`)
+                            await runSearch()
                           } catch (err: any) {
-                            toast.error(err?.message || "Falha ao recuperar")
+                            toast.error(err?.message || "Falha ao excluir")
                           } finally {
-                            setRestoreBusyId(null)
+                            setDeleteBusyId(null)
                           }
                         }}
                       >
-                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                        {restoreBusyId === id ? "…" : "Recuperar"}
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        {deleteBusyId === id ? "…" : "Excluir"}
                       </Button>
-                    ) : null}
+                    )}
                   </li>
                 )
               })}
@@ -438,6 +500,7 @@ export default function PedidosPage() {
         open={Boolean(detailId)}
         onClose={() => setDetailId(null)}
         onSaved={() => runSearch()}
+        onDeleted={() => runSearch()}
         onReopened={() => {
           runSearch({ tab: "ativos" })
           setTab("ativos")

@@ -1,5 +1,12 @@
 # Worqera API — Change log
 
+## 2026-09-22
+
+- **Partida por par:** cada item envia `flowOptionIds`; create grava `items[].plannedSectorIds` (UI + hints); drawer kanban usa o plano do item focado (corrige “fora do plano” falso).
+- **Lixeira:** `DELETE /orders/:id/purge` (owner/admin) apaga de vez só se já estiver na lixeira; UI Pedidos + detalhe com Recuperar / Apagar.
+- **Subitens no kanban:** cada `items[]` tem `currentSectorId` / `plannedSectorIds` / `sectorHistory`; board explode 1 card por item; `POST /kanban/orders/:orderId/items/:itemId/move`; pedido `ready` só com todos no terminal; e-mail de pronto agregado; consulta `/p` aceita `?item=` + lista de itens.
+- **Admin shops:** planos Basic / Pro / Business (ativação/troca/revogação).
+
 ## 2026-09-19
 
 - **Auth:** login sem bloquear por e-mail não verificado — alerta dismissível no shell + toast no login.

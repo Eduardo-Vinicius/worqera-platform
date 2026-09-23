@@ -206,25 +206,104 @@ async function createOrder(shopId, userId, data) {
 
   const allSectors = await Sector.find({ shopId, active: true }).sort({ order: 1 }).lean();
 
-  // TOP-04: collect sectorPathHint from catalog services matched by name/id
+  // TOP-04: per-item sectorPathHint from catalog; also union for order-level planned
   const catalog = await ServiceCatalog.find({ shopId, active: true }).lean();
-  const serviceNames = new Set(
-    (services || [])
-      .map((s) => String(s.name || s.nome || '').trim().toLowerCase())
-      .filter(Boolean)
-  );
-  const serviceIds = new Set(
-    (services || []).map((s) => String(s.id || '')).filter(Boolean)
-  );
-  const hintIds = [];
-  for (const c of catalog) {
-    const n = String(c.name || '').trim().toLowerCase();
-    if (serviceNames.has(n) || serviceIds.has(String(c._id))) {
-      for (const sid of c.sectorPathHint || []) hintIds.push(sid);
+
+  function hintsForServices(svcList) {
+    const serviceNames = new Set(
+      (svcList || [])
+        .map((s) => String(s.name || s.nome || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    const serviceIds = new Set(
+      (svcList || []).map((s) => String(s.id || '')).filter(Boolean)
+    );
+    const hintIds = [];
+    for (const c of catalog) {
+      const n = String(c.name || '').trim().toLowerCase();
+      if (serviceNames.has(n) || serviceIds.has(String(c._id))) {
+        for (const sid of c.sectorPathHint || []) hintIds.push(sid);
+      }
     }
+    return hintIds;
   }
 
-  const plannedSectorIds = resolvePlannedSectorIds(data, allSectors, startSector, hintIds);
+  const orderFlowFallback = {
+    departamentosSelecionados:
+      data.departamentosSelecionados ||
+      data.plannedSectors ||
+      data.selectedFlowOptions ||
+      [],
+  };
+
+  const itemsWithSectors = (normalized.items || []).map((it) => {
+    const itemHints = hintsForServices(it.services);
+    const hasItemFlow =
+      (Array.isArray(it.plannedSectorIds) && it.plannedSectorIds.length > 0) ||
+      (Array.isArray(it.departamentosSelecionados) && it.departamentosSelecionados.length > 0);
+    const itemFlowData = hasItemFlow
+      ? {
+          plannedSectorIds: it.plannedSectorIds,
+          departamentosSelecionados: it.departamentosSelecionados,
+        }
+      : orderFlowFallback;
+    const itemPlanned = resolvePlannedSectorIds(
+      itemFlowData,
+      allSectors,
+      startSector,
+      itemHints
+    );
+    const itemStart = itemPlanned[0] || startSector?._id || null;
+    return {
+      shoeModel: it.shoeModel,
+      services: it.services,
+      photos: it.photos || [],
+      notes: it.notes || null,
+      currentSectorId: itemStart,
+      plannedSectorIds: itemPlanned,
+      sectorHistory: itemStart
+        ? [
+            {
+              sectorId: itemStart,
+              fromSectorId: null,
+              enteredAt: new Date(),
+              leftAt: null,
+              movedByUserId: userId,
+              note: 'created',
+              action: 'create',
+            },
+          ]
+        : [],
+    };
+  });
+
+  // Order-level plan = union of item plans (multi-pair) or UI partida + hints
+  const unionFromItems = [];
+  const seenUnion = new Set();
+  for (const it of itemsWithSectors) {
+    for (const sid of it.plannedSectorIds || []) {
+      const key = String(sid);
+      if (seenUnion.has(key)) continue;
+      seenUnion.add(key);
+      unionFromItems.push(sid);
+    }
+  }
+  const unionHints = hintsForServices(services);
+  const plannedSectorIds = unionFromItems.length
+    ? resolvePlannedSectorIds(
+        { plannedSectorIds: unionFromItems },
+        allSectors,
+        startSector,
+        []
+      )
+    : resolvePlannedSectorIds(data, allSectors, startSector, unionHints);
+
+  const { computeRollupSectorId, buildSectorsById } = require('./itemSectors');
+  const sectorsById = buildSectorsById(allSectors);
+  const rollupId = computeRollupSectorId(itemsWithSectors, sectorsById);
+  const rollupSector =
+    (rollupId && allSectors.find((s) => String(s._id) === String(rollupId))) || startSector;
+
   const hasTerminal = allSectors.some((s) => s.active !== false && s.isTerminal);
   if (!hasTerminal) {
     const err = new Error(
@@ -254,15 +333,15 @@ async function createOrder(shopId, userId, data) {
       expenses: pricing.expenses != null ? Number(pricing.expenses) : 0,
     },
     photos: normalized.photos,
-    items: normalized.items,
+    items: itemsWithSectors,
     publicToken: require('../utils/publicOrderToken').newPublicToken(),
-    currentSectorId: startSector?._id || null,
+    currentSectorId: rollupSector?._id || startSector?._id || null,
     plannedSectorIds,
-    sectorPath: startSector ? [startSector._id] : [],
-    sectorHistory: startSector
+    sectorPath: rollupSector ? [rollupSector._id] : [],
+    sectorHistory: rollupSector
       ? [
           {
-            sectorId: startSector._id,
+            sectorId: rollupSector._id,
             fromSectorId: null,
             enteredAt: new Date(),
             leftAt: null,
@@ -292,7 +371,7 @@ async function createOrder(shopId, userId, data) {
     } else {
       const { notifyOrderStatus } = require('./orderNotify');
       emailNotify = await notifyOrderStatus(shop, order.toObject(), 'created', {
-        sectorName: startSector?.name,
+        sectorName: rollupSector?.name || startSector?.name,
       });
     }
   } catch (err) {
@@ -365,26 +444,22 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
     return ensureTerminalLast(mapped);
   }
 
-  // TOP-04: merge sectorPathHint from catalog services matched by name
-  if (Array.isArray(serviceHints) && serviceHints.length) {
-    const matched = [];
-    const seen = new Set();
-    for (const id of serviceHints) {
-      const sid = String(id);
-      if (seen.has(sid)) continue;
-      const sector = active.find((s) => String(s._id) === sid);
-      if (sector) {
-        seen.add(sid);
-        matched.push(sector._id);
-      }
-    }
-    if (matched.length) return ensureTerminalLast(matched);
-  }
+  const matched = [];
+  const seen = new Set();
+  const pushSector = (sector) => {
+    if (!sector) return;
+    const sid = String(sector._id);
+    if (seen.has(sid)) return;
+    seen.add(sid);
+    matched.push(sector._id);
+  };
 
+  // UI partida / flow tokens first (balcão), then catalog service hints
   const raw =
     data.departamentosSelecionados ||
     data.plannedSectors ||
     data.selectedFlowOptions ||
+    data.flowOptionIds ||
     [];
   const tokens = (Array.isArray(raw) ? raw : [])
     .map((entry) => {
@@ -396,16 +471,18 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
     })
     .filter(Boolean);
 
-  const matched = [];
-  const seen = new Set();
   for (const token of tokens) {
     const sector =
       active.find((s) => String(s.slug || '').toLowerCase() === token) ||
       active.find((s) => String(s.name || '').toLowerCase() === token) ||
       active.find((s) => String(s._id) === token);
-    if (sector && !seen.has(String(sector._id))) {
-      seen.add(String(sector._id));
-      matched.push(sector._id);
+    pushSector(sector);
+  }
+
+  if (Array.isArray(serviceHints) && serviceHints.length) {
+    for (const id of serviceHints) {
+      const sector = active.find((s) => String(s._id) === String(id));
+      pushSector(sector);
     }
   }
 
@@ -612,6 +689,33 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     action: 'reopen',
   });
 
+  // Move all items back to reopen sector (same rework lane)
+  const { hydrateItemsIfEmpty } = require('./orderItems');
+  const { ensureItemSectors } = require('./itemSectors');
+  hydrateItemsIfEmpty(order);
+  ensureItemSectors(order);
+  const now = new Date();
+  for (const it of order.items || []) {
+    if (!Array.isArray(it.sectorHistory)) it.sectorHistory = [];
+    if (it.sectorHistory.length) {
+      const last = it.sectorHistory[it.sectorHistory.length - 1];
+      if (last && !last.leftAt) last.leftAt = now;
+    }
+    it.sectorHistory.push({
+      sectorId: sector._id,
+      fromSectorId: it.currentSectorId || null,
+      enteredAt: now,
+      leftAt: null,
+      movedByUserId: userId || null,
+      movedByName: user?.name || 'Reabertura',
+      movedByEmail: user?.email || null,
+      note: body.note || 'reaberto',
+      action: 'reopen',
+    });
+    it.currentSectorId = sector._id;
+  }
+  order.markModified('items');
+
   await order.save();
   return order.toObject();
 }
@@ -719,6 +823,31 @@ async function restoreOrder(shopId, id, userId) {
   order.updatedByUserId = userId || order.updatedByUserId;
   await order.save();
   return order.toObject();
+}
+
+/** Permanent delete — only allowed for orders already in the trash. */
+async function purgeOrder(shopId, id) {
+  const order = await Order.findOne({ _id: id, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (!order.deletedAt) {
+    const err = new Error('Move the order to trash before permanent delete');
+    err.status = 409;
+    err.code = 'NOT_IN_TRASH';
+    throw err;
+  }
+  const deleted = await Order.deleteOne({ _id: id, shopId });
+  if (!deleted.deletedCount) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return { id: String(id), purged: true };
 }
 
 function assertNotDeleted(order) {
@@ -875,6 +1004,39 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     }
   }
 
+  const { effectiveItems } = require('./orderItems');
+  const { ensureItemSectors, asId } = require('./itemSectors');
+  ensureItemSectors(order);
+  const itemsRaw = effectiveItems(order);
+  const itemSectorIds = [
+    ...new Set(itemsRaw.map((it) => asId(it.currentSectorId)).filter(Boolean)),
+  ];
+  const Sector = require('../models/Sector');
+  const itemSectors = itemSectorIds.length
+    ? await Sector.find({ _id: { $in: itemSectorIds }, shopId: shop._id })
+        .select('name color showOnPublic')
+        .lean()
+    : [];
+  const itemSecMap = new Map(itemSectors.map((s) => [String(s._id), s]));
+
+  const items = itemsRaw.map((it, index) => {
+    const sid = asId(it.currentSectorId);
+    const sec = sid ? itemSecMap.get(sid) : null;
+    let itemSector = null;
+    if (sec) {
+      if (sec.showOnPublic !== false) {
+        itemSector = { name: sec.name, color: sec.color || null };
+      } else {
+        itemSector = { name: 'Em andamento', color: null };
+      }
+    }
+    return {
+      index: index + 1,
+      shoeModel: it.shoeModel || '',
+      currentSector: itemSector,
+    };
+  });
+
   return {
     code: order.code,
     shop: {
@@ -887,6 +1049,8 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     },
     clientName: clientDisplay,
     shoeModel: order.shoeModel,
+    items,
+    itemCount: items.length,
     status: order.status,
     currentSector,
     dueAt: order.dueAt,
@@ -1028,6 +1192,7 @@ module.exports = {
   addOrderComment,
   deleteOrder,
   restoreOrder,
+  purgeOrder,
   replaceOrderPhotos,
   uploadItemPhotos,
   getPublicOrderByCode,

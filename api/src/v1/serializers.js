@@ -49,6 +49,13 @@ function serializeOrderItem(it) {
     })),
     photos: (it.photos || []).map((p) => resolvePhotoUrl(p)).filter(Boolean),
     notes: it.notes || null,
+    currentSectorId: it.currentSectorId
+      ? String(it.currentSectorId._id || it.currentSectorId)
+      : null,
+    plannedSectorIds: Array.isArray(it.plannedSectorIds)
+      ? it.plannedSectorIds.map((s) => String(s._id || s)).filter(Boolean)
+      : [],
+    sectorHistory: (it.sectorHistory || []).map(serializeSectorHistoryEntry).filter(Boolean),
   };
 }
 

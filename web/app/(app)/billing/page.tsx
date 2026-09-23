@@ -84,8 +84,8 @@ export default function BillingPage() {
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
-        title="Assinatura"
-        subtitle="Trial, plano Pro e cobrança segura"
+        title="Plano e assinatura"
+        subtitle="Basic R$ 147 · Pro R$ 297 · Business R$ 499"
         actions={
           !locked ? (
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -101,6 +101,26 @@ export default function BillingPage() {
             Operações (kanban, pedidos, clientes) estão bloqueadas até a assinatura estar ativa.
           </div>
         )}
+
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { name: "Basic", price: "R$ 147", tone: "border-sky-300 bg-sky-50 text-sky-900" },
+            { name: "Pro", price: "R$ 297", tone: "border-violet-300 bg-violet-50 text-violet-900" },
+            {
+              name: "Business",
+              price: "R$ 499",
+              tone: "border-amber-300 bg-amber-50 text-amber-950",
+            },
+          ].map((p) => (
+            <div
+              key={p.name}
+              className={`rounded-xl border px-2 py-2.5 text-center ${p.tone}`}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-wide">{p.name}</p>
+              <p className="font-mono text-sm font-semibold">{p.price}</p>
+            </div>
+          ))}
+        </div>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">
           <CardHeader>
@@ -120,7 +140,10 @@ export default function BillingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
+            <div className="rounded-xl border-2 border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                Seu plano
+              </p>
               <p className="font-semibold">{products[0]?.name || "Worqera Pro"}</p>
               <p className="text-sm text-[var(--wq-text-muted)]">
                 {products[0]?.description ||

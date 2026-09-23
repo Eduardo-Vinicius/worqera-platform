@@ -121,25 +121,27 @@ describe("validateOrderItems", () => {
 })
 
 describe("mapItemsToCreatePayload", () => {
-  it("maps sneaker/services/notes and skips empty notes", () => {
-    const payload = mapItemsToCreatePayload([
-      draft({
-        sneaker: "Dunk Low",
-        selectedServices: [{ id: "s1", name: "Limpeza", price: 40, description: "suede" }],
-        notes: " raspar sola ",
-      }),
-      draft({ sneaker: "Jordan 1", notes: "   " }),
-    ])
+  it("maps sneaker/services/notes/flow and skips empty notes", () => {
+    const a = draft({
+      sneaker: "Dunk Low",
+      selectedServices: [{ id: "s1", name: "Limpeza", price: 40, description: "suede" }],
+      notes: " raspar sola ",
+    })
+    a.flowOptionIds = ["atendimento", "pintura"]
+    const b = draft({ sneaker: "Jordan 1", notes: "   " })
+    const payload = mapItemsToCreatePayload([a, b])
     assert.deepEqual(payload, [
       {
         shoeModel: "Dunk Low",
         services: [{ id: "s1", name: "Limpeza", price: 40 }],
         notes: "raspar sola",
+        flowOptionIds: ["atendimento", "pintura"],
       },
       {
         shoeModel: "Jordan 1",
         services: [],
         notes: undefined,
+        flowOptionIds: ["atendimento"],
       },
     ])
   })

@@ -107,6 +107,11 @@ exports.restore = wrap(async (req, res) => {
   res.status(200).json(serializeOrder(order));
 });
 
+exports.purge = wrap(async (req, res) => {
+  const result = await orderService.purgeOrder(req.shopId, req.params.id);
+  res.status(200).json(result);
+});
+
 exports.uploadPhotos = wrap(async (req, res) => {
   const order = await orderService.uploadItemPhotos(req.shopId, req.params.id, 0, req.files || []);
   res.status(200).json({

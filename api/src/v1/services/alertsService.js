@@ -254,10 +254,11 @@ async function getOwnerInbox(shopId) {
       .limit(20)
       .select('code clientName status feedback')
       .lean(),
-    Order.countDocuments({ shopId, status: 'ready' }),
+    Order.countDocuments({ shopId, status: 'ready', deletedAt: null }),
     Order.countDocuments({
       shopId,
       reopenedAt: { $ne: null },
+      deletedAt: null,
       status: { $nin: ['delivered', 'cancelled'] },
     }),
   ]);

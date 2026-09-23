@@ -33,6 +33,8 @@ export type NavItem = {
   platformOnly?: boolean
   /** Open in a new tab (TV panels) */
   external?: boolean
+  /** Visual emphasis in sidebar (ex.: Plano) */
+  emphasize?: boolean
 }
 
 export type NavSection = {
@@ -61,12 +63,18 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/settings/equipe", label: "Equipe", icon: UsersRound, ownerAdminOnly: true },
       { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
       { href: "/settings/tv", label: "TVs", icon: Tv, ownerAdminOnly: true },
-      { href: "/billing", label: "Plano", icon: CreditCard, ownerAdminOnly: true },
     ],
   },
   {
     title: "Gestão",
     items: [
+      {
+        href: "/billing",
+        label: "Plano",
+        icon: CreditCard,
+        ownerAdminOnly: true,
+        emphasize: true,
+      },
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true },
       {
         href: "/tv-financeiro",

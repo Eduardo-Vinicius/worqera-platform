@@ -113,6 +113,7 @@ export function AppSidebar({
                 {items.map((item) => {
                   const active = !item.external && isNavActive(pathname, item.href)
                   const Icon = item.icon
+                  const emphasize = Boolean(item.emphasize)
                   return (
                     <li key={item.href}>
                       <Link
@@ -125,14 +126,32 @@ export function AppSidebar({
                           mobile && "min-h-11 py-3 text-[15px]",
                           active
                             ? "bg-[var(--wq-brand-soft)] text-white"
-                            : "text-slate-300 hover:bg-white/5 hover:text-white"
+                            : emphasize
+                              ? "border border-[var(--wq-brand)]/35 bg-[var(--wq-brand)]/15 text-white hover:bg-[var(--wq-brand)]/25"
+                              : "text-slate-300 hover:bg-white/5 hover:text-white"
                         )}
                       >
                         <Icon
-                          className={cn("h-4 w-4 shrink-0 opacity-90", mobile && "h-5 w-5")}
+                          className={cn(
+                            "h-4 w-4 shrink-0 opacity-90",
+                            mobile && "h-5 w-5",
+                            emphasize && !active && "text-[var(--wq-brand)]"
+                          )}
                           strokeWidth={1.7}
                         />
-                        {item.label}
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {emphasize ? (
+                          <span
+                            className={cn(
+                              "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                              active
+                                ? "bg-white/20 text-white"
+                                : "bg-[var(--wq-brand)] text-white"
+                            )}
+                          >
+                            SaaS
+                          </span>
+                        ) : null}
                       </Link>
                     </li>
                   )

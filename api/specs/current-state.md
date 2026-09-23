@@ -1,10 +1,10 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-19 (avaliações + setor público + token `/p`)
+**Atualizado:** 2026-09-22 (subitens + partida por item + purge)
 
 ## Em uma frase
 
-API Mongo `/api/v1` multi-tenant: signup+trial (`vertical: general`), members, kanban, **whatsappSuggest** em create/move, **orderNotify** (create=PDF+link; ready=avaliar), branding + itemLabel, platform admin, billing gate.
+API Mongo `/api/v1` multi-tenant: signup+trial (`vertical: general`), members, kanban **por item**, **partida por item** no create, **whatsappSuggest** em create/move, **orderNotify** (create=PDF+link; ready=avaliar), branding + itemLabel, platform admin, billing gate, soft-delete + purge.
 
 ## LIVE
 

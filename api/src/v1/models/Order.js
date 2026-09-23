@@ -18,16 +18,6 @@ const photoSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const orderItemSchema = new mongoose.Schema(
-  {
-    shoeModel: { type: String, default: '' },
-    services: { type: [serviceItemSchema], default: [] },
-    photos: { type: [photoSchema], default: [] },
-    notes: { type: String, default: null },
-  },
-  { _id: true }
-);
-
 const sectorHistorySchema = new mongoose.Schema(
   {
     sectorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sector' },
@@ -48,6 +38,20 @@ const sectorHistorySchema = new mongoose.Schema(
     },
   },
   { _id: false }
+);
+
+const orderItemSchema = new mongoose.Schema(
+  {
+    shoeModel: { type: String, default: '' },
+    services: { type: [serviceItemSchema], default: [] },
+    photos: { type: [photoSchema], default: [] },
+    notes: { type: String, default: null },
+    /** Kanban column for this item (may differ from siblings). */
+    currentSectorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sector', default: null },
+    plannedSectorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Sector' }],
+    sectorHistory: { type: [sectorHistorySchema], default: [] },
+  },
+  { _id: true }
 );
 
 const orderFeedbackSchema = new mongoose.Schema(
@@ -127,6 +131,7 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ shopId: 1, code: 1 }, { unique: true });
 orderSchema.index({ shopId: 1, code: 1, publicToken: 1 });
 orderSchema.index({ shopId: 1, currentSectorId: 1 });
+orderSchema.index({ shopId: 1, 'items.currentSectorId': 1 });
 orderSchema.index({ shopId: 1, createdAt: 1 });
 orderSchema.index({ shopId: 1, dueAt: 1 });
 orderSchema.index({ shopId: 1, status: 1 });

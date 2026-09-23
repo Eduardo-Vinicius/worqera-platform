@@ -14,6 +14,12 @@ function normalizeItemsFromPayload(data) {
       services: (it.services || it.servicos || []).map(mapService),
       photos: it.photos || it.fotos || [],
       notes: it.notes || it.observacoes || null,
+      plannedSectorIds: Array.isArray(it.plannedSectorIds) ? it.plannedSectorIds : undefined,
+      departamentosSelecionados:
+        it.departamentosSelecionados ||
+        it.flowOptionIds ||
+        it.plannedSectors ||
+        undefined,
     }));
     const first = items[0];
     return {
