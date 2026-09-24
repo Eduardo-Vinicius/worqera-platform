@@ -8,13 +8,13 @@ const { wrap } = require('./helpers');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 8 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 10 },
 });
 
 exports.uploadPhotosMiddleware = (req, res, next) => {
   const handler = upload.fields([
-    { name: 'photos', maxCount: 8 },
-    { name: 'fotos', maxCount: 8 },
+    { name: 'photos', maxCount: 10 },
+    { name: 'fotos', maxCount: 10 },
   ]);
   handler(req, res, (err) => {
     if (err) return next(err);
@@ -73,6 +73,37 @@ exports.patch = wrap(async (req, res) => {
     req.params.id,
     req.auth.userId,
     req.body || {}
+  );
+  res.status(200).json(serializeOrder(order));
+});
+
+exports.patchItem = wrap(async (req, res) => {
+  const order = await orderService.patchOrderItem(
+    req.shopId,
+    req.params.id,
+    req.params.itemIndex,
+    req.auth.userId,
+    req.body || {}
+  );
+  res.status(200).json(serializeOrder(order));
+});
+
+exports.addItem = wrap(async (req, res) => {
+  const order = await orderService.addOrderItem(
+    req.shopId,
+    req.params.id,
+    req.auth.userId,
+    req.body || {}
+  );
+  res.status(201).json(serializeOrder(order));
+});
+
+exports.deleteItem = wrap(async (req, res) => {
+  const order = await orderService.deleteOrderItem(
+    req.shopId,
+    req.params.id,
+    req.params.itemIndex,
+    req.auth.userId
   );
   res.status(200).json(serializeOrder(order));
 });
@@ -137,6 +168,23 @@ exports.uploadItemPhotos = wrap(async (req, res) => {
     order: serialized,
     photos: itemPhotos,
     urls: itemPhotos.map((p) => (typeof p === 'string' ? p : p.url)).filter(Boolean),
+  });
+});
+
+exports.deleteItemPhoto = wrap(async (req, res) => {
+  const order = await orderService.deleteItemPhoto(
+    req.shopId,
+    req.params.id,
+    req.params.itemIndex,
+    req.params.photoIndex
+  );
+  const serialized = serializeOrder(order);
+  const idx = Number(req.params.itemIndex);
+  const itemPhotos = (order.items && order.items[idx] && order.items[idx].photos) || [];
+  res.status(200).json({
+    success: true,
+    order: serialized,
+    photos: itemPhotos,
   });
 });
 

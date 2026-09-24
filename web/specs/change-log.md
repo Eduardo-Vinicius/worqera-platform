@@ -1,10 +1,16 @@
 # Worqera Web — Change log
 
+## 2026-09-24
+
+- **Editar pedido (híbrido):** `/pedidos/[id]/editar` reusa o form do cadastro (pai + filhos); drawer consulta/kanban com quick-edit + **Editar completo**.
+- **Fotos por item:** máx. 10/par; compressão no upload; galeria por par no detalhe + remover foto; kanban drawer também remove foto; badge **Sem foto**; laudo com fotos certas por par.
+- **Partida independente por par** no cadastro; resumo união no pagamento; kanban “no plano / fora” usa o caminho do item.
+- **Pedidos / lixeira:** Excluir → lixeira; Recuperar ou **Apagar permanente** (owner/admin).
+- **Subitens kanban:** cards por item (`code-N`); entrega só com pedido `ready`.
+
 ## 2026-09-22
 
-- **Partida independente por par** no cadastro; resumo união no pagamento; kanban “no plano / fora” usa o caminho do item.
-- **Pedidos / lixeira:** Excluir → lixeira (lista + detalhe + kanban); na lixeira: Recuperar ou **Apagar permanente** (owner/admin).
-- **Subitens kanban:** cards por item (`code-N`); DnD move item; entrega só com pedido `ready` (todos no terminal); etiqueta pares com modelo destacado acima do QR; consulta pública destaca `?item=`.
+- **Subitens kanban / landing / pricing / mobile dock:** ver entradas anteriores do dia; fotos/partida consolidados em 2026-09-24.
 - **Landing / pricing:** Basic 147 · Pro 297 · Business 499; copy multi-público sem “chão”.
 - **Landing premium multi-ramo:** visual ink/papel sem glow roxo; hero + loop + ramos + prática + prova social; copy “fila sob controle”; fontes Instrument Sans + IBM Plex; sem theme toggle.
 - **WhatsApp wa.me:** oculto no produto (`ENABLE_WA_ME=false`) — botões/toasts/Status Pack/consulta pública; código permanece para religar depois. Contato comercial Worqera (landing/billing) mantido.

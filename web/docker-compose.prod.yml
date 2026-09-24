@@ -18,7 +18,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.worqera.com}
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Worqera}
-        NEXT_PUBLIC_MAX_PHOTOS: ${NEXT_PUBLIC_MAX_PHOTOS:-8}
+        NEXT_PUBLIC_MAX_PHOTOS: ${NEXT_PUBLIC_MAX_PHOTOS:-10}
         NEXT_PUBLIC_PLATFORM_ADMIN_EMAILS: ${NEXT_PUBLIC_PLATFORM_ADMIN_EMAILS:-}
     image: worqera-web:prod
     container_name: worqera-web

@@ -19,7 +19,7 @@ App em http://localhost:3000
 |----------|-----------|---------|
 | `NEXT_PUBLIC_API_URL` | Base URL da API | `http://localhost:3001` |
 | `NEXT_PUBLIC_APP_NAME` | Nome exibido no app | `Worqera` |
-| `NEXT_PUBLIC_MAX_PHOTOS` | Limite de fotos no pedido | `8` |
+| `NEXT_PUBLIC_MAX_PHOTOS` | Limite de fotos **por item** | `10` |
 
 Não commitar `.env.local`.
 

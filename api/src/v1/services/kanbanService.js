@@ -177,6 +177,7 @@ function summarizeItemCard(order, item, index, sectorsById) {
     currentSectorId: itemSector,
     orderSectorId: asId(order.currentSectorId),
     photoThumb: resolvePhotoUrl(cover) || null,
+    hasPhotos: photos.length > 0,
     assigneeEmployeeId: order.assigneeEmployeeId,
     plannedSectorIds: Array.isArray(item.plannedSectorIds) && item.plannedSectorIds.length
       ? item.plannedSectorIds.map((s) => String(s._id || s))

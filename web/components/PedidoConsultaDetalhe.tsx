@@ -18,9 +18,11 @@ import {
 import {
   getPedidoService,
   updateOrderService,
-  uploadPedidoFotosService,
+  uploadPedidoItemFotosService,
+  deletePedidoItemFotoService,
 } from "@/lib/apiService"
 import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1 } from "@/lib/apiV1"
+import { compressImageFiles } from "@/lib/compressImage"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
@@ -64,18 +66,24 @@ function statusLabel(status?: string) {
   }
 }
 
-function photoUrls(order: any): string[] {
-  const fromItems = Array.isArray(order?.items)
-    ? order.items.flatMap((it: any) =>
-        Array.isArray(it.photos)
-          ? it.photos.map((p: any) => (typeof p === "string" ? p : p?.url)).filter(Boolean)
-          : []
-      )
-    : []
+function itemPhotoList(it: any): string[] {
+  if (!Array.isArray(it?.photos)) return []
+  return it.photos.map((p: any) => (typeof p === "string" ? p : p?.url)).filter(Boolean)
+}
+
+function photoGroups(order: any): Array<{ index: number; label: string; urls: string[] }> {
+  const items = Array.isArray(order?.items) ? order.items : []
+  if (items.length) {
+    return items.map((it: any, index: number) => ({
+      index,
+      label: it.shoeModel || `Par ${index + 1}`,
+      urls: itemPhotoList(it),
+    }))
+  }
   const top = Array.isArray(order?.photos || order?.fotos)
     ? (order.photos || order.fotos).map((p: any) => (typeof p === "string" ? p : p?.url)).filter(Boolean)
     : []
-  return [...top, ...fromItems].filter(Boolean)
+  return [{ index: 0, label: order?.shoeModel || "Pedido", urls: top }]
 }
 
 export function PedidoConsultaDetalhe({
@@ -105,6 +113,8 @@ export function PedidoConsultaDetalhe({
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null)
+  const [uploadItemIndex, setUploadItemIndex] = useState(0)
   const [canPurge, setCanPurge] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -114,6 +124,11 @@ export function PedidoConsultaDetalhe({
   const [notes, setNotes] = useState("")
   const [total, setTotal] = useState("")
   const [deposit, setDeposit] = useState("")
+  const [priority, setPriority] = useState("2")
+  const [dueAt, setDueAt] = useState("")
+  const [accessoriesText, setAccessoriesText] = useState("")
+  const [hasWarranty, setHasWarranty] = useState(false)
+  const [warrantyPrice, setWarrantyPrice] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
   const [itemSingular, setItemSingular] = useState("peça")
 
@@ -125,6 +140,14 @@ export function PedidoConsultaDetalhe({
     setNotes(fresh?.notes || fresh?.observacoes || "")
     setTotal(String(fresh?.pricing?.total ?? fresh?.precoTotal ?? ""))
     setDeposit(String(fresh?.pricing?.deposit ?? ""))
+    setPriority(String(fresh?.priority ?? fresh?.prioridade ?? 2))
+    const due = fresh?.dueAt || fresh?.dataPrevistaEntrega
+    setDueAt(due ? String(due).slice(0, 10) : "")
+    const acc = fresh?.accessories || fresh?.acessorios || []
+    setAccessoriesText(Array.isArray(acc) ? acc.join(", ") : "")
+    const w = fresh?.warranty || fresh?.garantia
+    setHasWarranty(Boolean(w?.active ?? w?.ativa))
+    setWarrantyPrice(String(w?.preco ?? w?.price ?? ""))
   }
 
   useEffect(() => {
@@ -188,7 +211,8 @@ export function PedidoConsultaDetalhe({
     : Array.isArray(order?.sectorHistory)
       ? order.sectorHistory
       : []
-  const photos = photoUrls(order)
+  const groups = photoGroups(order)
+  const totalPhotos = groups.reduce((n, g) => n + g.urls.length, 0)
 
   const reopen = async () => {
     if (!orderId || !sectorId) {
@@ -236,6 +260,10 @@ export function PedidoConsultaDetalhe({
     try {
       const totalN = Number(String(total).replace(",", ".")) || 0
       const depositN = Number(String(deposit).replace(",", ".")) || 0
+      const accessories = accessoriesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
       const updated = await updateOrderService(orderId, {
         clientName: clientName.trim(),
         clientPhone: clientPhone.trim() || undefined,
@@ -244,6 +272,14 @@ export function PedidoConsultaDetalhe({
         total: totalN,
         deposit: depositN,
         remaining: Math.max(0, totalN - depositN),
+        prioridade: Number(priority) || 2,
+        dataPrevistaEntrega: dueAt || undefined,
+        acessorios: accessories,
+        garantia: {
+          ativa: hasWarranty,
+          preco: hasWarranty ? Number(String(warrantyPrice).replace(",", ".")) || 0 : 0,
+          duracao: hasWarranty ? "3 meses" : "",
+        },
       })
       toast.success("Pedido atualizado")
       syncForm(updated)
@@ -259,16 +295,34 @@ export function PedidoConsultaDetalhe({
     if (!orderId || !files?.length) return
     setUploading(true)
     try {
-      await uploadPedidoFotosService(orderId, Array.from(files))
+      const compressed = await compressImageFiles(Array.from(files))
+      await uploadPedidoItemFotosService(orderId, uploadItemIndex, compressed)
       const fresh = await getPedidoService(orderId)
       syncForm(fresh)
-      toast.success("Fotos enviadas")
+      toast.success(`Fotos no par ${uploadItemIndex + 1}`)
       onSaved?.(fresh)
     } catch (err: any) {
       toast.error(err?.message || "Falha no upload")
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ""
+    }
+  }
+
+  const onDeletePhoto = async (itemIndex: number, photoIndex: number) => {
+    if (!orderId) return
+    const key = `${itemIndex}:${photoIndex}`
+    setPhotoBusy(key)
+    try {
+      await deletePedidoItemFotoService(orderId, itemIndex, photoIndex)
+      const fresh = await getPedidoService(orderId)
+      syncForm(fresh)
+      toast.success("Foto removida")
+      onSaved?.(fresh)
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao remover")
+    } finally {
+      setPhotoBusy(null)
     }
   }
 
@@ -412,9 +466,16 @@ export function PedidoConsultaDetalhe({
               )}
 
               <div className="space-y-3 rounded-xl border border-[var(--wq-border)] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
-                  Editar
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                    Editar
+                  </p>
+                  {orderId ? (
+                    <Button asChild variant="outline" size="sm" className="h-8 rounded-[8px] text-xs">
+                      <Link href={`/pedidos/${orderId}/editar`}>Editar completo</Link>
+                    </Button>
+                  ) : null}
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cliente</Label>
                   <Input
@@ -433,7 +494,7 @@ export function PedidoConsultaDetalhe({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Modelo / {itemSingular}</Label>
+                  <Label className="text-xs">Modelo / {itemSingular} (par 1)</Label>
                   <Input
                     className="rounded-[10px]"
                     value={shoeModel}
@@ -461,6 +522,58 @@ export function PedidoConsultaDetalhe({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Prioridade</Label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger className="rounded-[10px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Alta</SelectItem>
+                        <SelectItem value="2">Média</SelectItem>
+                        <SelectItem value="3">Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Prazo</Label>
+                    <Input
+                      type="date"
+                      className="rounded-[10px]"
+                      value={dueAt}
+                      onChange={(e) => setDueAt(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Acessórios (vírgula)</Label>
+                  <Input
+                    className="rounded-[10px]"
+                    value={accessoriesText}
+                    onChange={(e) => setAccessoriesText(e.target.value)}
+                    placeholder="Cadarços, caixa…"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={hasWarranty}
+                      onChange={(e) => setHasWarranty(e.target.checked)}
+                    />
+                    Garantia
+                  </label>
+                  {hasWarranty ? (
+                    <Input
+                      className="h-9 w-28 rounded-[10px]"
+                      inputMode="decimal"
+                      value={warrantyPrice}
+                      onChange={(e) => setWarrantyPrice(e.target.value)}
+                      placeholder="R$"
+                    />
+                  ) : null}
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Observações</Label>
                   <Textarea
@@ -476,48 +589,102 @@ export function PedidoConsultaDetalhe({
                 >
                   {saving ? "Salvando…" : "Salvar alterações"}
                 </Button>
+                <p className="text-[11px] text-[var(--wq-text-muted)]">
+                  Serviços, partida e outros pares: use{" "}
+                  <Link href={`/pedidos/${orderId}/editar`} className="text-[var(--wq-brand)] underline">
+                    Editar completo
+                  </Link>
+                  .
+                </p>
               </div>
 
               <div className="space-y-3 rounded-xl border border-[var(--wq-border)] p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
-                    Fotos
+                    Fotos {totalPhotos ? `(${totalPhotos})` : ""}
                   </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="rounded-[10px]"
-                    disabled={uploading}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    {uploading ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Camera className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    Adicionar
-                  </Button>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => onPickPhotos(e.target.files)}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {groups.length > 1 ? (
+                      <select
+                        className="h-8 rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs"
+                        value={uploadItemIndex}
+                        onChange={(e) => setUploadItemIndex(Number(e.target.value))}
+                      >
+                        {groups.map((g) => (
+                          <option key={g.index} value={g.index}>
+                            Par {g.index + 1}
+                            {g.label ? ` · ${g.label}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-[10px]"
+                      disabled={uploading}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      {uploading ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      Adicionar
+                    </Button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => onPickPhotos(e.target.files)}
+                    />
+                  </div>
                 </div>
-                {photos.length === 0 ? (
+                {totalPhotos === 0 ? (
                   <p className="text-xs text-[var(--wq-text-muted)]">Nenhuma foto ainda.</p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {photos.map((url, i) => (
-                      <img
-                        key={`${url}-${i}`}
-                        src={url}
-                        alt={`Foto ${i + 1}`}
-                        className="h-20 w-full rounded-lg border border-[var(--wq-border)] object-cover"
-                      />
+                  <div className="space-y-3">
+                    {groups.map((g) => (
+                      <div key={g.index}>
+                        <p className="mb-1.5 text-[11px] font-semibold text-[var(--wq-text)]">
+                          Par {g.index + 1}
+                          {g.label ? ` · ${g.label}` : ""}
+                          <span className="ml-1 font-normal text-[var(--wq-text-muted)]">
+                            ({g.urls.length})
+                          </span>
+                        </p>
+                        {g.urls.length === 0 ? (
+                          <p className="text-xs text-[var(--wq-text-muted)]">Sem fotos neste par.</p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            {g.urls.map((url, i) => (
+                              <div
+                                key={`${url}-${i}`}
+                                className="group relative overflow-hidden rounded-lg border border-[var(--wq-border)]"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt={`Par ${g.index + 1} foto ${i + 1}`}
+                                  className="h-20 w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute inset-x-0 bottom-0 bg-[var(--wq-ink)]/60 py-0.5 text-[10px] font-semibold text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                  disabled={photoBusy === `${g.index}:${i}`}
+                                  onClick={() => onDeletePhoto(g.index, i)}
+                                >
+                                  {photoBusy === `${g.index}:${i}` ? "…" : "Remover"}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

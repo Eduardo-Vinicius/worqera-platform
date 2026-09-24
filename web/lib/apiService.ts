@@ -556,6 +556,26 @@ export async function uploadPedidoItemFotosService(
   return parseUploadedPhotoUrls(resolveApiPayload(result));
 }
 
+export async function deletePedidoItemFotoService(
+  pedidoId: string,
+  itemIndex: number,
+  photoIndex: number
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/orders/${pedidoId}/items/${itemIndex}/photos/${photoIndex}`,
+    {
+      method: "DELETE",
+      headers: getAuthHeaders(""),
+      cache: "no-store",
+    }
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || "Erro ao remover foto");
+  }
+  return resolveApiPayload(await response.json().catch(() => ({})));
+}
+
 export async function downloadPedidoFotosZipService(pedidoId: string) {
   const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/photos/zip`, {
     method: "GET",
@@ -969,11 +989,14 @@ export async function updateOrderService(
   orderData: {
     modeloTenis?: string;
     shoeModel?: string;
+    clientId?: string;
+    clienteId?: string;
     clientName?: string;
     clientPhone?: string;
+    clientEmail?: string;
     notes?: string;
     observacoes?: string;
-    servicos?: string;
+    servicos?: string | Array<{ id?: string; name?: string; nome?: string; price?: number; preco?: number }>;
     descricaoServicos?: string;
     price?: number;
     total?: number;
@@ -984,6 +1007,12 @@ export async function updateOrderService(
     dataPrevistaEntrega?: string;
     dueAt?: string;
     prioridade?: number;
+    priority?: number;
+    acessorios?: string[];
+    accessories?: string[];
+    garantia?: unknown;
+    warranty?: unknown;
+    itemPatches?: Array<Record<string, unknown>>;
     pricing?: { total?: number; deposit?: number; remaining?: number; expenses?: number };
   }
 ) {
@@ -991,8 +1020,12 @@ export async function updateOrderService(
   if (orderData.modeloTenis != null || orderData.shoeModel != null) {
     body.shoeModel = orderData.shoeModel ?? orderData.modeloTenis;
   }
+  if (orderData.clientId != null || orderData.clienteId != null) {
+    body.clientId = orderData.clientId ?? orderData.clienteId;
+  }
   if (orderData.clientName != null) body.clientName = orderData.clientName;
   if (orderData.clientPhone != null) body.clientPhone = orderData.clientPhone;
+  if (orderData.clientEmail != null) body.clientEmail = orderData.clientEmail;
   if (orderData.notes != null || orderData.observacoes != null) {
     body.notes = orderData.notes ?? orderData.observacoes;
   }
@@ -1001,7 +1034,18 @@ export async function updateOrderService(
   if (orderData.dataPrevistaEntrega != null || orderData.dueAt != null) {
     body.dueAt = orderData.dueAt ?? orderData.dataPrevistaEntrega;
   }
-  if (orderData.prioridade != null) body.priority = orderData.prioridade;
+  if (orderData.prioridade != null || orderData.priority != null) {
+    body.priority = orderData.priority ?? orderData.prioridade;
+  }
+  if (orderData.acessorios != null || orderData.accessories != null) {
+    body.accessories = orderData.accessories ?? orderData.acessorios;
+  }
+  if (orderData.garantia != null) body.garantia = orderData.garantia;
+  if (orderData.warranty != null) body.warranty = orderData.warranty;
+  if (orderData.itemPatches != null) body.itemPatches = orderData.itemPatches;
+  if (orderData.servicos != null && typeof orderData.servicos !== "string") {
+    body.servicos = orderData.servicos;
+  }
 
   const total =
     orderData.pricing?.total ??
@@ -1036,6 +1080,75 @@ export async function updateOrderService(
   const result = await response.json();
   invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
   return adaptOrder(resolveApiPayload(result) || result);
+}
+
+export async function patchPedidoItemService(
+  orderId: string,
+  itemIndex: number,
+  data: {
+    shoeModel?: string;
+    modeloTenis?: string;
+    services?: Array<{ id?: string; name?: string; price?: number }>;
+    servicos?: Array<{ id?: string; name?: string; nome?: string; price?: number; preco?: number }>;
+    notes?: string;
+    observacoes?: string;
+    plannedSectorIds?: string[];
+    flowOptionIds?: string[];
+    departamentosSelecionados?: Array<{ id: string; nome: string }> | string[];
+  }
+) {
+  const body: Record<string, unknown> = { ...data };
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemIndex}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || "Erro ao atualizar item");
+  }
+  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
+  return adaptOrder(resolveApiPayload(await response.json().catch(() => ({}))) || {});
+}
+
+export async function addPedidoItemService(
+  orderId: string,
+  data: {
+    shoeModel: string;
+    modeloTenis?: string;
+    services?: Array<{ id?: string; name?: string; price?: number }>;
+    servicos?: Array<{ id?: string; name?: string; nome?: string; price?: number; preco?: number }>;
+    notes?: string;
+    flowOptionIds?: string[];
+    departamentosSelecionados?: Array<{ id: string; nome: string }> | string[];
+    plannedSectorIds?: string[];
+  }
+) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || "Erro ao adicionar par");
+  }
+  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
+  return adaptOrder(resolveApiPayload(await response.json().catch(() => ({}))) || {});
+}
+
+export async function deletePedidoItemService(orderId: string, itemIndex: number) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemIndex}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(""),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.error || "Erro ao remover par");
+  }
+  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
+  return adaptOrder(resolveApiPayload(await response.json().catch(() => ({}))) || {});
 }
 
 export async function getDashboardService(opts: { forceRefresh?: boolean } = {}) {

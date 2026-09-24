@@ -1,10 +1,10 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-09-22 (partida por par + lixeira purge)
+**Atualizado:** 2026-09-24 (editar pedido · fotos por item · 10/par · compress · laudo)
 
 ## Em uma frase
 
-Next.js 15 com **landing premium multi-ramo** (fila + consulta), AppShell (Sair fixo + bottom dock), kanban **1 card/item**, partida por par no cadastro, financeiro owner/admin, Loop do Cliente (laudo+QR+consulta; wa.me oculto).
+Next.js 15 com **landing premium multi-ramo**, AppShell, kanban **1 card/item** + badge Sem foto, fotos/partida por par, **edição híbrida** de pedidos, financeiro owner/admin, Loop do Cliente.
 
 **Specs:** [landing premium](../../docs/superpowers/specs/2026-09-22-worqera-landing-premium-multiramo-design.md) · [verticais](../../docs/superpowers/specs/2026-09-18-worqera-verticais-candidatas.md) · [avaliações/setor público](../../docs/superpowers/specs/2026-09-19-avaliacoes-setor-publico-design.md)
 
@@ -27,6 +27,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | TV Financeiro `/tv-financeiro` | LIVE (owner/admin; meta 2× YTD) |
 | AppShell mobile dock | LIVE |
 | Novo pedido + `clientEmail` | LIVE (PDF/link auto) |
+| Editar pedido `/pedidos/[id]/editar` | LIVE (form compartilhado; drawers quick-edit) |
 | Serviços / Pedidos / etiqueta | LIVE (Zap/wa.me oculto) |
 | Empresa vertical + itemLabel + e-mail toggle | LIVE |
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |

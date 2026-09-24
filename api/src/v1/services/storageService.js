@@ -304,6 +304,25 @@ async function deletePrefix(prefix) {
   return removed;
 }
 
+async function deleteObject(key) {
+  const safe = normalizeKey(key);
+  if (!safe) return false;
+  if (useS3()) {
+    await getS3()
+      .deleteObject({ Bucket: process.env.S3_BUCKET_NAME, Key: safe })
+      .promise();
+    return true;
+  }
+  const full = absolutePath(safe);
+  try {
+    await fsp.unlink(full);
+    return true;
+  } catch (err) {
+    if (err.code === 'ENOENT') return false;
+    throw err;
+  }
+}
+
 module.exports = {
   BASE_DIR,
   publicUrl,
@@ -314,6 +333,7 @@ module.exports = {
   getBuffer,
   list,
   deletePrefix,
+  deleteObject,
   photosPrefix,
   pdfsPrefix,
   brandingPrefix,

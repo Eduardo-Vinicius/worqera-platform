@@ -5,7 +5,13 @@ const Client = require('../models/Client');
 const Sector = require('../models/Sector');
 const ServiceCatalog = require('../models/ServiceCatalog');
 const storageService = require('./storageService');
-const { normalizeItemsFromPayload, sumServices, hydrateItemsIfEmpty, assertItemIndex } = require('./orderItems');
+const {
+  normalizeItemsFromPayload,
+  sumServices,
+  hydrateItemsIfEmpty,
+  assertItemIndex,
+  mapService,
+} = require('./orderItems');
 
 function dayKey(date = new Date()) {
   const d = String(date.getDate()).padStart(2, '0');
@@ -502,6 +508,122 @@ async function getOrder(shopId, id) {
   return order.toObject();
 }
 
+function assertNotDeliveredStructural(order) {
+  if (String(order.status) === 'delivered') {
+    const err = new Error(
+      'Pedido entregue: reabra antes de alterar pares, serviços ou partida'
+    );
+    err.status = 400;
+    err.code = 'ORDER_DELIVERED';
+    throw err;
+  }
+}
+
+function mirrorFlatFromFirstItem(order) {
+  hydrateItemsIfEmpty(order);
+  const first = order.items[0];
+  if (!first) return;
+  order.shoeModel = first.shoeModel || '';
+  order.services = first.services || [];
+  syncOrderPhotosFromItems(order);
+}
+
+async function loadActiveSectors(shopId) {
+  return Sector.find({ shopId, active: true }).sort({ order: 1 }).lean();
+}
+
+async function resolvePlannedForItemPayload(shopId, itemPayload, fallbackStart) {
+  const allSectors = await loadActiveSectors(shopId);
+  const catalog = await ServiceCatalog.find({ shopId, active: true }).lean();
+  const services = (itemPayload.services || itemPayload.servicos || []).map(mapService);
+  const hintIds = [];
+  const serviceNames = new Set(
+    services.map((s) => String(s.name || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const serviceIds = new Set(services.map((s) => String(s.id || '')).filter(Boolean));
+  for (const c of catalog) {
+    const n = String(c.name || '').trim().toLowerCase();
+    if (serviceNames.has(n) || serviceIds.has(String(c._id))) {
+      for (const sid of c.sectorPathHint || []) hintIds.push(sid);
+    }
+  }
+  const startSector =
+    fallbackStart ||
+    allSectors.find((s) => !s.isTerminal) ||
+    allSectors[0] ||
+    null;
+  const planned = resolvePlannedSectorIds(
+    {
+      plannedSectorIds: itemPayload.plannedSectorIds,
+      departamentosSelecionados:
+        itemPayload.departamentosSelecionados ||
+        itemPayload.flowOptionIds ||
+        itemPayload.plannedSectors,
+    },
+    allSectors,
+    startSector,
+    hintIds
+  );
+  return { planned, allSectors, startSector, services };
+}
+
+function recomputeOrderPlanAndRollup(order, allSectors) {
+  const { computeRollupSectorId, buildSectorsById } = require('./itemSectors');
+  const union = [];
+  const seen = new Set();
+  for (const it of order.items || []) {
+    for (const sid of it.plannedSectorIds || []) {
+      const key = String(sid);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      union.push(sid);
+    }
+  }
+  const start =
+    allSectors.find((s) => String(s._id) === String(order.currentSectorId)) ||
+    allSectors.find((s) => !s.isTerminal) ||
+    allSectors[0] ||
+    null;
+  order.plannedSectorIds = union.length
+    ? resolvePlannedSectorIds({ plannedSectorIds: union }, allSectors, start, [])
+    : order.plannedSectorIds || [];
+  const sectorsById = buildSectorsById(allSectors);
+  const rollupId = computeRollupSectorId(order.items || [], sectorsById);
+  if (rollupId) order.currentSectorId = rollupId;
+}
+
+function applyPricingFromUpdates(order, updates, recomputeFromItems) {
+  if (updates.pricing && typeof updates.pricing === 'object') {
+    const p = updates.pricing;
+    if (p.total != null) order.pricing.total = Number(p.total) || 0;
+    if (p.deposit != null) order.pricing.deposit = Number(p.deposit) || 0;
+    if (p.remaining != null) order.pricing.remaining = Number(p.remaining) || 0;
+    else if (p.total != null || p.deposit != null) {
+      order.pricing.remaining = Math.max(
+        0,
+        (Number(order.pricing.total) || 0) - (Number(order.pricing.deposit) || 0)
+      );
+    }
+    if (p.expenses != null) order.pricing.expenses = Number(p.expenses) || 0;
+    return;
+  }
+  if (updates.precoTotal != null) order.pricing.total = Number(updates.precoTotal) || 0;
+  if (updates.valorSinal != null) order.pricing.deposit = Number(updates.valorSinal) || 0;
+  if (updates.valorRestante != null) {
+    order.pricing.remaining = Number(updates.valorRestante) || 0;
+  } else if (updates.precoTotal != null || updates.valorSinal != null) {
+    order.pricing.remaining = Math.max(
+      0,
+      (Number(order.pricing.total) || 0) - (Number(order.pricing.deposit) || 0)
+    );
+  }
+  if (recomputeFromItems && !updates.pricing && updates.precoTotal == null) {
+    const total = sumServices(order.items);
+    order.pricing.total = total;
+    order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+  }
+}
+
 async function patchOrder(shopId, id, userId, updates) {
   updates = updates || {};
   const order = await Order.findOne({ _id: id, shopId });
@@ -535,64 +657,75 @@ async function patchOrder(shopId, id, userId, updates) {
     if (k === 'pricing') return;
     if (updates[k] != null) order[k] = updates[k];
   });
-  if (updates.pricing && typeof updates.pricing === 'object') {
-    const p = updates.pricing;
-    if (p.total != null) order.pricing.total = Number(p.total) || 0;
-    if (p.deposit != null) order.pricing.deposit = Number(p.deposit) || 0;
-    if (p.remaining != null) order.pricing.remaining = Number(p.remaining) || 0;
-    else if (p.total != null || p.deposit != null) {
-      order.pricing.remaining = Math.max(
-        0,
-        (Number(order.pricing.total) || 0) - (Number(order.pricing.deposit) || 0)
-      );
-    }
-    if (p.expenses != null) order.pricing.expenses = Number(p.expenses) || 0;
-  }
+  applyPricingFromUpdates(order, updates, false);
   if (updates.clientId != null) order.clientId = updates.clientId;
   if (updates.currentSectorId != null) order.currentSectorId = updates.currentSectorId;
   if (updates.modeloTenis != null) order.shoeModel = updates.modeloTenis;
   if (updates.dataPrevistaEntrega != null) order.dueAt = updates.dataPrevistaEntrega;
+  if (updates.prioridade != null) order.priority = Number(updates.prioridade) || order.priority;
+  if (updates.acessorios != null) order.accessories = updates.acessorios;
+  if (updates.garantia != null) order.warranty = ensureWarranty(updates.garantia);
+  if (updates.warranty != null) order.warranty = ensureWarranty(updates.warranty);
+  if (updates.observacoes != null) order.notes = updates.observacoes;
   if (updates.servicos != null) {
-    order.services = updates.servicos.map((s) => ({
-      id: s.id || null,
-      name: s.name || s.nome || '',
-      price: Number(s.price != null ? s.price : s.preco) || 0,
-    }));
+    order.services = updates.servicos.map(mapService);
   }
+
+  // Blind items[] replace removed — use item endpoints or itemPatches merge
   if (Array.isArray(updates.items)) {
-    const normalized = normalizeItemsFromPayload(updates || {});
-    order.items = normalized.items;
-    order.shoeModel = normalized.shoeModel;
-    order.services = normalized.services;
-    order.photos = normalized.photos;
-    if (!updates.pricing) {
-      const total = sumServices(normalized.items);
+    const err = new Error(
+      'Use PATCH/POST/DELETE /orders/:id/items to change pairs (merge-safe)'
+    );
+    err.status = 400;
+    err.code = 'USE_ITEM_ENDPOINTS';
+    throw err;
+  }
+
+  if (Array.isArray(updates.itemPatches) && updates.itemPatches.length) {
+    assertNotDeliveredStructural(order);
+    hydrateItemsIfEmpty(order);
+    const allSectors = await loadActiveSectors(shopId);
+    for (const patch of updates.itemPatches) {
+      await applyItemPatchInPlace(order, shopId, patch, allSectors);
+    }
+    mirrorFlatFromFirstItem(order);
+    recomputeOrderPlanAndRollup(order, allSectors);
+    if (!updates.pricing && updates.precoTotal == null) {
+      const total = sumServices(order.items);
       order.pricing.total = total;
       order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
     }
   } else {
-    if (updates.observacoes != null) order.notes = updates.observacoes;
-
     const flatItemPatched =
       updates.shoeModel != null ||
       updates.modeloTenis != null ||
       updates.services != null ||
       updates.servicos != null ||
       updates.photos != null ||
-      updates.fotos != null ||
-      updates.notes != null ||
-      updates.observacoes != null;
+      updates.fotos != null;
 
     if (flatItemPatched) {
       const itemCount = Array.isArray(order.items) ? order.items.length : 0;
-
+      if (itemCount > 1) {
+        assertNotDeliveredStructural(order);
+      }
       if (itemCount <= 1) {
         order.items = [
           {
+            ...(order.items?.[0]?.toObject?.() || order.items?.[0] || {}),
             shoeModel: order.shoeModel || '',
             services: order.services || [],
-            photos: order.photos || [],
-            notes: order.notes || null,
+            photos:
+              updates.photos != null || updates.fotos != null
+                ? order.photos || []
+                : order.items?.[0]?.photos || order.photos || [],
+            notes:
+              updates.notes != null || updates.observacoes != null
+                ? order.notes
+                : order.items?.[0]?.notes || null,
+            currentSectorId: order.items?.[0]?.currentSectorId || order.currentSectorId,
+            plannedSectorIds: order.items?.[0]?.plannedSectorIds || order.plannedSectorIds,
+            sectorHistory: order.items?.[0]?.sectorHistory || [],
           },
         ];
       } else {
@@ -606,9 +739,6 @@ async function patchOrder(shopId, id, userId, updates) {
         if (updates.photos != null || updates.fotos != null) {
           first.photos = order.photos;
         }
-        if (updates.notes != null || updates.observacoes != null) {
-          first.notes = order.notes;
-        }
       }
     }
 
@@ -618,14 +748,190 @@ async function patchOrder(shopId, id, userId, updates) {
       order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
     }
   }
+
   order.updatedByUserId = userId;
   if (updates.status === 'delivered' && !order.deliveredAt) {
     order.deliveredAt = updates.deliveredAt ? new Date(updates.deliveredAt) : new Date();
     order.reopenedAt = null;
   }
-  if (updates.status && updates.status !== 'delivered') {
-    // keep deliveredAt unless explicitly cleared
+  await order.save();
+  return order.toObject();
+}
+
+async function applyItemPatchInPlace(order, shopId, patch, allSectorsCached) {
+  const items = order.items || [];
+  let idx = -1;
+  if (patch.itemId != null || patch.id != null || patch._id != null) {
+    const id = String(patch.itemId || patch.id || patch._id);
+    idx = items.findIndex((it) => String(it._id) === id);
   }
+  if (idx < 0 && patch.itemIndex != null) {
+    idx = assertItemIndex(patch.itemIndex, items.length);
+  }
+  if (idx < 0) {
+    const err = new Error('Item not found for patch');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const it = items[idx];
+  if (patch.shoeModel != null || patch.modeloTenis != null) {
+    it.shoeModel = patch.shoeModel || patch.modeloTenis || '';
+  }
+  if (patch.services != null || patch.servicos != null) {
+    it.services = (patch.services || patch.servicos || []).map(mapService);
+  }
+  if (patch.notes != null || patch.observacoes != null) {
+    it.notes = patch.notes != null ? patch.notes : patch.observacoes;
+  }
+  const wantsPlan =
+    patch.plannedSectorIds != null ||
+    patch.departamentosSelecionados != null ||
+    patch.flowOptionIds != null ||
+    patch.plannedSectors != null;
+  if (wantsPlan) {
+    const allSectors = allSectorsCached || (await loadActiveSectors(shopId));
+    const start =
+      allSectors.find((s) => String(s._id) === String(it.currentSectorId)) ||
+      allSectors.find((s) => !s.isTerminal) ||
+      allSectors[0];
+    const { planned } = await resolvePlannedForItemPayload(shopId, patch, start);
+    it.plannedSectorIds = planned;
+  }
+  // never overwrite id, photos, currentSectorId, sectorHistory here
+}
+
+async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
+  body = body || {};
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  assertNotDeleted(order);
+  assertNotDeliveredStructural(order);
+  hydrateItemsIfEmpty(order);
+  const idx = assertItemIndex(itemIndex, order.items.length);
+  const allSectors = await loadActiveSectors(shopId);
+  await applyItemPatchInPlace(
+    order,
+    shopId,
+    { ...body, itemIndex: idx },
+    allSectors
+  );
+  mirrorFlatFromFirstItem(order);
+  recomputeOrderPlanAndRollup(order, allSectors);
+  if (!body.pricing && body.precoTotal == null) {
+    // keep deposit; refresh total from services unless client sends pricing later via order patch
+    const total = sumServices(order.items);
+    const deposit = Number(order.pricing?.deposit) || 0;
+    // Only auto-bump total if it looked like sum-of-services before, or always? Plan: recompute if no pricing
+    order.pricing.total = total;
+    order.pricing.remaining = Math.max(0, total - deposit);
+  }
+  order.updatedByUserId = userId;
+  await order.save();
+  return order.toObject();
+}
+
+async function addOrderItem(shopId, orderId, userId, body) {
+  body = body || {};
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  assertNotDeleted(order);
+  assertNotDeliveredStructural(order);
+  hydrateItemsIfEmpty(order);
+
+  const shoeModel = body.shoeModel || body.modeloTenis || '';
+  if (!String(shoeModel).trim()) {
+    const err = new Error('shoeModel required');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const { planned, allSectors, startSector, services } = await resolvePlannedForItemPayload(
+    shopId,
+    body,
+    null
+  );
+  const itemStart = planned[0] || startSector?._id || order.currentSectorId || null;
+  order.items.push({
+    shoeModel: String(shoeModel).trim(),
+    services,
+    photos: body.photos || body.fotos || [],
+    notes: body.notes || body.observacoes || null,
+    currentSectorId: itemStart,
+    plannedSectorIds: planned,
+    sectorHistory: itemStart
+      ? [
+          {
+            sectorId: itemStart,
+            fromSectorId: null,
+            enteredAt: new Date(),
+            leftAt: null,
+            movedByUserId: userId,
+            note: 'added',
+            action: 'create',
+          },
+        ]
+      : [],
+  });
+  mirrorFlatFromFirstItem(order);
+  recomputeOrderPlanAndRollup(order, allSectors);
+  if (!body.keepPricing && !body.pricing) {
+    const total = sumServices(order.items);
+    order.pricing.total = total;
+    order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+  }
+  order.updatedByUserId = userId;
+  await order.save();
+  return order.toObject();
+}
+
+async function deleteOrderItem(shopId, orderId, itemIndex, userId) {
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  assertNotDeleted(order);
+  assertNotDeliveredStructural(order);
+  hydrateItemsIfEmpty(order);
+  if ((order.items || []).length <= 1) {
+    const err = new Error('Pedido precisa de ao menos um par');
+    err.status = 400;
+    err.code = 'LAST_ITEM';
+    throw err;
+  }
+  const idx = assertItemIndex(itemIndex, order.items.length);
+  const removed = order.items[idx];
+  // Best-effort delete storage objects for item photos
+  for (const p of removed.photos || []) {
+    if (p?.key) {
+      try {
+        await storageService.deleteObject(p.key);
+      } catch (_err) {
+        /* ignore */
+      }
+    }
+  }
+  order.items.splice(idx, 1);
+  mirrorFlatFromFirstItem(order);
+  const allSectors = await loadActiveSectors(shopId);
+  recomputeOrderPlanAndRollup(order, allSectors);
+  const total = sumServices(order.items);
+  order.pricing.total = total;
+  order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+  order.updatedByUserId = userId;
   await order.save();
   return order.toObject();
 }
@@ -859,15 +1165,46 @@ function assertNotDeleted(order) {
   }
 }
 
-function assertPhotoFiles(files) {
+const MAX_PHOTOS_PER_ITEM = Number(process.env.MAX_PHOTOS_PER_ITEM || 10) || 10;
+
+function syncOrderPhotosFromItems(order) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const flat = [];
+  for (const it of items) {
+    for (const p of it.photos || []) {
+      if (!p) continue;
+      flat.push({
+        key: p.key || null,
+        url: p.url || null,
+        isCover: Boolean(p.isCover),
+      });
+    }
+  }
+  if (flat.length && !flat.some((p) => p.isCover)) {
+    flat[0].isCover = true;
+  }
+  order.photos = flat;
+  return flat;
+}
+
+function assertPhotoFiles(files, existingCount = 0) {
   if (!files || files.length === 0) {
     const err = new Error('No photos uploaded');
     err.status = 400;
     err.code = 'BAD_REQUEST';
     throw err;
   }
-  if (files.length > 8) {
-    const err = new Error('Maximum 8 photos allowed');
+  const existing = Number(existingCount) || 0;
+  if (files.length > MAX_PHOTOS_PER_ITEM) {
+    const err = new Error(`Maximum ${MAX_PHOTOS_PER_ITEM} photos per item`);
+    err.status = 400;
+    err.code = 'BAD_REQUEST';
+    throw err;
+  }
+  if (existing + files.length > MAX_PHOTOS_PER_ITEM) {
+    const err = new Error(
+      `Maximum ${MAX_PHOTOS_PER_ITEM} photos per item (${existing} already attached)`
+    );
     err.status = 400;
     err.code = 'BAD_REQUEST';
     throw err;
@@ -880,8 +1217,16 @@ async function storeItemPhotoFiles(shopId, orderId, files, itemIndex, startIndex
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i];
     const n = startIndex + i + 1;
-    const key = `${prefix}item-${itemIndex}/foto-${n}${extFromFile(file)}`;
-    const saved = await storageService.putBuffer(key, file.buffer, file.mimetype);
+    // Prefer jpeg extension when client already compressed to image/jpeg
+    const mime = String(file.mimetype || '');
+    const key = `${prefix}item-${itemIndex}/foto-${n}${
+      mime.includes('jpeg') || mime.includes('jpg') ? '.jpg' : extFromFile(file)
+    }`;
+    const saved = await storageService.putBuffer(
+      key,
+      file.buffer,
+      mime || 'image/jpeg'
+    );
     photos.push({
       key: saved.key,
       url: saved.url,
@@ -892,8 +1237,6 @@ async function storeItemPhotoFiles(shopId, orderId, files, itemIndex, startIndex
 }
 
 async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
-  assertPhotoFiles(files);
-
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -901,6 +1244,7 @@ async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
     err.code = 'NOT_FOUND';
     throw err;
   }
+  assertNotDeleted(order);
 
   hydrateItemsIfEmpty(order);
   const idx = assertItemIndex(itemIndex, order.items.length);
@@ -912,13 +1256,53 @@ async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
         isCover: Boolean(p.isCover),
       }))
     : [];
+  assertPhotoFiles(files, existing.length);
+
   const added = await storeItemPhotoFiles(shopId, orderId, files, idx, existing.length);
   order.items[idx].photos = existing.concat(added);
-  if (idx === 0) {
-    order.photos = order.items[0].photos;
-  }
+  syncOrderPhotosFromItems(order);
   order.markModified('items');
-  if (idx === 0) order.markModified('photos');
+  order.markModified('photos');
+  await order.save();
+  return order.toObject();
+}
+
+async function deleteItemPhoto(shopId, orderId, itemIndex, photoIndex) {
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  assertNotDeleted(order);
+
+  hydrateItemsIfEmpty(order);
+  const idx = assertItemIndex(itemIndex, order.items.length);
+  const photos = Array.isArray(order.items[idx].photos) ? [...order.items[idx].photos] : [];
+  const pIdx = Number(photoIndex);
+  if (!Number.isInteger(pIdx) || pIdx < 0 || pIdx >= photos.length) {
+    const err = new Error('Photo not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const [removed] = photos.splice(pIdx, 1);
+  if (removed?.key) {
+    try {
+      await storageService.deleteObject(removed.key);
+    } catch {
+      // best-effort — keep DB consistent even if storage delete fails
+    }
+  }
+  if (photos.length && !photos.some((p) => p.isCover)) {
+    photos[0].isCover = true;
+  }
+  order.items[idx].photos = photos;
+  syncOrderPhotosFromItems(order);
+  order.markModified('items');
+  order.markModified('photos');
   await order.save();
   return order.toObject();
 }
@@ -1188,6 +1572,9 @@ module.exports = {
   exportDeliveredOrdersCsv,
   getOrder,
   patchOrder,
+  patchOrderItem,
+  addOrderItem,
+  deleteOrderItem,
   reopenOrder,
   addOrderComment,
   deleteOrder,
@@ -1195,6 +1582,7 @@ module.exports = {
   purgeOrder,
   replaceOrderPhotos,
   uploadItemPhotos,
+  deleteItemPhoto,
   getPublicOrderByCode,
   submitPublicFeedback,
   ensureOrderPublicToken,

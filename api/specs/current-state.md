@@ -1,10 +1,10 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-22 (subitens + partida por item + purge)
+**Atualizado:** 2026-09-24 (editar item merge-safe · fotos por item · limite 10 · laudo)
 
 ## Em uma frase
 
-API Mongo `/api/v1` multi-tenant: signup+trial (`vertical: general`), members, kanban **por item**, **partida por item** no create, **whatsappSuggest** em create/move, **orderNotify** (create=PDF+link; ready=avaliar), branding + itemLabel, platform admin, billing gate, soft-delete + purge.
+API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos` (união em `order.photos`), partida por item, **patch/add/delete item** sem apagar histórico de setor, soft-delete + purge, billing gate.
 
 ## LIVE
 

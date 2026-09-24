@@ -1,0 +1,2200 @@
+"use client"
+
+import type React from "react"
+
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Search, Upload, X, Plus } from "lucide-react"
+import Link from "next/link"
+import {
+  createPedidoService,
+  createClienteService,
+  getClientesService,
+  getPedidoIdFromCreateResponse,
+  getPedidoService,
+  uploadPedidoItemFotosService,
+  updateOrderService,
+  patchPedidoItemService,
+  addPedidoItemService,
+  deletePedidoItemService,
+  deletePedidoItemFotoService,
+} from "@/lib/apiService"
+import { compressImageFile } from "@/lib/compressImage"
+import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
+import { normalizeWarranty } from "@/lib/warranty"
+import {
+  loadOrderTemplates,
+  removeOrderTemplate,
+  saveOrderTemplates,
+  upsertOrderTemplate,
+  type OrderTemplate,
+} from "@/lib/orderTemplates"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { AppHeader } from "@/components/shell/AppHeader"
+import {
+  emptyOrderItemDraft,
+  filterFilledItems,
+  hydrateDraftsFromOrder,
+  mapItemsToCreatePayload,
+  migrateDraftToItems,
+  serializeItemsForDraft,
+  servicesSum,
+  suggestedTotal,
+  validateOrderItems,
+  type OrderItemDraft,
+  type OrderItemPatch,
+  type PhotoItem,
+  type SelectedService,
+} from "./orderItems"
+
+export type OrderFormMode = "create" | "edit"
+
+type OrderFormProps = {
+  mode?: OrderFormMode
+  orderId?: string
+}
+
+// Fallback se o catálogo `/services` estiver vazio
+const FALLBACK_SERVICES: Array<{
+  id: string
+  name: string
+  suggestedPrice: number
+  sectorPathHint?: string[]
+}> = [
+  { id: "limpeza-simples", name: "Limpeza Simples", suggestedPrice: 30 },
+  { id: "limpeza-completa", name: "Limpeza Completa", suggestedPrice: 50 },
+  { id: "restauracao", name: "Restauração", suggestedPrice: 80 },
+  { id: "reparo", name: "Reparo", suggestedPrice: 40 },
+  { id: "customizacao", name: "Customização", suggestedPrice: 120 },
+  { id: "pintura", name: "Pintura", suggestedPrice: 60 },
+  { id: "troca-sola", name: "Troca de Sola", suggestedPrice: 70 },
+  { id: "costura", name: "Costura", suggestedPrice: 35 },
+]
+
+// Acessórios disponíveis (vindos do env ou padrão)
+const defaultAccessories = [
+  "Cadarços originais",
+  "Palmilhas",
+  "Sola extra",
+  "Etiquetas de marca",
+  "Caixa original",
+  "Sacola de proteção",
+  "Manual de cuidados",
+  "Certificado de garantia"
+];
+
+// Fallback de fluxo se a API de setores falhar
+const FALLBACK_FLOW_SECTORS = [
+  { id: "atendimento", name: "Atendimento", slug: "atendimento", isTerminal: false },
+  { id: "sapataria", name: "Sapataria", slug: "sapataria", isTerminal: false },
+  { id: "costura", name: "Costura", slug: "costura", isTerminal: false },
+  { id: "lavagem", name: "Lavagem", slug: "lavagem", isTerminal: false },
+  { id: "acabamento", name: "Acabamento", slug: "acabamento", isTerminal: false },
+  { id: "pintura", name: "Pintura", slug: "pintura", isTerminal: false },
+];
+
+function dueInDays(days: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+const RECENT_CLIENTS_KEY = "wq-recent-clients-v1"
+
+type RecentClient = { id: string; name: string; phone?: string }
+
+function loadRecentClients(): RecentClient[] {
+  try {
+    const raw = localStorage.getItem(RECENT_CLIENTS_KEY)
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list.slice(0, 6) : []
+  } catch {
+    return []
+  }
+}
+
+function pushRecentClient(client: RecentClient) {
+  try {
+    const prev = loadRecentClients().filter((c) => c.id !== client.id)
+    localStorage.setItem(RECENT_CLIENTS_KEY, JSON.stringify([client, ...prev].slice(0, 6)))
+  } catch {}
+}
+
+export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
+  const router = useRouter();
+  const isEdit = mode === "edit" && Boolean(orderId);
+  const DRAFT_KEY = "new-order-draft-v1";
+  const [bootLoading, setBootLoading] = useState(isEdit);
+  const [orderStatus, setOrderStatus] = useState<string>("open");
+  const [formData, setFormData] = useState({
+    clientId: "",
+    expectedDate: "",
+    department: "atendimento", // Departamento inicial fixo
+    observations: "",
+  })
+  const [clientPhone, setClientPhone] = useState("")
+  const [clientNameOverride, setClientNameOverride] = useState("")
+  const [items, setItems] = useState([emptyOrderItemDraft()])
+  const [activeItemIndex, setActiveItemIndex] = useState(0)
+  const [flowObservation, setFlowObservation] = useState("");
+  const [flowSectors, setFlowSectors] = useState(FALLBACK_FLOW_SECTORS)
+  const [prioridade, setPrioridade] = useState<string>("2")
+  const [totalPrice, setTotalPrice] = useState(0)
+  const [signalType, setSignalType] = useState("50") // "50", "100", "custom"
+  const [signalValue, setSignalValue] = useState(0)
+  const [hasWarranty, setHasWarranty] = useState(false)
+  const [warrantyPrice, setWarrantyPrice] = useState(0) // Preço padrão da garantia
+  const [selectedAccessories, setSelectedAccessories] = useState<string[]>([])
+  const [customAccessory, setCustomAccessory] = useState("")
+  const [clientSearch, setClientSearch] = useState("")
+  const [clients, setClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [availableServices, setAvailableServices] = useState(FALLBACK_SERVICES);
+  const [templates, setTemplates] = useState<OrderTemplate[]>([])
+  const [showNewClient, setShowNewClient] = useState(false)
+  const [savingClient, setSavingClient] = useState(false)
+  const [newClient, setNewClient] = useState({
+    nomeCompleto: "",
+    telefone: "",
+    cpf: "",
+    email: "",
+  })
+  const [recentClients, setRecentClients] = useState<RecentClient[]>([])
+
+  useEffect(() => {
+    setTemplates(loadOrderTemplates())
+    setRecentClients(loadRecentClients())
+  }, [])
+
+  useEffect(() => {
+    if (!isEdit || !orderId) return
+    let cancelled = false
+    ;(async () => {
+      setBootLoading(true)
+      try {
+        const order = await getPedidoService(orderId)
+        if (cancelled) return
+        setOrderStatus(String(order?.status || "open"))
+        setFormData({
+          clientId: String(order?.clientId || order?.clienteId || ""),
+          expectedDate: order?.dueAt
+            ? String(order.dueAt).slice(0, 10)
+            : order?.dataPrevistaEntrega
+              ? String(order.dataPrevistaEntrega).slice(0, 10)
+              : "",
+          department: "atendimento",
+          observations: String(order?.notes || order?.observacoes || ""),
+        })
+        setClientPhone(String(order?.clientPhone || order?.telefone || ""))
+        setClientNameOverride(String(order?.clientName || order?.clienteNome || ""))
+        setPrioridade(String(order?.priority ?? order?.prioridade ?? 2))
+        const total = Number(order?.pricing?.total ?? order?.precoTotal ?? 0) || 0
+        const deposit = Number(order?.pricing?.deposit ?? order?.valorSinal ?? 0) || 0
+        setTotalPrice(total)
+        setSignalValue(deposit)
+        if (total > 0 && deposit >= total) setSignalType("100")
+        else if (total > 0 && Math.abs(deposit - total * 0.5) < 0.01) setSignalType("50")
+        else setSignalType("custom")
+        const w = order?.warranty || order?.garantia
+        const wActive = Boolean(w?.active ?? w?.ativa)
+        setHasWarranty(wActive)
+        setWarrantyPrice(Number(w?.preco ?? w?.price ?? 0) || 0)
+        setSelectedAccessories(
+          Array.isArray(order?.accessories)
+            ? order.accessories.map(String)
+            : Array.isArray(order?.acessorios)
+              ? order.acessorios.map(String)
+              : []
+        )
+        setItems(hydrateDraftsFromOrder(order))
+        setActiveItemIndex(0)
+        if (order?.clientId || order?.clienteId) {
+          pushRecentClient({
+            id: String(order.clientId || order.clienteId),
+            name: String(order.clientName || ""),
+            phone: String(order.clientPhone || ""),
+          })
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Não foi possível carregar o pedido")
+        router.push("/pedidos")
+      } finally {
+        if (!cancelled) setBootLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, orderId, router])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await listServicesV1()
+        const list = (res.services || []).filter((s) => s.active !== false)
+        if (!cancelled && list.length > 0) {
+          setAvailableServices(
+            list.map((s) => ({
+              id: String(s._id || s.id || s.name),
+              name: s.name,
+              suggestedPrice: Number(s.defaultPrice) || 0,
+              sectorPathHint: Array.isArray(s.sectorPathHint)
+                ? s.sectorPathHint.map(String)
+                : [],
+            }))
+          )
+        }
+      } catch {
+        // keep fallback
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await listSectorsV1()
+        const list = (res.sectors || [])
+          .filter((s: any) => s.active !== false)
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+          .map((s: any) => ({
+            id: String(s._id || s.id || s.slug || s.name),
+            name: String(s.name || s.slug || "Setor"),
+            slug: String(s.slug || s.name || "").toLowerCase(),
+            isTerminal: Boolean(s.isTerminal),
+          }))
+        if (!cancelled && list.length) {
+          setFlowSectors(list)
+          setItems((prev) =>
+            prev.map((item) => {
+              const kept = (item.flowOptionIds || []).filter((id) =>
+                list.some((s) => s.id === id || s.slug === id)
+              )
+              if (kept.length) return { ...item, flowOptionIds: kept }
+              const start = list.find((s) => !s.isTerminal) || list[0]
+              return {
+                ...item,
+                flowOptionIds: start ? [start.slug || start.id] : ["atendimento"],
+              }
+            })
+          )
+        }
+      } catch {
+        // keep fallback
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) {
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
+      return
+    }
+    try {
+      const draft = JSON.parse(raw);
+      const { sneaker: _legacySneaker, ...restForm } = draft.formData || {};
+      const nextForm = { ...restForm }
+      if (!nextForm.expectedDate) nextForm.expectedDate = dueInDays(15)
+      setFormData((prev) => ({ ...prev, ...nextForm }));
+      setItems(migrateDraftToItems(draft));
+      if (typeof draft.totalPrice === "number") setTotalPrice(draft.totalPrice);
+      if (typeof draft.signalType === "string") setSignalType(draft.signalType);
+      if (typeof draft.signalValue === "number") setSignalValue(draft.signalValue);
+      if (typeof draft.hasWarranty === "boolean") setHasWarranty(draft.hasWarranty);
+      if (typeof draft.warrantyPrice === "number") setWarrantyPrice(draft.warrantyPrice);
+      if (Array.isArray(draft.selectedAccessories)) setSelectedAccessories(draft.selectedAccessories);
+      if (typeof draft.flowObservation === "string") setFlowObservation(draft.flowObservation);
+      if (typeof draft.prioridade === "string") setPrioridade(draft.prioridade);
+    } catch (err) {
+      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
+    }
+  }, [isEdit]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (typeof window === "undefined") return;
+    const payload = {
+      formData,
+      items: serializeItemsForDraft(items),
+      totalPrice,
+      signalType,
+      signalValue,
+      hasWarranty,
+      warrantyPrice,
+      selectedAccessories,
+      flowObservation,
+      prioridade,
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+  }, [isEdit, formData, items, totalPrice, signalType, signalValue, hasWarranty, warrantyPrice, selectedAccessories, flowObservation, prioridade]);
+
+  useEffect(() => {
+    async function fetchdata() {
+      try {
+        const clientsData = await getClientesService({ limit: 200 });
+        setClients(clientsData.data);
+      } catch (err) {
+        toast.error("Erro ao carregar clientes");
+      } finally {
+        setLoadingClients(false);
+      }
+    }
+    fetchdata();
+  }, []);
+
+  // Fotos do tênis (armazenamos também a preview para poder revogar URLs e evitar leaks)
+  const MAX_PHOTOS = parseInt(process.env.NEXT_PUBLIC_MAX_PHOTOS || "10", 10) || 10;
+  const MAX_FILE_MB = 5; // limite por arquivo antes da compressão
+  const [uploadProgress, setUploadProgress] = useState(0)
+
+  const updateItemsAndTotal = (updater: (prev: OrderItemDraft[]) => OrderItemDraft[]) => {
+    setItems((prev) => {
+      const next = updater(prev)
+      const newTotal = suggestedTotal(next, hasWarranty, warrantyPrice)
+      setTotalPrice(newTotal)
+      if (signalType === "50") setSignalValue(newTotal * 0.5)
+      else if (signalType === "100") setSignalValue(newTotal)
+      return next
+    })
+  }
+
+  const patchItem = (itemIndex: number, patch: OrderItemPatch) => {
+    setItems((prev) =>
+      prev.map((item, index) => (index === itemIndex ? { ...item, ...patch } : item))
+    )
+  }
+
+  const addItem = () => {
+    setItems((prev) => {
+      const next = [...prev, emptyOrderItemDraft()]
+      setActiveItemIndex(next.length - 1)
+      return next
+    })
+    toast.message("Novo par — preencha modelo, serviços e fotos")
+    requestAnimationFrame(() => {
+      document.getElementById("wq-item-block")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
+
+  const sectorsForItem = (item: OrderItemDraft) => {
+    const hintIds = new Set<string>()
+    for (const sel of item.selectedServices || []) {
+      const svc = availableServices.find((s) => s.id === sel.id)
+      for (const h of svc?.sectorPathHint || []) hintIds.add(String(h))
+    }
+    if (!hintIds.size) return []
+    return flowSectors.filter(
+      (s) => !s.isTerminal && (hintIds.has(s.id) || hintIds.has(s.slug))
+    )
+  }
+
+  /** União das partidas dos pares (resumo no rodapé / payload do pedido). */
+  const unionFlowOptionIds = (() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const it of items) {
+      for (const id of it.flowOptionIds || []) {
+        const key = String(id)
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(key)
+      }
+    }
+    return out.length ? out : ["atendimento"]
+  })()
+
+  const itemHasFlow = (item: OrderItemDraft, sectorKey: string, sectorId: string) => {
+    const ids = item.flowOptionIds || []
+    return ids.includes(sectorKey) || ids.includes(sectorId)
+  }
+
+  const toggleItemFlowOption = (itemIndex: number, id: string) => {
+    const sector = flowSectors.find((s) => s.id === id || s.slug === id)
+    const key = sector?.slug || sector?.id || id
+    setItems((prev) =>
+      prev.map((item, index) => {
+        if (index !== itemIndex) return item
+        const cur = item.flowOptionIds || []
+        const on = cur.includes(key) || cur.includes(id)
+        const next = on
+          ? cur.filter((x) => x !== key && x !== id)
+          : [...cur, key]
+        return {
+          ...item,
+          flowOptionIds: next.length ? next : ["atendimento"],
+        }
+      })
+    )
+  }
+
+  const removeItem = (itemIndex: number) => {
+    const target = items[itemIndex]
+    if (items.length <= 1) {
+      toast.message("Pedido precisa de ao menos um par")
+      return
+    }
+    if (isEdit && target?.serverItemIndex != null) {
+      const ok = window.confirm(
+        "Remover este par? O card some do kanban junto com o histórico deste par."
+      )
+      if (!ok) return
+    }
+    setItems((prev) => {
+      if (prev.length <= 1) return prev
+      const item = prev[itemIndex]
+      item?.photos.forEach((photo) => {
+        if (photo.preview?.startsWith("blob:")) URL.revokeObjectURL(photo.preview)
+      })
+      const next = prev.filter((_, index) => index !== itemIndex)
+      const newTotal = suggestedTotal(next, hasWarranty, warrantyPrice)
+      setTotalPrice(newTotal)
+      if (signalType === "50") setSignalValue(newTotal * 0.5)
+      else if (signalType === "100") setSignalValue(newTotal)
+      setActiveItemIndex((cur) => {
+        if (cur === itemIndex) return Math.max(0, itemIndex - 1)
+        if (cur > itemIndex) return cur - 1
+        return Math.min(cur, next.length - 1)
+      })
+      return next
+    })
+  }
+
+  // Manipuladores de upload/remover foto (compressão compartilhada)
+  const handlePhotoUpload = async (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files);
+    const currentCount = items.find((item) => item.id === itemId)?.photos.length || 0;
+
+    const slotsLeft = Math.max(0, MAX_PHOTOS - currentCount);
+    const toProcess = filesArray.slice(0, slotsLeft);
+
+    const processed: PhotoItem[] = [];
+
+    for (const f of toProcess) {
+      if (f.size > MAX_FILE_MB * 1024 * 1024 * 10) continue;
+      try {
+        const newFile = await compressImageFile(f);
+        const preview = URL.createObjectURL(newFile);
+        processed.push({ file: newFile, preview });
+      } catch {
+        const preview = URL.createObjectURL(f);
+        processed.push({ file: f, preview });
+      }
+    }
+
+    if (processed.length === 0) {
+      e.currentTarget.value = "";
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item
+        const merged = [...item.photos, ...processed].slice(0, MAX_PHOTOS);
+        if (!merged.some(p => p.isCover)) {
+          if (merged[0]) merged[0].isCover = true;
+        }
+        return { ...item, photos: merged }
+      })
+    );
+
+    e.currentTarget.value = "";
+  };
+
+  const removePhoto = async (itemIndex: number, index: number) => {
+    const item = items[itemIndex]
+    const target = item?.photos[index]
+    if (
+      isEdit &&
+      orderId &&
+      target?.uploadedUrl &&
+      item?.serverItemIndex != null &&
+      !target.file
+    ) {
+      try {
+        await deletePedidoItemFotoService(orderId, item.serverItemIndex, index)
+        toast.success("Foto removida")
+      } catch (err: any) {
+        toast.error(err?.message || "Falha ao remover foto")
+        return
+      }
+    }
+    setItems((prev) =>
+      prev.map((it, idx) => {
+        if (idx !== itemIndex) return it
+        const photo = it.photos[index]
+        if (photo?.preview && photo.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(photo.preview)
+        }
+        const next = it.photos.filter((_, i) => i !== index)
+        if (next.length && !next.some((p) => p.isCover)) {
+          next[0].isCover = true
+        }
+        return { ...it, photos: next }
+      })
+    )
+  }
+
+  const markAsCover = (itemIndex: number, index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) =>
+        idx === itemIndex
+          ? { ...item, photos: item.photos.map((p, i) => ({ ...p, isCover: i === index })) }
+          : item
+      )
+    );
+  };
+
+  const movePhoto = (itemIndex: number, from: number, to: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== itemIndex) return item
+        const arr = [...item.photos];
+        const [photo] = arr.splice(from, 1);
+        arr.splice(to, 0, photo);
+        return { ...item, photos: arr }
+      })
+    );
+  };
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [uploadMessage, setUploadMessage] = useState("")
+
+  const searchQuery = clientSearch.trim().toLowerCase()
+  const searchDigits = clientSearch.replace(/\D/g, "")
+  const filteredClients = clients.filter((client: any) => {
+    if (!searchQuery) return false
+    const nome = String(client.nomeCompleto || client.name || "").toLowerCase()
+    const phone = String(client.telefone || client.phone || "")
+    const cpf = String(client.cpf || "")
+    const phoneDigits = phone.replace(/\D/g, "")
+    const cpfDigits = cpf.replace(/\D/g, "")
+    return (
+      nome.includes(searchQuery) ||
+      phone.toLowerCase().includes(searchQuery) ||
+      cpf.toLowerCase().includes(searchQuery) ||
+      (searchDigits.length > 0 && (phoneDigits.includes(searchDigits) || cpfDigits.includes(searchDigits)))
+    )
+  })
+
+  const selectedClient =
+    clients.find((client: any) => String(client.id) === String(formData.clientId)) ||
+    (formData.clientId
+      ? {
+          id: formData.clientId,
+          nomeCompleto: clientNameOverride,
+          name: clientNameOverride,
+          telefone: clientPhone,
+          phone: clientPhone,
+        }
+      : null)
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }))
+    }
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }))
+    }
+  }
+
+  const selectClient = (client: any) => {
+    const id = String(client.id || client._id || "")
+    if (!id) return
+    handleSelectChange("clientId", id)
+    setClientSearch("")
+    const entry: RecentClient = {
+      id,
+      name: String(client.nomeCompleto || client.name || "Cliente"),
+      phone: String(client.telefone || client.phone || ""),
+    }
+    pushRecentClient(entry)
+    setRecentClients(loadRecentClients())
+  }
+
+  const saveNewClient = async () => {
+    const nomeCompleto = newClient.nomeCompleto.trim()
+    const telefone = newClient.telefone.trim()
+    if (!nomeCompleto) {
+      toast.error("Nome é obrigatório")
+      return
+    }
+    if (!telefone) {
+      toast.error("Telefone é obrigatório")
+      return
+    }
+    setSavingClient(true)
+    try {
+      const created = await createClienteService({
+        nomeCompleto,
+        telefone,
+        cpf: newClient.cpf.trim(),
+        email: newClient.email.trim(),
+        cep: "",
+        logradouro: "",
+        numero: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+      })
+      const listRes = await getClientesService({ forceRefresh: true, limit: 200 })
+      const list = listRes.data
+      setClients(list)
+      const createdId = String(created?.id || created?._id || "")
+      const match =
+        list.find((client: any) => client.id === createdId) ||
+        list.find((client: any) => String(client.nomeCompleto || "").toLowerCase() === nomeCompleto.toLowerCase())
+      const email = newClient.email.trim()
+      if (match?.id) {
+        selectClient(match)
+      } else if (createdId) {
+        const fallback = {
+          id: createdId,
+          nomeCompleto,
+          telefone,
+          email: email || null,
+        }
+        setClients((prev: any[]) =>
+          prev.some((c) => String(c.id) === createdId) ? prev : [fallback, ...prev]
+        )
+        selectClient(fallback)
+      }
+      setShowNewClient(false)
+      setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" })
+      setClientSearch("")
+      toast.success("Cliente cadastrado")
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao cadastrar cliente")
+    } finally {
+      setSavingClient(false)
+    }
+  }
+
+  const applyTemplate = (tpl: OrderTemplate) => {
+    const selected = availableServices
+      .filter((s) => tpl.serviceIds.includes(s.id))
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        price: Number(s.suggestedPrice) || 0,
+        description: "",
+      }))
+    setItems((prev) => {
+      const next = [...prev]
+      const first = {
+        ...next[0],
+        selectedServices: selected,
+        flowOptionIds: tpl.flowOptionIds?.length
+          ? [...tpl.flowOptionIds]
+          : next[0].flowOptionIds || ["atendimento"],
+      }
+      next[0] = first
+      const newTotal = suggestedTotal(next, hasWarranty || Boolean(tpl.hasWarranty), warrantyPrice)
+      setTotalPrice(newTotal)
+      if (signalType === "50") setSignalValue(newTotal * 0.5)
+      if (signalType === "100") setSignalValue(newTotal)
+      return next
+    })
+    if (tpl.accessories.length) setSelectedAccessories(tpl.accessories)
+    if (tpl.hasWarranty) setHasWarranty(true)
+    toast.success(`Template “${tpl.name}” aplicado`)
+  }
+
+  const saveCurrentAsTemplate = () => {
+    const name = window.prompt("Nome do template (ex.: Limpeza completa)")
+    if (!name?.trim()) return
+    const serviceIds = items[0]?.selectedServices.map((s) => s.id) || []
+    if (!serviceIds.length) {
+      toast.error("Selecione ao menos um serviço no 1º par")
+      return
+    }
+    const next = upsertOrderTemplate(templates, {
+      name: name.trim(),
+      serviceIds,
+      flowOptionIds: items[0]?.flowOptionIds || ["atendimento"],
+      accessories: selectedAccessories,
+      hasWarranty,
+    })
+    setTemplates(next)
+    saveOrderTemplates(next)
+    toast.success("Template salvo neste navegador")
+  }
+
+  const deleteTemplate = (id: string) => {
+    const next = removeOrderTemplate(templates, id)
+    setTemplates(next)
+    saveOrderTemplates(next)
+  }
+
+  const toggleService = (itemIndex: number, serviceId: string, checked: boolean) => {
+    const service = availableServices.find(s => s.id === serviceId);
+    updateItemsAndTotal((prev) =>
+      prev.map((item, index) => {
+        if (index !== itemIndex) return item
+        let nextServices = item.selectedServices
+        let nextFlow = [...(item.flowOptionIds || [])]
+        if (checked) {
+          if (!service || item.selectedServices.find(s => s.id === serviceId)) return item
+          const newService: SelectedService = {
+            id: service.id,
+            name: service.name,
+            price: service.suggestedPrice,
+            description: ""
+          };
+          nextServices = [...item.selectedServices, newService]
+          for (const h of service.sectorPathHint || []) {
+            const sector = flowSectors.find(
+              (s) => s.id === String(h) || s.slug === String(h)
+            )
+            const key = sector?.slug || sector?.id || String(h)
+            if (key && !nextFlow.includes(key) && !nextFlow.includes(String(h))) {
+              nextFlow.push(key)
+            }
+          }
+          return { ...item, selectedServices: nextServices, flowOptionIds: nextFlow }
+        }
+        return { ...item, selectedServices: item.selectedServices.filter(s => s.id !== serviceId) }
+      })
+    )
+  };
+
+  const updateService = (itemIndex: number, serviceId: string, field: 'price' | 'description', value: string | number) => {
+    updateItemsAndTotal((prev) =>
+      prev.map((item, index) => {
+        if (index !== itemIndex) return item
+        return {
+          ...item,
+          selectedServices: item.selectedServices.map((service) =>
+            service.id === serviceId ? { ...service, [field]: value } : service
+          ),
+        }
+      })
+    )
+  };
+
+  const getTotalPrice = () => {
+    return totalPrice;
+  };
+
+  // Função para atualizar valor do sinal baseado no tipo
+  const updateSignalValue = (total: number) => {
+    if (signalType === "50") {
+      setSignalValue(total * 0.5);
+    } else if (signalType === "100") {
+      setSignalValue(total);
+    }
+    // Para "custom", mantém o valor atual
+  };
+
+  // Handler para mudança de preço total
+  const handleTotalPriceChange = (newTotal: number) => {
+    setTotalPrice(newTotal);
+    updateSignalValue(newTotal);
+  };
+
+  // Handler para mudança de tipo de sinal
+  const handleSignalTypeChange = (type: string) => {
+    setSignalType(type);
+    if (type === "50") {
+      setSignalValue(totalPrice * 0.5);
+    } else if (type === "100") {
+      setSignalValue(totalPrice);
+    }
+    // Para "custom", mantém o valor atual
+  };
+
+  // Função para toggle da garantia
+  const toggleWarranty = (checked: boolean) => {
+    setHasWarranty(checked);
+    const newTotal = suggestedTotal(items, checked, warrantyPrice);
+    setTotalPrice(newTotal);
+    updateSignalValue(newTotal);
+  };
+
+  // Função para atualizar preço da garantia
+  const handleWarrantyPriceChange = (newPrice: number) => {
+    setWarrantyPrice(newPrice);
+    if (hasWarranty) {
+      const newTotal = suggestedTotal(items, true, newPrice);
+      setTotalPrice(newTotal);
+      updateSignalValue(newTotal);
+    }
+  };
+
+  // Função para toggle de acessório
+  const toggleAccessory = (accessory: string, checked: boolean) => {
+    if (checked) {
+      setSelectedAccessories(prev => [...prev, accessory]);
+    } else {
+      setSelectedAccessories(prev => prev.filter(acc => acc !== accessory));
+    }
+  };
+
+  // Função para adicionar acessório customizado
+  const addCustomAccessory = () => {
+    if (customAccessory.trim() && !selectedAccessories.includes(customAccessory.trim())) {
+      setSelectedAccessories(prev => [...prev, customAccessory.trim()]);
+      setCustomAccessory("");
+    }
+  };
+
+  // Função para remover acessório
+  const removeAccessory = (accessory: string) => {
+    setSelectedAccessories(prev => prev.filter(acc => acc !== accessory));
+  };
+
+  const resetDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setFormData({
+      clientId: "",
+      expectedDate: dueInDays(15),
+      department: "atendimento",
+      observations: "",
+    });
+    items.forEach((item) => {
+      item.photos.forEach((photo) => {
+        if (photo.preview) URL.revokeObjectURL(photo.preview);
+      });
+    });
+    setItems([emptyOrderItemDraft()]);
+    setFlowObservation("");
+    setTotalPrice(0);
+    setSignalType("50");
+    setSignalValue(0);
+    setHasWarranty(false);
+    setWarrantyPrice(0);
+    setSelectedAccessories([]);
+    setCustomAccessory("");
+    setPrioridade("2");
+    setClientSearch("");
+    setShowNewClient(false);
+    setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" });
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.clientId || (!selectedClient && !clientNameOverride)) {
+      newErrors.clientId = "Cliente é obrigatório"
+    }
+
+    Object.assign(newErrors, validateOrderItems(items))
+
+    if (!formData.expectedDate) {
+      newErrors.expectedDate = "Data prevista é obrigatória"
+    }
+
+    if (!isEdit && !formData.department) {
+      newErrors.department = "Departamento é obrigatório"
+    }
+
+    if (signalValue < 0 || signalValue > totalPrice) {
+      newErrors.signal = "Valor de sinal deve estar entre R$ 0,00 e o valor total"
+    }
+
+    if (isEdit && orderStatus === "delivered") {
+      newErrors.status =
+        "Pedido entregue: reabra no kanban/consulta antes de alterar pares e serviços"
+    }
+
+    const firstError = Object.values(newErrors)[0]
+    setErrors(newErrors)
+    return { isValid: Object.keys(newErrors).length === 0, firstError }
+  }
+
+  const buildFlowSelections = (flowOptionIds: string[]) =>
+    flowOptionIds
+      .map((opt) => {
+        const found = flowSectors.find(
+          (s) => s.id === opt || s.slug === opt || s.name.toLowerCase() === opt.toLowerCase()
+        )
+        if (found) return { id: found.slug || found.id, nome: found.name }
+        return { id: opt, nome: opt }
+      })
+      .filter(Boolean) as Array<{ id: string; nome: string }>
+
+  const handleSubmitEdit = async (filledItems: OrderItemDraft[]) => {
+    if (!orderId) return
+    const garantiaData = normalizeWarranty({
+      ativa: hasWarranty,
+      preco: hasWarranty ? warrantyPrice : 0,
+      duracao: hasWarranty ? "3 meses" : "",
+    })
+    const valorRestante = Math.max(0, totalPrice - signalValue)
+    const clientName =
+      selectedClient?.nomeCompleto ||
+      selectedClient?.name ||
+      clientNameOverride ||
+      ""
+
+    await updateOrderService(orderId, {
+      clientId: formData.clientId,
+      clientName,
+      clientPhone: selectedClient?.telefone || selectedClient?.phone || clientPhone || undefined,
+      clientEmail: selectedClient?.email || selectedClient?.clientEmail || undefined,
+      observacoes: formData.observations || "",
+      prioridade: Number(prioridade),
+      dataPrevistaEntrega: formData.expectedDate,
+      acessorios: selectedAccessories,
+      garantia: garantiaData,
+      pricing: {
+        total: totalPrice,
+        deposit: signalValue,
+        remaining: valorRestante,
+      },
+    })
+
+    let fresh = await getPedidoService(orderId)
+    const keepIds = new Set(
+      filledItems.filter((d) => d.serverItemIndex != null).map((d) => String(d.id))
+    )
+    const removeIdx: number[] = []
+    ;(fresh.items || []).forEach((it: any, idx: number) => {
+      const id = String(it._id || it.id || "")
+      if (id && !keepIds.has(id)) removeIdx.push(idx)
+    })
+    for (const idx of removeIdx.sort((a, b) => b - a)) {
+      fresh = await deletePedidoItemService(orderId, idx)
+    }
+
+    let plannedChanged = false
+    for (const draft of filledItems) {
+      const flowSelections = buildFlowSelections(draft.flowOptionIds || [])
+      const payload = {
+        shoeModel: draft.sneaker.trim(),
+        services: draft.selectedServices.map((s) => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+        })),
+        notes: draft.notes.trim() || undefined,
+        flowOptionIds: draft.flowOptionIds,
+        departamentosSelecionados: flowSelections,
+      }
+      const idx = (fresh.items || []).findIndex(
+        (it: any) => String(it._id || it.id) === String(draft.id)
+      )
+      if (idx >= 0) {
+        const before = (fresh.items[idx].plannedSectorIds || []).map(String).join(",")
+        fresh = await patchPedidoItemService(orderId, idx, payload)
+        const after = (fresh.items?.[idx]?.plannedSectorIds || []).map(String).join(",")
+        if (before !== after) plannedChanged = true
+        const files = draft.photos.map((p) => p.file).filter((f): f is File => Boolean(f))
+        if (files.length) {
+          await uploadPedidoItemFotosService(orderId, idx, files)
+          fresh = await getPedidoService(orderId)
+        }
+      } else {
+        fresh = await addPedidoItemService(orderId, payload)
+        const newIdx = (fresh.items || []).length - 1
+        const files = draft.photos.map((p) => p.file).filter((f): f is File => Boolean(f))
+        if (files.length && newIdx >= 0) {
+          await uploadPedidoItemFotosService(orderId, newIdx, files)
+          fresh = await getPedidoService(orderId)
+        }
+      }
+    }
+
+    if (plannedChanged) {
+      toast.message("Partida atualizada — posição atual dos pares no kanban foi mantida")
+    }
+    toast.success("Pedido atualizado")
+    items.forEach((item) => {
+      item.photos.forEach((p) => {
+        if (p.preview?.startsWith("blob:")) URL.revokeObjectURL(p.preview)
+      })
+    })
+    router.push(`/pedidos`)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const { isValid, firstError } = validateForm();
+    if (!isValid) {
+      if (firstError) toast.error(firstError);
+      return;
+    }
+
+    const filledItems = filterFilledItems(items)
+    const tooManyPhotos = filledItems.some((item) => item.photos.length > MAX_PHOTOS)
+    if (tooManyPhotos) {
+      toast.error(`Máximo de ${MAX_PHOTOS} fotos por item`);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+    setUploadStatus("idle");
+    setUploadMessage("");
+    setUploadProgress(0);
+    let uploadInProgress = false;
+    let progressTimer: NodeJS.Timeout | null = null;
+
+    try {
+      if (isEdit) {
+        await handleSubmitEdit(filledItems)
+        setIsLoading(false)
+        return
+      }
+
+      // Preparar dados de garantia (nível pedido) — data = fim (+3 meses)
+      const garantiaData = normalizeWarranty({
+        ativa: hasWarranty,
+        preco: hasWarranty ? warrantyPrice : 0,
+        duracao: hasWarranty ? "3 meses" : "",
+      })
+
+      // Calcular valores de sinal e restante
+      const valorRestante = Math.max(0, totalPrice - signalValue);
+
+      // Observações apenas com o texto inserido pelo usuário
+      const observacoesFinais = formData.observations || '';
+
+      const flowSelections = buildFlowSelections(unionFlowOptionIds)
+
+      const observacoesFluxoPayload = flowObservation.trim()
+        ? [{ observacao: flowObservation.trim() }]
+        : [];
+
+      const payload: any = {
+        clienteId: formData.clientId,
+        clientId: formData.clientId,
+        clientName: selectedClient?.nomeCompleto || "",
+        clientEmail:
+          selectedClient?.email ||
+          selectedClient?.clientEmail ||
+          "",
+        items: mapItemsToCreatePayload(filledItems),
+        fotos: [],
+        precoTotal: getTotalPrice(),
+        valorSinal: signalValue,
+        valorRestante: valorRestante,
+        dataPrevistaEntrega: formData.expectedDate,
+        departamento: formData.department,
+        observacoes: observacoesFinais,
+        prioridade: Number(prioridade),
+        garantia: garantiaData,
+        acessorios: selectedAccessories,
+        // v1 business status (not sector/column name — that lives in currentSectorId)
+        status: "open",
+      };
+
+      if (flowSelections.length > 0) {
+        payload.departamentosSelecionados = flowSelections;
+      }
+      if (observacoesFluxoPayload.length > 0) {
+        payload.observacoesFluxo = observacoesFluxoPayload;
+      }
+
+      const createdPedidoResponse = await createPedidoService(payload);
+
+      const itemsWithPhotos = filledItems
+        .map((item, index) => ({
+          index,
+          files: item.photos.map((photo) => photo.file).filter((f): f is File => Boolean(f)),
+        }))
+        .filter((entry) => entry.files.length > 0)
+
+      if (itemsWithPhotos.length > 0) {
+        const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
+        if (!pedidoId) {
+          throw new Error("Pedido criado, mas não foi possível identificar o ID para upload das fotos");
+        }
+
+        uploadInProgress = true;
+        setUploadStatus("loading");
+        setUploadMessage("Enviando fotos...");
+        setUploadProgress(10);
+        progressTimer = setInterval(() => {
+          setUploadProgress((prev) => Math.min(prev + 10, 90));
+        }, 400);
+        for (const entry of itemsWithPhotos) {
+          await uploadPedidoItemFotosService(pedidoId, entry.index, entry.files);
+        }
+        // Confirm photos landed on the right items (non-blocking warn)
+        try {
+          const fresh = await getPedidoService(pedidoId)
+          const itemsFresh = Array.isArray(fresh?.items) ? fresh.items : []
+          for (const entry of itemsWithPhotos) {
+            const got = itemsFresh[entry.index]?.photos?.length || 0
+            if (got < entry.files.length) {
+              toast.message(
+                `Par ${entry.index + 1}: esperava ${entry.files.length} foto(s), gravou ${got}`
+              )
+            }
+          }
+        } catch {
+          /* ignore verify errors — order already created */
+        }
+        uploadInProgress = false;
+        setUploadStatus("success");
+        setUploadMessage("Fotos enviadas com sucesso.");
+        setUploadProgress(100);
+      }
+
+      const hasEmail = Boolean(
+        selectedClient?.email || selectedClient?.clientEmail
+      )
+      toast.success(
+        hasEmail
+          ? "Pedido criado — e-mail com PDF e link público a caminho"
+          : "Pedido criado com sucesso!"
+      )
+      setIsLoading(false);
+      // revoke previews to free memory
+      items.forEach((item) => {
+        item.photos.forEach((p) => { if (p.preview) URL.revokeObjectURL(p.preview); });
+      });
+      localStorage.removeItem(DRAFT_KEY);
+      const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
+      if (pedidoId) {
+        try {
+          const notify = createdPedidoResponse?.emailNotify || null
+          sessionStorage.setItem(
+            `wq-email-notify:${pedidoId}`,
+            JSON.stringify(notify || { skipped: true, reason: hasEmail ? "unknown" : "no-email" })
+          )
+        } catch {}
+        router.push(`/pedidos/${pedidoId}/sucesso`);
+      } else {
+        router.push("/kanban");
+      }
+    } catch (err: any) {
+      setIsLoading(false);
+      if (uploadInProgress) {
+        setUploadStatus("error");
+        setUploadMessage(err.message || "Erro ao enviar fotos");
+      }
+      const errMsg = err.message || "Erro ao criar pedido";
+      setErrors({ api: errMsg });
+      toast.error(errMsg);
+    }
+    finally {
+      if (progressTimer) clearInterval(progressTimer);
+    }
+  }
+
+  const itemsServicesTotal = servicesSum(items)
+  const remaining = Math.max(0, totalPrice - signalValue)
+
+  const renderSubmitButton = () => (
+    <Button
+      type="submit"
+      disabled={isLoading || bootLoading}
+      className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90 text-white"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {isEdit ? "Salvando..." : "Criando..."}
+        </>
+      ) : isEdit ? (
+        "Salvar alterações"
+      ) : (
+        "Criar pedido"
+      )}
+    </Button>
+  )
+
+  if (bootLoading) {
+    return (
+      <div className="-mx-2.5 -mt-3 flex min-h-[40vh] items-center justify-center sm:-mx-5 sm:-mt-5">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--wq-brand)]" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="-mx-2.5 -mt-3 max-w-[100vw] overflow-x-hidden sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
+      <AppHeader
+        title={isEdit ? "Editar pedido" : "Novo pedido"}
+        subtitle={
+          isEdit
+            ? "Altere cliente, pares, partida e pagamento"
+            : "Cliente → pares → partida (setores) → pagamento"
+        }
+        actions={
+          <Button asChild variant="outline" size="sm" className="h-9 rounded-[10px]">
+            <Link href="/pedidos">Voltar</Link>
+          </Button>
+        }
+      />
+
+          <div className="mx-auto w-full max-w-[1400px] px-2.5 py-4 pb-40 sm:px-5 sm:py-6 md:px-6 lg:px-8">
+        {!isEdit ? (
+        <div className="mb-3 rounded-2xl border border-[var(--wq-border)] bg-white p-3 sm:mb-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+              Pedido rápido
+            </p>
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-[8px] text-xs" onClick={saveCurrentAsTemplate}>
+              Salvar template
+            </Button>
+          </div>
+          {templates.length === 0 ? (
+            <p className="text-sm text-[var(--wq-text-muted)]">
+              Monte serviços + fluxo e salve um template para reutilizar no balcão.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {templates.map((tpl) => (
+                <div key={tpl.id} className="inline-flex items-center gap-1 rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] pl-1">
+                  <button
+                    type="button"
+                    onClick={() => applyTemplate(tpl)}
+                    className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--wq-text)] hover:bg-[var(--wq-brand-soft)]"
+                  >
+                    {tpl.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full px-2 py-1 text-xs text-[var(--wq-text-muted)] hover:text-[var(--wq-danger)]"
+                    onClick={() => deleteTemplate(tpl.id)}
+                    aria-label={`Remover ${tpl.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        ) : null}
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
+            <div className="space-y-6 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:space-y-8 sm:p-5 md:p-6">
+              {/* Block 1 — Cliente */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">Cliente</h2>
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-[var(--wq-brand)] underline-offset-2 hover:underline"
+                    onClick={() => setShowNewClient((open) => !open)}
+                  >
+                    {showNewClient ? "Fechar" : "+ Novo cliente"}
+                  </button>
+                </div>
+
+                {selectedClient ? (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-brand-soft)] px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-[var(--wq-text)]">
+                        {selectedClient.nomeCompleto || selectedClient.name}
+                      </p>
+                      <p className="truncate text-xs text-[var(--wq-text-muted)]">
+                        {[
+                          selectedClient.telefone || selectedClient.phone,
+                          selectedClient.email,
+                          selectedClient.cpf,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Sem telefone/e-mail/CPF"}
+                      </p>
+                      {!(selectedClient.email || selectedClient.clientEmail) ? (
+                        <p className="mt-1 text-[11px] text-[var(--wq-warn)]">
+                          Sem e-mail — não enviaremos PDF/link automático. Cadastre o e-mail no cliente.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">
+                          Ao criar: e-mail com PDF + link público de acompanhamento.
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm font-medium text-[var(--wq-brand)] underline-offset-2 hover:underline"
+                      onClick={() => {
+                        handleSelectChange("clientId", "")
+                        setClientSearch("")
+                      }}
+                    >
+                      Trocar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {!clientSearch && recentClients.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {recentClients.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() =>
+                              selectClient({
+                                id: c.id,
+                                nomeCompleto: c.name,
+                                telefone: c.phone,
+                              })
+                            }
+                            className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-1 text-xs font-medium text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--wq-text-muted)]" />
+                      <Input
+                        placeholder="Buscar por nome, telefone ou CPF"
+                        value={clientSearch}
+                        onChange={(e) => setClientSearch(e.target.value)}
+                        className="h-12 pl-11 text-base"
+                        autoComplete="off"
+                      />
+                    </div>
+                    {loadingClients && (
+                      <p className="text-xs text-[var(--wq-text-muted)]">Carregando clientes…</p>
+                    )}
+                    {clientSearch && (
+                      <div className="max-h-56 overflow-y-auto rounded-xl border border-[var(--wq-border)]">
+                        {filteredClients.map((client) => (
+                          <button
+                            type="button"
+                            key={client.id}
+                            className={`flex w-full flex-col items-start gap-0.5 border-b border-[var(--wq-border)] px-3 py-1.5 text-left last:border-b-0 hover:bg-[var(--wq-paper)] ${
+                              formData.clientId === client.id ? "bg-[var(--wq-brand-soft)]" : ""
+                            }`}
+                            onClick={() => selectClient(client)}
+                          >
+                            <span className="text-sm font-medium text-[var(--wq-text)]">
+                              {client.nomeCompleto || client.name}
+                            </span>
+                            <span className="text-xs text-[var(--wq-text-muted)]">
+                              {[client.telefone || client.phone, client.cpf].filter(Boolean).join(" · ") || "Sem telefone/CPF"}
+                            </span>
+                          </button>
+                        ))}
+                        {filteredClients.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-[var(--wq-text-muted)]">Nenhum cliente encontrado</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {showNewClient && (
+                  <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
+                    <p className="text-sm font-medium text-[var(--wq-text)]">Cadastro rápido</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="new-client-name">Nome *</Label>
+                        <Input
+                          id="new-client-name"
+                          value={newClient.nomeCompleto}
+                          onChange={(e) => setNewClient((prev) => ({ ...prev, nomeCompleto: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              void saveNewClient()
+                            }
+                          }}
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-client-phone">Telefone *</Label>
+                        <Input
+                          id="new-client-phone"
+                          value={newClient.telefone}
+                          onChange={(e) => setNewClient((prev) => ({ ...prev, telefone: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              void saveNewClient()
+                            }
+                          }}
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-client-cpf">CPF</Label>
+                        <Input
+                          id="new-client-cpf"
+                          value={newClient.cpf}
+                          onChange={(e) => setNewClient((prev) => ({ ...prev, cpf: e.target.value }))}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-client-email">Email (PDF + link do pedido)</Label>
+                        <Input
+                          id="new-client-email"
+                          type="email"
+                          value={newClient.email}
+                          onChange={(e) => setNewClient((prev) => ({ ...prev, email: e.target.value }))}
+                          placeholder="cliente@email.com"
+                        />
+                        <p className="text-[11px] text-[var(--wq-text-muted)]">
+                          Com e-mail, o cliente recebe o PDF e o link público ao criar o pedido.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
+                        disabled={savingClient}
+                        onClick={() => void saveNewClient()}
+                      >
+                        {savingClient ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar cliente"}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setShowNewClient(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {errors.clientId && <p className="text-sm text-destructive">{errors.clientId}</p>}
+              </section>
+
+              {/* Block 2 — Pares */}
+              <section id="wq-item-block" className="scroll-mt-24 space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                      Pares
+                    </h2>
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      1) Modelo · 2) Serviços · 3) Fotos deste par · {items.length}{" "}
+                      {items.length === 1 ? "par" : "pares"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 shrink-0 rounded-[10px] border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] px-3 text-[var(--wq-text)]"
+                    onClick={addItem}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    <span className="sm:hidden">+ Par</span>
+                    <span className="hidden sm:inline">Adicionar par</span>
+                  </Button>
+                </div>
+                {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
+
+                {items.length > 1 ? (
+                  <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {items.map((it, idx) => {
+                      const label = it.sneaker?.trim() || `Par ${idx + 1}`
+                      const active = idx === Math.min(activeItemIndex, items.length - 1)
+                      return (
+                        <button
+                          key={it.id}
+                          type="button"
+                          onClick={() => setActiveItemIndex(idx)}
+                          className={`h-10 max-w-[12rem] shrink-0 truncate rounded-lg border px-3 text-sm font-medium transition ${
+                            active
+                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                              : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          }`}
+                          title={label}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {(() => {
+                  const itemIndex = Math.min(activeItemIndex, Math.max(0, items.length - 1))
+                  const item = items[itemIndex]
+                  if (!item) return null
+                  return (
+                    <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-3 sm:p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="min-w-0 text-sm font-semibold text-[var(--wq-text)]">
+                          Par {itemIndex + 1}
+                          {item.sneaker?.trim() ? (
+                            <span className="font-normal text-[var(--wq-text-muted)]"> · {item.sneaker}</span>
+                          ) : null}
+                        </h3>
+                        {items.length > 1 ? (
+                          <button
+                            type="button"
+                            className="shrink-0 text-sm text-[var(--wq-danger)] hover:underline"
+                            onClick={() => removeItem(itemIndex)}
+                          >
+                            Remover
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`sneaker-${itemIndex}`}>Modelo *</Label>
+                        <Input
+                          id={`sneaker-${itemIndex}`}
+                          value={item.sneaker}
+                          onChange={(e) => {
+                            patchItem(itemIndex, { sneaker: e.target.value })
+                            if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
+                          }}
+                          placeholder="Ex: Nike Air Max 90"
+                          className="bg-[var(--wq-surface)]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`item-notes-${itemIndex}`}>Obs. deste par</Label>
+                        <Input
+                          id={`item-notes-${itemIndex}`}
+                          value={item.notes}
+                          onChange={(e) => patchItem(itemIndex, { notes: e.target.value })}
+                          placeholder="Opcional"
+                          className="bg-[var(--wq-surface)]"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Serviços</Label>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {availableServices.map((service) => {
+                            const isSelected = item.selectedServices.find((s) => s.id === service.id)
+                            const inputId = `service-${itemIndex}-${service.id}`
+                            return (
+                              <label
+                                key={service.id}
+                                htmlFor={inputId}
+                                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2.5 transition ${
+                                  isSelected
+                                    ? "border-[var(--wq-brand)]/50 bg-[var(--wq-brand-soft)]"
+                                    : "border-[var(--wq-border)] bg-[var(--wq-surface)] hover:bg-[var(--wq-paper)]"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={inputId}
+                                  checked={!!isSelected}
+                                  onChange={(e) => toggleService(itemIndex, service.id, e.target.checked)}
+                                  className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
+                                />
+                                <span className="min-w-0 flex-1 leading-tight">
+                                  <span className="block text-sm font-medium text-[var(--wq-text)]">{service.name}</span>
+                                  <span className="text-xs text-[var(--wq-text-muted)]">
+                                    R$ {service.suggestedPrice.toFixed(2)}
+                                  </span>
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+
+                        {item.selectedServices.length > 0 ? (
+                          <div className="space-y-2 pt-1">
+                            {item.selectedServices.map((service) => (
+                              <div
+                                key={service.id}
+                                className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:grid-cols-[1fr_120px_auto] sm:items-end"
+                              >
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-[var(--wq-text)]">{service.name}</p>
+                                  <Input
+                                    value={service.description}
+                                    onChange={(e) =>
+                                      updateService(itemIndex, service.id, "description", e.target.value)
+                                    }
+                                    placeholder="Obs. do serviço"
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Preço</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={service.price}
+                                    onChange={(e) =>
+                                      updateService(itemIndex, service.id, "price", Number(e.target.value))
+                                    }
+                                    className="h-10"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--wq-border)] px-3 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-danger)] sm:border-0 sm:px-2"
+                                  onClick={() => toggleService(itemIndex, service.id, false)}
+                                  aria-label="Remover serviço"
+                                >
+                                  <X className="mr-1.5 h-4 w-4 sm:mr-0" />
+                                  <span className="text-sm sm:hidden">Remover</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-2 rounded-xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/80 p-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                            Partida deste par
+                          </p>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Setores só deste tênis · Final entra sozinha
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {flowSectors
+                            .filter((s) => !s.isTerminal)
+                            .map((sector) => {
+                              const key = sector.slug || sector.id
+                              const onPath = itemHasFlow(item, key, sector.id)
+                              const hinted = sectorsForItem(item).some(
+                                (h) => h.id === sector.id
+                              )
+                              return (
+                                <button
+                                  key={sector.id}
+                                  type="button"
+                                  onClick={() => toggleItemFlowOption(itemIndex, key)}
+                                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                    onPath
+                                      ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
+                                      : "border-[var(--wq-border)] bg-white text-[var(--wq-text)]"
+                                  }`}
+                                >
+                                  {sector.name}
+                                  {hinted && !onPath ? (
+                                    <span className="ml-1 text-[10px] opacity-70">sug.</span>
+                                  ) : null}
+                                </button>
+                              )
+                            })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <Label>Fotos deste par</Label>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Só deste modelo · máx. {MAX_PHOTOS}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handlePhotoUpload(item.id, e)}
+                            className="hidden"
+                            id={`photo-upload-${itemIndex}`}
+                          />
+                          <label
+                            htmlFor={`photo-upload-${itemIndex}`}
+                            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Tirar / adicionar fotos
+                          </label>
+                        </div>
+
+                        {item.photos.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {item.photos.map((photo, index) => (
+                              <div
+                                key={index}
+                                className="group relative overflow-hidden rounded-lg border border-[var(--wq-border)]"
+                                draggable
+                                onDragStart={(e) => e.dataTransfer.setData("text/plain", index.toString())}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault()
+                                  const from = Number(e.dataTransfer.getData("text/plain"))
+                                  if (!Number.isNaN(from)) movePhoto(itemIndex, from, index)
+                                }}
+                              >
+                                <img
+                                  src={photo.preview || "/placeholder.svg"}
+                                  alt={`Foto ${index + 1}`}
+                                  className="h-24 w-full object-cover"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-[var(--wq-ink)]/55 p-1">
+                                  <button
+                                    type="button"
+                                    className="rounded px-1.5 text-[10px] font-semibold text-white"
+                                    onClick={() => markAsCover(itemIndex, index)}
+                                  >
+                                    {photo.isCover ? "Capa" : "Capa?"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded px-1.5 text-[10px] font-semibold text-white"
+                                    onClick={() => removePhoto(itemIndex, index)}
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </section>
+
+              {/* Block 2b — Acessórios (partida vai junto do pagamento) */}
+              <section className="space-y-3">
+                <div>
+                  <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                    Acessórios
+                  </h2>
+                  <p className="text-xs text-[var(--wq-text-muted)]">
+                    O que o cliente deixou junto com o par
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {defaultAccessories.map((accessory) => {
+                      const isSelected = selectedAccessories.includes(accessory)
+                      return (
+                        <button
+                          key={accessory}
+                          type="button"
+                          onClick={() => toggleAccessory(accessory, !isSelected)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                            isSelected
+                              ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+                              : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/30"
+                          }`}
+                        >
+                          {accessory}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="flex min-w-0 gap-2">
+                    <Input
+                      placeholder="Outro acessório…"
+                      value={customAccessory}
+                      onChange={(e) => setCustomAccessory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addCustomAccessory()
+                        }
+                      }}
+                      className="h-9 min-w-0 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addCustomAccessory}
+                      disabled={!customAccessory.trim()}
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {selectedAccessories.length > 0 &&
+                  selectedAccessories.some((a) => !defaultAccessories.includes(a)) ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedAccessories
+                        .filter((a) => !defaultAccessories.includes(a))
+                        .map((accessory) => (
+                          <span
+                            key={accessory}
+                            className="inline-flex items-center gap-1 rounded-full bg-[var(--wq-brand-soft)] px-2.5 py-1 text-xs"
+                          >
+                            {accessory}
+                            <button type="button" onClick={() => removeAccessory(accessory)} aria-label="Remover">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+
+              {/* Block 3 — Resumo partida + Pagamento + data */}
+              <section className="space-y-4">
+                <div className="space-y-3 rounded-2xl border-2 border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
+                  <div>
+                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                      Partida (resumo)
+                    </h2>
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      União dos pares · edite a partida{" "}
+                      <strong className="font-semibold text-[var(--wq-text)]">em cada par</strong>{" "}
+                      acima
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {flowSectors
+                      .filter((s) => !s.isTerminal)
+                      .map((sector) => {
+                        const key = sector.slug || sector.id
+                        const checked =
+                          unionFlowOptionIds.includes(key) || unionFlowOptionIds.includes(sector.id)
+                        return (
+                          <span
+                            key={sector.id}
+                            className={`min-h-10 rounded-xl border px-3.5 py-2 text-sm font-semibold ${
+                              checked
+                                ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
+                                : "border-[var(--wq-border)] bg-white/60 text-[var(--wq-text-muted)]"
+                            }`}
+                          >
+                            {sector.name}
+                          </span>
+                        )
+                      })}
+                  </div>
+                  {errors.department ? (
+                    <p className="text-sm text-destructive">{errors.department}</p>
+                  ) : null}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="flowObservation">Obs. do fluxo</Label>
+                    <Textarea
+                      id="flowObservation"
+                      placeholder="Ex.: reforçar pintura nas laterais"
+                      value={flowObservation}
+                      onChange={(e) => setFlowObservation(e.target.value)}
+                      className="min-h-[72px] bg-white"
+                    />
+                  </div>
+                </div>
+
+                <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
+                  Pagamento e entrega
+                </h2>
+
+                <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="warranty"
+                        checked={hasWarranty}
+                        onChange={(e) => toggleWarranty(e.target.checked)}
+                        className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
+                      />
+                      <label htmlFor="warranty" className="cursor-pointer font-medium">
+                        Garantia de 3 meses
+                      </label>
+                    </div>
+                    <span className="text-sm text-[var(--wq-text-muted)]">Proteção adicional</span>
+                  </div>
+                  {hasWarranty && (
+                    <div className="grid grid-cols-1 gap-3 border-t border-[var(--wq-border)] pt-3 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="warrantyPrice">Preço da garantia (R$)</Label>
+                        <Input
+                          id="warrantyPrice"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={warrantyPrice}
+                          onChange={(e) => handleWarrantyPriceChange(Number(e.target.value))}
+                          placeholder="0.00"
+                          className="bg-[var(--wq-surface)]"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm text-[var(--wq-text-muted)]">Cobertura</Label>
+                        <div className="rounded-lg bg-[var(--wq-surface)] p-2 text-sm text-[var(--wq-text)]">
+                          <p>Retrabalho gratuito por defeitos</p>
+                          <p>Troca de peças com defeito</p>
+                          <p>Suporte técnico especializado</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {(itemsServicesTotal > 0 || hasWarranty) && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="totalPrice">Preço total (R$) *</Label>
+                        <Input
+                          id="totalPrice"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={totalPrice}
+                          onChange={(e) => handleTotalPriceChange(Number(e.target.value))}
+                          placeholder="0.00"
+                          className="w-36 text-lg font-semibold"
+                        />
+                      </div>
+                      <div className="text-right text-sm text-[var(--wq-text-muted)]">
+                        <p>Soma dos serviços: R$ {itemsServicesTotal.toFixed(2)}</p>
+                        {hasWarranty && <p>Garantia (3 meses): R$ {warrantyPrice.toFixed(2)}</p>}
+                        <p className="font-semibold text-[var(--wq-text)]">
+                          Subtotal: R$ {suggestedTotal(items, hasWarranty, warrantyPrice).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label>Valor de sinal</Label>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id="signal50"
+                              name="signalType"
+                              value="50"
+                              checked={signalType === "50"}
+                              onChange={(e) => handleSignalTypeChange(e.target.value)}
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                            />
+                            <label htmlFor="signal50" className="cursor-pointer text-sm font-medium">
+                              50% do total
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id="signal100"
+                              name="signalType"
+                              value="100"
+                              checked={signalType === "100"}
+                              onChange={(e) => handleSignalTypeChange(e.target.value)}
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                            />
+                            <label htmlFor="signal100" className="cursor-pointer text-sm font-medium">
+                              100% do total (à vista)
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id="signalCustom"
+                              name="signalType"
+                              value="custom"
+                              checked={signalType === "custom"}
+                              onChange={(e) => handleSignalTypeChange(e.target.value)}
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                            />
+                            <label htmlFor="signalCustom" className="cursor-pointer text-sm font-medium">
+                              Valor personalizado
+                            </label>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="signalValue">Sinal (R$)</Label>
+                          <Input
+                            id="signalValue"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={totalPrice}
+                            value={signalValue}
+                            onChange={(e) => setSignalValue(Number(e.target.value))}
+                            placeholder="0.00"
+                            disabled={signalType !== "custom"}
+                            className={`text-lg font-semibold ${signalType !== "custom" ? "bg-[var(--wq-paper)]" : ""}`}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-sm text-[var(--wq-text-muted)]">Restante</Label>
+                          <div className="rounded-lg bg-[var(--wq-paper)] p-3 text-center">
+                            <p className="text-lg font-semibold text-[var(--wq-text)]">R$ {remaining.toFixed(2)}</p>
+                            <p className="text-xs text-[var(--wq-text-muted)]">
+                              {signalValue >= totalPrice ? "Pago integralmente" : "A pagar na entrega"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
+                {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
+                    <Label htmlFor="expectedDate">Data prevista *</Label>
+                    <Input
+                      id="expectedDate"
+                      name="expectedDate"
+                      type="date"
+                      value={formData.expectedDate}
+                      onChange={handleInputChange}
+                      className={errors.expectedDate ? "border-destructive" : "bg-white"}
+                    />
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { d: 15, label: "+15 dias" },
+                        { d: 30, label: "+30 dias" },
+                        { d: 40, label: "+40 dias" },
+                      ].map((opt) => {
+                        const active = formData.expectedDate === dueInDays(opt.d)
+                        return (
+                        <button
+                          key={opt.d}
+                          type="button"
+                          className={`min-h-10 rounded-lg border px-2 text-xs font-semibold transition ${
+                            active
+                              ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                              : "border-[var(--wq-border)] bg-white text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                          }`}
+                          onClick={() => {
+                            handleSelectChange("expectedDate", dueInDays(opt.d))
+                            if (errors.expectedDate) {
+                              setErrors((prev) => ({ ...prev, expectedDate: "" }))
+                            }
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                        )
+                      })}
+                    </div>
+                    {errors.expectedDate && <p className="text-sm text-destructive">{errors.expectedDate}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prioridade">Prioridade</Label>
+                    <Select value={prioridade} onValueChange={(value) => setPrioridade(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar prioridade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Alta (I) - Urgente</SelectItem>
+                        <SelectItem value="2">Média (II) - Normal</SelectItem>
+                        <SelectItem value="3">Baixa (III) - Sem pressa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-[var(--wq-text-muted)]">Se não informado, assume Média (II).</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="observations">Observações gerais</Label>
+                  <Textarea
+                    id="observations"
+                    name="observations"
+                    value={formData.observations}
+                    onChange={handleInputChange}
+                    placeholder="Observações adicionais sobre o pedido..."
+                    rows={2}
+                  />
+                </div>
+
+                {(uploadStatus !== "idle" || uploadMessage) && (
+                  <div className="space-y-2">
+                    <p
+                      className={`text-sm ${
+                        uploadStatus === "error"
+                          ? "text-[var(--wq-danger)]"
+                          : uploadStatus === "success"
+                            ? "text-[var(--wq-success)]"
+                            : "text-[var(--wq-text-muted)]"
+                      }`}
+                    >
+                      {uploadStatus === "loading" ? "Fazendo upload das fotos..." : uploadMessage}
+                    </p>
+                    {uploadStatus === "loading" && (
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--wq-paper)]">
+                        <div
+                          className="h-full bg-[var(--wq-action)]"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="hidden gap-3 pt-2 lg:flex">
+                  <Link href="/pedidos">
+                    <Button type="button" variant="outline">
+                      Cancelar
+                    </Button>
+                  </Link>
+                  <Button type="button" variant="outline" onClick={resetDraft}>
+                    Limpar rascunho
+                  </Button>
+                </div>
+              </section>
+            </div>
+
+            <aside className="hidden lg:block">
+              <div className="sticky top-20 space-y-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">Resumo</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--wq-text-muted)]">Total</span>
+                    <span className="font-semibold">R$ {getTotalPrice().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--wq-text-muted)]">Sinal</span>
+                    <span className="font-semibold">R$ {signalValue.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--wq-text-muted)]">Restante</span>
+                    <span className="font-semibold">R$ {remaining.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--wq-text-muted)]">Pares</span>
+                    <span className="font-semibold">{items.length}</span>
+                  </div>
+                </div>
+                <div className="pt-1">{renderSubmitButton()}</div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-x-hidden border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
+            <div className="mx-auto flex w-full min-w-0 max-w-[1400px] flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <div className="min-w-0 flex-1 text-xs text-[var(--wq-text-muted)]">
+                <p className="truncate font-semibold text-[var(--wq-text)]">
+                  Total R$ {getTotalPrice().toFixed(2)} · Sinal R$ {signalValue.toFixed(2)}
+                </p>
+                <p className="truncate">
+                  Restante R$ {remaining.toFixed(2)} · {items.length}{" "}
+                  {items.length === 1 ? "par" : "pares"}
+                  {unionFlowOptionIds.length
+                    ? ` · Partida: ${unionFlowOptionIds.length} setor${unionFlowOptionIds.length === 1 ? "" : "es"}`
+                    : ""}
+                </p>
+              </div>
+              <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">
+                {renderSubmitButton()}
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

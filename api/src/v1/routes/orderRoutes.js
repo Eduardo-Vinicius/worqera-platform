@@ -30,6 +30,14 @@ router.post(
   orderController.uploadPhotosMiddleware,
   orderController.uploadItemPhotos
 );
+router.delete(
+  '/:id/items/:itemIndex/photos/:photoIndex',
+  ...guard,
+  orderController.deleteItemPhoto
+);
+router.patch('/:id/items/:itemIndex', ...guard, orderController.patchItem);
+router.post('/:id/items', ...guard, orderController.addItem);
+router.delete('/:id/items/:itemIndex', ...guard, orderController.deleteItem);
 router.get('/:id/photos/zip', ...guard, orderController.zipPhotos);
 router.post('/:id/pdf', ...guard, orderController.generatePdf);
 router.get('/:id/pdfs', ...guard, orderController.listPdfs);

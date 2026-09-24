@@ -1,11 +1,22 @@
 # Worqera API — Change log
 
+## 2026-09-24
+
+- **Editar pedido (merge-safe):** `PATCH/POST/DELETE /orders/:id/items/:itemIndex` preserva `currentSectorId`/`sectorHistory`/fotos; `items[]` no PATCH do pedido rejeitado; entregue bloqueia mudança estrutural.
+- **Fotos por item:** upload grava em `items[i].photos` (máx. **10**/item); `order.photos` = união; `DELETE .../items/:i/photos/:j`; compressão no client (1600px / JPEG 0.72).
+- **Laudo:** só fotos do par (`items[i].photos`); sem fallback que misturava `order.photos` no par 0; até 10 embeds.
+- **Kanban:** badge **Sem foto**; drawer “Ver pedido inteiro” vs só o par.
+- **Lixeira:** `DELETE /orders/:id/purge` (owner/admin) apaga de vez só se já estiver na lixeira.
+- **Partida por par:** cada item envia `flowOptionIds`; create grava `items[].plannedSectorIds`.
+- **Subitens no kanban:** 1 card por item; move por item; ready agregado.
+- **Admin shops:** planos Basic / Pro / Business.
+
 ## 2026-09-22
 
-- **Partida por par:** cada item envia `flowOptionIds`; create grava `items[].plannedSectorIds` (UI + hints); drawer kanban usa o plano do item focado (corrige “fora do plano” falso).
-- **Lixeira:** `DELETE /orders/:id/purge` (owner/admin) apaga de vez só se já estiver na lixeira; UI Pedidos + detalhe com Recuperar / Apagar.
 - **Subitens no kanban:** cada `items[]` tem `currentSectorId` / `plannedSectorIds` / `sectorHistory`; board explode 1 card por item; `POST /kanban/orders/:orderId/items/:itemId/move`; pedido `ready` só com todos no terminal; e-mail de pronto agregado; consulta `/p` aceita `?item=` + lista de itens.
 - **Admin shops:** planos Basic / Pro / Business (ativação/troca/revogação).
+- **Lixeira:** soft-delete + restore; purge em 2026-09-24.
+- **Partida por par / fotos:** ver 2026-09-24.
 
 ## 2026-09-19
 

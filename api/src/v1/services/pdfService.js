@@ -6,7 +6,7 @@ const Sector = require('../models/Sector');
 const storageService = require('./storageService');
 const { effectiveItems } = require('./orderItems');
 
-const MAX_FOTOS_PER_PAIR = Number(process.env.PDF_MAX_EMBEDDED_FOTOS || 4);
+const MAX_FOTOS_PER_PAIR = Number(process.env.PDF_MAX_EMBEDDED_FOTOS || 10);
 const BRAND_RGB = [15, 23, 42]; // slate-900
 const ACCENT_RGB = [37, 99, 235]; // blue-600
 const MUTED_RGB = [100, 116, 139];
@@ -230,9 +230,6 @@ async function generateOrderPdf(shopId, orderId) {
     }
 
     let photos = Array.isArray(it.photos) ? it.photos : [];
-    if (!photos.length && i === 0 && Array.isArray(order.photos)) {
-      photos = order.photos;
-    }
     photos = photos.slice(0, MAX_FOTOS_PER_PAIR);
     if (photos.length) {
       y = ensureSpace(doc, y, 20, pageHeight);
@@ -267,6 +264,13 @@ async function generateOrderPdf(shopId, orderId) {
       }
       if (col !== 0) y += thumbH + 6;
       y += 2;
+    } else {
+      y = ensureSpace(doc, y, 12, pageHeight);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(...MUTED_RGB);
+      doc.text('Sem fotos neste par', 25, y);
+      y += 8;
     }
   }
 

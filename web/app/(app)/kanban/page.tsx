@@ -37,7 +37,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1 } from "@/lib/apiV1"
-import { getPedidoService, generateOrderPDFService, downloadBlobAsFile, updateOrderService } from "@/lib/apiService"
+import {
+  getPedidoService,
+  generateOrderPDFService,
+  downloadBlobAsFile,
+  updateOrderService,
+  deletePedidoItemFotoService,
+} from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
@@ -71,6 +77,8 @@ type OrderCard = {
   feedbackScore?: number | null
   status?: string
   itemInTerminal?: boolean
+  photoThumb?: string | null
+  hasPhotos?: boolean
 }
 
 type Column = {
@@ -137,49 +145,60 @@ function itemIdentity(it: { id?: string; _id?: string } | null | undefined) {
   return String(it.id || it._id || "").trim()
 }
 
-function collectOrderPhotoUrls(
+type OrderPhotoEntry = { url: string; itemIndex: number; photoIndex: number }
+
+function photoUrlOf(u: unknown): string | null {
+  if (typeof u === "string" && u.trim()) return u.trim()
+  if (u && typeof u === "object" && typeof (u as { url?: string }).url === "string") {
+    const url = String((u as { url?: string }).url || "").trim()
+    return url || null
+  }
+  return null
+}
+
+function collectOrderPhotos(
   order: DetailOrder | null | undefined,
   focusItemId?: string | null,
   focusItemIndex?: number | null
-): string[] {
+): OrderPhotoEntry[] {
   if (!order) return []
-  const urls: string[] = []
-  const push = (u: unknown) => {
-    if (typeof u === "string" && u.trim()) urls.push(u.trim())
-    else if (u && typeof u === "object" && typeof (u as { url?: string }).url === "string") {
-      const url = String((u as { url?: string }).url || "").trim()
-      if (url) urls.push(url)
-    }
-  }
+  const out: OrderPhotoEntry[] = []
   const items = order.items || []
   const focusId = focusItemId ? String(focusItemId).trim() : ""
+
+  const pushItemPhotos = (itemIndex: number, photos: unknown[] | undefined) => {
+    ;(photos || []).forEach((u, photoIndex) => {
+      const url = photoUrlOf(u)
+      if (url) out.push({ url, itemIndex, photoIndex })
+    })
+  }
+
   if ((focusId || focusItemIndex != null) && items.length) {
-    let focused =
-      (focusId ? items.find((it) => itemIdentity(it) === focusId) : null) || null
-    if (!focused && focusItemIndex != null && focusItemIndex >= 0 && focusItemIndex < items.length) {
-      focused = items[focusItemIndex]
+    let focusedIdx = focusId
+      ? items.findIndex((it) => itemIdentity(it) === focusId)
+      : -1
+    if (focusedIdx < 0 && focusItemIndex != null && focusItemIndex >= 0 && focusItemIndex < items.length) {
+      focusedIdx = focusItemIndex
     }
     // Focused card: never fall back to sibling / order-level photos
-    if (focused) {
-      for (const u of focused.photos || []) push(u)
-      return [...new Set(urls)]
+    if (focusedIdx >= 0) {
+      pushItemPhotos(focusedIdx, items[focusedIdx].photos)
+      return out
     }
     return []
   }
-  // Single-item or no focus: prefer item[0] photos, else flat order photos
-  if (items.length === 1) {
-    for (const u of items[0].photos || []) push(u)
-    if (urls.length) return [...new Set(urls)]
+
+  if (items.length) {
+    items.forEach((it, itemIndex) => pushItemPhotos(itemIndex, it.photos))
+    if (out.length) return out
   }
-  if (items.length > 1) {
-    for (const it of items) {
-      for (const u of it.photos || []) push(u)
-    }
-    if (urls.length) return [...new Set(urls)]
-  }
-  for (const u of order.fotos || []) push(u)
-  for (const u of order.photos || []) push(u)
-  return [...new Set(urls)]
+
+  // Legacy order-level only: treat as item 0 for delete API
+  ;[...(order.fotos || []), ...(order.photos || [])].forEach((u, photoIndex) => {
+    const url = photoUrlOf(u)
+    if (url) out.push({ url, itemIndex: 0, photoIndex })
+  })
+  return out
 }
 
 function orderId(o: OrderCard) {
@@ -322,6 +341,11 @@ function KanbanCardBody({
           {order.reopened && (
             <Badge className="border-0 bg-sky-100 text-[10px] font-semibold text-sky-800">
               Reaberto
+            </Badge>
+          )}
+          {order.hasPhotos === false && (
+            <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
+              Sem foto
             </Badge>
           )}
           {cue.offFlow && (
@@ -534,6 +558,8 @@ export default function KanbanPage() {
   const [detail, setDetail] = useState<DetailOrder | null>(null)
   const [detailItemId, setDetailItemId] = useState<string | null>(null)
   const [detailItemIndex, setDetailItemIndex] = useState<number | null>(null)
+  const [showAllOrderPhotos, setShowAllOrderPhotos] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const isSectorRole = membershipRole === "sector"
 
   const [pendingMove, setPendingMove] = useState<{
@@ -552,6 +578,10 @@ export default function KanbanPage() {
   const [commenting, setCommenting] = useState(false)
   const [notesDraft, setNotesDraft] = useState("")
   const [savingNotes, setSavingNotes] = useState(false)
+  const [detailClientName, setDetailClientName] = useState("")
+  const [detailClientPhone, setDetailClientPhone] = useState("")
+  const [detailPriority, setDetailPriority] = useState("2")
+  const [detailDueAt, setDetailDueAt] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
 
   const sensors = useSensors(
@@ -590,6 +620,9 @@ export default function KanbanPage() {
             : [],
           reopened: Boolean(o.reopened),
           status: o.status,
+          hasPhotos:
+            typeof o.hasPhotos === "boolean" ? Boolean(o.hasPhotos) : Boolean(o.photoThumb),
+          photoThumb: o.photoThumb || null,
         })),
       }))
       const targets: ForwardTarget[] = (res.forwardTargets || []).map((t: any) => ({
@@ -810,6 +843,7 @@ export default function KanbanPage() {
         ? Number(order.itemIndex)
         : null
     )
+    setShowAllOrderPhotos(false)
     setDetailOpen(true)
     setDetailLoading(true)
     setCommentDraft("")
@@ -818,6 +852,11 @@ export default function KanbanPage() {
       const data = await getPedidoService(id)
       setDetail(data)
       setNotesDraft(String(data?.notes || data?.observacoes || ""))
+      setDetailClientName(String(data?.clientName || data?.client?.name || ""))
+      setDetailClientPhone(String(data?.clientPhone || data?.client?.phone || ""))
+      setDetailPriority(String(data?.priority ?? data?.prioridade ?? 2))
+      const due = data?.dueAt || data?.dataPrevistaEntrega
+      setDetailDueAt(due ? String(due).slice(0, 10) : "")
     } catch (err: any) {
       toast.error(err?.message || "Erro ao abrir detalhe")
       setDetailOpen(false)
@@ -830,13 +869,36 @@ export default function KanbanPage() {
     if (!detail?.id) return
     setSavingNotes(true)
     try {
-      const updated = await updateOrderService(String(detail.id), { notes: notesDraft })
+      const updated = await updateOrderService(String(detail.id), {
+        notes: notesDraft,
+        clientName: detailClientName.trim() || undefined,
+        clientPhone: detailClientPhone.trim() || undefined,
+        prioridade: Number(detailPriority) || 2,
+        dataPrevistaEntrega: detailDueAt || undefined,
+      })
       setDetail(updated as DetailOrder)
-      toast.success("Observação salva")
+      toast.success("Pedido atualizado")
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao salvar observação")
+      toast.error(err?.message || "Falha ao salvar")
     } finally {
       setSavingNotes(false)
+    }
+  }
+
+  const onDeleteDetailPhoto = async (itemIndex: number, photoIndex: number) => {
+    if (!detail?.id) return
+    const key = `${itemIndex}:${photoIndex}`
+    setPhotoBusy(key)
+    try {
+      await deletePedidoItemFotoService(String(detail.id), itemIndex, photoIndex)
+      const fresh = await getPedidoService(String(detail.id))
+      setDetail(fresh as DetailOrder)
+      toast.success("Foto removida")
+      void load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao remover")
+    } finally {
+      setPhotoBusy(null)
     }
   }
 
@@ -1375,9 +1437,14 @@ export default function KanbanPage() {
                   </div>
 
                   {(() => {
-                    const photoUrls = collectOrderPhotoUrls(detail, detailItemId, detailItemIndex)
+                    const viewingItem = Boolean(detailItemId || detailItemIndex != null)
+                    const photos = collectOrderPhotos(
+                      detail,
+                      viewingItem && !showAllOrderPhotos ? detailItemId : null,
+                      viewingItem && !showAllOrderPhotos ? detailItemIndex : null
+                    )
                     const focusLabel =
-                      detailItemId || detailItemIndex != null
+                      viewingItem && !showAllOrderPhotos
                         ? (() => {
                             const byId = detailItemId
                               ? detail.items?.find((it) => itemIdentity(it) === String(detailItemId))
@@ -1389,34 +1456,61 @@ export default function KanbanPage() {
                         : null
                     return (
                       <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                          Fotos
-                          {focusLabel ? ` · ${focusLabel}` : ""}
-                          {photoUrls.length ? ` (${photoUrls.length})` : ""}
-                        </p>
-                        {photoUrls.length === 0 ? (
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                            Fotos
+                            {focusLabel ? ` · ${focusLabel}` : showAllOrderPhotos || !viewingItem ? " · pedido" : ""}
+                            {photos.length ? ` (${photos.length})` : ""}
+                          </p>
+                          {viewingItem && (detail.items?.length || 0) > 1 ? (
+                            <button
+                              type="button"
+                              className="text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                              onClick={() => setShowAllOrderPhotos((v) => !v)}
+                            >
+                              {showAllOrderPhotos ? "Só este par" : "Ver pedido inteiro"}
+                            </button>
+                          ) : null}
+                        </div>
+                        {photos.length === 0 ? (
                           <p className="text-xs text-[var(--wq-text-muted)]">
-                            Nenhuma foto neste {detailItemId ? "item" : "pedido"}.
+                            Nenhuma foto neste{" "}
+                            {viewingItem && !showAllOrderPhotos ? "item" : "pedido"}.
                           </p>
                         ) : (
                           <div className="grid grid-cols-3 gap-2">
-                            {photoUrls.map((url, idx) => (
-                              <a
-                                key={`${url}-${idx}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="aspect-square overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]"
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={url}
-                                  alt={`Foto ${idx + 1}`}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              </a>
-                            ))}
+                            {photos.map((ph) => {
+                              const busyKey = `${ph.itemIndex}:${ph.photoIndex}`
+                              return (
+                                <div
+                                  key={busyKey}
+                                  className="group relative aspect-square overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]"
+                                >
+                                  <a
+                                    href={ph.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block h-full w-full"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={ph.url}
+                                      alt={`Foto ${ph.photoIndex + 1}`}
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    className="absolute inset-x-0 bottom-0 bg-[var(--wq-ink)]/60 py-0.5 text-[10px] font-semibold text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                    disabled={photoBusy === busyKey}
+                                    onClick={() => onDeleteDetailPhoto(ph.itemIndex, ph.photoIndex)}
+                                  >
+                                    {photoBusy === busyKey ? "…" : "Remover"}
+                                  </button>
+                                </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -1493,6 +1587,53 @@ export default function KanbanPage() {
                   )}
 
                   <div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                        Dados rápidos
+                      </p>
+                      {detail.id ? (
+                        <Link
+                          href={`/pedidos/${detail.id}/editar`}
+                          className="text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                        >
+                          Editar completo
+                        </Link>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        value={detailClientName}
+                        onChange={(e) => setDetailClientName(e.target.value)}
+                        placeholder="Cliente"
+                        className="rounded-[10px] text-sm"
+                      />
+                      <Input
+                        value={detailClientPhone}
+                        onChange={(e) => setDetailClientPhone(e.target.value)}
+                        placeholder="Telefone"
+                        className="rounded-[10px] text-sm"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2 text-sm"
+                          value={detailPriority}
+                          onChange={(e) => setDetailPriority(e.target.value)}
+                        >
+                          <option value="1">Prioridade alta</option>
+                          <option value="2">Prioridade média</option>
+                          <option value="3">Prioridade baixa</option>
+                        </select>
+                        <Input
+                          type="date"
+                          value={detailDueAt}
+                          onChange={(e) => setDetailDueAt(e.target.value)}
+                          className="rounded-[10px] text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
                       Observação do pedido
                     </p>
@@ -1512,7 +1653,7 @@ export default function KanbanPage() {
                       className="mt-2 rounded-[10px] bg-[var(--wq-brand)] text-white"
                       onClick={() => void saveNotes()}
                     >
-                      {savingNotes ? "Salvando…" : "Salvar observação"}
+                      {savingNotes ? "Salvando…" : "Salvar"}
                     </Button>
                   </div>
 
