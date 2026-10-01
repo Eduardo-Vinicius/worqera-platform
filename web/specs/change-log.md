@@ -2,6 +2,7 @@
 
 ## 2026-10-01
 
+- **TV Financeiro:** número do líquido (e os outros destaques da marca) clareia quando a cor da empresa é escura, para não sumir no fundo da TV.
 - **Novo pedido:** abre vazio (sem rascunho, template nem chips de clientes recentes); partida só em cada par; obs. do fluxo removida; garantia, pagamento e prazo em blocos separados.
 - **Serviços e setores:** apagar remove de verdade (não só desativa). Setor bloqueia se a coluna ainda tem pedido. Tela de setores com interruptores de QR, e-mail e coluna final.
 - **Fotos na edição:** gravar no par certo sem recriar o item; salvar o pedido não apaga foto recém-anexada. Kanban: QR só do par aberto; pedido inteiro mostra todos.

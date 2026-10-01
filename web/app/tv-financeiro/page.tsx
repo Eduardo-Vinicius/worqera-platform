@@ -4,6 +4,10 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getMetricsFinanceiroService, type MetricsFinanceiro } from "@/lib/apiService"
 import { getShopCurrentV1 } from "@/lib/apiV1"
+import { paintForBackground, resolveBrandColors } from "@/lib/shopBrand"
+
+/** TV Financeiro is always painted on the ink canvas, even if the shop brand is black. */
+const TV_INK = "#0F172A"
 
 const REFRESH_MS = 60_000
 
@@ -112,7 +116,6 @@ function TvFinanceiroInner() {
         const doc = shop?.shop || shop
         setBrandName(doc?.branding?.displayName || doc?.name || "")
         setLogoUrl(doc?.branding?.logoUrl || "")
-        const { resolveBrandColors } = await import("@/lib/shopBrand")
         setBrandPrimary(resolveBrandColors(doc?.branding).primary)
       } catch {
         // defaults
@@ -149,6 +152,7 @@ function TvFinanceiroInner() {
     return () => clearInterval(interval)
   }, [])
 
+  const brandOnTv = paintForBackground(brandPrimary, TV_INK)
   const resumo = data?.resumo
   const bruto = resumo?.receitaRecebida ?? 0
   const liquido = resumo?.lucroRealizado ?? 0
@@ -185,7 +189,7 @@ function TvFinanceiroInner() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="" className="h-7 w-auto object-contain sm:h-8" />
             ) : null}
-            <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandPrimary }}>
+            <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandOnTv }}>
               {brandName || "Worqera"}
             </p>
             <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-white/55">
@@ -224,7 +228,7 @@ function TvFinanceiroInner() {
                 </p>
                 <p
                   className="mt-2 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl"
-                  style={{ color: brandPrimary }}
+                  style={{ color: brandOnTv }}
                 >
                   {formatMoney(liquido)}
                 </p>
@@ -245,7 +249,7 @@ function TvFinanceiroInner() {
                     className="h-full rounded-full transition-[width] duration-500"
                     style={{
                       width: `${progress}%`,
-                      background: brandPrimary,
+                      background: brandOnTv,
                     }}
                   />
                 </div>
@@ -277,7 +281,7 @@ function TvFinanceiroInner() {
                           className="mx-auto w-full max-w-[48px] rounded-t-md"
                           style={{
                             height: `${h}%`,
-                            background: `linear-gradient(180deg, ${brandPrimary}, color-mix(in srgb, ${brandPrimary} 35%, transparent))`,
+                            background: `linear-gradient(180deg, ${brandOnTv}, color-mix(in srgb, ${brandOnTv} 35%, transparent))`,
                             minHeight: m.bruto > 0 ? "8px" : "2px",
                           }}
                           title={`${m.label}: ${formatMoney(m.bruto)}`}
@@ -332,7 +336,7 @@ function TvFinanceiroInner() {
                       <li key={s.servico} className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2 text-sm">
                           <span className="truncate font-medium">{s.servico}</span>
-                          <span className="shrink-0 font-mono tabular-nums" style={{ color: brandPrimary }}>
+                          <span className="shrink-0 font-mono tabular-nums" style={{ color: brandOnTv }}>
                             {formatMoney(s.receita, true)}
                           </span>
                         </div>
@@ -341,7 +345,7 @@ function TvFinanceiroInner() {
                             className="h-full rounded-full"
                             style={{
                               width: `${Math.round((s.receita / max) * 100)}%`,
-                              background: brandPrimary,
+                              background: brandOnTv,
                             }}
                           />
                         </div>
