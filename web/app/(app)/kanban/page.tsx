@@ -304,12 +304,15 @@ function KanbanPairQrs({
   slug,
   items,
   focusIndex,
+  onlyIndex = null,
 }: {
   code: string
   token: string
   slug: string
   items: Array<{ shoeModel?: string }>
   focusIndex: number | null
+  /** When set, show only that pair. Null shows every pair. */
+  onlyIndex?: number | null
 }) {
   const [rows, setRows] = useState<Array<{ index: number; label: string; url: string; qr: string }>>([])
 
@@ -349,12 +352,9 @@ function KanbanPairQrs({
     return <p className="text-xs text-[var(--wq-text-muted)]">Gerando QR…</p>
   }
 
-  const ordered = [...rows].sort((a, b) => {
-    if (focusIndex == null) return a.index - b.index
-    if (a.index === focusIndex) return -1
-    if (b.index === focusIndex) return 1
-    return a.index - b.index
-  })
+  const visible =
+    onlyIndex != null ? rows.filter((row) => row.index === onlyIndex) : rows
+  const ordered = [...visible].sort((a, b) => a.index - b.index)
 
   return (
     <div className="space-y-3">
@@ -381,7 +381,7 @@ function KanbanPairQrs({
               </p>
               <button
                 type="button"
-                className="mt-1 text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                className="mt-1 text-[11px] font-medium text-[var(--wq-brand-text)] hover:underline"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(row.url)
@@ -516,7 +516,7 @@ function KanbanCardBody({
               "mt-1.5 truncate text-[11px] font-medium",
               cue.nextLabel === "Fim do fluxo"
                 ? "text-[var(--wq-success)]"
-                : "text-[var(--wq-brand)]"
+                : "text-[var(--wq-brand-text)]"
             )}
           >
             {cue.nextLabel}
@@ -1590,27 +1590,38 @@ export default function KanbanPage() {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      QR por par
-                    </p>
-                    <KanbanPairQrs
-                      code={String(detail.code || "")}
-                      token={String(detail.publicToken || "")}
-                      slug={String(
-                        shopDoc?.slug ||
-                          (typeof window !== "undefined" ? localStorage.getItem("shopSlug") : "") ||
-                          ""
-                      )}
-                      items={(detail.items || []).map((it) => ({ shoeModel: it.shoeModel }))}
-                      focusIndex={(() => {
+                    {(() => {
+                      const pairFocus = (() => {
                         if (detailItemIndex != null) return detailItemIndex
                         if (!detailItemId) return null
                         const i = (detail.items || []).findIndex(
                           (it) => itemIdentity(it) === String(detailItemId)
                         )
                         return i >= 0 ? i : null
-                      })()}
-                    />
+                      })()
+                      const onlyThisPair = pairFocus != null && !showAllOrderPhotos
+                      return (
+                        <>
+                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                            {onlyThisPair ? "QR deste par" : "QR de cada par"}
+                          </p>
+                          <KanbanPairQrs
+                            code={String(detail.code || "")}
+                            token={String(detail.publicToken || "")}
+                            slug={String(
+                              shopDoc?.slug ||
+                                (typeof window !== "undefined"
+                                  ? localStorage.getItem("shopSlug")
+                                  : "") ||
+                                ""
+                            )}
+                            items={(detail.items || []).map((it) => ({ shoeModel: it.shoeModel }))}
+                            focusIndex={pairFocus}
+                            onlyIndex={onlyThisPair ? pairFocus : null}
+                          />
+                        </>
+                      )
+                    })()}
                   </div>
 
                   {(() => {
@@ -1642,7 +1653,7 @@ export default function KanbanPage() {
                           {viewingItem && (detail.items?.length || 0) > 1 ? (
                             <button
                               type="button"
-                              className="text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                              className="text-[11px] font-medium text-[var(--wq-brand-text)] hover:underline"
                               onClick={() => setShowAllOrderPhotos((v) => !v)}
                             >
                               {showAllOrderPhotos ? "Só este par" : "Ver pedido inteiro"}
@@ -1771,7 +1782,7 @@ export default function KanbanPage() {
                       {detail.id ? (
                         <Link
                           href={`/pedidos/${detail.id}/editar`}
-                          className="text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                          className="text-[11px] font-medium text-[var(--wq-brand-text)] hover:underline"
                         >
                           Editar completo
                         </Link>

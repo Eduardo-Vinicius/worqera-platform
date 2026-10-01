@@ -705,31 +705,13 @@ async function patchOrder(shopId, id, userId, updates) {
       updates.fotos != null;
 
     if (flatItemPatched) {
+      hydrateItemsIfEmpty(order);
       const itemCount = Array.isArray(order.items) ? order.items.length : 0;
       if (itemCount > 1) {
         assertNotDeliveredStructural(order);
       }
-      if (itemCount <= 1) {
-        order.items = [
-          {
-            ...(order.items?.[0]?.toObject?.() || order.items?.[0] || {}),
-            shoeModel: order.shoeModel || '',
-            services: order.services || [],
-            photos:
-              updates.photos != null || updates.fotos != null
-                ? order.photos || []
-                : order.items?.[0]?.photos || order.photos || [],
-            notes:
-              updates.notes != null || updates.observacoes != null
-                ? order.notes
-                : order.items?.[0]?.notes || null,
-            currentSectorId: order.items?.[0]?.currentSectorId || order.currentSectorId,
-            plannedSectorIds: order.items?.[0]?.plannedSectorIds || order.plannedSectorIds,
-            sectorHistory: order.items?.[0]?.sectorHistory || [],
-          },
-        ];
-      } else {
-        const first = order.items[0];
+      const first = order.items[0];
+      if (first) {
         if (updates.shoeModel != null || updates.modeloTenis != null) {
           first.shoeModel = order.shoeModel;
         }
@@ -738,7 +720,21 @@ async function patchOrder(shopId, id, userId, updates) {
         }
         if (updates.photos != null || updates.fotos != null) {
           first.photos = order.photos;
+        } else if (
+          (!Array.isArray(first.photos) || first.photos.length === 0) &&
+          Array.isArray(order.photos) &&
+          order.photos.length
+        ) {
+          first.photos = order.photos.map((p) => ({
+            key: p.key || null,
+            url: p.url || null,
+            isCover: Boolean(p.isCover),
+          }));
         }
+        if (updates.notes != null || updates.observacoes != null) {
+          first.notes = order.notes;
+        }
+        order.markModified('items');
       }
     }
 

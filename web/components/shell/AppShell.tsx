@@ -146,7 +146,7 @@ function MobileBottomNav({ hidden }: { hidden?: boolean }) {
                 item.primary
                   ? "bg-[var(--wq-action)] text-white"
                   : active
-                    ? "text-[var(--wq-brand)]"
+                    ? "text-[var(--wq-brand-text)]"
                     : "text-[var(--wq-text-muted)]"
               )}
             >
@@ -184,8 +184,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (!cancelled) {
           const slug = me?.memberships?.[0]?.shop?.slug
           if (slug) localStorage.setItem("shopSlug", String(slug))
-          const { applyBrandCssVars, readBrandFromStorage } = await import("@/lib/shopBrand")
-          applyBrandCssVars(readBrandFromStorage())
+          const { bindBrandToTheme } = await import("@/lib/shopBrand")
+          bindBrandToTheme()
           window.dispatchEvent(new Event("wq-session-updated"))
           const isPlatform = me?.platformAdmin === true
           const noShop = !(me?.memberships?.[0]?.shop?.id || localStorage.getItem("shopId"))
@@ -202,8 +202,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const syncBrand = async () => {
-      const { applyBrandCssVars, readBrandFromStorage } = await import("@/lib/shopBrand")
-      applyBrandCssVars(readBrandFromStorage())
+      const { bindBrandToTheme } = await import("@/lib/shopBrand")
+      bindBrandToTheme()
     }
     syncBrand()
     window.addEventListener("wq-session-updated", syncBrand)

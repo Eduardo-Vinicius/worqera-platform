@@ -43,7 +43,7 @@ export function StatusPackBanner() {
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-brand)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-brand-text)]">
           Status Pack
         </p>
         <p className="mt-0.5 text-sm font-semibold text-[var(--wq-text)]">

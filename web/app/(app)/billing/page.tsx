@@ -141,7 +141,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border-2 border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
                 Seu plano
               </p>
               <p className="font-semibold">{products[0]?.name || "Worqera Pro"}</p>
@@ -157,7 +157,7 @@ export default function BillingPage() {
             <ul className="space-y-2">
               {includes.map((item) => (
                 <li key={item} className="flex items-start gap-2 text-sm text-[var(--wq-text)]">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand)]" />
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand-text)]" />
                   <span className="min-w-0 break-words">{item}</span>
                 </li>
               ))}

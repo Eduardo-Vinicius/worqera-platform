@@ -125,9 +125,9 @@ export function AppSidebar({
                           "flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-[13.5px] font-medium transition-colors",
                           mobile && "min-h-11 py-3 text-[15px]",
                           active
-                            ? "bg-[var(--wq-brand-soft)] text-white"
+                            ? "bg-[var(--wq-brand-soft-on-ink)] text-white"
                             : emphasize
-                              ? "border border-[var(--wq-brand)]/35 bg-[var(--wq-brand)]/15 text-white hover:bg-[var(--wq-brand)]/25"
+                              ? "border border-white/15 bg-white/10 text-white hover:bg-white/15"
                               : "text-slate-300 hover:bg-white/5 hover:text-white"
                         )}
                       >
@@ -135,7 +135,7 @@ export function AppSidebar({
                           className={cn(
                             "h-4 w-4 shrink-0 opacity-90",
                             mobile && "h-5 w-5",
-                            emphasize && !active && "text-[var(--wq-brand)]"
+                            emphasize && !active && "text-[var(--wq-brand-on-ink)]"
                           )}
                           strokeWidth={1.7}
                         />
@@ -146,7 +146,7 @@ export function AppSidebar({
                               "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                               active
                                 ? "bg-white/20 text-white"
-                                : "bg-[var(--wq-brand)] text-white"
+                                : "bg-[var(--wq-brand-on-ink)] text-[var(--wq-ink)]"
                             )}
                           >
                             SaaS
@@ -164,7 +164,7 @@ export function AppSidebar({
 
       <div className="shrink-0 border-t border-white/10 bg-[var(--wq-ink)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
         <div className="mb-2 flex items-center gap-3 sm:mb-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--wq-ink-2)] text-sm font-semibold text-[var(--wq-brand)]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-[var(--wq-brand-on-ink)]">
             {String(userName).slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0">

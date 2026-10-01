@@ -810,17 +810,35 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     })
 
     let fresh = await getPedidoService(orderId)
-    const keepIds = new Set(
-      filledItems.filter((d) => d.serverItemIndex != null).map((d) => String(d.id))
-    )
-    const removeIdx: number[] = []
-    ;(fresh.items || []).forEach((it: any, idx: number) => {
-      const id = String(it._id || it.id || "")
-      if (id && !keepIds.has(id)) removeIdx.push(idx)
-    })
-    for (const idx of removeIdx.sort((a, b) => b - a)) {
+    const itemIdOf = (it: any) => String(it?._id || it?.id || "")
+    const indexOfDraft = (draft: OrderItemDraft, list: any[]) => {
+      const want = String(draft.id || "")
+      if (want && !want.startsWith("item-")) {
+        const byId = list.findIndex((it) => itemIdOf(it) === want)
+        if (byId >= 0) return byId
+      }
+      if (
+        draft.serverItemIndex != null &&
+        draft.serverItemIndex >= 0 &&
+        draft.serverItemIndex < list.length
+      ) {
+        return draft.serverItemIndex
+      }
+      return -1
+    }
+    const keepIdx = new Set<number>()
+    for (const draft of filledItems) {
+      const idx = indexOfDraft(draft, fresh.items || [])
+      if (idx >= 0) keepIdx.add(idx)
+    }
+    const removeIdx = (fresh.items || [])
+      .map((_: any, idx: number) => idx)
+      .filter((idx: number) => !keepIdx.has(idx))
+    for (const idx of removeIdx.sort((a: number, b: number) => b - a)) {
       fresh = await deletePedidoItemService(orderId, idx)
     }
+    const shiftAfterDelete = (original: number) =>
+      original - removeIdx.filter((removed: number) => removed < original).length
 
     let plannedChanged = false
     for (const draft of filledItems) {
@@ -836,26 +854,35 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         flowOptionIds: draft.flowOptionIds,
         departamentosSelecionados: flowSelections,
       }
-      const idx = (fresh.items || []).findIndex(
-        (it: any) => String(it._id || it.id) === String(draft.id)
-      )
+      const files = draft.photos.map((p) => p.file).filter((f): f is File => Boolean(f))
+      let idx = indexOfDraft(draft, fresh.items || [])
+      if (idx < 0 && draft.serverItemIndex != null) {
+        const shifted = shiftAfterDelete(draft.serverItemIndex)
+        if (shifted >= 0 && shifted < (fresh.items || []).length) idx = shifted
+      }
       if (idx >= 0) {
         const before = (fresh.items[idx].plannedSectorIds || []).map(String).join(",")
         fresh = await patchPedidoItemService(orderId, idx, payload)
         const after = (fresh.items?.[idx]?.plannedSectorIds || []).map(String).join(",")
         if (before !== after) plannedChanged = true
-        const files = draft.photos.map((p) => p.file).filter((f): f is File => Boolean(f))
         if (files.length) {
           await uploadPedidoItemFotosService(orderId, idx, files)
           fresh = await getPedidoService(orderId)
+          const got = fresh.items?.[idx]?.photos?.length || 0
+          if (!got) {
+            throw new Error(`A foto do par ${idx + 1} não gravou. Tente de novo.`)
+          }
         }
       } else {
         fresh = await addPedidoItemService(orderId, payload)
         const newIdx = (fresh.items || []).length - 1
-        const files = draft.photos.map((p) => p.file).filter((f): f is File => Boolean(f))
         if (files.length && newIdx >= 0) {
           await uploadPedidoItemFotosService(orderId, newIdx, files)
           fresh = await getPedidoService(orderId)
+          const got = fresh.items?.[newIdx]?.photos?.length || 0
+          if (!got) {
+            throw new Error(`A foto do par ${newIdx + 1} não gravou. Tente de novo.`)
+          }
         }
       }
     }
@@ -1052,7 +1079,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   if (bootLoading) {
     return (
       <div className="-mx-2.5 -mt-3 flex min-h-[40vh] items-center justify-center sm:-mx-5 sm:-mt-5">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--wq-brand)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--wq-brand-text)]" />
       </div>
     )
   }
@@ -1083,7 +1110,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">Cliente</h2>
                   <button
                     type="button"
-                    className="text-sm font-medium text-[var(--wq-brand)] underline-offset-2 hover:underline"
+                    className="text-sm font-medium text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
                     onClick={() => setShowNewClient((open) => !open)}
                   >
                     {showNewClient ? "Fechar" : "+ Novo cliente"}
@@ -1117,7 +1144,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 text-sm font-medium text-[var(--wq-brand)] underline-offset-2 hover:underline"
+                      className="shrink-0 text-sm font-medium text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
                       onClick={() => {
                         handleSelectChange("clientId", "")
                         setClientSearch("")
@@ -1364,7 +1391,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                                   id={inputId}
                                   checked={!!isSelected}
                                   onChange={(e) => toggleService(itemIndex, service.id, e.target.checked)}
-                                  className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
+                                  className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action-text)] focus:ring-[var(--wq-action)]"
                                 />
                                 <span className="min-w-0 flex-1 leading-tight">
                                   <span className="block text-sm font-medium text-[var(--wq-text)]">{service.name}</span>
@@ -1425,7 +1452,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
                       <div className="space-y-2 rounded-xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/80 p-3">
                         <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
                             Partida deste par
                           </p>
                           <p className="text-xs text-[var(--wq-text-muted)]">
@@ -1481,7 +1508,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           />
                           <label
                             htmlFor={`photo-upload-${itemIndex}`}
-                            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
+                            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand-text)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
                           >
                             <Upload className="h-4 w-4" />
                             Tirar / adicionar fotos
@@ -1623,7 +1650,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         id="warranty"
                         checked={hasWarranty}
                         onChange={(e) => toggleWarranty(e.target.checked)}
-                        className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action)] focus:ring-[var(--wq-action)]"
+                        className="h-4 w-4 rounded border-[var(--wq-border)] text-[var(--wq-action-text)] focus:ring-[var(--wq-action)]"
                       />
                       <label htmlFor="warranty" className="cursor-pointer font-medium">
                         Garantia de 3 meses
@@ -1695,7 +1722,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                               value="50"
                               checked={signalType === "50"}
                               onChange={(e) => handleSignalTypeChange(e.target.value)}
-                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action-text)]"
                             />
                             <label htmlFor="signal50" className="cursor-pointer text-sm font-medium">
                               50% do total
@@ -1709,7 +1736,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                               value="100"
                               checked={signalType === "100"}
                               onChange={(e) => handleSignalTypeChange(e.target.value)}
-                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action-text)]"
                             />
                             <label htmlFor="signal100" className="cursor-pointer text-sm font-medium">
                               100% do total (à vista)
@@ -1723,7 +1750,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                               value="custom"
                               checked={signalType === "custom"}
                               onChange={(e) => handleSignalTypeChange(e.target.value)}
-                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action)]"
+                              className="h-4 w-4 border-[var(--wq-border)] text-[var(--wq-action-text)]"
                             />
                             <label htmlFor="signalCustom" className="cursor-pointer text-sm font-medium">
                               Valor personalizado

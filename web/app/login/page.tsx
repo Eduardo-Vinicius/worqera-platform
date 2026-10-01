@@ -147,7 +147,7 @@ export default function LoginPage() {
                 <Label htmlFor="password">Senha</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-[var(--wq-brand)] underline-offset-2 hover:underline"
+                  className="text-xs text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
                 >
                   Esqueci a senha
                 </Link>

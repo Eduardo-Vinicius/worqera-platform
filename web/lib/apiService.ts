@@ -526,6 +526,7 @@ export async function uploadPedidoFotosService(pedidoId: string, files: File[]):
   }
 
   const result = await response.json().catch(() => ({}));
+  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
   return parseUploadedPhotoUrls(resolveApiPayload(result));
 }
 
@@ -553,6 +554,7 @@ export async function uploadPedidoItemFotosService(
   }
 
   const result = await response.json().catch(() => ({}));
+  invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
   return parseUploadedPhotoUrls(resolveApiPayload(result));
 }
 

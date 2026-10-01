@@ -157,7 +157,7 @@ export function FeedbackBell({ className }: { className?: string }) {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-sm font-semibold">{f.code}</span>
-                    <span className="text-xs font-bold text-[var(--wq-brand)]">{f.score}/5</span>
+                    <span className="text-xs font-bold text-[var(--wq-brand-text)]">{f.score}/5</span>
                   </div>
                   <p className="truncate text-xs text-[var(--wq-text-muted)]">
                     {f.clientName || "Cliente"}
@@ -175,7 +175,7 @@ export function FeedbackBell({ className }: { className?: string }) {
               <Link
                 href="/avaliacoes"
                 onClick={() => setOpen(false)}
-                className="text-xs font-medium text-[var(--wq-brand)] hover:underline"
+                className="text-xs font-medium text-[var(--wq-brand-text)] hover:underline"
               >
                 Ver todas as avaliações →
               </Link>

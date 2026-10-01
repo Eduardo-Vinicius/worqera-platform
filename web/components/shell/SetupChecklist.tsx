@@ -106,7 +106,7 @@ export function SetupChecklist({
           {" · "}
           {doneCount}/{steps.length}
           {" · "}
-          <Link href={next.href} className="text-[var(--wq-brand)] hover:underline">
+          <Link href={next.href} className="text-[var(--wq-brand-text)] hover:underline">
             {next.label}
           </Link>
         </p>

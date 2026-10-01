@@ -73,7 +73,7 @@ function PublicOrderLegacyInner() {
             </div>
             {data.shop?.slug && token ? (
               <Link
-                className="text-sm text-[var(--wq-brand)] underline"
+                className="text-sm text-[var(--wq-brand-text)] underline"
                 href={`/p/${data.shop.slug}/${encodeURIComponent(data.code || code)}?t=${encodeURIComponent(token)}`}
               >
                 Link permanente

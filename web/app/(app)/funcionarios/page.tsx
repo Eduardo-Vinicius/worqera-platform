@@ -168,7 +168,7 @@ export default function FuncionariosPage() {
         <Card id="func-form" className="rounded-2xl border-[var(--wq-border)] shadow-none">
           <CardHeader>
             <CardTitle className="flex items-center text-[var(--wq-text)]">
-              {editingId ? <Save className="w-5 h-5 mr-2 text-[var(--wq-action)]" /> : <Plus className="w-5 h-5 mr-2 text-[var(--wq-action)]" />}
+              {editingId ? <Save className="w-5 h-5 mr-2 text-[var(--wq-action-text)]" /> : <Plus className="w-5 h-5 mr-2 text-[var(--wq-action-text)]" />}
               {editingId ? "Editar funcionário" : "Novo funcionário"}
             </CardTitle>
             <CardDescription>Preencha os dados e associe ao setor</CardDescription>

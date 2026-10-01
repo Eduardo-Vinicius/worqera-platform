@@ -45,7 +45,7 @@ export function ReferralCard() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--wq-text)]">
-            <Gift className="h-3.5 w-3.5 text-[var(--wq-brand)]" />
+            <Gift className="h-3.5 w-3.5 text-[var(--wq-brand-text)]" />
             Indique e ganhe
           </p>
           <p className="mt-0.5 text-[11px] leading-snug text-[var(--wq-text-muted)]">
@@ -55,7 +55,7 @@ export function ReferralCard() {
         <button
           type="button"
           onClick={copy}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-[var(--wq-brand)] hover:bg-[var(--wq-paper)]"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-[var(--wq-brand-text)] hover:bg-[var(--wq-paper)]"
         >
           <Copy className="h-3 w-3" />
           Copiar

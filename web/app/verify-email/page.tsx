@@ -88,7 +88,7 @@ function VerifyEmailInner() {
         ) : (
           <div className="space-y-3">
             <div className="flex gap-2 rounded-xl bg-[var(--wq-brand-soft)]/40 px-3 py-2.5 text-sm text-[var(--wq-text)]">
-              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand)]" />
+              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand-text)]" />
               <p>{message}</p>
             </div>
 

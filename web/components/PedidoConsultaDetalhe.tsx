@@ -591,7 +591,7 @@ export function PedidoConsultaDetalhe({
                 </Button>
                 <p className="text-[11px] text-[var(--wq-text-muted)]">
                   Serviços, partida e outros pares: use{" "}
-                  <Link href={`/pedidos/${orderId}/editar`} className="text-[var(--wq-brand)] underline">
+                  <Link href={`/pedidos/${orderId}/editar`} className="text-[var(--wq-brand-text)] underline">
                     Editar completo
                   </Link>
                   .

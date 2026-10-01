@@ -91,7 +91,7 @@ export function TrialBanner() {
         <Link
           href={href}
           className={`font-bold underline underline-offset-2 ${
-            locked ? "text-red-800" : urgent ? "text-amber-900" : "text-[var(--wq-brand)]"
+            locked ? "text-red-800" : urgent ? "text-amber-900" : "text-[var(--wq-brand-text)]"
           }`}
         >
           Ir para Billing →

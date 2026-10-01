@@ -4,6 +4,7 @@
 
 - **Novo pedido:** abre vazio (sem rascunho, template nem chips de clientes recentes); partida só em cada par; obs. do fluxo removida; garantia, pagamento e prazo em blocos separados.
 - **Serviços e setores:** apagar remove de verdade (não só desativa). Setor bloqueia se a coluna ainda tem pedido. Tela de setores com interruptores de QR, e-mail e coluna final.
+- **Fotos na edição:** gravar no par certo sem recriar o item; salvar o pedido não apaga foto recém-anexada. Kanban: QR só do par aberto; pedido inteiro mostra todos.
 - **Kanban:** no celular o card não arrasta (mover no detalhe); busca filtra cliente/código/modelo no board; QR e link de cada par no detalhe.
 
 ## 2026-09-24

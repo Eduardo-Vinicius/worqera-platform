@@ -262,7 +262,7 @@ export default function PlatformShopsPage() {
         <section className="overflow-hidden rounded-2xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/50 p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--wq-brand)]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--wq-brand-text)]">
                 Planos Worqera
               </p>
               <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)] sm:text-2xl">
@@ -416,7 +416,7 @@ export default function PlatformShopsPage() {
                   </div>
 
                   <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-[var(--wq-brand)]/25 bg-[var(--wq-brand-soft)]/40 p-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--wq-brand)]">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
                       Plano
                     </p>
                     <select

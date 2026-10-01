@@ -738,7 +738,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
                       href={p.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-[var(--wq-brand)] underline underline-offset-2"
+                      className="text-sm text-[var(--wq-brand-text)] underline underline-offset-2"
                     >
                       {p.fileName || p.nome || `Laudo ${i + 1}`}
                     </a>

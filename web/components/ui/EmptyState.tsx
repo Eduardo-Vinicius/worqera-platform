@@ -27,7 +27,7 @@ export function EmptyState({
         className
       )}
     >
-      {icon ? <div className="mb-4 text-[var(--wq-brand)]">{icon}</div> : null}
+      {icon ? <div className="mb-4 text-[var(--wq-brand-text)]">{icon}</div> : null}
       <h3 className="text-base font-semibold text-[var(--wq-text)] sm:text-lg">{title}</h3>
       {description ? (
         <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--wq-text-muted)]">

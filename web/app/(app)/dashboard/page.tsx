@@ -110,7 +110,7 @@ export default function DashboardPage() {
       value: open,
       icon: Package,
       hint: "Em andamento",
-      tone: "text-[var(--wq-brand)]",
+      tone: "text-[var(--wq-brand-text)]",
       ring: "border-[var(--wq-brand)]/25",
     },
     {
@@ -134,7 +134,7 @@ export default function DashboardPage() {
       value: stats.pendingOrders ?? 0,
       icon: Clock3,
       hint: "Aguardando avanço",
-      tone: "text-[var(--wq-action)]",
+      tone: "text-[var(--wq-action-text)]",
       ring: "border-[var(--wq-action)]/25",
     },
   ]
@@ -289,7 +289,7 @@ export default function DashboardPage() {
                     <AlertTriangle className="h-4 w-4 text-[var(--wq-warn)]" />
                     {overdue} atrasado(s)
                   </p>
-                  <Link href="/kanban" className="text-sm font-semibold text-[var(--wq-brand)] hover:underline">
+                  <Link href="/kanban" className="text-sm font-semibold text-[var(--wq-brand-text)] hover:underline">
                     Priorizar →
                   </Link>
                 </div>
@@ -342,7 +342,7 @@ export default function DashboardPage() {
                     }`}
                   >
                     <Icon
-                      className={`h-4 w-4 shrink-0 ${s.primary ? "text-[var(--wq-brand)]" : "text-[var(--wq-text-muted)]"}`}
+                      className={`h-4 w-4 shrink-0 ${s.primary ? "text-[var(--wq-brand-text)]" : "text-[var(--wq-text-muted)]"}`}
                     />
                     <span className="truncate">{s.label}</span>
                   </Link>
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                     <h2 className="text-sm font-semibold text-[var(--wq-text)]">Fila recente</h2>
                     <p className="text-[11px] text-[var(--wq-text-muted)]">Até 8 pedidos</p>
                   </div>
-                  <Link href="/kanban" className="text-xs font-semibold text-[var(--wq-brand)] hover:underline">
+                  <Link href="/kanban" className="text-xs font-semibold text-[var(--wq-brand-text)] hover:underline">
                     Kanban →
                   </Link>
                 </div>
@@ -415,7 +415,7 @@ export default function DashboardPage() {
                       <h2 className="text-sm font-semibold text-[var(--wq-text)]">Carga por setor</h2>
                       <p className="text-[11px] text-[var(--wq-text-muted)]">Distribuição do kanban</p>
                     </div>
-                    <Link href="/kanban" className="text-xs font-semibold text-[var(--wq-brand)] hover:underline">
+                    <Link href="/kanban" className="text-xs font-semibold text-[var(--wq-brand-text)] hover:underline">
                       Kanban →
                     </Link>
                   </div>
@@ -428,7 +428,7 @@ export default function DashboardPage() {
                         <Link href="/kanban" className="block space-y-1">
                           <div className="flex items-baseline justify-between gap-2 text-sm">
                             <span className="truncate font-medium text-[var(--wq-text)]">{s.name}</span>
-                            <span className="font-mono text-[var(--wq-brand)]">{s.count}</span>
+                            <span className="font-mono text-[var(--wq-brand-text)]">{s.count}</span>
                           </div>
                           <div className="h-1 overflow-hidden rounded-full bg-[var(--wq-paper)]">
                             <div
@@ -460,7 +460,7 @@ export default function DashboardPage() {
                     ) : null}
                     <Link
                       href="/billing"
-                      className="mt-2 inline-flex text-sm font-semibold text-[var(--wq-brand)] hover:underline"
+                      className="mt-2 inline-flex text-sm font-semibold text-[var(--wq-brand-text)] hover:underline"
                     >
                       Gerenciar billing →
                     </Link>

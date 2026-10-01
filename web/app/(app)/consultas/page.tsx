@@ -23,7 +23,7 @@ export default function ConsultasHubPage() {
           href="/consultas/clientes"
           className="group rounded-2xl border border-[var(--wq-border)] bg-white p-6 transition-colors hover:border-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]/40"
         >
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand)] group-hover:bg-white">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand-text)] group-hover:bg-white">
             <Users className="h-5 w-5" />
           </div>
           <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
@@ -38,7 +38,7 @@ export default function ConsultasHubPage() {
           href="/consultas/pedidos?tab=ativos"
           className="group rounded-2xl border border-[var(--wq-border)] bg-white p-6 transition-colors hover:border-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]/40"
         >
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand)] group-hover:bg-white">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand-text)] group-hover:bg-white">
             <Package className="h-5 w-5" />
           </div>
           <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
@@ -53,7 +53,7 @@ export default function ConsultasHubPage() {
           href="/consultas/pedidos?tab=finalizados"
           className="group rounded-2xl border border-[var(--wq-border)] bg-white p-6 transition-colors hover:border-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]/40"
         >
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand)] group-hover:bg-white">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--wq-paper)] text-[var(--wq-brand-text)] group-hover:bg-white">
             <Package className="h-5 w-5" />
           </div>
           <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">

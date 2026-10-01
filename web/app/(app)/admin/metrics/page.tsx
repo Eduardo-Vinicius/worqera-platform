@@ -176,9 +176,9 @@ export default function AdminMetricsPage() {
   }, [data.desempenho])
 
   const kpiCards = [
-    { title: "Total pedidos", value: derived.total, hint: "No período", icon: BarChart3, tone: "text-[var(--wq-brand)]" },
-    { title: "Em aberto", value: derived.abertos, hint: "Fluxo ativo", icon: TrendingUp, tone: "text-[var(--wq-action)]" },
-    { title: "Finalizados", value: derived.finalizados, hint: "Concluídos", icon: Award, tone: "text-[var(--wq-ink)]" },
+    { title: "Total pedidos", value: derived.total, hint: "No período", icon: BarChart3, tone: "text-[var(--wq-brand-text)]" },
+    { title: "Em aberto", value: derived.abertos, hint: "Fluxo ativo", icon: TrendingUp, tone: "text-[var(--wq-action-text)]" },
+    { title: "Finalizados", value: derived.finalizados, hint: "Concluídos", icon: Award, tone: "text-[var(--wq-text)]" },
     { title: "Em atraso", value: derived.atrasados, hint: "Atenção imediata", icon: AlertTriangle, tone: "text-[var(--wq-warn)]" },
     { title: "Taxa de atraso", value: formatPct(derived.taxaAtraso), hint: "Sobre o total", icon: Clock, tone: "text-[var(--wq-danger)]" },
   ]
@@ -293,7 +293,7 @@ export default function AdminMetricsPage() {
             </div>
             <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">On-time</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-action)]">
+              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-action-text)]">
                 {formatPct(derived.onTimePct)}
               </p>
               <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Taxa de entregas no prazo</p>
@@ -307,7 +307,7 @@ export default function AdminMetricsPage() {
             </div>
             <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">Receita recebida</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-brand)]">
+              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-brand-text)]">
                 {formatCurrency(data.financeiro?.resumo?.receitaRecebida || 0)}
               </p>
               <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Resumo financeiro do período</p>
@@ -418,7 +418,7 @@ export default function AdminMetricsPage() {
                   </div>
                   <Badge
                     variant="outline"
-                    className="border-[var(--wq-action)]/30 bg-[var(--wq-action)]/10 text-[var(--wq-action)]"
+                    className="border-[var(--wq-action)]/30 bg-[var(--wq-action)]/10 text-[var(--wq-action-text)]"
                   >
                     {item.pedidosComParticipacao}
                   </Badge>
@@ -461,7 +461,7 @@ export default function AdminMetricsPage() {
                   <div className="text-right">
                     <Badge
                       variant="outline"
-                      className="border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)] text-[var(--wq-brand)]"
+                      className="border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)] text-[var(--wq-brand-text)]"
                     >
                       {item.tempoMedioHoras.toFixed(2)}h
                     </Badge>

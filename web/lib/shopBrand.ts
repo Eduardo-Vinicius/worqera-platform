@@ -45,6 +45,51 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`
 }
 
+function channelLuma(c: number) {
+  const s = c / 255
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
+
+export function relativeLuminance(hex: string): number {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return 0
+  return 0.2126 * channelLuma(rgb.r) + 0.7152 * channelLuma(rgb.g) + 0.0722 * channelLuma(rgb.b)
+}
+
+export function contrastRatio(a: string, b: string): number {
+  const l1 = relativeLuminance(a)
+  const l2 = relativeLuminance(b)
+  const hi = Math.max(l1, l2)
+  const lo = Math.min(l1, l2)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+export function mixHex(from: string, to: string, t: number): string {
+  const a = hexToRgb(from)
+  const b = hexToRgb(to)
+  if (!a || !b) return normalizeHex(from) || to
+  const ch = (x: number, y: number) =>
+    Math.max(0, Math.min(255, Math.round(x + (y - x) * t)))
+      .toString(16)
+      .padStart(2, "0")
+  return `#${ch(a.r, b.r)}${ch(a.g, b.g)}${ch(a.b, b.b)}`.toUpperCase()
+}
+
+/** Shift `color` toward black or white until it can be read on `background`. */
+export function paintForBackground(color: string, background: string, min = 4.5): string {
+  const base = normalizeHex(color)
+  const bg = normalizeHex(background)
+  if (!base || !bg) return base || color
+  if (contrastRatio(base, bg) >= min) return base
+  const target = relativeLuminance(bg) > 0.45 ? "#0F172A" : "#F8FAFC"
+  let best = target
+  for (let i = 1; i <= 16; i++) {
+    best = mixHex(base, target, i / 16)
+    if (contrastRatio(best, bg) >= min) return best
+  }
+  return best
+}
+
 /** Darken hex ~18% for hover / deep variant. */
 export function deepenHex(hex: string): string {
   const rgb = hexToRgb(hex)
@@ -59,9 +104,10 @@ export function deepenHex(hex: string): string {
 
 export function resolveBrandColors(brand?: ShopBrand | null) {
   const primary = normalizeHex(brand?.primaryColor) || WQ_DEFAULT_PRIMARY
+  const explicitAccent = normalizeHex(brand?.accentColor)
   const accent =
-    normalizeHex(brand?.accentColor) ||
-    (normalizeHex(brand?.primaryColor) ? primary : WQ_DEFAULT_ACCENT)
+    explicitAccent ||
+    (relativeLuminance(primary) < 0.2 ? WQ_DEFAULT_ACCENT : primary)
   return {
     primary,
     accent,
@@ -107,13 +153,42 @@ export function applyBrandCssVars(
 ) {
   if (!el) return
   const { primary, accent, deep, soft } = resolveBrandColors(brand)
+  const darkPage = el.classList.contains("dark")
+  const pageBg = darkPage ? "#0B1220" : "#FFFFFF"
+  const inkBg = darkPage ? "#020617" : "#0F172A"
+  const onFill = contrastRatio("#F8FAFC", primary) >= 3 ? "#F8FAFC" : "#0F172A"
+  const onInk = paintForBackground(primary, inkBg)
+  const softOnInk =
+    relativeLuminance(primary) < 0.35 ? "rgba(248,250,252,0.16)" : hexToRgba(onInk, 0.28)
+
   el.style.setProperty("--wq-brand", primary)
+  el.style.setProperty("--wq-brand-text", paintForBackground(primary, pageBg))
+  el.style.setProperty("--wq-brand-on-ink", onInk)
+  el.style.setProperty("--wq-brand-soft-on-ink", softOnInk)
   el.style.setProperty("--wq-brand-deep", deep)
   el.style.setProperty("--wq-brand-soft", soft)
   el.style.setProperty("--wq-accent", primary)
   el.style.setProperty("--wq-action", accent)
+  el.style.setProperty("--wq-action-text", paintForBackground(accent, pageBg))
   el.style.setProperty("--primary", primary)
+  el.style.setProperty("--primary-foreground", onFill)
   el.style.setProperty("--sidebar-primary", primary)
+  el.style.setProperty("--sidebar-primary-foreground", onFill)
+}
+
+let brandThemeWatch: MutationObserver | null = null
+
+/** Recompute contrast tokens when the light/dark class flips. */
+export function bindBrandToTheme() {
+  applyBrandCssVars(readBrandFromStorage())
+  if (brandThemeWatch || typeof document === "undefined") return
+  brandThemeWatch = new MutationObserver(() => {
+    applyBrandCssVars(readBrandFromStorage())
+  })
+  brandThemeWatch.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  })
 }
 
 export function clearBrandCssVars(
@@ -122,11 +197,17 @@ export function clearBrandCssVars(
   if (!el) return
   ;[
     "--wq-brand",
+    "--wq-brand-text",
+    "--wq-brand-on-ink",
+    "--wq-brand-soft-on-ink",
     "--wq-brand-deep",
     "--wq-brand-soft",
     "--wq-accent",
     "--wq-action",
+    "--wq-action-text",
     "--primary",
+    "--primary-foreground",
     "--sidebar-primary",
+    "--sidebar-primary-foreground",
   ].forEach((k) => el.style.removeProperty(k))
 }

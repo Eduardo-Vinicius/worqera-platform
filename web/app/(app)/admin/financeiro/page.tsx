@@ -263,7 +263,7 @@ export default function AdminFinanceiroPage() {
                 <h2 className="text-sm font-semibold text-[var(--wq-text)]">Setores (fila aberta)</h2>
                 <p className="text-[11px] text-[var(--wq-text-muted)]">Pedidos em andamento por coluna</p>
               </div>
-              <Link href="/kanban" className="inline-flex items-center text-xs font-semibold text-[var(--wq-brand)]">
+              <Link href="/kanban" className="inline-flex items-center text-xs font-semibold text-[var(--wq-brand-text)]">
                 Kanban <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </div>
@@ -281,7 +281,7 @@ export default function AdminFinanceiroPage() {
                   <li key={String(s.setorId || name)} className="space-y-1.5">
                     <div className="flex items-baseline justify-between gap-2 text-sm">
                       <span className="truncate font-medium text-[var(--wq-text)]">{name}</span>
-                      <span className="font-mono text-[var(--wq-brand)]">{total}</span>
+                      <span className="font-mono text-[var(--wq-brand-text)]">{total}</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
                       <div
@@ -308,7 +308,7 @@ export default function AdminFinanceiroPage() {
                 <li key={item.servico} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="truncate font-medium text-[var(--wq-text)]">{item.servico}</span>
-                    <span className="shrink-0 font-mono text-[var(--wq-brand)]">
+                    <span className="shrink-0 font-mono text-[var(--wq-brand-text)]">
                       {formatCurrency(item.receita)}
                     </span>
                   </div>
