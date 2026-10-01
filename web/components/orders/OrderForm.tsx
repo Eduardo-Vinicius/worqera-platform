@@ -95,27 +95,6 @@ function dueInDays(days: number) {
   return d.toISOString().slice(0, 10)
 }
 
-const RECENT_CLIENTS_KEY = "wq-recent-clients-v1"
-
-type RecentClient = { id: string; name: string; phone?: string }
-
-function loadRecentClients(): RecentClient[] {
-  try {
-    const raw = localStorage.getItem(RECENT_CLIENTS_KEY)
-    const list = raw ? JSON.parse(raw) : []
-    return Array.isArray(list) ? list.slice(0, 6) : []
-  } catch {
-    return []
-  }
-}
-
-function pushRecentClient(client: RecentClient) {
-  try {
-    const prev = loadRecentClients().filter((c) => c.id !== client.id)
-    localStorage.setItem(RECENT_CLIENTS_KEY, JSON.stringify([client, ...prev].slice(0, 6)))
-  } catch {}
-}
-
 export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit" && Boolean(orderId);
@@ -153,12 +132,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     cpf: "",
     email: "",
   })
-  const [recentClients, setRecentClients] = useState<RecentClient[]>([])
-
-  useEffect(() => {
-    setRecentClients(loadRecentClients())
-  }, [])
-
   useEffect(() => {
     if (!isEdit || !orderId) return
     let cancelled = false
@@ -201,13 +174,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         )
         setItems(hydrateDraftsFromOrder(order))
         setActiveItemIndex(0)
-        if (order?.clientId || order?.clienteId) {
-          pushRecentClient({
-            id: String(order.clientId || order.clienteId),
-            name: String(order.clientName || ""),
-            phone: String(order.clientPhone || ""),
-          })
-        }
       } catch (err: any) {
         toast.error(err?.message || "Não foi possível carregar o pedido")
         router.push("/pedidos")
@@ -290,6 +256,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     if (isEdit) return
     try {
       localStorage.removeItem(DRAFT_KEY)
+      localStorage.removeItem("wq-recent-clients-v1")
+      localStorage.removeItem("order-templates-v1")
     } catch {
       /* ignore */
     }
@@ -564,13 +532,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     if (!id) return
     handleSelectChange("clientId", id)
     setClientSearch("")
-    const entry: RecentClient = {
-      id,
-      name: String(client.nomeCompleto || client.name || "Cliente"),
-      phone: String(client.telefone || client.phone || ""),
-    }
-    pushRecentClient(entry)
-    setRecentClients(loadRecentClients())
   }
 
   const saveNewClient = async () => {
@@ -1167,26 +1128,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {!clientSearch && recentClients.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {recentClients.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() =>
-                              selectClient({
-                                id: c.id,
-                                nomeCompleto: c.name,
-                                telefone: c.phone,
-                              })
-                            }
-                            className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-1 text-xs font-medium text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
-                          >
-                            {c.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--wq-text-muted)]" />
                       <Input
