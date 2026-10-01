@@ -1,5 +1,10 @@
 # Worqera Web — Change log
 
+## 2026-10-01
+
+- **Novo pedido:** abre vazio (sem rascunho/template); partida só em cada par; obs. do fluxo removida; garantia, pagamento e prazo em blocos separados.
+- **Kanban:** no celular o card não arrasta (mover no detalhe); busca filtra cliente/código/modelo no board; QR e link de cada par no detalhe.
+
 ## 2026-09-24
 
 - **Editar pedido (híbrido):** `/pedidos/[id]/editar` reusa o form do cadastro (pai + filhos); drawer consulta/kanban com quick-edit + **Editar completo**.

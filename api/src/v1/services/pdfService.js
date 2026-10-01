@@ -39,26 +39,68 @@ function formatAddress(address = {}) {
 
 function getImageFormat(contentType = '', key = '') {
   const ct = String(contentType).toLowerCase();
-  const k = String(key).toLowerCase();
+  const k = String(key).toLowerCase().split('?')[0];
   if (ct.includes('png') || k.endsWith('.png')) return 'PNG';
+  if (ct.includes('webp') || k.endsWith('.webp')) return 'WEBP';
   if (ct.includes('jpeg') || ct.includes('jpg') || k.endsWith('.jpg') || k.endsWith('.jpeg')) return 'JPEG';
   return null;
 }
 
-async function loadPhotoForPdf(photo) {
-  const key = typeof photo === 'string' ? null : photo?.key;
-  try {
-    if (key) {
-      const { buffer, contentType } = await storageService.getBuffer(key);
-      const formato = getImageFormat(contentType, key);
-      if (!formato) return null;
-      const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
-      return { formato, dataUrl };
+function mimeForFormat(formato) {
+  if (formato === 'PNG') return 'image/png';
+  if (formato === 'WEBP') return 'image/webp';
+  return 'image/jpeg';
+}
+
+/** Storage key from {key}, a files URL, or a relative shops/... path. */
+function photoStorageKey(photo) {
+  if (!photo) return null;
+  if (typeof photo === 'object' && photo.key) return String(photo.key);
+  const raw = String(typeof photo === 'string' ? photo : photo.url || '').trim();
+  if (!raw) return null;
+  const marker = '/api/v1/files/';
+  const idx = raw.indexOf(marker);
+  if (idx >= 0) {
+    const rest = raw.slice(idx + marker.length).split('?')[0];
+    try {
+      return decodeURIComponent(rest);
+    } catch (_err) {
+      return rest;
     }
-  } catch (_err) {
-    // fall through
   }
+  const shops = raw.indexOf('shops/');
+  if (shops >= 0) {
+    try {
+      return decodeURIComponent(raw.slice(shops).split('?')[0]);
+    } catch (_err) {
+      return raw.slice(shops).split('?')[0];
+    }
+  }
+  if (!/^https?:\/\//i.test(raw)) return raw.split('?')[0];
   return null;
+}
+
+async function loadPhotoForPdf(photo) {
+  const key = photoStorageKey(photo);
+  if (!key) return null;
+  try {
+    const { buffer, contentType } = await storageService.getBuffer(key);
+    const formato = getImageFormat(contentType, key);
+    if (!formato || !buffer || !buffer.length) return null;
+    const dataUrl = `data:${mimeForFormat(formato)};base64,${buffer.toString('base64')}`;
+    return { formato, dataUrl };
+  } catch (_err) {
+    return null;
+  }
+}
+
+function photosForPair(item, order, itemCount) {
+  const own = Array.isArray(item?.photos) ? item.photos : [];
+  if (own.length) return own.slice(0, MAX_FOTOS_PER_PAIR);
+  if (itemCount === 1 && Array.isArray(order?.photos) && order.photos.length) {
+    return order.photos.slice(0, MAX_FOTOS_PER_PAIR);
+  }
+  return [];
 }
 
 function hexToRgb(hex) {
@@ -229,8 +271,7 @@ async function generateOrderPdf(shopId, orderId) {
       y += split.length * 4.5 + 4;
     }
 
-    let photos = Array.isArray(it.photos) ? it.photos : [];
-    photos = photos.slice(0, MAX_FOTOS_PER_PAIR);
+    const photos = photosForPair(it, order, items.length);
     if (photos.length) {
       y = ensureSpace(doc, y, 20, pageHeight);
       doc.setFont('helvetica', 'bold');

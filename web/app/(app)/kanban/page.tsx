@@ -49,7 +49,8 @@ import { toast } from "sonner"
 import { cn, pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
-import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
+import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
+import QRCode from "qrcode"
 
 type OrderCard = {
   _id?: string
@@ -260,10 +261,144 @@ function routeCue(
   return { offFlow: false, nextLabel: null, stepLabel }
 }
 
-function filterOrders(orders: OrderCard[], filterLate: boolean) {
-  if (!filterLate) return orders
+function filterOrders(orders: OrderCard[], filterLate: boolean, query = "") {
+  const q = query.trim().toLowerCase()
+  const qDigits = q.replace(/\D/g, "")
   const now = Date.now()
-  return orders.filter((o) => o.dueAt && new Date(o.dueAt).getTime() < now)
+  return orders.filter((o) => {
+    if (filterLate && !(o.dueAt && new Date(o.dueAt).getTime() < now)) return false
+    if (!q) return true
+    const phone = String(o.clientPhone || "").replace(/\D/g, "")
+    const blob = [
+      orderCode(o),
+      o.code,
+      o.codigo,
+      o.pairLabel,
+      o.clientName,
+      o.shoeModel,
+      o.modeloTenis,
+      o.clientPhone,
+    ]
+      .map((x) => String(x || "").toLowerCase())
+      .join(" ")
+    if (blob.includes(q)) return true
+    return qDigits.length >= 3 && phone.includes(qDigits)
+  })
+}
+
+function useDesktopKanbanDrag() {
+  const [desktop, setDesktop] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)")
+    const apply = () => setDesktop(mq.matches)
+    apply()
+    mq.addEventListener("change", apply)
+    return () => mq.removeEventListener("change", apply)
+  }, [])
+  return desktop
+}
+
+function KanbanPairQrs({
+  code,
+  token,
+  slug,
+  items,
+  focusIndex,
+}: {
+  code: string
+  token: string
+  slug: string
+  items: Array<{ shoeModel?: string }>
+  focusIndex: number | null
+}) {
+  const [rows, setRows] = useState<Array<{ index: number; label: string; url: string; qr: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const base = buildPublicOrderUrl(window.location.origin, slug, code, token)
+      if (!base || !token) {
+        if (!cancelled) setRows([])
+        return
+      }
+      const list = items.length ? items : [{ shoeModel: "" }]
+      const next: Array<{ index: number; label: string; url: string; qr: string }> = []
+      for (let i = 0; i < list.length; i += 1) {
+        const url = withPublicOrderQuery(base, "item", i + 1)
+        const qr = await QRCode.toDataURL(url, { margin: 1, width: 220 })
+        next.push({
+          index: i,
+          label: list[i]?.shoeModel?.trim() || `Par ${i + 1}`,
+          url,
+          qr,
+        })
+      }
+      if (!cancelled) setRows(next)
+    })().catch(() => {
+      if (!cancelled) setRows([])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [code, token, slug, items.map((it) => it.shoeModel || "").join("|")])
+
+  if (!token) {
+    return <p className="text-xs text-[var(--wq-text-muted)]">Link público ainda sem token.</p>
+  }
+  if (!rows.length) {
+    return <p className="text-xs text-[var(--wq-text-muted)]">Gerando QR…</p>
+  }
+
+  const ordered = [...rows].sort((a, b) => {
+    if (focusIndex == null) return a.index - b.index
+    if (a.index === focusIndex) return -1
+    if (b.index === focusIndex) return 1
+    return a.index - b.index
+  })
+
+  return (
+    <div className="space-y-3">
+      {ordered.map((row) => {
+        const focused = focusIndex != null && row.index === focusIndex
+        return (
+          <div
+            key={row.index}
+            className={cn(
+              "flex items-center gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-2",
+              focused && "border-[var(--wq-brand)]"
+            )}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={row.qr}
+              alt={`QR par ${row.index + 1}`}
+              className={focused ? "h-28 w-28 shrink-0" : "h-16 w-16 shrink-0"}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-[var(--wq-text)]">
+                Par {row.index + 1}
+                {row.label ? ` · ${row.label}` : ""}
+              </p>
+              <button
+                type="button"
+                className="mt-1 text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(row.url)
+                    toast.success("Link deste par copiado")
+                  } catch {
+                    toast.message(row.url)
+                  }
+                }}
+              >
+                Copiar link
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function KanbanCardBody({
@@ -439,6 +574,7 @@ function DraggableCard({
   isTerminalColumn,
   onMarkDelivered,
   onNotifyReady,
+  dragEnabled = true,
 }: {
   order: OrderCard
   focused?: boolean
@@ -449,20 +585,24 @@ function DraggableCard({
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  dragEnabled?: boolean
 }) {
   const id = cardKey(order)
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id,
+    disabled: !dragEnabled,
+  })
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
 
   return (
-    <div ref={setNodeRef} style={style} className="touch-none">
+    <div ref={setNodeRef} style={style} className={dragEnabled ? "touch-none" : undefined}>
       <KanbanCardBody
         order={order}
         focused={focused}
         dragging={isDragging}
         onFocus={onFocus}
         onOpen={onOpen}
-        dragHandleProps={{ ...listeners, ...attributes }}
+        dragHandleProps={dragEnabled ? { ...listeners, ...attributes } : undefined}
         columnSectorId={columnSectorId}
         sectorNameById={sectorNameById}
         isTerminalColumn={isTerminalColumn}
@@ -483,6 +623,8 @@ function DroppableColumn({
   compact,
   onMarkDelivered,
   onNotifyReady,
+  query = "",
+  dragEnabled = true,
 }: {
   column: Column
   filterLate: boolean
@@ -493,9 +635,11 @@ function DroppableColumn({
   compact?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  query?: string
+  dragEnabled?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
-  const orders = filterOrders(column.orders, filterLate)
+  const orders = filterOrders(column.orders, filterLate, query)
   const isTerminal = Boolean(column.sector.isTerminal)
 
   return (
@@ -523,7 +667,9 @@ function DroppableColumn({
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         {orders.length === 0 && (
-          <p className="px-2 py-8 text-center text-xs text-[var(--wq-text-muted)]">Vazio</p>
+          <p className="px-2 py-8 text-center text-xs text-[var(--wq-text-muted)]">
+            {query.trim() ? "Nenhum pedido" : "Vazio"}
+          </p>
         )}
         {orders.map((o) => (
           <DraggableCard
@@ -537,6 +683,7 @@ function DroppableColumn({
             isTerminalColumn={isTerminal}
             onMarkDelivered={onMarkDelivered}
             onNotifyReady={onNotifyReady}
+            dragEnabled={dragEnabled}
           />
         ))}
       </div>
@@ -584,6 +731,7 @@ export default function KanbanPage() {
   const [detailDueAt, setDetailDueAt] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
 
+  const dragEnabled = useDesktopKanbanDrag()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
@@ -679,8 +827,8 @@ export default function KanbanPage() {
   )
 
   const visibleOrders = useMemo(() => {
-    return filterOrders(activeColumn?.orders || [], filterLate)
-  }, [activeColumn, filterLate])
+    return filterOrders(activeColumn?.orders || [], filterLate, codeQuery)
+  }, [activeColumn, filterLate, codeQuery])
 
   useEffect(() => {
     if (!visibleOrders.length) {
@@ -986,22 +1134,6 @@ export default function KanbanPage() {
     activeIndex,
   ])
 
-  const jumpToCode = () => {
-    const q = codeQuery.trim().toLowerCase()
-    if (!q) return
-    for (const col of columns) {
-      const found = col.orders.find((o) => orderCode(o).toLowerCase().includes(q))
-      if (found) {
-        setActiveSectorId(col.sector._id)
-        setFocusedCardId(orderId(found))
-        openDetail(found)
-        toast.success(`Pedido ${orderCode(found)}`)
-        return
-      }
-    }
-    toast.message("Código não encontrado no board")
-  }
-
   const focusedDetailItem = (() => {
     if (!detail?.items?.length) return null
     if (detailItemId) {
@@ -1097,7 +1229,9 @@ export default function KanbanPage() {
             subtitle={
               isSectorRole
                 ? "Sua fila · abra o pedido para encaminhar"
-                : "Board · arraste · atalhos j/k · 1-9 · Enter · n"
+                : dragEnabled
+                  ? "Board · arraste · atalhos j/k · 1-9 · Enter · n"
+                  : "Toque no pedido para abrir e mover"
             }
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
@@ -1107,17 +1241,11 @@ export default function KanbanPage() {
                 value={codeQuery}
                 onChange={(e) => setCodeQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    jumpToCode()
-                  }
-                  if (e.key === "/") {
-                    e.stopPropagation()
-                  }
+                  if (e.key === "/") e.stopPropagation()
                 }}
-                placeholder="Código…"
-                className="h-8 w-full rounded-[10px] pl-8 text-sm sm:w-[120px] md:w-[140px]"
-                aria-label="Buscar código no kanban"
+                placeholder="Cliente, código ou modelo"
+                className="h-8 w-full rounded-[10px] pl-8 text-sm sm:w-[200px] md:w-[240px]"
+                aria-label="Filtrar pedidos no kanban"
               />
             </div>
             <Button
@@ -1166,7 +1294,9 @@ export default function KanbanPage() {
           </div>
         ) : (
           <>
-            {columns.every((c) => filterOrders(c.orders, filterLate).length === 0) && !isSectorRole ? (
+            {columns.every((c) => filterOrders(c.orders, filterLate, codeQuery).length === 0) &&
+            !codeQuery.trim() &&
+            !isSectorRole ? (
               <div className="mb-3 shrink-0 rounded-2xl border border-dashed border-[var(--wq-border)] bg-white px-4 py-5 text-center">
                 <p className="font-medium text-[var(--wq-text)]">Fila vazia</p>
                 <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
@@ -1198,7 +1328,7 @@ export default function KanbanPage() {
                       <span className="h-2 w-2 rounded-full" style={{ background: col.sector.color }} />
                       <span className="max-w-[9rem] truncate">{col.sector.name}</span>
                       <Badge variant="outline" className="font-mono text-[10px]">
-                        {filterOrders(col.orders, filterLate).length}
+                        {filterOrders(col.orders, filterLate, codeQuery).length}
                       </Badge>
                     </button>
                   )
@@ -1208,6 +1338,8 @@ export default function KanbanPage() {
                 <DroppableColumn
                   column={activeColumn}
                   filterLate={filterLate}
+                  query={codeQuery}
+                  dragEnabled={false}
                   focusedCardId={focusedCardId}
                   onFocusCard={setFocusedCardId}
                   onOpenCard={openDetail}
@@ -1268,6 +1400,8 @@ export default function KanbanPage() {
                   key={col.sector._id}
                   column={col}
                   filterLate={filterLate}
+                  query={codeQuery}
+                  dragEnabled
                   focusedCardId={focusedCardId}
                   onFocusCard={setFocusedCardId}
                   onOpenCard={openDetail}
@@ -1434,6 +1568,30 @@ export default function KanbanPage() {
                         </Link>
                       </Button>
                     </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                      QR por par
+                    </p>
+                    <KanbanPairQrs
+                      code={String(detail.code || "")}
+                      token={String(detail.publicToken || "")}
+                      slug={String(
+                        shopDoc?.slug ||
+                          (typeof window !== "undefined" ? localStorage.getItem("shopSlug") : "") ||
+                          ""
+                      )}
+                      items={(detail.items || []).map((it) => ({ shoeModel: it.shoeModel }))}
+                      focusIndex={(() => {
+                        if (detailItemIndex != null) return detailItemIndex
+                        if (!detailItemId) return null
+                        const i = (detail.items || []).findIndex(
+                          (it) => itemIdentity(it) === String(detailItemId)
+                        )
+                        return i >= 0 ? i : null
+                      })()}
+                    />
                   </div>
 
                   {(() => {

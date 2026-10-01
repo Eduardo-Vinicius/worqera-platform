@@ -137,11 +137,20 @@ async function getKanban(shopId, membership) {
     );
   }
 
+  const sortCards = (a, b) => {
+    const aHigh = Number(a.priority) === 1 ? 0 : 1;
+    const bHigh = Number(b.priority) === 1 ? 0 : 1;
+    if (aHigh !== bHigh) return aHigh - bHigh;
+    const aT = new Date(a.createdAt || 0).getTime();
+    const bT = new Date(b.createdAt || 0).getTime();
+    return bT - aT;
+  };
+
   return {
     role,
     columns: sectors.map((s) => ({
       sector: s,
-      orders: bySector[String(s._id)] || [],
+      orders: (bySector[String(s._id)] || []).slice().sort(sortCards),
     })),
     forwardTargets,
   };
@@ -178,6 +187,7 @@ function summarizeItemCard(order, item, index, sectorsById) {
     orderSectorId: asId(order.currentSectorId),
     photoThumb: resolvePhotoUrl(cover) || null,
     hasPhotos: photos.length > 0,
+    createdAt: order.createdAt || null,
     assigneeEmployeeId: order.assigneeEmployeeId,
     plannedSectorIds: Array.isArray(item.plannedSectorIds) && item.plannedSectorIds.length
       ? item.plannedSectorIds.map((s) => String(s._id || s))

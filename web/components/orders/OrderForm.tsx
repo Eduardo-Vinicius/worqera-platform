@@ -26,13 +26,6 @@ import {
 import { compressImageFile } from "@/lib/compressImage"
 import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
 import { normalizeWarranty } from "@/lib/warranty"
-import {
-  loadOrderTemplates,
-  removeOrderTemplate,
-  saveOrderTemplates,
-  upsertOrderTemplate,
-  type OrderTemplate,
-} from "@/lib/orderTemplates"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
@@ -41,8 +34,6 @@ import {
   filterFilledItems,
   hydrateDraftsFromOrder,
   mapItemsToCreatePayload,
-  migrateDraftToItems,
-  serializeItemsForDraft,
   servicesSum,
   suggestedTotal,
   validateOrderItems,
@@ -141,7 +132,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [clientNameOverride, setClientNameOverride] = useState("")
   const [items, setItems] = useState([emptyOrderItemDraft()])
   const [activeItemIndex, setActiveItemIndex] = useState(0)
-  const [flowObservation, setFlowObservation] = useState("");
   const [flowSectors, setFlowSectors] = useState(FALLBACK_FLOW_SECTORS)
   const [prioridade, setPrioridade] = useState<string>("2")
   const [totalPrice, setTotalPrice] = useState(0)
@@ -155,7 +145,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [availableServices, setAvailableServices] = useState(FALLBACK_SERVICES);
-  const [templates, setTemplates] = useState<OrderTemplate[]>([])
   const [showNewClient, setShowNewClient] = useState(false)
   const [savingClient, setSavingClient] = useState(false)
   const [newClient, setNewClient] = useState({
@@ -167,7 +156,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [recentClients, setRecentClients] = useState<RecentClient[]>([])
 
   useEffect(() => {
-    setTemplates(loadOrderTemplates())
     setRecentClients(loadRecentClients())
   }, [])
 
@@ -299,50 +287,14 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   }, [])
 
   useEffect(() => {
-    if (isEdit) return;
-    if (typeof window === "undefined") return;
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) {
-      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
-      return
-    }
+    if (isEdit) return
     try {
-      const draft = JSON.parse(raw);
-      const { sneaker: _legacySneaker, ...restForm } = draft.formData || {};
-      const nextForm = { ...restForm }
-      if (!nextForm.expectedDate) nextForm.expectedDate = dueInDays(15)
-      setFormData((prev) => ({ ...prev, ...nextForm }));
-      setItems(migrateDraftToItems(draft));
-      if (typeof draft.totalPrice === "number") setTotalPrice(draft.totalPrice);
-      if (typeof draft.signalType === "string") setSignalType(draft.signalType);
-      if (typeof draft.signalValue === "number") setSignalValue(draft.signalValue);
-      if (typeof draft.hasWarranty === "boolean") setHasWarranty(draft.hasWarranty);
-      if (typeof draft.warrantyPrice === "number") setWarrantyPrice(draft.warrantyPrice);
-      if (Array.isArray(draft.selectedAccessories)) setSelectedAccessories(draft.selectedAccessories);
-      if (typeof draft.flowObservation === "string") setFlowObservation(draft.flowObservation);
-      if (typeof draft.prioridade === "string") setPrioridade(draft.prioridade);
-    } catch (err) {
-      setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
+      localStorage.removeItem(DRAFT_KEY)
+    } catch {
+      /* ignore */
     }
-  }, [isEdit]);
-
-  useEffect(() => {
-    if (isEdit) return;
-    if (typeof window === "undefined") return;
-    const payload = {
-      formData,
-      items: serializeItemsForDraft(items),
-      totalPrice,
-      signalType,
-      signalValue,
-      hasWarranty,
-      warrantyPrice,
-      selectedAccessories,
-      flowObservation,
-      prioridade,
-    };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-  }, [isEdit, formData, items, totalPrice, signalType, signalValue, hasWarranty, warrantyPrice, selectedAccessories, flowObservation, prioridade]);
+    setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
+  }, [isEdit])
 
   useEffect(() => {
     async function fetchdata() {
@@ -403,21 +355,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       (s) => !s.isTerminal && (hintIds.has(s.id) || hintIds.has(s.slug))
     )
   }
-
-  /** União das partidas dos pares (resumo no rodapé / payload do pedido). */
-  const unionFlowOptionIds = (() => {
-    const seen = new Set<string>()
-    const out: string[] = []
-    for (const it of items) {
-      for (const id of it.flowOptionIds || []) {
-        const key = String(id)
-        if (seen.has(key)) continue
-        seen.add(key)
-        out.push(key)
-      }
-    }
-    return out.length ? out : ["atendimento"]
-  })()
 
   const itemHasFlow = (item: OrderItemDraft, sectorKey: string, sectorId: string) => {
     const ids = item.flowOptionIds || []
@@ -694,62 +631,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     }
   }
 
-  const applyTemplate = (tpl: OrderTemplate) => {
-    const selected = availableServices
-      .filter((s) => tpl.serviceIds.includes(s.id))
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        price: Number(s.suggestedPrice) || 0,
-        description: "",
-      }))
-    setItems((prev) => {
-      const next = [...prev]
-      const first = {
-        ...next[0],
-        selectedServices: selected,
-        flowOptionIds: tpl.flowOptionIds?.length
-          ? [...tpl.flowOptionIds]
-          : next[0].flowOptionIds || ["atendimento"],
-      }
-      next[0] = first
-      const newTotal = suggestedTotal(next, hasWarranty || Boolean(tpl.hasWarranty), warrantyPrice)
-      setTotalPrice(newTotal)
-      if (signalType === "50") setSignalValue(newTotal * 0.5)
-      if (signalType === "100") setSignalValue(newTotal)
-      return next
-    })
-    if (tpl.accessories.length) setSelectedAccessories(tpl.accessories)
-    if (tpl.hasWarranty) setHasWarranty(true)
-    toast.success(`Template “${tpl.name}” aplicado`)
-  }
-
-  const saveCurrentAsTemplate = () => {
-    const name = window.prompt("Nome do template (ex.: Limpeza completa)")
-    if (!name?.trim()) return
-    const serviceIds = items[0]?.selectedServices.map((s) => s.id) || []
-    if (!serviceIds.length) {
-      toast.error("Selecione ao menos um serviço no 1º par")
-      return
-    }
-    const next = upsertOrderTemplate(templates, {
-      name: name.trim(),
-      serviceIds,
-      flowOptionIds: items[0]?.flowOptionIds || ["atendimento"],
-      accessories: selectedAccessories,
-      hasWarranty,
-    })
-    setTemplates(next)
-    saveOrderTemplates(next)
-    toast.success("Template salvo neste navegador")
-  }
-
-  const deleteTemplate = (id: string) => {
-    const next = removeOrderTemplate(templates, id)
-    setTemplates(next)
-    saveOrderTemplates(next)
-  }
-
   const toggleService = (itemIndex: number, serviceId: string, checked: boolean) => {
     const service = availableServices.find(s => s.id === serviceId);
     updateItemsAndTotal((prev) =>
@@ -881,7 +762,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       });
     });
     setItems([emptyOrderItemDraft()]);
-    setFlowObservation("");
     setTotalPrice(0);
     setSignalType("50");
     setSignalValue(0);
@@ -1075,12 +955,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       // Observações apenas com o texto inserido pelo usuário
       const observacoesFinais = formData.observations || '';
 
-      const flowSelections = buildFlowSelections(unionFlowOptionIds)
-
-      const observacoesFluxoPayload = flowObservation.trim()
-        ? [{ observacao: flowObservation.trim() }]
-        : [];
-
       const payload: any = {
         clienteId: formData.clientId,
         clientId: formData.clientId,
@@ -1103,13 +977,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         // v1 business status (not sector/column name — that lives in currentSectorId)
         status: "open",
       };
-
-      if (flowSelections.length > 0) {
-        payload.departamentosSelecionados = flowSelections;
-      }
-      if (observacoesFluxoPayload.length > 0) {
-        payload.observacoesFluxo = observacoesFluxoPayload;
-      }
 
       const createdPedidoResponse = await createPedidoService(payload);
 
@@ -1246,45 +1113,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       />
 
           <div className="mx-auto w-full max-w-[1400px] px-2.5 py-4 pb-40 sm:px-5 sm:py-6 md:px-6 lg:px-8">
-        {!isEdit ? (
-        <div className="mb-3 rounded-2xl border border-[var(--wq-border)] bg-white p-3 sm:mb-4">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
-              Pedido rápido
-            </p>
-            <Button type="button" variant="outline" size="sm" className="h-8 rounded-[8px] text-xs" onClick={saveCurrentAsTemplate}>
-              Salvar template
-            </Button>
-          </div>
-          {templates.length === 0 ? (
-            <p className="text-sm text-[var(--wq-text-muted)]">
-              Monte serviços + fluxo e salve um template para reutilizar no balcão.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {templates.map((tpl) => (
-                <div key={tpl.id} className="inline-flex items-center gap-1 rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] pl-1">
-                  <button
-                    type="button"
-                    onClick={() => applyTemplate(tpl)}
-                    className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--wq-text)] hover:bg-[var(--wq-brand-soft)]"
-                  >
-                    {tpl.name}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-full px-2 py-1 text-xs text-[var(--wq-text-muted)] hover:text-[var(--wq-danger)]"
-                    onClick={() => deleteTemplate(tpl.id)}
-                    aria-label={`Remover ${tpl.name}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        ) : null}
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
             <div className="space-y-6 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:space-y-8 sm:p-5 md:p-6">
@@ -1841,59 +1669,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </div>
               </section>
 
-              {/* Block 3 — Resumo partida + Pagamento + data */}
               <section className="space-y-4">
-                <div className="space-y-3 rounded-2xl border-2 border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)]/40 p-4">
-                  <div>
-                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                      Partida (resumo)
-                    </h2>
-                    <p className="text-xs text-[var(--wq-text-muted)]">
-                      União dos pares · edite a partida{" "}
-                      <strong className="font-semibold text-[var(--wq-text)]">em cada par</strong>{" "}
-                      acima
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {flowSectors
-                      .filter((s) => !s.isTerminal)
-                      .map((sector) => {
-                        const key = sector.slug || sector.id
-                        const checked =
-                          unionFlowOptionIds.includes(key) || unionFlowOptionIds.includes(sector.id)
-                        return (
-                          <span
-                            key={sector.id}
-                            className={`min-h-10 rounded-xl border px-3.5 py-2 text-sm font-semibold ${
-                              checked
-                                ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
-                                : "border-[var(--wq-border)] bg-white/60 text-[var(--wq-text-muted)]"
-                            }`}
-                          >
-                            {sector.name}
-                          </span>
-                        )
-                      })}
-                  </div>
-                  {errors.department ? (
-                    <p className="text-sm text-destructive">{errors.department}</p>
-                  ) : null}
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="flowObservation">Obs. do fluxo</Label>
-                    <Textarea
-                      id="flowObservation"
-                      placeholder="Ex.: reforçar pintura nas laterais"
-                      value={flowObservation}
-                      onChange={(e) => setFlowObservation(e.target.value)}
-                      className="min-h-[72px] bg-white"
-                    />
-                  </div>
-                </div>
-
                 <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                  Pagamento e entrega
+                  Garantia, pagamento e prazo
                 </h2>
 
                 <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
@@ -1940,7 +1718,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </div>
 
                 {(itemsServicesTotal > 0 || hasWarranty) && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="totalPrice">Preço total (R$) *</Label>
@@ -2042,7 +1820,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
                 {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4 md:grid-cols-2">
                   <div className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
                     <Label htmlFor="expectedDate">Data prevista *</Label>
                     <Input
@@ -2183,9 +1961,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 <p className="truncate">
                   Restante R$ {remaining.toFixed(2)} · {items.length}{" "}
                   {items.length === 1 ? "par" : "pares"}
-                  {unionFlowOptionIds.length
-                    ? ` · Partida: ${unionFlowOptionIds.length} setor${unionFlowOptionIds.length === 1 ? "" : "es"}`
-                    : ""}
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">

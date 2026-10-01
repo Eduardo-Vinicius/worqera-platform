@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-10-01
+
+- **Laudo:** foto do par entra no PDF pela `key` ou pelo path da URL (jpeg/png/webp); pedido de um par ainda usa `order.photos` se o item não tiver foto.
+- **Kanban:** em cada coluna, prioridade alta no topo e o restante do mais novo para o mais antigo.
+
 ## 2026-09-24
 
 - **Editar pedido (merge-safe):** `PATCH/POST/DELETE /orders/:id/items/:itemIndex` preserva `currentSectorId`/`sectorHistory`/fotos; `items[]` no PATCH do pedido rejeitado; entregue bloqueia mudança estrutural.
