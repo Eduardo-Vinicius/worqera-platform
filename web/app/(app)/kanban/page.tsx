@@ -1070,6 +1070,24 @@ export default function KanbanPage() {
   }
 
   useEffect(() => {
+    const focusBoardFilter = () => {
+      document
+        .querySelector<HTMLInputElement>('input[aria-label="Filtrar pedidos no kanban"]')
+        ?.focus()
+    }
+    const blockOrderJump = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        e.stopPropagation()
+        focusBoardFilter()
+      }
+    }
+    window.addEventListener("keydown", blockOrderJump, true)
+    return () => window.removeEventListener("keydown", blockOrderJump, true)
+  }, [])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (shouldIgnoreKanbanShortcut(e.target as any)) return
       if (pendingMove || moving) return
@@ -1082,7 +1100,7 @@ export default function KanbanPage() {
 
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
-        const el = document.querySelector<HTMLInputElement>('input[aria-label="Buscar código no kanban"]')
+        const el = document.querySelector<HTMLInputElement>('input[aria-label="Filtrar pedidos no kanban"]')
         el?.focus()
         return
       }
@@ -1226,6 +1244,7 @@ export default function KanbanPage() {
         <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-2 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
+            showOrderJump={false}
             subtitle={
               isSectorRole
                 ? "Sua fila · abra o pedido para encaminhar"

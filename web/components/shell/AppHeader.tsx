@@ -14,6 +14,7 @@ export function AppHeader({
   showTheme = true,
   showHealth = true,
   showInbox = true,
+  showOrderJump = true,
 }: {
   title: string
   subtitle?: string
@@ -21,6 +22,8 @@ export function AppHeader({
   showTheme?: boolean
   showHealth?: boolean
   showInbox?: boolean
+  /** Botão ⌘K que abre a busca e vai para /pedidos */
+  showOrderJump?: boolean
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] backdrop-blur-md">
@@ -44,18 +47,20 @@ export function AppHeader({
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2 md:shrink-0 md:justify-end">
           {showHealth ? <SystemOkBadge className="sm:hidden" /> : null}
-          <button
-            type="button"
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-2 text-xs text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
-            title="Buscar pedido (⌘K)"
-            onClick={() => window.dispatchEvent(new Event("wq-open-order-jump"))}
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Pedido</span>
-            <kbd className="hidden rounded border border-[var(--wq-border)] px-1 font-mono text-[10px] md:inline">
-              ⌘K
-            </kbd>
-          </button>
+          {showOrderJump ? (
+            <button
+              type="button"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-2 text-xs text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
+              title="Buscar pedido (⌘K)"
+              onClick={() => window.dispatchEvent(new Event("wq-open-order-jump"))}
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Pedido</span>
+              <kbd className="hidden rounded border border-[var(--wq-border)] px-1 font-mono text-[10px] md:inline">
+                ⌘K
+              </kbd>
+            </button>
+          ) : null}
           {showInbox ? <FeedbackBell /> : null}
           {actions}
           {showTheme ? <ThemeToggle compact /> : null}
