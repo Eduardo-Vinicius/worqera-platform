@@ -30,7 +30,7 @@ Este arquivo fecha o **gap** entre o que já existe e o que os roadmaps pedem. U
 | Conta por setor | PARTIAL | PARTIAL | Roles seed; filtro cosmético; **TARGET** A3 |
 | Funcionários (chão) | LIVE | LIVE | ≠ login user |
 | Upload fotos | LIVE | LIVE | Limite multer 5 vs UI 8 |
-| PDF | LIVE | LIVE | Brand “SHOE REPAIR” |
+| PDF | LIVE | LIVE | Marca da loja, fotos por par, QR do pedido e dos pares |
 | ZIP fotos | LIVE | LIVE | CardDetalhes |
 | Dashboard KPIs | LIVE | LIVE | |
 | Métricas / financeiro | LIVE | LIVE | Gate admin só no front |

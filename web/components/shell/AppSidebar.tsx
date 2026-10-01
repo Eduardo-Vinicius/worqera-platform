@@ -9,6 +9,15 @@ import { cn } from "@/lib/utils"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { logoutV1 } from "@/lib/apiV1"
 
+function resolveLogoSrc(url: string) {
+  const raw = String(url || "").trim()
+  if (!raw) return ""
+  if (/^(https?:|blob:|data:)/i.test(raw)) return raw
+  const api = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")
+  if (raw.startsWith("/") && api) return `${api}${raw}`
+  return raw
+}
+
 async function handleLogout() {
   await logoutV1()
   window.location.href = "/login"
@@ -25,6 +34,7 @@ export function AppSidebar({
   const [role, setRole] = useState("")
   const [shopName, setShopName] = useState("Oficina")
   const [logoUrl, setLogoUrl] = useState("")
+  const [logoBroken, setLogoBroken] = useState(false)
   const [userName, setUserName] = useState("Usuário")
   const [platformAdmin, setPlatformAdmin] = useState(false)
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
@@ -37,7 +47,9 @@ export function AppSidebar({
           localStorage.getItem("shopName") ||
           "Oficina"
       )
-      setLogoUrl(localStorage.getItem("shopLogoUrl") || "")
+      const nextLogo = localStorage.getItem("shopLogoUrl") || ""
+      setLogoUrl(nextLogo)
+      setLogoBroken(false)
       setUserName(
         localStorage.getItem("userName") || localStorage.getItem("email") || "Usuário"
       )
@@ -52,6 +64,7 @@ export function AppSidebar({
   const isOwnerAdmin = role === "admin" || role === "owner"
   const isSector = role === "sector"
   const isPlatformOnly = platformAdmin && (role === "platform" || !role)
+  const logoSrc = !isPlatformOnly && logoUrl && !logoBroken ? resolveLogoSrc(logoUrl) : ""
 
   return (
     <aside
@@ -66,12 +79,13 @@ export function AppSidebar({
           onClick={onNavigate}
           className="flex min-w-0 items-center gap-3"
         >
-          {logoUrl && !isPlatformOnly ? (
+          {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={logoUrl}
+              src={logoSrc}
               alt=""
               className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-0.5"
+              onError={() => setLogoBroken(true)}
             />
           ) : (
             <WorqeraLogo className="h-9 w-9 shrink-0" title={appName} />
@@ -164,9 +178,19 @@ export function AppSidebar({
 
       <div className="shrink-0 border-t border-white/10 bg-[var(--wq-ink)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
         <div className="mb-2 flex items-center gap-3 sm:mb-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-[var(--wq-brand-on-ink)]">
-            {String(userName).slice(0, 1).toUpperCase()}
-          </div>
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full bg-white object-contain p-0.5"
+              onError={() => setLogoBroken(true)}
+            />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
+              {String(userName).slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-white">{userName}</div>
             <div className="truncate text-xs text-slate-400">{shopName}</div>

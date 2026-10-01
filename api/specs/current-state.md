@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-09-24 (editar item merge-safe · fotos por item · limite 10 · laudo)
+**Atualizado:** 2026-10-01 (laudo com marca da loja, prazo e QR)
 
 ## Em uma frase
 

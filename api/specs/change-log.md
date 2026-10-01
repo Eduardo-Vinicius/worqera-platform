@@ -2,6 +2,7 @@
 
 ## 2026-10-01
 
+- **Laudo:** capa da loja (logo, nome, telefone, endereço e cor escolhida), previsão de entrega em destaque, status em português, descrição e fotos por par, QR do pedido e de cada par. Rodapé só com “Emitido via Worqera”.
 - **Laudo:** foto do par entra no PDF pela `key` ou pelo path da URL (jpeg/png/webp); pedido de um par ainda usa `order.photos` se o item não tiver foto.
 - **Kanban:** em cada coluna, prioridade alta no topo e o restante do mais novo para o mais antigo.
 - **Catálogo e setores:** `DELETE /services/:id` e `DELETE /sectors/:id` apagam o documento. Setor em uso (pedido aberto, em andamento ou pronto) responde 409.
