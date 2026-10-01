@@ -84,7 +84,7 @@ PATCH /platform/shops/{id}           # LIVE — status, extendTrialDays, subscri
 GET    /sectors                      # LIVE — lista do shop
 POST   /sectors                      # LIVE — admin/owner
 PATCH  /sectors/{id}                 # LIVE
-DELETE /sectors/{id}                 # LIVE — soft (active=false) preferível
+DELETE /sectors/{id}                 # LIVE — apaga o documento; 409 se a coluna ainda tem pedido aberto
 POST   /sectors/reorder              # LIVE — body: [{id, order}]
 ```
 
@@ -165,7 +165,7 @@ GET /public/orders/{code}            # LIVE — status resumido sem auth
 
 ```
 GET/POST /services                   # LIVE
-PATCH/DELETE /services/{id}          # LIVE
+PATCH/DELETE /services/{id}          # LIVE — DELETE remove o catálogo; pedido antigo guarda nome e preço
 ```
 
 ## Headers

@@ -1,4 +1,8 @@
 const Sector = require('../models/Sector');
+const Order = require('../models/Order');
+const ServiceCatalog = require('../models/ServiceCatalog');
+const Membership = require('../models/Membership');
+const Invite = require('../models/Invite');
 const { slugify } = require('./authService');
 
 async function listSectors(shopId, { includeInactive = false } = {}) {
@@ -53,18 +57,31 @@ async function patchSector(shopId, id, updates) {
 }
 
 async function deleteSector(shopId, id) {
-  const sector = await Sector.findOneAndUpdate(
-    { _id: id, shopId },
-    { $set: { active: false } },
-    { new: true }
-  ).lean();
+  const sector = await Sector.findOne({ _id: id, shopId });
   if (!sector) {
     const err = new Error('Sector not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
     throw err;
   }
-  return sector;
+
+  const inUse = await Order.countDocuments({
+    shopId,
+    status: { $in: ['open', 'in_progress', 'ready'] },
+    $or: [{ currentSectorId: sector._id }, { 'items.currentSectorId': sector._id }],
+  });
+  if (inUse > 0) {
+    const err = new Error('Ainda tem pedidos nesta coluna. Mova eles antes de apagar.');
+    err.status = 409;
+    err.code = 'SECTOR_IN_USE';
+    throw err;
+  }
+
+  await ServiceCatalog.updateMany({ shopId }, { $pull: { sectorPathHint: sector._id } });
+  await Membership.updateMany({ shopId }, { $pull: { sectorIds: sector._id } });
+  await Invite.updateMany({ shopId }, { $pull: { sectorIds: sector._id } });
+  await sector.deleteOne();
+  return { deleted: true, id: String(sector._id) };
 }
 
 async function reorderSectors(shopId, items) {

@@ -31,18 +31,14 @@ async function patchService(shopId, id, updates) {
 }
 
 async function deleteService(shopId, id) {
-  const service = await ServiceCatalog.findOneAndUpdate(
-    { _id: id, shopId },
-    { $set: { active: false } },
-    { new: true }
-  ).lean();
+  const service = await ServiceCatalog.findOneAndDelete({ _id: id, shopId }).lean();
   if (!service) {
     const err = new Error('Service not found');
     err.status = 404;
     err.code = 'NOT_FOUND';
     throw err;
   }
-  return service;
+  return { deleted: true, id: String(service._id) };
 }
 
 module.exports = { listServices, createService, patchService, deleteService };

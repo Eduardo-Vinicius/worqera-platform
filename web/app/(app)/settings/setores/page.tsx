@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Eye, EyeOff, Mail, Plus, Save, Pencil } from "lucide-react"
+import { ChevronDown, ChevronUp, Pencil, Plus, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { createSectorV1, listSectorsV1, reorderSectorsV1, updateSectorV1 } from "@/lib/apiV1"
+import {
+  createSectorV1,
+  deleteSectorV1,
+  listSectorsV1,
+  reorderSectorsV1,
+  updateSectorV1,
+} from "@/lib/apiV1"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { cn } from "@/lib/utils"
@@ -22,6 +28,44 @@ type Sector = {
   showOnPublic?: boolean
 }
 
+function FlagToggle({
+  on,
+  title,
+  hint,
+  onClick,
+}: {
+  on: boolean
+  title: string
+  hint: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex min-h-14 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition",
+        on
+          ? "border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]"
+          : "border-[var(--wq-border)] bg-[var(--wq-surface)]"
+      )}
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-[var(--wq-text)]">{title}</span>
+        <span className="block text-xs text-[var(--wq-text-muted)]">{hint}</span>
+      </span>
+      <span
+        className={cn(
+          "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+          on ? "bg-[var(--wq-brand)] text-white" : "bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
+        )}
+      >
+        {on ? "Ligado" : "Desligado"}
+      </span>
+    </button>
+  )
+}
+
 export default function SetoresSettingsPage() {
   const [sectors, setSectors] = useState<Sector[]>([])
   const [name, setName] = useState("")
@@ -35,7 +79,7 @@ export default function SetoresSettingsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await listSectorsV1()
+      const res = await listSectorsV1({ includeInactive: true })
       setSectors((res.sectors || []).sort((a, b) => a.order - b.order))
     } catch (err: any) {
       toast.error(err?.message || "Erro ao listar setores (precisa API v1 + login SaaS)")
@@ -68,12 +112,17 @@ export default function SetoresSettingsPage() {
     }
   }
 
-  const toggleActive = async (s: Sector) => {
+  const removeSector = async (s: Sector) => {
+    const ok = window.confirm(
+      `Apagar o setor “${s.name}”? Ele some do kanban. Se ainda tiver pedido nessa coluna, a exclusão é bloqueada.`
+    )
+    if (!ok) return
     try {
-      await updateSectorV1(s._id, { active: !s.active })
+      await deleteSectorV1(s._id)
+      toast.success("Setor apagado")
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao atualizar")
+      toast.error(err?.message || "Falha ao apagar")
     }
   }
 
@@ -146,14 +195,9 @@ export default function SetoresSettingsPage() {
       />
 
       <div className="mx-auto max-w-[800px] space-y-5 px-5 py-6 md:px-8">
-        <p className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3 text-sm text-[var(--wq-text-muted)]">
-          Cada empresa monta o fluxo dela (Lavagem → Costura, Diagnóstico → Peças, o que for). Os
-          nomes do signup são só um começo — renomeie, apague ou crie os seus. Todo pedido precisa
-          terminar em um setor{" "}
-          <strong className="text-[var(--wq-text)]">Final</strong> (pronto pra retirada). Com e-mail
-          do cliente e SMTP: coluna com “E-mail” avisa ao entrar; a final marca pronto. “Cliente vê”
-          controla se o nome do setor aparece no link/QR — desmarque etapas internas longas; o
-          cliente vê “Em andamento”.
+        <p className="text-sm text-[var(--wq-text-muted)]">
+          A ordem vira as colunas do kanban. Em cada setor, ligue o que o cliente vê no QR, se manda
+          e-mail ao entrar, e se a coluna é a final (pronto para retirada).
         </p>
 
         <Card className="rounded-2xl border-[var(--wq-border)] shadow-none">
@@ -179,26 +223,25 @@ export default function SetoresSettingsPage() {
                 Adicionar
               </Button>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={notifyEmail}
-                  onChange={(e) => setNotifyEmail(e.target.checked)}
-                />
-                Disparar e-mail ao entrar
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={isTerminal}
-                  onChange={(e) => {
-                    setIsTerminal(e.target.checked)
-                    if (e.target.checked) setNotifyEmail(true)
-                  }}
-                />
-                Coluna final (pedido pronto)
-              </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <FlagToggle
+                on={notifyEmail}
+                title="E-mail ao entrar"
+                hint="Avisa o cliente quando o pedido chega aqui"
+                onClick={() => setNotifyEmail((v) => !v)}
+              />
+              <FlagToggle
+                on={isTerminal}
+                title="Coluna final"
+                hint="Pedido pronto para retirada"
+                onClick={() => {
+                  setIsTerminal((v) => {
+                    const next = !v
+                    if (next) setNotifyEmail(true)
+                    return next
+                  })
+                }}
+              />
             </div>
           </CardContent>
         </Card>
@@ -218,101 +261,106 @@ export default function SetoresSettingsPage() {
               <p className="text-[var(--wq-text-muted)]">Nenhum setor. Crie o fluxo da sua oficina.</p>
             ) : (
               sectors.map((s, i) => (
-                <div
+                <article
                   key={s._id}
-                  className={cn(
-                    "flex flex-col gap-2 rounded-xl border border-[var(--wq-border)] bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
-                  )}
+                  className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4"
                 >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                    {editingId === s._id ? (
-                      <Input
-                        autoFocus
-                        className="h-8 max-w-[220px] rounded-[8px]"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onBlur={() => void saveRename(s)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            void saveRename(s)
-                          }
-                          if (e.key === "Escape") setEditingId(null)
-                        }}
-                      />
-                    ) : (
+                  <div className="flex items-start gap-3">
+                    <span
+                      className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: s.color }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      {editingId === s._id ? (
+                        <Input
+                          autoFocus
+                          className="h-9 max-w-xs rounded-[10px]"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onBlur={() => void saveRename(s)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              void saveRename(s)
+                            }
+                            if (e.key === "Escape") setEditingId(null)
+                          }}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="group inline-flex max-w-full items-center gap-1.5 text-left"
+                          onClick={() => startRename(s)}
+                          title="Clique para renomear"
+                        >
+                          <span className="truncate text-base font-medium text-[var(--wq-text)]">
+                            {s.name}
+                          </span>
+                          <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--wq-text-muted)] opacity-0 group-hover:opacity-100" />
+                        </button>
+                      )}
+                      <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
+                        Coluna {i + 1}
+                        {s.active === false ? " · fora do kanban" : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label="Subir"
+                        onClick={() => move(i, -1)}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label="Descer"
+                        onClick={() => move(i, 1)}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
                       <button
                         type="button"
-                        className="group inline-flex min-w-0 items-center gap-1.5 truncate text-left font-medium hover:text-[var(--wq-brand)]"
-                        onClick={() => startRename(s)}
-                        title="Clique para renomear"
+                        className="ml-1 px-2 text-sm font-medium text-[var(--wq-danger)] hover:underline"
+                        onClick={() => removeSector(s)}
                       >
-                        <span className="truncate">{s.name}</span>
-                        <Pencil className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60" />
+                        Apagar
                       </button>
-                    )}
-                    <span className="text-xs text-[var(--wq-text-muted)]">#{i + 1}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      title="Aparece no link/QR do cliente"
-                      onClick={() =>
-                        toggleFlag(s, "showOnPublic", s.showOnPublic === false ? true : false)
-                      }
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <FlagToggle
+                      on={s.showOnPublic !== false}
+                      title="No QR"
+                      hint={
                         s.showOnPublic !== false
-                          ? "border-sky-300 bg-sky-50 text-sky-900"
-                          : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
-                      )}
-                    >
-                      {s.showOnPublic !== false ? (
-                        <Eye className="h-3 w-3" />
-                      ) : (
-                        <EyeOff className="h-3 w-3" />
-                      )}
-                      Cliente vê {s.showOnPublic !== false ? "on" : "off"}
-                    </button>
-                    <button
-                      type="button"
-                      title="E-mail ao entrar nesta coluna"
+                          ? "Cliente vê o nome do setor"
+                          : "Cliente vê só “Em andamento”"
+                      }
+                      onClick={() =>
+                        toggleFlag(s, "showOnPublic", s.showOnPublic === false)
+                      }
+                    />
+                    <FlagToggle
+                      on={Boolean(s.notifyEmailOnEnter)}
+                      title="E-mail"
+                      hint="Avisa quando o pedido entra aqui"
                       onClick={() => toggleFlag(s, "notifyEmailOnEnter", !s.notifyEmailOnEnter)}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                        s.notifyEmailOnEnter
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                          : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
-                      )}
-                    >
-                      <Mail className="h-3 w-3" />
-                      E-mail {s.notifyEmailOnEnter ? "on" : "off"}
-                    </button>
-                    <button
-                      type="button"
-                      title="Coluna final = pedido pronto"
+                    />
+                    <FlagToggle
+                      on={Boolean(s.isTerminal)}
+                      title="Final"
+                      hint="Pronto para retirada"
                       onClick={() => toggleFlag(s, "isTerminal", !s.isTerminal)}
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                        s.isTerminal
-                          ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
-                          : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
-                      )}
-                    >
-                      {s.isTerminal ? "Final ✓" : "Final"}
-                    </button>
-                    <Button size="sm" variant="ghost" onClick={() => move(i, -1)}>
-                      ↑
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => move(i, 1)}>
-                      ↓
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleActive(s)}>
-                      {s.active ? "Desativar" : "Ativar"}
-                    </Button>
+                    />
                   </div>
-                </div>
+                </article>
               ))
             )}
           </CardContent>

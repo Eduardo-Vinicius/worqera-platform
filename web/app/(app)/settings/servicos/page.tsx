@@ -132,18 +132,19 @@ export default function ServicosSettingsPage() {
     }
   }
 
-  const toggleActive = async (s: Service) => {
+  const removeService = async (s: Service) => {
     const id = serviceId(s)
     if (!id) return
+    const ok = window.confirm(
+      `Apagar “${s.name}”? Ele sai do cadastro de pedidos. Pedidos antigos continuam com o nome e o preço já gravados.`
+    )
+    if (!ok) return
     try {
-      if (s.active === false) {
-        await patchServiceV1(id, { active: true })
-      } else {
-        await deleteServiceV1(id)
-      }
+      await deleteServiceV1(id)
+      toast.success("Serviço apagado")
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao atualizar")
+      toast.error(err?.message || "Falha ao apagar")
     }
   }
 
@@ -164,11 +165,11 @@ export default function ServicosSettingsPage() {
     if (!id) return
     try {
       await patchServiceV1(id, { sectorPathHint: editingHint })
-      toast.success("Rota de setores atualizada")
+      toast.success("Setores sugeridos atualizados")
       setEditingHintId(null)
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao salvar rota")
+      toast.error(err?.message || "Falha ao salvar setores")
     }
   }
 
@@ -176,7 +177,7 @@ export default function ServicosSettingsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Catálogo de serviços"
-        subtitle="Usado no novo pedido · rota sugerida de setores (TOP-04)"
+        subtitle="Usado no novo pedido. Setores sugeridos marcam a partida do par quando o serviço é escolhido."
         actions={
           <Button asChild variant="outline" size="sm" className="rounded-[10px]">
             <Link href="/pedidos/novo">Novo pedido</Link>
@@ -213,8 +214,8 @@ export default function ServicosSettingsPage() {
             </div>
             {sectors.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                  Rota sugerida (toque na ordem)
+                <p className="text-xs text-[var(--wq-text-muted)]">
+                  Setores sugeridos — toque na ordem em que o par deve passar. Pode deixar vazio.
                 </p>
                 <HintChips
                   selected={pathHint}
@@ -248,10 +249,12 @@ export default function ServicosSettingsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-[var(--wq-text)]">{s.name}</p>
                       <p className="text-xs text-[var(--wq-text-muted)]">
-                        {active ? "Ativo" : "Inativo"}
+                        {active ? "No cadastro" : "Oculto"}
                         {hints.length > 0 && !editing
-                          ? ` · Rota: ${hints.map(sectorLabel).join(" → ")}`
-                          : ""}
+                          ? ` · Sugere: ${hints.map(sectorLabel).join(" → ")}`
+                          : hints.length === 0
+                            ? " · Sem setores sugeridos"
+                            : ""}
                       </p>
                     </div>
                     <Input
@@ -278,15 +281,15 @@ export default function ServicosSettingsPage() {
                         }
                       }}
                     >
-                      {editing ? "Cancelar rota" : "Rota"}
+                      {editing ? "Fechar" : "Setores"}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-[10px]"
-                      onClick={() => toggleActive(s)}
+                      className="rounded-[10px] text-[var(--wq-danger)]"
+                      onClick={() => removeService(s)}
                     >
-                      {active ? "Desativar" : "Reativar"}
+                      Apagar
                     </Button>
                   </div>
                   {editing && (
@@ -302,7 +305,7 @@ export default function ServicosSettingsPage() {
                         className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
                         onClick={() => saveHint(s)}
                       >
-                        Salvar rota
+                        Salvar setores
                       </Button>
                     </div>
                   )}

@@ -502,8 +502,9 @@ export async function applyStarterKitV1(kit: "general" | "footwear" | "laundry" 
   })
 }
 
-export async function listSectorsV1() {
-  return v1Fetch<{ sectors: any[] }>("/sectors")
+export async function listSectorsV1(opts?: { includeInactive?: boolean }) {
+  const q = opts?.includeInactive ? "?includeInactive=true" : ""
+  return v1Fetch<{ sectors: any[] }>(`/sectors${q}`)
 }
 
 export async function createSectorV1(body: {
@@ -523,6 +524,10 @@ export async function updateSectorV1(id: string, body: Record<string, unknown>) 
 
 export async function reorderSectorsV1(items: { id: string; order: number }[]) {
   return v1Fetch("/sectors/reorder", { method: "POST", body: JSON.stringify({ items }) })
+}
+
+export async function deleteSectorV1(id: string) {
+  return v1Fetch(`/sectors/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
 export async function getKanbanV1() {
