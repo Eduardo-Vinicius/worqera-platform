@@ -4,6 +4,41 @@ const Client = require('../models/Client');
 const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const { serializeOrder } = require('../serializers');
+const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
+const { asId, ensureItemSectors, pairLabel } = require('./itemSectors');
+
+/**
+ * One kanban card per item. Sector is the item's column, not the order rollup.
+ * Single-item orders keep the order code; multi-item orders use code-N.
+ */
+function sectorItemCards(order) {
+  if (!order || order.deletedAt) return [];
+  hydrateItemsIfEmpty(order);
+  ensureItemSectors(order);
+  const items = effectiveItems(order);
+  const cards = [];
+  items.forEach((item, index) => {
+    const sectorId = asId(item.currentSectorId) || asId(order.currentSectorId);
+    if (!sectorId) return;
+    const itemId = item._id ? String(item._id) : `idx-${index}`;
+    const code = String(order.code || '');
+    cards.push({
+      sectorId,
+      id: `${order._id || order.id}:${itemId}`,
+      code: items.length > 1 ? pairLabel(code, index + 1) : code,
+      clientName: order.clientName || '',
+      dueAt: order.dueAt || null,
+      priority: order.priority ?? null,
+      sectorHistory:
+        Array.isArray(item.sectorHistory) && item.sectorHistory.length
+          ? item.sectorHistory
+          : order.sectorHistory || [],
+      createdAt: order.createdAt || null,
+      updatedAt: order.updatedAt || null,
+    });
+  });
+  return cards;
+}
 
 async function getSummary(shopId) {
   const [sectors, orders, clientsCount, subscription] = await Promise.all([
@@ -30,8 +65,11 @@ async function getSummary(shopId) {
   let overdue = 0;
   const now = new Date();
   for (const o of orders) {
-    const key = o.currentSectorId ? String(o.currentSectorId) : null;
-    if (key && bySector[key]) bySector[key].count += 1;
+    if (!o.deletedAt) {
+      for (const card of sectorItemCards(o)) {
+        if (bySector[card.sectorId]) bySector[card.sectorId].count += 1;
+      }
+    }
     if (o.dueAt && new Date(o.dueAt) < now) overdue += 1;
   }
 
@@ -95,13 +133,24 @@ async function getDashboard(shopId, auth = {}) {
 async function getSectorsStats(shopId, { includeOrders = false } = {}) {
   const [sectors, orders] = await Promise.all([
     Sector.find({ shopId, active: true }).sort({ order: 1 }).lean(),
-    Order.find({ shopId, status: { $nin: ['cancelled', 'delivered'] } }).lean(),
+    Order.find({
+      shopId,
+      status: { $nin: ['cancelled', 'delivered'] },
+      deletedAt: null,
+    }).lean(),
   ]);
 
+  const buckets = new Map(sectors.map((s) => [String(s._id), []]));
+  for (const order of orders) {
+    for (const card of sectorItemCards(order)) {
+      const list = buckets.get(card.sectorId);
+      if (!list) continue;
+      list.push(card);
+    }
+  }
+
   const bySector = sectors.map((s) => {
-    const sectorOrders = orders.filter(
-      (o) => o.currentSectorId && String(o.currentSectorId) === String(s._id)
-    );
+    const cards = buckets.get(String(s._id)) || [];
     const item = {
       sectorId: s._id,
       id: String(s._id),
@@ -109,11 +158,9 @@ async function getSectorsStats(shopId, { includeOrders = false } = {}) {
       slug: s.slug,
       color: s.color,
       order: s.order,
-      count: sectorOrders.length,
+      count: cards.length,
     };
-    if (includeOrders) {
-      item.orders = sectorOrders.map(serializeOrder);
-    }
+    if (includeOrders) item.orders = cards;
     return item;
   });
 
@@ -124,4 +171,10 @@ async function getSectorsStats(shopId, { includeOrders = false } = {}) {
   };
 }
 
-module.exports = { getSummary, getDashboard, getSectorsStats, getSetoresStats: getSectorsStats };
+module.exports = {
+  getSummary,
+  getDashboard,
+  getSectorsStats,
+  getSetoresStats: getSectorsStats,
+  sectorItemCards,
+};

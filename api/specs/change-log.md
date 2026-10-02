@@ -1,5 +1,9 @@
 # Worqera API — Change log
 
+## 2026-10-02
+
+- **TV Oficina e carga por setor:** a contagem segue o kanban (um número por item na coluna), não o pedido inteiro. Pedido com vários pares em Acabamento soma cada par.
+
 ## 2026-10-01
 
 - **Laudo:** capa da loja (logo, nome, telefone, endereço e cor escolhida), previsão de entrega em destaque, status em português, descrição e fotos por par, QR do pedido e de cada par. Rodapé só com “Emitido via Worqera”.

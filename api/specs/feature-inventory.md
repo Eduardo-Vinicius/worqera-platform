@@ -35,7 +35,7 @@ Este arquivo fecha o **gap** entre o que já existe e o que os roadmaps pedem. U
 | Dashboard KPIs | LIVE | LIVE | |
 | Métricas / financeiro | LIVE | LIVE | Gate admin só no front |
 | TV Cliente `/tv` | LIVE | LIVE | Sala de espera; fora da sidebar; atalho dashboard |
-| TV Oficina `/tv-dashboard` | LIVE | LIVE | Fila por setor; `?hot=1` (ex-TV Chão) |
+| TV Oficina `/tv-dashboard` | LIVE | LIVE | Fila por setor, contagem por item do kanban; `?hot=1` |
 | E-mail status | LIVE | HIDDEN | Brand CdT; audit UI escondida |
 | SMS final | PARTIAL | — | `SMS_ENABLED` |
 | WhatsApp | PARTIAL | — | Endpoints manuais; **require quebrado** |
