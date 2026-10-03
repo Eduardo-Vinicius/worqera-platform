@@ -1015,7 +1015,14 @@ export async function updateOrderService(
     garantia?: unknown;
     warranty?: unknown;
     itemPatches?: Array<Record<string, unknown>>;
-    pricing?: { total?: number; deposit?: number; remaining?: number; expenses?: number };
+    pricing?: {
+      subtotal?: number;
+      discount?: number;
+      total?: number;
+      deposit?: number;
+      remaining?: number;
+      expenses?: number;
+    };
   }
 ) {
   const body: Record<string, unknown> = {};
