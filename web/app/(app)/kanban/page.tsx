@@ -146,7 +146,12 @@ function itemIdentity(it: { id?: string; _id?: string } | null | undefined) {
   return String(it.id || it._id || "").trim()
 }
 
-type OrderPhotoEntry = { url: string; itemIndex: number; photoIndex: number }
+type OrderPhotoEntry = {
+  url: string
+  itemIndex: number
+  photoIndex: number
+  storedOnItem?: boolean
+}
 
 function photoUrlOf(u: unknown): string | null {
   if (typeof u === "string" && u.trim()) return u.trim()
@@ -170,49 +175,71 @@ function collectOrderPhotos(
   const pushItemPhotos = (itemIndex: number, photos: unknown[] | undefined) => {
     ;(photos || []).forEach((u, photoIndex) => {
       const url = photoUrlOf(u)
-      if (url) out.push({ url, itemIndex, photoIndex })
+      if (url) out.push({ url, itemIndex, photoIndex, storedOnItem: true })
     })
   }
 
   const orderPhotoPool = [...(order.fotos || []), ...(order.photos || [])]
-  const belongsToItem = (photo: unknown, index: number) => {
-    const ref =
-      typeof photo === "string"
-        ? photo
-        : `${(photo as { key?: string; url?: string })?.key || ""} ${(photo as { url?: string })?.url || ""}`
-    return ref.includes(`/item-${index}/`) || ref.includes(`item-${index}/`)
+  const locatorOf = (photo: unknown) => {
+    if (typeof photo === "string") return photo
+    const rec = photo as { key?: string; url?: string }
+    const raw = `${rec?.key || ""} ${rec?.url || ""}`
+    try {
+      return decodeURIComponent(raw)
+    } catch {
+      return raw
+    }
+  }
+  const indexInRef = (photo: unknown) => {
+    const ref = locatorOf(photo)
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      if (ref.includes(`/item-${i}/`) || ref.includes(`item-${i}/`)) return i
+    }
+    return null
+  }
+  const pushPoolPhoto = (photo: unknown, photoIndex: number, itemIndex: number) => {
+    const url = photoUrlOf(photo)
+    if (!url || out.some((entry) => entry.url === url)) return
+    out.push({ url, itemIndex, photoIndex, storedOnItem: false })
   }
 
+  let focusedIdx = -1
   if ((focusId || focusItemIndex != null) && items.length) {
-    let focusedIdx = focusId
-      ? items.findIndex((it) => itemIdentity(it) === focusId)
-      : -1
+    focusedIdx = focusId ? items.findIndex((it) => itemIdentity(it) === focusId) : -1
     if (focusedIdx < 0 && focusItemIndex != null && focusItemIndex >= 0 && focusItemIndex < items.length) {
       focusedIdx = focusItemIndex
     }
-    if (focusedIdx >= 0) {
-      pushItemPhotos(focusedIdx, items[focusedIdx].photos)
-      if (!out.length) {
-        orderPhotoPool.forEach((u, photoIndex) => {
-          if (!belongsToItem(u, focusedIdx)) return
-          const url = photoUrlOf(u)
-          if (url) out.push({ url, itemIndex: focusedIdx, photoIndex })
-        })
-      }
-      return out
-    }
-    return []
-  }
-
-  if (items.length) {
+    if (focusedIdx < 0) return []
+    pushItemPhotos(focusedIdx, items[focusedIdx].photos)
+  } else if (items.length) {
     items.forEach((it, itemIndex) => pushItemPhotos(itemIndex, it.photos))
-    if (out.length) return out
   }
 
-  // Legacy order-level only: treat as item 0 for delete API
-  ;[...(order.fotos || []), ...(order.photos || [])].forEach((u, photoIndex) => {
-    const url = photoUrlOf(u)
-    if (url) out.push({ url, itemIndex: 0, photoIndex })
+  const emptyIndexes = items
+    .map((it, index) => ((it.photos || []).some((photo) => photoUrlOf(photo)) ? -1 : index))
+    .filter((index) => index >= 0)
+
+  const focusedHasOwn =
+    focusedIdx >= 0 && (items[focusedIdx].photos || []).some((photo) => photoUrlOf(photo))
+
+  orderPhotoPool.forEach((photo, photoIndex) => {
+    const tagged = indexInRef(photo)
+    if (focusedIdx >= 0) {
+      if (focusedHasOwn) return
+      if (tagged === focusedIdx) {
+        pushPoolPhoto(photo, photoIndex, focusedIdx)
+        return
+      }
+      if (tagged == null && emptyIndexes.length === 1 && emptyIndexes[0] === focusedIdx) {
+        pushPoolPhoto(photo, photoIndex, focusedIdx)
+      }
+      return
+    }
+    if (tagged != null) {
+      pushPoolPhoto(photo, photoIndex, tagged)
+      return
+    }
+    pushPoolPhoto(photo, photoIndex, emptyIndexes.length === 1 ? emptyIndexes[0] : 0)
   })
   return out
 }
@@ -1711,14 +1738,16 @@ export default function KanbanPage() {
                                       loading="lazy"
                                     />
                                   </a>
-                                  <button
-                                    type="button"
-                                    className="absolute inset-x-0 bottom-0 bg-[var(--wq-ink)]/60 py-0.5 text-[10px] font-semibold text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                                    disabled={photoBusy === busyKey}
-                                    onClick={() => onDeleteDetailPhoto(ph.itemIndex, ph.photoIndex)}
-                                  >
-                                    {photoBusy === busyKey ? "…" : "Remover"}
-                                  </button>
+                                  {ph.storedOnItem !== false ? (
+                                    <button
+                                      type="button"
+                                      className="absolute inset-x-0 bottom-0 bg-[var(--wq-ink)]/60 py-0.5 text-[10px] font-semibold text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                      disabled={photoBusy === busyKey}
+                                      onClick={() => onDeleteDetailPhoto(ph.itemIndex, ph.photoIndex)}
+                                    >
+                                      {photoBusy === busyKey ? "…" : "Remover"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               )
                             })}

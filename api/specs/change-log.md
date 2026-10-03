@@ -3,6 +3,7 @@
 ## 2026-10-03
 
 - **Detalhe do par:** se o item ficou só com atendimento + final, ou a foto ficou na cópia do pedido, reabrir o pedido devolve o caminho e as fotos daquele par.
+- **Fotos do pedido:** salvar o pedido não apaga mais a foto que existia só na cópia geral. Reabrir o pedido também recupera o arquivo do par (pasta `item-N`) se a ficha tinha ficado vazia.
 
 ## 2026-10-02
 

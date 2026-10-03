@@ -502,9 +502,41 @@ function photoLocator(photo) {
   return `${photo.key || ''} ${photo.url || ''}`;
 }
 
-function photoBelongsToItem(photo, index) {
-  const ref = photoLocator(photo);
-  return ref.includes(`/item-${index}/`) || ref.includes(`item-${index}/`);
+function decodedPhotoLocator(photo) {
+  const raw = photoLocator(photo);
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/** Highest index first so item-10 is not read as item-1. */
+function photoItemIndex(photo, itemCount) {
+  const ref = decodedPhotoLocator(photo);
+  const total = Number(itemCount) || 0;
+  for (let i = total - 1; i >= 0; i -= 1) {
+    if (ref.includes(`/item-${i}/`) || ref.includes(`item-${i}/`)) return i;
+  }
+  return null;
+}
+
+function clonePhotoRecord(photo) {
+  if (!photo) return null;
+  if (typeof photo === 'string') {
+    const url = photo.trim();
+    return url ? { key: null, url, isCover: false } : null;
+  }
+  const key = photo.key ? String(photo.key) : null;
+  const url = photo.url ? String(photo.url) : null;
+  if (!key && !url) return null;
+  return { key, url, isCover: Boolean(photo.isCover) };
+}
+
+function photoIdentity(photo) {
+  const rec = clonePhotoRecord(photo);
+  if (!rec) return '';
+  return rec.key || rec.url || '';
 }
 
 function planIdList(raw) {
@@ -551,32 +583,69 @@ async function repairOrderItemSnapshots(order) {
   const claimed = new Set();
   for (const it of items) {
     for (const photo of it.photos || []) {
-      if (photo && photo.key) claimed.add(String(photo.key));
+      const id = photoIdentity(photo);
+      if (id) claimed.add(id);
     }
   }
 
-  let dirty = false;
-  items.forEach((it, index) => {
-    const own = Array.isArray(it.photos) ? it.photos : [];
-    if (!own.length) {
-      const mine = (order.photos || []).filter((photo) => {
-        if (!photoBelongsToItem(photo, index)) return false;
-        const key = photo && photo.key ? String(photo.key) : '';
-        return !key || !claimed.has(key);
-      });
-      if (mine.length) {
-        it.photos = mine.map((photo) => ({
-          key: photo.key || null,
-          url: photo.url || null,
-          isCover: Boolean(photo.isCover),
-        }));
-        if (!it.photos.some((photo) => photo.isCover)) it.photos[0].isCover = true;
-        mine.forEach((photo) => {
-          if (photo && photo.key) claimed.add(String(photo.key));
-        });
-        dirty = true;
-      }
+  const assignPhotos = (it, incoming) => {
+    const next = (it.photos || []).map((photo) => clonePhotoRecord(photo)).filter(Boolean);
+    let added = false;
+    for (const photo of incoming) {
+      const rec = clonePhotoRecord(photo);
+      if (!rec) continue;
+      const id = photoIdentity(rec);
+      if (id && claimed.has(id)) continue;
+      if (!next.length) rec.isCover = true;
+      next.push(rec);
+      if (id) claimed.add(id);
+      added = true;
     }
+    if (!added) return false;
+    if (next.length && !next.some((photo) => photo.isCover)) next[0].isCover = true;
+    it.photos = next;
+    return true;
+  };
+
+  let dirty = false;
+  let stored = [];
+  const needsFiles = items.some((it) => !(it.photos || []).length);
+  if (needsFiles && order._id) {
+    try {
+      stored = await storageService.list(storageService.photosPrefix(order.shopId, order._id));
+    } catch {
+      stored = [];
+    }
+  }
+  const pool = []
+    .concat(order.photos || [])
+    .concat(
+      (stored || []).filter((file) => /\.(jpe?g|png|webp|gif)$/i.test(String(file.key || '')))
+    );
+
+  items.forEach((it, index) => {
+    if ((it.photos || []).length) return;
+    const mine = pool.filter((photo) => photoItemIndex(photo, items.length) === index);
+    if (assignPhotos(it, mine)) dirty = true;
+  });
+
+  const unclaimed = pool.filter((photo) => photoItemIndex(photo, items.length) == null);
+  const emptyItems = items.filter((it) => !(it.photos || []).length);
+  if (unclaimed.length && emptyItems.length === 1) {
+    if (assignPhotos(emptyItems[0], unclaimed)) dirty = true;
+  }
+  for (const file of stored || []) {
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(String(file.key || ''))) continue;
+    const id = photoIdentity(file);
+    if (!id || claimed.has(id)) continue;
+    const rec = clonePhotoRecord(file);
+    if (!rec) continue;
+    order.photos = (order.photos || []).concat([rec]);
+    claimed.add(id);
+    dirty = true;
+  }
+
+  items.forEach((it, index) => {
 
     const current = planIdList(it.plannedSectorIds);
     if (!planIsOnlyEndpoints(current, sectors)) return;
@@ -609,6 +678,10 @@ async function repairOrderItemSnapshots(order) {
       dirty = true;
     }
   });
+
+  if (dirty) {
+    syncOrderPhotosFromItems(order, { preserveOrphans: true });
+  }
   return dirty;
 }
 
@@ -623,6 +696,7 @@ async function getOrder(shopId, id) {
   await ensureOrderPublicToken(order);
   if (await repairOrderItemSnapshots(order)) {
     order.markModified('items');
+    order.markModified('photos');
     await order.save();
   }
   return order.toObject();
@@ -645,7 +719,7 @@ function mirrorFlatFromFirstItem(order) {
   if (!first) return;
   order.shoeModel = first.shoeModel || '';
   order.services = first.services || [];
-  syncOrderPhotosFromItems(order);
+  syncOrderPhotosFromItems(order, { preserveOrphans: true });
 }
 
 async function loadActiveSectors(shopId) {
@@ -1283,18 +1357,25 @@ function assertNotDeleted(order) {
 
 const MAX_PHOTOS_PER_ITEM = Number(process.env.MAX_PHOTOS_PER_ITEM || 10) || 10;
 
-function syncOrderPhotosFromItems(order) {
+function syncOrderPhotosFromItems(order, { preserveOrphans = false } = {}) {
   const items = Array.isArray(order.items) ? order.items : [];
   const flat = [];
+  const seen = new Set();
+  const push = (photo) => {
+    const rec = clonePhotoRecord(photo);
+    if (!rec) return;
+    const id = photoIdentity(rec);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    flat.push(rec);
+  };
   for (const it of items) {
-    for (const p of it.photos || []) {
-      if (!p) continue;
-      flat.push({
-        key: p.key || null,
-        url: p.url || null,
-        isCover: Boolean(p.isCover),
-      });
-    }
+    for (const p of it.photos || []) push(p);
+  }
+  // Edit/save used to rebuild the order gallery from items only and drop
+  // photos that still lived only on the order (the Loro Piana case).
+  if (preserveOrphans) {
+    for (const p of order.photos || []) push(p);
   }
   if (flat.length && !flat.some((p) => p.isCover)) {
     flat[0].isCover = true;

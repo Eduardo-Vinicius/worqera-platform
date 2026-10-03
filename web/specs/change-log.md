@@ -2,7 +2,7 @@
 
 ## 2026-10-03
 
-- **Kanban:** o detalhe do par mostra as fotos daquele item mesmo quando elas só estavam na cópia do pedido, e o caminho do pedido quando o par ficou só com atendimento e final.
+- **Kanban:** o detalhe do par mostra as fotos daquele item mesmo quando elas só estavam na cópia do pedido, e o caminho do pedido quando o par ficou só com atendimento e final. O pedido inteiro continua mostrando a foto que estava só na cópia geral.
 
 ## 2026-10-01
 
