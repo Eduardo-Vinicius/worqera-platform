@@ -2,6 +2,8 @@
 
 ## 2026-10-03
 
+- **Desconto:** `pricing.subtotal` e `pricing.discount` (reais). O total do pedido é o subtotal menos o desconto; o sinal e o restante usam esse total. O laudo mostra desconto e o que falta pagar.
+- **Kanban:** cada card leva a parte do valor líquido do par. A soma das colunas não conta o mesmo pedido duas vezes.
 - **Detalhe do par:** se o item ficou só com atendimento + final, ou a foto ficou na cópia do pedido, reabrir o pedido devolve o caminho e as fotos daquele par.
 - **Fotos do pedido:** salvar o pedido não apaga mais a foto que existia só na cópia geral. Reabrir o pedido também recupera o arquivo do par (pasta `item-N`) se a ficha tinha ficado vazia.
 

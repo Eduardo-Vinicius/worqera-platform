@@ -26,6 +26,7 @@ import {
 import { compressImageFile } from "@/lib/compressImage"
 import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
 import { normalizeWarranty } from "@/lib/warranty"
+import { clampDiscount, formatBRL, netTotal, roundMoney } from "@/lib/orderMoney"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
@@ -114,6 +115,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [flowSectors, setFlowSectors] = useState(FALLBACK_FLOW_SECTORS)
   const [prioridade, setPrioridade] = useState<string>("2")
   const [totalPrice, setTotalPrice] = useState(0)
+  const [discount, setDiscount] = useState(0)
+  const [lockedTotal, setLockedTotal] = useState<number | null>(null)
   const [signalType, setSignalType] = useState("50") // "50", "100", "custom"
   const [signalValue, setSignalValue] = useState(0)
   const [hasWarranty, setHasWarranty] = useState(false)
@@ -156,15 +159,26 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         setPrioridade(String(order?.priority ?? order?.prioridade ?? 2))
         const total = Number(order?.pricing?.total ?? order?.precoTotal ?? 0) || 0
         const deposit = Number(order?.pricing?.deposit ?? order?.valorSinal ?? 0) || 0
-        setTotalPrice(total)
+        const storedDiscount = Number(order?.pricing?.discount ?? 0) || 0
+        const w = order?.warranty || order?.garantia
+        const wActive = Boolean(w?.active ?? w?.ativa)
+        const wPrice = Number(w?.preco ?? w?.price ?? 0) || 0
+        const drafts = hydrateDraftsFromOrder(order)
+        const suggested = suggestedTotal(drafts, wActive, wPrice)
+        setDiscount(storedDiscount)
         setSignalValue(deposit)
+        if (storedDiscount <= 0 && Math.abs(total - suggested) > 0.01) {
+          setLockedTotal(total)
+          setTotalPrice(total)
+        } else {
+          setLockedTotal(null)
+          setTotalPrice(netTotal(suggested, storedDiscount))
+        }
         if (total > 0 && deposit >= total) setSignalType("100")
         else if (total > 0 && Math.abs(deposit - total * 0.5) < 0.01) setSignalType("50")
         else setSignalType("custom")
-        const w = order?.warranty || order?.garantia
-        const wActive = Boolean(w?.active ?? w?.ativa)
         setHasWarranty(wActive)
-        setWarrantyPrice(Number(w?.preco ?? w?.price ?? 0) || 0)
+        setWarrantyPrice(wPrice)
         setSelectedAccessories(
           Array.isArray(order?.accessories)
             ? order.accessories.map(String)
@@ -172,7 +186,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               ? order.acessorios.map(String)
               : []
         )
-        setItems(hydrateDraftsFromOrder(order))
+        setItems(drafts)
         setActiveItemIndex(0)
       } catch (err: any) {
         toast.error(err?.message || "Não foi possível carregar o pedido")
@@ -283,13 +297,27 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const MAX_FILE_MB = 5; // limite por arquivo antes da compressão
   const [uploadProgress, setUploadProgress] = useState(0)
 
+  const syncPayable = (
+    nextSubtotal: number,
+    nextDiscount: number,
+    type: string,
+    lock: number | null
+  ) => {
+    const total = lock != null ? roundMoney(lock) : netTotal(nextSubtotal, nextDiscount)
+    setTotalPrice(total)
+    if (type === "50") setSignalValue(roundMoney(total * 0.5))
+    else if (type === "100") setSignalValue(total)
+    else setSignalValue((prev) => Math.min(prev, total))
+  }
+
   const updateItemsAndTotal = (updater: (prev: OrderItemDraft[]) => OrderItemDraft[]) => {
+    setLockedTotal(null)
     setItems((prev) => {
       const next = updater(prev)
-      const newTotal = suggestedTotal(next, hasWarranty, warrantyPrice)
-      setTotalPrice(newTotal)
-      if (signalType === "50") setSignalValue(newTotal * 0.5)
-      else if (signalType === "100") setSignalValue(newTotal)
+      const nextSub = suggestedTotal(next, hasWarranty, warrantyPrice)
+      const nextDiscount = clampDiscount(nextSub, discount)
+      setDiscount(nextDiscount)
+      syncPayable(nextSub, nextDiscount, signalType, null)
       return next
     })
   }
@@ -367,10 +395,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         if (photo.preview?.startsWith("blob:")) URL.revokeObjectURL(photo.preview)
       })
       const next = prev.filter((_, index) => index !== itemIndex)
-      const newTotal = suggestedTotal(next, hasWarranty, warrantyPrice)
-      setTotalPrice(newTotal)
-      if (signalType === "50") setSignalValue(newTotal * 0.5)
-      else if (signalType === "100") setSignalValue(newTotal)
+      setLockedTotal(null)
+      const nextSub = suggestedTotal(next, hasWarranty, warrantyPrice)
+      const nextDiscount = clampDiscount(nextSub, discount)
+      setDiscount(nextDiscount)
+      syncPayable(nextSub, nextDiscount, signalType, null)
       setActiveItemIndex((cur) => {
         if (cur === itemIndex) return Math.max(0, itemIndex - 1)
         if (cur > itemIndex) return cur - 1
@@ -642,21 +671,28 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     return totalPrice;
   };
 
-  // Função para atualizar valor do sinal baseado no tipo
-  const updateSignalValue = (total: number) => {
-    if (signalType === "50") {
-      setSignalValue(total * 0.5);
-    } else if (signalType === "100") {
-      setSignalValue(total);
+  const buildPricing = () => {
+    const subtotal = roundMoney(suggestedTotal(items, hasWarranty, warrantyPrice))
+    const discountValue = lockedTotal != null ? 0 : clampDiscount(subtotal, discount)
+    const total = lockedTotal != null ? roundMoney(lockedTotal) : netTotal(subtotal, discountValue)
+    const deposit = Math.min(Math.max(0, roundMoney(signalValue)), total)
+    return {
+      subtotal,
+      discount: discountValue,
+      total,
+      deposit,
+      remaining: roundMoney(Math.max(0, total - deposit)),
     }
-    // Para "custom", mantém o valor atual
-  };
+  }
 
   // Handler para mudança de preço total
-  const handleTotalPriceChange = (newTotal: number) => {
-    setTotalPrice(newTotal);
-    updateSignalValue(newTotal);
-  };
+  const handleDiscountChange = (raw: number) => {
+    setLockedTotal(null)
+    const subtotal = suggestedTotal(items, hasWarranty, warrantyPrice)
+    const nextDiscount = clampDiscount(subtotal, raw)
+    setDiscount(nextDiscount)
+    syncPayable(subtotal, nextDiscount, signalType, null)
+  }
 
   // Handler para mudança de tipo de sinal
   const handleSignalTypeChange = (type: string) => {
@@ -672,18 +708,22 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   // Função para toggle da garantia
   const toggleWarranty = (checked: boolean) => {
     setHasWarranty(checked);
-    const newTotal = suggestedTotal(items, checked, warrantyPrice);
-    setTotalPrice(newTotal);
-    updateSignalValue(newTotal);
+    setLockedTotal(null)
+    const nextSub = suggestedTotal(items, checked, warrantyPrice)
+    const nextDiscount = clampDiscount(nextSub, discount)
+    setDiscount(nextDiscount)
+    syncPayable(nextSub, nextDiscount, signalType, null)
   };
 
   // Função para atualizar preço da garantia
   const handleWarrantyPriceChange = (newPrice: number) => {
     setWarrantyPrice(newPrice);
     if (hasWarranty) {
-      const newTotal = suggestedTotal(items, true, newPrice);
-      setTotalPrice(newTotal);
-      updateSignalValue(newTotal);
+      setLockedTotal(null)
+      const nextSub = suggestedTotal(items, true, newPrice)
+      const nextDiscount = clampDiscount(nextSub, discount)
+      setDiscount(nextDiscount)
+      syncPayable(nextSub, nextDiscount, signalType, null)
     }
   };
 
@@ -724,6 +764,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     });
     setItems([emptyOrderItemDraft()]);
     setTotalPrice(0);
+    setDiscount(0);
+    setLockedTotal(null);
     setSignalType("50");
     setSignalValue(0);
     setHasWarranty(false);
@@ -785,7 +827,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       preco: hasWarranty ? warrantyPrice : 0,
       duracao: hasWarranty ? "3 meses" : "",
     })
-    const valorRestante = Math.max(0, totalPrice - signalValue)
+    const pricing = buildPricing()
     const clientName =
       selectedClient?.nomeCompleto ||
       selectedClient?.name ||
@@ -802,11 +844,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       dataPrevistaEntrega: formData.expectedDate,
       acessorios: selectedAccessories,
       garantia: garantiaData,
-      pricing: {
-        total: totalPrice,
-        deposit: signalValue,
-        remaining: valorRestante,
-      },
+      pricing,
     })
 
     let fresh = await getPedidoService(orderId)
@@ -937,8 +975,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         duracao: hasWarranty ? "3 meses" : "",
       })
 
-      // Calcular valores de sinal e restante
-      const valorRestante = Math.max(0, totalPrice - signalValue);
+      const pricing = buildPricing()
 
       // Observações apenas com o texto inserido pelo usuário
       const observacoesFinais = formData.observations || '';
@@ -953,9 +990,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           "",
         items: mapItemsToCreatePayload(filledItems),
         fotos: [],
-        precoTotal: getTotalPrice(),
-        valorSinal: signalValue,
-        valorRestante: valorRestante,
+        pricing,
+        precoTotal: pricing.total,
+        valorSinal: pricing.deposit,
+        valorRestante: pricing.remaining,
         dataPrevistaEntrega: formData.expectedDate,
         departamento: formData.department,
         observacoes: observacoesFinais,
@@ -1689,14 +1727,15 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
-                        <Label htmlFor="totalPrice">Preço total (R$) *</Label>
+                        <Label htmlFor="discount">Desconto (R$)</Label>
                         <Input
-                          id="totalPrice"
+                          id="discount"
                           type="number"
                           step="0.01"
                           min="0"
-                          value={totalPrice}
-                          onChange={(e) => handleTotalPriceChange(Number(e.target.value))}
+                          max={suggestedTotal(items, hasWarranty, warrantyPrice)}
+                          value={discount}
+                          onChange={(e) => handleDiscountChange(Number(e.target.value))}
                           placeholder="0.00"
                           className="w-36 text-lg font-semibold"
                         />
@@ -1704,8 +1743,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                       <div className="text-right text-sm text-[var(--wq-text-muted)]">
                         <p>Soma dos serviços: R$ {itemsServicesTotal.toFixed(2)}</p>
                         {hasWarranty && <p>Garantia (3 meses): R$ {warrantyPrice.toFixed(2)}</p>}
+                        <p>Subtotal: R$ {suggestedTotal(items, hasWarranty, warrantyPrice).toFixed(2)}</p>
+                        {discount > 0 ? <p>Desconto: − R$ {clampDiscount(suggestedTotal(items, hasWarranty, warrantyPrice), discount).toFixed(2)}</p> : null}
                         <p className="font-semibold text-[var(--wq-text)]">
-                          Subtotal: R$ {suggestedTotal(items, hasWarranty, warrantyPrice).toFixed(2)}
+                          Total: R$ {totalPrice.toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -1773,11 +1814,15 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-sm text-[var(--wq-text-muted)]">Restante</Label>
-                          <div className="rounded-lg bg-[var(--wq-paper)] p-3 text-center">
-                            <p className="text-lg font-semibold text-[var(--wq-text)]">R$ {remaining.toFixed(2)}</p>
-                            <p className="text-xs text-[var(--wq-text-muted)]">
-                              {signalValue >= totalPrice ? "Pago integralmente" : "A pagar na entrega"}
+                          <Label className="text-sm text-[var(--wq-text-muted)]">Falta pagar</Label>
+                          <div
+                            className={`rounded-lg p-3 text-center ${
+                              remaining > 0.009 ? "bg-amber-50 text-amber-950" : "bg-[var(--wq-paper)] text-[var(--wq-text)]"
+                            }`}
+                          >
+                            <p className="text-lg font-semibold">{formatBRL(remaining)}</p>
+                            <p className="text-xs font-medium">
+                              {totalPrice > 0 && signalValue >= totalPrice ? "Pago" : "Na entrega"}
                             </p>
                           </div>
                         </div>

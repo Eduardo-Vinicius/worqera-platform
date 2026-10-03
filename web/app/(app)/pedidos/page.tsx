@@ -13,6 +13,7 @@ import { getPedidosConsultaService } from "@/lib/apiService"
 import { createDemoOrderV1, deleteOrderV1, exportOrdersCsvV1, listSectorsV1, purgeOrderV1, restoreOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
+import { formatBRL, readOrderPricing } from "@/lib/orderMoney"
 
 type StatusTab = "ativos" | "finalizados" | "todos" | "lixeira"
 
@@ -346,7 +347,7 @@ export default function PedidosPage() {
                 const id = String(order.id || order._id)
                 const code = order.code || order.codigo || id
                 const setor = order.currentSectorId || order.setorAtual
-                const valor = order.pricing?.total ?? order.precoTotal ?? 0
+                const money = readOrderPricing(order)
                 const created = formatDate(order.createdAt || order.dataCriacao)
                 const deleted = formatDate(order.deletedAt)
                 return (
@@ -390,7 +391,17 @@ export default function PedidosPage() {
                             .join(" · ")}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold">{formatMoney(Number(valor))}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatMoney(money.total)}</p>
+                        {money.discount > 0 ? (
+                          <p className="text-[11px] text-[var(--wq-text-muted)]">desconto {formatBRL(money.discount)}</p>
+                        ) : null}
+                        {money.remaining > 0.009 ? (
+                          <p className="text-[11px] font-medium text-amber-800">falta {formatBRL(money.remaining)}</p>
+                        ) : money.total > 0 ? (
+                          <p className="text-[11px] text-emerald-700">pago</p>
+                        ) : null}
+                      </div>
                     </button>
                     {tab === "lixeira" ? (
                       <div className="flex flex-wrap gap-1.5">

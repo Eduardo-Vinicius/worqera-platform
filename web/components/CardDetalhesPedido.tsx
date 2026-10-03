@@ -16,6 +16,7 @@ import { ENABLE_WA_ME } from "@/lib/featureFlags";
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink";
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun";
 import SetorProgress from "@/components/SetorProgress";
+import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary";
 import MoverSetorButton from "@/components/MoverSetorButton";
 import { usePedidoAssets } from "@/hooks/usePedidoAssets";
 import { MessageCircle } from "lucide-react";
@@ -514,15 +515,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           {pedidoAtual.descricaoServicos && (
             <div><strong>Descrição:</strong> {pedidoAtual.descricaoServicos}</div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div><strong>Valor Total:</strong> R$ {(pedidoAtual.precoTotal || pedidoAtual.price || 0).toFixed(2)}</div>
-            {(pedidoAtual.valorSinal && pedidoAtual.valorSinal > 0) && (
-              <div className="text-green-600"><strong>Sinal Pago:</strong> R$ {pedidoAtual.valorSinal.toFixed(2)}</div>
-            )}
-          </div>
-          {(pedidoAtual.valorRestante && pedidoAtual.valorRestante > 0) && (
-            <div className="text-orange-600"><strong>Valor Restante:</strong> R$ {pedidoAtual.valorRestante.toFixed(2)}</div>
-          )}
+          <OrderPricingSummary order={pedidoAtual} />
           {pedidoAtual.funcionarioAtual && (
             <div><strong>Funcionário Atual:</strong> {pedidoAtual.funcionarioAtual}</div>
           )}

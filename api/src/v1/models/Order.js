@@ -93,6 +93,10 @@ const orderSchema = new mongoose.Schema(
     accessories: { type: [mongoose.Schema.Types.Mixed], default: [] },
     warranty: { type: mongoose.Schema.Types.Mixed, default: {} },
     pricing: {
+      /** Serviços + garantia, antes do desconto. */
+      subtotal: { type: Number, default: null },
+      /** Desconto em reais, abatido do subtotal. */
+      discount: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
       deposit: { type: Number, default: 0 },
       remaining: { type: Number, default: 0 },

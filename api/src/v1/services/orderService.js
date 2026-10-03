@@ -27,6 +27,33 @@ function servicesTotal(services = []) {
   );
 }
 
+function money(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function warrantyAmount(warranty) {
+  if (!warranty) return 0;
+  const on = Boolean(warranty.active ?? warranty.ativa);
+  if (!on) return 0;
+  return money(warranty.preco ?? warranty.price);
+}
+
+/** Subtotal gravado: o item patch não pode recolocar o total só com a soma dos serviços. */
+function pricingIsManaged(order) {
+  const subtotal = order?.pricing?.subtotal;
+  return subtotal !== undefined && subtotal !== null;
+}
+
+function assignServiceSumPricing(order) {
+  if (pricingIsManaged(order)) return;
+  const total = sumServices(order.items);
+  const deposit = Number(order.pricing?.deposit) || 0;
+  order.pricing.total = total;
+  order.pricing.remaining = Math.max(0, total - deposit);
+}
+
 function extFromFile(file) {
   const fromName = path.extname(file.originalname || '').toLowerCase();
   if (fromName) return fromName;
@@ -164,24 +191,7 @@ async function createOrder(shopId, userId, data) {
   const code = data.code || (await nextOrderCode(shopId));
   const normalized = normalizeItemsFromPayload(data || {});
   const services = normalized.services;
-  const pricing = data.pricing || {};
-  const computedTotal = sumServices(normalized.items);
-  const total =
-    pricing.total != null
-      ? Number(pricing.total)
-      : data.total != null
-        ? Number(data.total)
-        : data.precoTotal != null
-          ? Number(data.precoTotal)
-          : computedTotal;
-  const deposit =
-    pricing.deposit != null
-      ? Number(pricing.deposit)
-      : data.deposit != null
-        ? Number(data.deposit)
-        : data.valorSinal != null
-          ? Number(data.valorSinal)
-          : 0;
+  const computedServices = sumServices(normalized.items);
 
   const STATUS_ENUM = new Set(['open', 'in_progress', 'ready', 'delivered', 'cancelled']);
   const rawStatus = String(data.status || '').trim().toLowerCase();
@@ -320,6 +330,32 @@ async function createOrder(shopId, userId, data) {
     throw err;
   }
   const warranty = ensureWarranty(data.warranty || data.garantia || {});
+  const pricing = data.pricing || {};
+  const suggestedSubtotal = money(computedServices + warrantyAmount(warranty));
+  let subtotal = pricing.subtotal != null ? money(pricing.subtotal) : suggestedSubtotal;
+  let discount = pricing.discount != null ? money(pricing.discount) : money(data.desconto);
+  if (discount < 0) discount = 0;
+  if (subtotal < 0) subtotal = 0;
+  if (discount > subtotal) discount = subtotal;
+  const total =
+    pricing.total != null
+      ? money(pricing.total)
+      : data.total != null
+        ? money(data.total)
+        : data.precoTotal != null
+          ? money(data.precoTotal)
+          : money(Math.max(0, subtotal - discount));
+  let deposit =
+    pricing.deposit != null
+      ? money(pricing.deposit)
+      : data.deposit != null
+        ? money(data.deposit)
+        : data.valorSinal != null
+          ? money(data.valorSinal)
+          : 0;
+  if (deposit < 0) deposit = 0;
+  if (deposit > total) deposit = total;
+  const remaining = money(Math.max(0, total - deposit));
 
   const order = await Order.create({
     shopId,
@@ -333,10 +369,12 @@ async function createOrder(shopId, userId, data) {
     accessories: data.accessories || data.acessorios || [],
     warranty,
     pricing: {
+      subtotal,
+      discount,
       total,
       deposit,
-      remaining: pricing.remaining != null ? Number(pricing.remaining) : Math.max(0, total - deposit),
-      expenses: pricing.expenses != null ? Number(pricing.expenses) : 0,
+      remaining,
+      expenses: pricing.expenses != null ? money(pricing.expenses) : 0,
     },
     photos: normalized.photos,
     items: itemsWithSectors,
@@ -789,16 +827,32 @@ function recomputeOrderPlanAndRollup(order, allSectors) {
 function applyPricingFromUpdates(order, updates, recomputeFromItems) {
   if (updates.pricing && typeof updates.pricing === 'object') {
     const p = updates.pricing;
-    if (p.total != null) order.pricing.total = Number(p.total) || 0;
-    if (p.deposit != null) order.pricing.deposit = Number(p.deposit) || 0;
-    if (p.remaining != null) order.pricing.remaining = Number(p.remaining) || 0;
-    else if (p.total != null || p.deposit != null) {
-      order.pricing.remaining = Math.max(
-        0,
-        (Number(order.pricing.total) || 0) - (Number(order.pricing.deposit) || 0)
+    if (p.subtotal != null) order.pricing.subtotal = money(p.subtotal);
+    if (p.discount != null) {
+      let discount = money(p.discount);
+      if (discount < 0) discount = 0;
+      const subtotal = Number(order.pricing.subtotal);
+      if (Number.isFinite(subtotal) && subtotal >= 0 && discount > subtotal) discount = subtotal;
+      order.pricing.discount = discount;
+    }
+    if (p.total != null) order.pricing.total = money(p.total);
+    else if (p.subtotal != null || p.discount != null) {
+      const subtotal = Number(order.pricing.subtotal) || 0;
+      const discount = Number(order.pricing.discount) || 0;
+      order.pricing.total = money(Math.max(0, subtotal - discount));
+    }
+    if (p.deposit != null) order.pricing.deposit = money(p.deposit);
+    const deposit = Number(order.pricing.deposit) || 0;
+    const total = Number(order.pricing.total) || 0;
+    if (deposit > total) order.pricing.deposit = total;
+    if (p.remaining != null) order.pricing.remaining = money(p.remaining);
+    else if (p.total != null || p.deposit != null || p.discount != null || p.subtotal != null) {
+      order.pricing.remaining = money(
+        Math.max(0, (Number(order.pricing.total) || 0) - (Number(order.pricing.deposit) || 0))
       );
     }
-    if (p.expenses != null) order.pricing.expenses = Number(p.expenses) || 0;
+    if (p.expenses != null) order.pricing.expenses = money(p.expenses);
+    order.markModified('pricing');
     return;
   }
   if (updates.precoTotal != null) order.pricing.total = Number(updates.precoTotal) || 0;
@@ -812,9 +866,7 @@ function applyPricingFromUpdates(order, updates, recomputeFromItems) {
     );
   }
   if (recomputeFromItems && !updates.pricing && updates.precoTotal == null) {
-    const total = sumServices(order.items);
-    order.pricing.total = total;
-    order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+    assignServiceSumPricing(order);
   }
 }
 
@@ -885,9 +937,7 @@ async function patchOrder(shopId, id, userId, updates) {
     mirrorFlatFromFirstItem(order);
     recomputeOrderPlanAndRollup(order, allSectors);
     if (!updates.pricing && updates.precoTotal == null) {
-      const total = sumServices(order.items);
-      order.pricing.total = total;
-      order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+      assignServiceSumPricing(order);
     }
   } else {
     const flatItemPatched =
@@ -933,9 +983,7 @@ async function patchOrder(shopId, id, userId, updates) {
     }
 
     if ((updates.services != null || updates.servicos != null) && !updates.pricing) {
-      const total = sumServices(order.items);
-      order.pricing.total = total;
-      order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+      assignServiceSumPricing(order);
     }
   }
 
@@ -1014,12 +1062,7 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   mirrorFlatFromFirstItem(order);
   recomputeOrderPlanAndRollup(order, allSectors);
   if (!body.pricing && body.precoTotal == null) {
-    // keep deposit; refresh total from services unless client sends pricing later via order patch
-    const total = sumServices(order.items);
-    const deposit = Number(order.pricing?.deposit) || 0;
-    // Only auto-bump total if it looked like sum-of-services before, or always? Plan: recompute if no pricing
-    order.pricing.total = total;
-    order.pricing.remaining = Math.max(0, total - deposit);
+    assignServiceSumPricing(order);
   }
   order.updatedByUserId = userId;
   await order.save();
@@ -1076,9 +1119,7 @@ async function addOrderItem(shopId, orderId, userId, body) {
   mirrorFlatFromFirstItem(order);
   recomputeOrderPlanAndRollup(order, allSectors);
   if (!body.keepPricing && !body.pricing) {
-    const total = sumServices(order.items);
-    order.pricing.total = total;
-    order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+    assignServiceSumPricing(order);
   }
   order.updatedByUserId = userId;
   await order.save();
@@ -1118,9 +1159,7 @@ async function deleteOrderItem(shopId, orderId, itemIndex, userId) {
   mirrorFlatFromFirstItem(order);
   const allSectors = await loadActiveSectors(shopId);
   recomputeOrderPlanAndRollup(order, allSectors);
-  const total = sumServices(order.items);
-  order.pricing.total = total;
-  order.pricing.remaining = Math.max(0, total - (order.pricing.deposit || 0));
+  assignServiceSumPricing(order);
   order.updatedByUserId = userId;
   await order.save();
   return order.toObject();

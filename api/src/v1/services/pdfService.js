@@ -459,18 +459,37 @@ async function generateOrderPdf(shopId, orderId) {
   y = sectionTitle(doc, 'Totais', y, pageWidth, accent);
   const pricing = order.pricing || {};
   const total = pricing.total != null ? Number(pricing.total) : grandServices;
-  if (pricing.deposit != null && Number(pricing.deposit) > 0) {
-    y = kvLine(doc, 'Sinal', formatCurrency(pricing.deposit), y, pageWidth);
-  }
-  if (pricing.remaining != null && Number(pricing.remaining) > 0) {
-    y = kvLine(doc, 'Restante', formatCurrency(pricing.remaining), y, pageWidth);
+  const discount = Number(pricing.discount) || 0;
+  const subtotal = pricing.subtotal != null ? Number(pricing.subtotal) : total + discount;
+  const deposit = Number(pricing.deposit) || 0;
+  const remaining =
+    pricing.remaining != null ? Number(pricing.remaining) : Math.max(0, total - deposit);
+  if (discount > 0) {
+    y = kvLine(doc, 'Subtotal', formatCurrency(subtotal), y, pageWidth);
+    y = kvLine(doc, 'Desconto', formatCurrency(discount), y, pageWidth);
   }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(...BRAND_RGB);
   doc.text('Total', 25, y + 2);
   doc.text(formatCurrency(total), pageWidth - 20, y + 2, { align: 'right' });
-  y += 12;
+  y += 10;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED_RGB);
+  if (deposit > 0) {
+    y = kvLine(doc, 'Sinal pago', formatCurrency(deposit), y, pageWidth);
+  }
+  if (remaining > 0.009) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...BRAND_RGB);
+    doc.text('Falta pagar', 25, y + 2);
+    doc.text(formatCurrency(remaining), pageWidth - 20, y + 2, { align: 'right' });
+    y += 12;
+  } else if (total > 0) {
+    y = kvLine(doc, 'Pagamento', 'Pago', y, pageWidth);
+  }
 
   const accessories = Array.isArray(order.accessories) ? order.accessories.filter(Boolean) : [];
   if (accessories.length) {

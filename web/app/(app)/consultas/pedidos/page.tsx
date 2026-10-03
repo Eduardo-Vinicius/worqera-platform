@@ -14,6 +14,7 @@ import { getPedidosConsultaService } from "@/lib/apiService"
 import { listSectorsV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
+import { formatBRL, readOrderPricing } from "@/lib/orderMoney"
 
 type StatusTab = "ativos" | "finalizados" | "todos"
 
@@ -256,7 +257,7 @@ function ConsultasPedidosInner() {
                 const id = String(order.id || order._id)
                 const code = order.code || order.codigo || id
                 const setor = order.currentSectorId || order.setorAtual
-                const valor = order.pricing?.total ?? order.precoTotal ?? 0
+                const money = readOrderPricing(order)
                 const created = formatDate(order.createdAt || order.dataCriacao)
                 return (
                   <li key={id}>
@@ -288,9 +289,17 @@ function ConsultasPedidosInner() {
                           {[order.clientName || order.client?.name, created].filter(Boolean).join(" · ")}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold">
-                        {Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </p>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatBRL(money.total)}</p>
+                        {money.discount > 0 ? (
+                          <p className="text-[11px] text-[var(--wq-text-muted)]">desconto {formatBRL(money.discount)}</p>
+                        ) : null}
+                        {money.remaining > 0.009 ? (
+                          <p className="text-[11px] font-medium text-amber-800">falta {formatBRL(money.remaining)}</p>
+                        ) : money.total > 0 ? (
+                          <p className="text-[11px] text-emerald-700">pago</p>
+                        ) : null}
+                      </div>
                     </button>
                   </li>
                 )

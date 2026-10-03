@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-01 (laudo com marca da loja, prazo e QR)
+**Atualizado:** 2026-10-03 (desconto em reais, falta pagar, valor por card no kanban)
 
 ## Em uma frase
 

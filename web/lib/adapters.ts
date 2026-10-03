@@ -138,7 +138,17 @@ export function adaptOrder(raw: any) {
     price: Number(s.price != null ? s.price : s.preco) || 0,
     descricao: s.description || s.descricao || "",
   }));
-  const total = raw.pricing?.total ?? raw.precoTotal ?? 0;
+  const total = Number(raw.pricing?.total ?? raw.precoTotal ?? 0) || 0;
+  const discount = Math.max(0, Number(raw.pricing?.discount ?? raw.desconto ?? 0) || 0);
+  const deposit = Math.max(0, Number(raw.pricing?.deposit ?? raw.valorSinal ?? 0) || 0);
+  const subtotal =
+    raw.pricing?.subtotal != null && raw.pricing?.subtotal !== ""
+      ? Number(raw.pricing.subtotal) || 0
+      : total + discount;
+  const remaining =
+    raw.pricing?.remaining != null && raw.pricing?.remaining !== ""
+      ? Math.max(0, Number(raw.pricing.remaining) || 0)
+      : Math.max(0, total - deposit);
   const clientId = raw.clientId
     ? String(typeof raw.clientId === "object" ? raw.clientId._id || raw.clientId.id : raw.clientId)
     : raw.clienteId || null;
@@ -177,8 +187,18 @@ export function adaptOrder(raw: any) {
     servicos,
     items,
     itemCount: raw.itemCount ?? items.length,
-    pricing: raw.pricing || { total },
+    pricing: {
+      ...(raw.pricing || {}),
+      subtotal,
+      discount,
+      total,
+      deposit,
+      remaining,
+    },
     precoTotal: total,
+    desconto: discount,
+    valorSinal: deposit,
+    valorRestante: remaining,
     clientId,
     clienteId: clientId,
     clientName: raw.clientName || raw.client?.name || "",

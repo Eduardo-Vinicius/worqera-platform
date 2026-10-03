@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Camera, Loader2, MessageCircle, Trash2, X } from "lucide-react"
+import { Camera, Loader2, Mail, MessageCircle, Trash2, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,8 +21,10 @@ import {
   uploadPedidoItemFotosService,
   deletePedidoItemFotoService,
 } from "@/lib/apiService"
-import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1 } from "@/lib/apiV1"
+import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1, resendOrderEmailV1 } from "@/lib/apiV1"
 import { compressImageFiles } from "@/lib/compressImage"
+import { clampDiscount, netTotal, readOrderPricing, roundMoney } from "@/lib/orderMoney"
+import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
@@ -120,9 +122,13 @@ export function PedidoConsultaDetalhe({
 
   const [clientName, setClientName] = useState("")
   const [clientPhone, setClientPhone] = useState("")
+  const [clientEmail, setClientEmail] = useState("")
+  const [resendingEmail, setResendingEmail] = useState(false)
   const [shoeModel, setShoeModel] = useState("")
   const [notes, setNotes] = useState("")
   const [total, setTotal] = useState("")
+  const [subtotal, setSubtotal] = useState("")
+  const [discount, setDiscount] = useState("")
   const [deposit, setDeposit] = useState("")
   const [priority, setPriority] = useState("2")
   const [dueAt, setDueAt] = useState("")
@@ -136,10 +142,14 @@ export function PedidoConsultaDetalhe({
     setOrder(fresh)
     setClientName(fresh?.clientName || fresh?.client?.name || "")
     setClientPhone(fresh?.clientPhone || fresh?.client?.phone || "")
+    setClientEmail(fresh?.clientEmail || fresh?.client?.email || "")
     setShoeModel(fresh?.shoeModel || fresh?.modeloTenis || "")
     setNotes(fresh?.notes || fresh?.observacoes || "")
-    setTotal(String(fresh?.pricing?.total ?? fresh?.precoTotal ?? ""))
-    setDeposit(String(fresh?.pricing?.deposit ?? ""))
+    const money = readOrderPricing(fresh)
+    setSubtotal(String(money.subtotal))
+    setDiscount(String(money.discount || ""))
+    setTotal(String(money.total))
+    setDeposit(String(money.deposit || ""))
     setPriority(String(fresh?.priority ?? fresh?.prioridade ?? 2))
     const due = fresh?.dueAt || fresh?.dataPrevistaEntrega
     setDueAt(due ? String(due).slice(0, 10) : "")
@@ -258,8 +268,10 @@ export function PedidoConsultaDetalhe({
     if (!orderId) return
     setSaving(true)
     try {
-      const totalN = Number(String(total).replace(",", ".")) || 0
-      const depositN = Number(String(deposit).replace(",", ".")) || 0
+      const subtotalN = roundMoney(Number(String(subtotal).replace(",", ".")) || 0)
+      const discountN = clampDiscount(subtotalN, Number(String(discount).replace(",", ".")) || 0)
+      const totalN = netTotal(subtotalN, discountN)
+      const depositN = Math.min(roundMoney(Number(String(deposit).replace(",", ".")) || 0), totalN)
       const accessories = accessoriesText
         .split(",")
         .map((s) => s.trim())
@@ -267,11 +279,16 @@ export function PedidoConsultaDetalhe({
       const updated = await updateOrderService(orderId, {
         clientName: clientName.trim(),
         clientPhone: clientPhone.trim() || undefined,
+        clientEmail: clientEmail.trim(),
         shoeModel: shoeModel.trim(),
         notes: notes.trim(),
-        total: totalN,
-        deposit: depositN,
-        remaining: Math.max(0, totalN - depositN),
+        pricing: {
+          subtotal: subtotalN,
+          discount: discountN,
+          total: totalN,
+          deposit: depositN,
+          remaining: roundMoney(Math.max(0, totalN - depositN)),
+        },
         prioridade: Number(priority) || 2,
         dataPrevistaEntrega: dueAt || undefined,
         acessorios: accessories,
@@ -494,6 +511,49 @@ export function PedidoConsultaDetalhe({
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <Label className="text-xs">E-mail</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      className="rounded-[10px]"
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="cliente@email.com"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0 rounded-[10px]"
+                      disabled={resendingEmail || !clientEmail.trim()}
+                      onClick={async () => {
+                        if (!orderId) return
+                        const email = clientEmail.trim()
+                        setResendingEmail(true)
+                        try {
+                          const updated = await updateOrderService(orderId, { clientEmail: email })
+                          syncForm(updated)
+                          const result = await resendOrderEmailV1(orderId, "created")
+                          const notify = result?.emailNotify || result
+                          if (notify?.ok && notify?.provider !== "console") {
+                            toast.success(`Laudo reenviado para ${email}`)
+                          } else if (notify?.ok) {
+                            toast.message("E-mail só foi para o log da API")
+                          } else {
+                            toast.error(notify?.error || notify?.reason || "Não enviou o laudo")
+                          }
+                        } catch (err: any) {
+                          toast.error(err?.message || "Falha ao reenviar o laudo")
+                        } finally {
+                          setResendingEmail(false)
+                        }
+                      }}
+                    >
+                      <Mail className="mr-1.5 h-3.5 w-3.5" />
+                      {resendingEmail ? "…" : "Reenviar laudo"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-xs">Modelo / {itemSingular} (par 1)</Label>
                   <Input
                     className="rounded-[10px]"
@@ -504,12 +564,18 @@ export function PedidoConsultaDetalhe({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Total (R$)</Label>
+                    <Label className="text-xs">Desconto (R$)</Label>
                     <Input
                       className="rounded-[10px]"
                       inputMode="decimal"
-                      value={total}
-                      onChange={(e) => setTotal(e.target.value)}
+                      value={discount}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        setDiscount(raw)
+                        const sub = Number(String(subtotal).replace(",", ".")) || 0
+                        const next = netTotal(sub, Number(String(raw).replace(",", ".")) || 0)
+                        setTotal(String(next))
+                      }}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -522,6 +588,21 @@ export function PedidoConsultaDetalhe({
                     />
                   </div>
                 </div>
+                <OrderPricingSummary
+                  order={{
+                    pricing: {
+                      subtotal: Number(String(subtotal).replace(",", ".")) || 0,
+                      discount: Number(String(discount).replace(",", ".")) || 0,
+                      total: Number(String(total).replace(",", ".")) || 0,
+                      deposit: Number(String(deposit).replace(",", ".")) || 0,
+                      remaining: Math.max(
+                        0,
+                        (Number(String(total).replace(",", ".")) || 0) -
+                          (Number(String(deposit).replace(",", ".")) || 0)
+                      ),
+                    },
+                  }}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Prioridade</Label>

@@ -21,6 +21,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  Mail,
   MessageCircle,
   Plus,
   Printer,
@@ -36,7 +37,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1 } from "@/lib/apiV1"
+import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1, resendOrderEmailV1 } from "@/lib/apiV1"
 import {
   getPedidoService,
   generateOrderPDFService,
@@ -51,6 +52,8 @@ import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import QRCode from "qrcode"
+import { formatBRL } from "@/lib/orderMoney"
+import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 
 type OrderCard = {
   _id?: string
@@ -80,6 +83,7 @@ type OrderCard = {
   itemInTerminal?: boolean
   photoThumb?: string | null
   hasPhotos?: boolean
+  lineValue?: number
 }
 
 type Column = {
@@ -682,6 +686,7 @@ function DroppableColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, filterLate, query)
+  const columnValue = orders.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
 
   return (
@@ -693,19 +698,24 @@ function DroppableColumn({
         isOver ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]/30" : "border-[var(--wq-border)]"
       )}
     >
-      <div className="flex items-center gap-2 border-b border-[var(--wq-border)] px-3 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: column.sector.color }} />
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--wq-text)]">
-          {column.sector.name}
-        </span>
-        {isTerminal ? (
-          <Badge className="border-0 bg-emerald-100 text-[10px] font-semibold text-emerald-800">
-            Pronto
+      <div className="border-b border-[var(--wq-border)] px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: column.sector.color }} />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--wq-text)]">
+            {column.sector.name}
+          </span>
+          {isTerminal ? (
+            <Badge className="border-0 bg-emerald-100 text-[10px] font-semibold text-emerald-800">
+              Pronto
+            </Badge>
+          ) : null}
+          <Badge variant="outline" className="font-mono text-[11px]">
+            {orders.length}
           </Badge>
-        ) : null}
-        <Badge variant="outline" className="font-mono text-[11px]">
-          {orders.length}
-        </Badge>
+        </div>
+        <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--wq-text)]">
+          {formatBRL(columnValue)}
+        </p>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         {orders.length === 0 && (
@@ -769,6 +779,8 @@ export default function KanbanPage() {
   const [savingNotes, setSavingNotes] = useState(false)
   const [detailClientName, setDetailClientName] = useState("")
   const [detailClientPhone, setDetailClientPhone] = useState("")
+  const [detailClientEmail, setDetailClientEmail] = useState("")
+  const [resendingEmail, setResendingEmail] = useState(false)
   const [detailPriority, setDetailPriority] = useState("2")
   const [detailDueAt, setDetailDueAt] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
@@ -1044,6 +1056,7 @@ export default function KanbanPage() {
       setNotesDraft(String(data?.notes || data?.observacoes || ""))
       setDetailClientName(String(data?.clientName || data?.client?.name || ""))
       setDetailClientPhone(String(data?.clientPhone || data?.client?.phone || ""))
+      setDetailClientEmail(String(data?.clientEmail || data?.client?.email || ""))
       setDetailPriority(String(data?.priority ?? data?.prioridade ?? 2))
       const due = data?.dueAt || data?.dataPrevistaEntrega
       setDetailDueAt(due ? String(due).slice(0, 10) : "")
@@ -1063,6 +1076,7 @@ export default function KanbanPage() {
         notes: notesDraft,
         clientName: detailClientName.trim() || undefined,
         clientPhone: detailClientPhone.trim() || undefined,
+        clientEmail: detailClientEmail.trim(),
         prioridade: Number(detailPriority) || 2,
         dataPrevistaEntrega: detailDueAt || undefined,
       })
@@ -1382,23 +1396,30 @@ export default function KanbanPage() {
               <div className="flex shrink-0 gap-2 overflow-x-auto pb-1">
                 {columns.map((col) => {
                   const active = col.sector._id === activeSectorId
+                  const visible = filterOrders(col.orders, filterLate, codeQuery)
+                  const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
                   return (
                     <button
                       key={col.sector._id}
                       type="button"
                       onClick={() => setActiveSectorId(col.sector._id)}
                       className={cn(
-                        "flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium",
+                        "flex shrink-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-sm font-medium",
                         active
                           ? "bg-[var(--wq-brand)] text-white"
                           : "border border-[var(--wq-border)] bg-white text-[var(--wq-text)]"
                       )}
                     >
-                      <span className="h-2 w-2 rounded-full" style={{ background: col.sector.color }} />
-                      <span className="max-w-[9rem] truncate">{col.sector.name}</span>
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {filterOrders(col.orders, filterLate, codeQuery).length}
-                      </Badge>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ background: col.sector.color }} />
+                        <span className="max-w-[9rem] truncate">{col.sector.name}</span>
+                        <Badge variant="outline" className="font-mono text-[10px]">
+                          {visible.length}
+                        </Badge>
+                      </span>
+                      <span className={cn("font-mono text-[11px] tabular-nums", active ? "text-white/90" : "text-[var(--wq-text-muted)]")}>
+                        {formatBRL(columnValue)}
+                      </span>
                     </button>
                   )
                 })}
@@ -1522,6 +1543,9 @@ export default function KanbanPage() {
                     <p className="text-sm font-medium text-[var(--wq-text)]">
                       {detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "Cliente"}
                     </p>
+                    <div className="mt-3">
+                      <OrderPricingSummary order={detail} />
+                    </div>
                     {detail.dueAt && (
                       <p
                         className={cn(
@@ -1605,6 +1629,44 @@ export default function KanbanPage() {
                           WhatsApp
                         </Button>
                       ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-[10px]"
+                        disabled={resendingEmail}
+                        onClick={async () => {
+                          if (!detail.id) return
+                          const email = detailClientEmail.trim()
+                          if (!email) {
+                            toast.error("Informe o e-mail e salve antes de reenviar")
+                            return
+                          }
+                          setResendingEmail(true)
+                          try {
+                            const updated = await updateOrderService(String(detail.id), {
+                              clientEmail: email,
+                            })
+                            setDetail(updated as DetailOrder)
+                            const result = await resendOrderEmailV1(String(detail.id), "created")
+                            const notify = result?.emailNotify || result
+                            if (notify?.ok && notify?.provider !== "console") {
+                              toast.success(`Laudo reenviado para ${email}`)
+                            } else if (notify?.ok) {
+                              toast.message("E-mail só foi para o log da API")
+                            } else {
+                              toast.error(notify?.error || notify?.reason || "Não enviou o laudo")
+                            }
+                          } catch (err: any) {
+                            toast.error(err?.message || "Falha ao reenviar o laudo")
+                          } finally {
+                            setResendingEmail(false)
+                          }
+                        }}
+                      >
+                        <Mail className="mr-1.5 h-3.5 w-3.5" />
+                        {resendingEmail ? "Reenviando…" : "Reenviar laudo"}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -1851,6 +1913,13 @@ export default function KanbanPage() {
                         value={detailClientPhone}
                         onChange={(e) => setDetailClientPhone(e.target.value)}
                         placeholder="Telefone"
+                        className="rounded-[10px] text-sm"
+                      />
+                      <Input
+                        type="email"
+                        value={detailClientEmail}
+                        onChange={(e) => setDetailClientEmail(e.target.value)}
+                        placeholder="E-mail do cliente"
                         className="rounded-[10px] text-sm"
                       />
                       <div className="grid grid-cols-2 gap-2">

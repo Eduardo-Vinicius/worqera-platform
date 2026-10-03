@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-09-24 (editar pedido · fotos por item · 10/par · compress · laudo)
+**Atualizado:** 2026-10-03 (desconto no pedido, falta pagar, soma em reais nas colunas do kanban)
 
 ## Em uma frase
 

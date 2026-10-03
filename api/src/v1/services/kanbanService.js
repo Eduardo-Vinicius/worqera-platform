@@ -112,11 +112,14 @@ async function getKanban(shopId, membership) {
     if (dirty) dirtyOrders.push(order);
 
     const items = effectiveItems(order);
+    const lineValues = lineValuesForOrder(order, items);
     items.forEach((item, index) => {
       const itemSector = asId(item.currentSectorId) || asId(order.currentSectorId);
       if (!itemSector || !sectorIdStrs.has(itemSector)) return;
       if (!bySector[itemSector]) return;
-      bySector[itemSector].push(summarizeItemCard(order, item, index, sectorsById));
+      bySector[itemSector].push(
+        summarizeItemCard(order, item, index, sectorsById, lineValues[index] || 0)
+      );
     });
   }
 
@@ -156,7 +159,34 @@ async function getKanban(shopId, membership) {
   };
 }
 
-function summarizeItemCard(order, item, index, sectorsById) {
+function roundMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function itemServiceSum(item) {
+  return (item?.services || []).reduce((acc, service) => acc + (Number(service?.price) || 0), 0);
+}
+
+/** Share of pricing.total by service price. The last pair absorbs the leftover cent. */
+function lineValuesForOrder(order, items) {
+  const list = items || [];
+  const net = roundMoney(order?.pricing?.total);
+  if (!list.length) return [];
+  const weights = list.map((item) => Math.max(0, itemServiceSum(item)));
+  const weightSum = weights.reduce((acc, weight) => acc + weight, 0);
+  const values = list.map((_, index) => {
+    if (index === list.length - 1) return 0;
+    const share = weightSum > 0 ? weights[index] / weightSum : 1 / list.length;
+    return roundMoney(net * share);
+  });
+  const used = values.slice(0, -1).reduce((acc, value) => acc + value, 0);
+  values[list.length - 1] = roundMoney(net - used);
+  return values;
+}
+
+function summarizeItemCard(order, item, index, sectorsById, lineValue = 0) {
   const items = effectiveItems(order);
   const photos = Array.isArray(item.photos) && item.photos.length
     ? item.photos
@@ -197,6 +227,7 @@ function summarizeItemCard(order, item, index, sectorsById) {
     reopened: Boolean(order.reopenedAt),
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
+    lineValue: roundMoney(lineValue),
   };
 }
 
