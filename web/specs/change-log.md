@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+## 2026-10-03
+
+- **Kanban:** o detalhe do par mostra as fotos daquele item mesmo quando elas só estavam na cópia do pedido, e o caminho do pedido quando o par ficou só com atendimento e final.
+
 ## 2026-10-01
 
 - **TV Financeiro:** número do líquido (e os outros destaques da marca) clareia quando a cor da empresa é escura, para não sumir no fundo da TV.

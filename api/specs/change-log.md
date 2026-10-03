@@ -1,5 +1,9 @@
 # Worqera API — Change log
 
+## 2026-10-03
+
+- **Detalhe do par:** se o item ficou só com atendimento + final, ou a foto ficou na cópia do pedido, reabrir o pedido devolve o caminho e as fotos daquele par.
+
 ## 2026-10-02
 
 - **TV Oficina e carga por setor:** a contagem segue o kanban (um número por item na coluna), não o pedido inteiro. Pedido com vários pares em Acabamento soma cada par.

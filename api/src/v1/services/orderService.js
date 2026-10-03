@@ -496,6 +496,122 @@ function resolvePlannedSectorIds(data, allSectors, startSector, serviceHints = [
   return ensureTerminalLast(startSector?._id ? [startSector._id] : []);
 }
 
+function photoLocator(photo) {
+  if (!photo) return '';
+  if (typeof photo === 'string') return photo;
+  return `${photo.key || ''} ${photo.url || ''}`;
+}
+
+function photoBelongsToItem(photo, index) {
+  const ref = photoLocator(photo);
+  return ref.includes(`/item-${index}/`) || ref.includes(`item-${index}/`);
+}
+
+function planIdList(raw) {
+  return (raw || []).map((id) => String(id && id._id ? id._id : id)).filter(Boolean);
+}
+
+/** Start column + final only. A real route has a middle sector. */
+function planIsOnlyEndpoints(ids, sectors) {
+  if (!ids.length || ids.length > 2) return !ids.length;
+  const work = (sectors || [])
+    .filter((s) => !s.isTerminal)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  const startId = work[0] ? String(work[0]._id) : null;
+  const terminalIds = new Set(
+    (sectors || []).filter((s) => s.isTerminal).map((s) => String(s._id))
+  );
+  return ids.every((id) => id === startId || terminalIds.has(id));
+}
+
+/**
+ * Item drawer reads items[i]. The full order reads order.photos and the union path.
+ * If a pair was saved with only atendimento + final, or its photos stayed on the
+ * order copy, put them back on the item the next time the order is opened.
+ */
+async function repairOrderItemSnapshots(order) {
+  const items = order.items || [];
+  if (!items.length) return false;
+  const [sectors, catalog] = await Promise.all([
+    Sector.find({ shopId: order.shopId, active: true }).sort({ order: 1 }).lean(),
+    ServiceCatalog.find({ shopId: order.shopId, active: true }).lean(),
+  ]);
+  const startSector =
+    sectors.find((s) => !s.isTerminal) ||
+    sectors[0] ||
+    null;
+  const richPlans = items
+    .map((it) => planIdList(it.plannedSectorIds))
+    .filter((ids) => ids.length > 2 && !planIsOnlyEndpoints(ids, sectors));
+  const consensus =
+    richPlans.length && richPlans.every((ids) => ids.join(',') === richPlans[0].join(','))
+      ? richPlans[0]
+      : null;
+
+  const claimed = new Set();
+  for (const it of items) {
+    for (const photo of it.photos || []) {
+      if (photo && photo.key) claimed.add(String(photo.key));
+    }
+  }
+
+  let dirty = false;
+  items.forEach((it, index) => {
+    const own = Array.isArray(it.photos) ? it.photos : [];
+    if (!own.length) {
+      const mine = (order.photos || []).filter((photo) => {
+        if (!photoBelongsToItem(photo, index)) return false;
+        const key = photo && photo.key ? String(photo.key) : '';
+        return !key || !claimed.has(key);
+      });
+      if (mine.length) {
+        it.photos = mine.map((photo) => ({
+          key: photo.key || null,
+          url: photo.url || null,
+          isCover: Boolean(photo.isCover),
+        }));
+        if (!it.photos.some((photo) => photo.isCover)) it.photos[0].isCover = true;
+        mine.forEach((photo) => {
+          if (photo && photo.key) claimed.add(String(photo.key));
+        });
+        dirty = true;
+      }
+    }
+
+    const current = planIdList(it.plannedSectorIds);
+    if (!planIsOnlyEndpoints(current, sectors)) return;
+    if (consensus && consensus.join(',') !== current.join(',')) {
+      it.plannedSectorIds = consensus;
+      dirty = true;
+      return;
+    }
+    const services = it.services || [];
+    const names = new Set(
+      services.map((s) => String(s.name || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const serviceIds = new Set(services.map((s) => String(s.id || '')).filter(Boolean));
+    const hints = [];
+    for (const row of catalog) {
+      const name = String(row.name || '').trim().toLowerCase();
+      if (!names.has(name) && !serviceIds.has(String(row._id))) continue;
+      for (const sid of row.sectorPathHint || []) hints.push(sid);
+    }
+    if (!hints.length) return;
+    const expanded = resolvePlannedSectorIds(
+      { departamentosSelecionados: [...current, ...hints] },
+      sectors,
+      startSector,
+      hints
+    );
+    const next = planIdList(expanded);
+    if (next.join(',') !== current.join(',')) {
+      it.plannedSectorIds = expanded;
+      dirty = true;
+    }
+  });
+  return dirty;
+}
+
 async function getOrder(shopId, id) {
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
@@ -505,6 +621,10 @@ async function getOrder(shopId, id) {
     throw err;
   }
   await ensureOrderPublicToken(order);
+  if (await repairOrderItemSnapshots(order)) {
+    order.markModified('items');
+    await order.save();
+  }
   return order.toObject();
 }
 

@@ -174,6 +174,15 @@ function collectOrderPhotos(
     })
   }
 
+  const orderPhotoPool = [...(order.fotos || []), ...(order.photos || [])]
+  const belongsToItem = (photo: unknown, index: number) => {
+    const ref =
+      typeof photo === "string"
+        ? photo
+        : `${(photo as { key?: string; url?: string })?.key || ""} ${(photo as { url?: string })?.url || ""}`
+    return ref.includes(`/item-${index}/`) || ref.includes(`item-${index}/`)
+  }
+
   if ((focusId || focusItemIndex != null) && items.length) {
     let focusedIdx = focusId
       ? items.findIndex((it) => itemIdentity(it) === focusId)
@@ -181,9 +190,15 @@ function collectOrderPhotos(
     if (focusedIdx < 0 && focusItemIndex != null && focusItemIndex >= 0 && focusItemIndex < items.length) {
       focusedIdx = focusItemIndex
     }
-    // Focused card: never fall back to sibling / order-level photos
     if (focusedIdx >= 0) {
       pushItemPhotos(focusedIdx, items[focusedIdx].photos)
+      if (!out.length) {
+        orderPhotoPool.forEach((u, photoIndex) => {
+          if (!belongsToItem(u, focusedIdx)) return
+          const url = photoUrlOf(u)
+          if (url) out.push({ url, itemIndex: focusedIdx, photoIndex })
+        })
+      }
       return out
     }
     return []
@@ -1164,11 +1179,19 @@ export default function KanbanPage() {
     return null
   })()
 
-  const plannedIds = (
-    focusedDetailItem?.plannedSectorIds?.length
-      ? focusedDetailItem.plannedSectorIds
-      : detail?.plannedSectorIds || []
-  ).map(String)
+  const itemPlan = (focusedDetailItem?.plannedSectorIds || []).map(String).filter(Boolean)
+  const orderPlan = (detail?.plannedSectorIds || []).map(String).filter(Boolean)
+  const workSectors = forwardTargets
+    .filter((t) => !t.isTerminal)
+    .slice()
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+  const startId = workSectors[0]?.id || ""
+  const terminalIds = new Set(forwardTargets.filter((t) => t.isTerminal).map((t) => t.id))
+  const itemPlanIsStub =
+    itemPlan.length === 0 ||
+    (itemPlan.length <= 2 && itemPlan.every((id) => id === startId || terminalIds.has(id)))
+  const plannedIds =
+    itemPlanIsStub && orderPlan.length > itemPlan.length ? orderPlan : itemPlan.length ? itemPlan : orderPlan
   const detailCurrentSectorId = String(
     focusedDetailItem?.currentSectorId || detail?.currentSectorId || ""
   )
