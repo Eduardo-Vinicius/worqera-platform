@@ -2,7 +2,7 @@
 
 ## 2026-10-04
 
-- **Acessórios:** Configuração → Acessórios. O cadastro e a consulta do pedido mostram só o que a loja cadastrou.
+- **Acessórios:** Configuração → Acessórios. No pedido, Outro grava o nome na lista da loja e já deixa marcado para os próximos.
 
 - **Cadastro:** Criar pedido abre uma confirmação. Cliente, modelo, serviço e prazo continuam obrigatórios. Dá para criar sem foto, com aviso.
 

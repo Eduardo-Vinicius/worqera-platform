@@ -1,8 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X } from "lucide-react"
-import { listAccessoriesV1 } from "@/lib/apiV1"
+import { Plus, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { createAccessoryV1, listAccessoriesV1 } from "@/lib/apiV1"
+import { toast } from "sonner"
 
 type CatalogItem = { name: string; active?: boolean }
 
@@ -15,6 +18,8 @@ export function AccessoryPicker({
 }) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [draft, setDraft] = useState("")
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -42,16 +47,50 @@ export function AccessoryPicker({
     else onChange([...value, name])
   }
 
-  if (!loaded) {
-    return <p className="text-xs text-[var(--wq-text-muted)]">Carregando acessórios…</p>
+  const selectName = (name: string) => {
+    if (!value.includes(name)) onChange([...value, name])
   }
 
-  if (offered.length === 0 && extras.length === 0) {
-    return (
-      <p className="text-xs text-[var(--wq-text-muted)]">
-        Nenhum acessório nesta loja. O admin cadastra em Configuração → Acessórios.
-      </p>
-    )
+  const addOther = async () => {
+    const next = draft.trim()
+    if (!next || saving) return
+    const known = catalog.find((item) => item.name.toLowerCase() === next.toLowerCase())
+    if (known) {
+      selectName(known.name)
+      setDraft("")
+      return
+    }
+    setSaving(true)
+    try {
+      const created = await createAccessoryV1({ name: next })
+      const name = String((created as { name?: string })?.name || next).trim() || next
+      setCatalog((prev) => [...prev, { name, active: true }])
+      selectName(name)
+      setDraft("")
+    } catch (err: any) {
+      if (err?.status === 409 || err?.code === "DUPLICATE") {
+        try {
+          const res = await listAccessoriesV1()
+          const list = res.accessories || []
+          setCatalog(list)
+          const match = list.find((item) => item.name.toLowerCase() === next.toLowerCase())
+          selectName(match?.name || next)
+          setDraft("")
+          return
+        } catch {
+          selectName(next)
+          setDraft("")
+          return
+        }
+      }
+      toast.error(err?.message || "Falha ao cadastrar o acessório")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!loaded) {
+    return <p className="text-xs text-[var(--wq-text-muted)]">Carregando acessórios…</p>
   }
 
   return (
@@ -76,7 +115,36 @@ export function AccessoryPicker({
             )
           })}
         </div>
-      ) : null}
+      ) : (
+        <p className="text-xs text-[var(--wq-text-muted)]">
+          Nenhum acessório ainda. Informe em Outro para gravar o primeiro.
+        </p>
+      )}
+      <div className="flex min-w-0 gap-2">
+        <Input
+          placeholder="Outro"
+          value={draft}
+          disabled={saving}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              void addOther()
+            }
+          }}
+          className="h-9 min-w-0 flex-1"
+        />
+        <Button
+          type="button"
+          onClick={() => void addOther()}
+          disabled={saving || !draft.trim()}
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
       {extras.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {extras.map((name) => (
