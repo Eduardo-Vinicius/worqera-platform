@@ -40,7 +40,7 @@ describe("summarizeCreateReview", () => {
     assert.equal(review.pairs.length, 2)
     assert.equal(review.pairs[0].model, "Nike Dunk")
     assert.equal(review.pairs[0].photoCount, 1)
-    assert.equal(review.pairs[1].label, "Par 2")
+    assert.equal(review.pairs[1].label, "Item 2")
     assert.equal(review.missingPhoto, true)
   })
 
@@ -49,7 +49,7 @@ describe("summarizeCreateReview", () => {
       draft({ sneaker: "Nike Dunk", selectedServices: [limpeza], photos: [photoStub()] }),
     ])
     assert.equal(review.missingPhoto, false)
-    assert.equal(review.pairs[0].label, "Par")
+    assert.equal(review.pairs[0].label, "Item")
   })
 })
 

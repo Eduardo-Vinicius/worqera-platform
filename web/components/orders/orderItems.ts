@@ -141,7 +141,7 @@ export type CreateReviewPair = {
 export function summarizeCreateReview(items: OrderItemDraft[]) {
   const filled = filterFilledItems(items)
   const pairs: CreateReviewPair[] = filled.map((item, index) => ({
-    label: filled.length > 1 ? `Par ${index + 1}` : "Par",
+    label: filled.length > 1 ? `Item ${index + 1}` : "Item",
     model: item.sneaker.trim(),
     services: item.selectedServices.map((service) => service.name).filter(Boolean).join(", "),
     photoCount: item.photos.length,

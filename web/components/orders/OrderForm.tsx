@@ -94,6 +94,22 @@ function dueInDays(days: number) {
   return d.toISOString().slice(0, 10)
 }
 
+function StepHeading({ step, title, hint }: { step: string; title: string; hint: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--wq-brand)] text-xs font-semibold text-white">
+        {step}
+      </span>
+      <div className="min-w-0">
+        <h2 className="font-[family-name:var(--font-display)] text-lg leading-tight text-[var(--wq-text)]">
+          {title}
+        </h2>
+        <p className="text-xs text-[var(--wq-text-muted)]">{hint}</p>
+      </div>
+    </div>
+  )
+}
+
 export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit" && Boolean(orderId);
@@ -332,7 +348,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       setActiveItemIndex(next.length - 1)
       return next
     })
-    toast.message("Novo par — preencha modelo, serviços e fotos")
+    toast.message("Novo item — preencha modelo, serviços e fotos")
     requestAnimationFrame(() => {
       document.getElementById("wq-item-block")?.scrollIntoView({ behavior: "smooth", block: "start" })
     })
@@ -377,12 +393,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const removeItem = (itemIndex: number) => {
     const target = items[itemIndex]
     if (items.length <= 1) {
-      toast.message("Pedido precisa de ao menos um par")
+      toast.message("Pedido precisa de ao menos um item")
       return
     }
     if (isEdit && target?.serverItemIndex != null) {
       const ok = window.confirm(
-        "Remover este par? O card some do kanban junto com o histórico deste par."
+        "Remover este item? O card some do kanban junto com o histórico deste item."
       )
       if (!ok) return
     }
@@ -776,7 +792,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
     if (isEdit && orderStatus === "delivered") {
       newErrors.status =
-        "Pedido entregue: reabra no kanban/consulta antes de alterar pares e serviços"
+        "Pedido entregue: reabra no kanban/consulta antes de alterar itens e serviços"
     }
 
     const firstError = Object.values(newErrors)[0]
@@ -883,7 +899,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           fresh = await getPedidoService(orderId)
           const got = fresh.items?.[idx]?.photos?.length || 0
           if (!got) {
-            throw new Error(`A foto do par ${idx + 1} não gravou. Tente de novo.`)
+            throw new Error(`A foto do item ${idx + 1} não gravou. Tente de novo.`)
           }
         }
       } else {
@@ -894,14 +910,14 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           fresh = await getPedidoService(orderId)
           const got = fresh.items?.[newIdx]?.photos?.length || 0
           if (!got) {
-            throw new Error(`A foto do par ${newIdx + 1} não gravou. Tente de novo.`)
+            throw new Error(`A foto do item ${newIdx + 1} não gravou. Tente de novo.`)
           }
         }
       }
     }
 
     if (plannedChanged) {
-      toast.message("Partida atualizada — posição atual dos pares no kanban foi mantida")
+      toast.message("Partida atualizada — posição atual dos itens no kanban foi mantida")
     }
     toast.success("Pedido atualizado")
     items.forEach((item) => {
@@ -1019,7 +1035,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             const got = itemsFresh[entry.index]?.photos?.length || 0
             if (got < entry.files.length) {
               toast.message(
-                `Par ${entry.index + 1}: esperava ${entry.files.length} foto(s), gravou ${got}`
+                `Item ${entry.index + 1}: esperava ${entry.files.length} foto(s), gravou ${got}`
               )
             }
           }
@@ -1120,8 +1136,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         title={isEdit ? "Editar pedido" : "Novo pedido"}
         subtitle={
           isEdit
-            ? "Altere cliente, pares, partida e pagamento"
-            : "Cliente → pares → partida (setores) → pagamento"
+            ? "Altere cliente, itens, partida e pagamento"
+            : "1 Cliente · 2 Item · 3 Pagamento"
         }
         actions={
           <Button asChild variant="outline" size="sm" className="h-9 rounded-[10px]">
@@ -1136,14 +1152,14 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             <div className="space-y-6 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:space-y-8 sm:p-5 md:p-6">
               {/* Block 1 — Cliente */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">Cliente</h2>
+                <div className="flex items-start justify-between gap-3">
+                  <StepHeading step="1" title="Cliente" hint="Nome e telefone. E-mail só se for enviar o laudo." />
                   <button
                     type="button"
-                    className="text-sm font-medium text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
+                    className="shrink-0 pt-1 text-sm font-medium text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
                     onClick={() => setShowNewClient((open) => !open)}
                   >
-                    {showNewClient ? "Fechar" : "+ Novo cliente"}
+                    {showNewClient ? "Fechar" : "+ Novo"}
                   </button>
                 </div>
 
@@ -1163,14 +1179,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           .join(" · ") || "Sem telefone/e-mail/CPF"}
                       </p>
                       {!(selectedClient.email || selectedClient.clientEmail) ? (
-                        <p className="mt-1 text-[11px] text-[var(--wq-warn)]">
-                          Sem e-mail — não enviaremos PDF/link automático. Cadastre o e-mail no cliente.
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">
-                          Ao criar: e-mail com PDF + link público de acompanhamento.
-                        </p>
-                      )}
+                        <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Sem e-mail — o laudo não sai sozinho.</p>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -1277,9 +1287,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           onChange={(e) => setNewClient((prev) => ({ ...prev, email: e.target.value }))}
                           placeholder="cliente@email.com"
                         />
-                        <p className="text-[11px] text-[var(--wq-text-muted)]">
-                          Com e-mail, o cliente recebe o PDF e o link público ao criar o pedido.
-                        </p>
+                        <p className="text-[11px] text-[var(--wq-text-muted)]">Opcional. Com e-mail, o laudo sai ao criar.</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1301,18 +1309,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {errors.clientId && <p className="text-sm text-destructive">{errors.clientId}</p>}
               </section>
 
-              {/* Block 2 — Pares */}
-              <section id="wq-item-block" className="scroll-mt-24 space-y-3 sm:space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                      Pares
-                    </h2>
-                    <p className="text-xs text-[var(--wq-text-muted)]">
-                      1) Modelo · 2) Serviços · 3) Fotos deste par · {items.length}{" "}
-                      {items.length === 1 ? "par" : "pares"}
-                    </p>
-                  </div>
+              {/* Block 2 — Itens */}
+              <section id="wq-item-block" className="scroll-mt-24 space-y-3 border-t border-[var(--wq-border)] pt-6 sm:space-y-4">
+                <div className="flex items-start justify-between gap-2">
+                  <StepHeading step="2" title="Item" hint="Modelo, serviços, setores e fotos." />
                   <Button
                     type="button"
                     variant="outline"
@@ -1321,8 +1321,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     onClick={addItem}
                   >
                     <Plus className="mr-1 h-4 w-4" />
-                    <span className="sm:hidden">+ Par</span>
-                    <span className="hidden sm:inline">Adicionar par</span>
+                    <span className="sm:hidden">+ Item</span>
+                    <span className="hidden sm:inline">Adicionar item</span>
                   </Button>
                 </div>
                 {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
@@ -1330,7 +1330,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {items.length > 1 ? (
                   <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {items.map((it, idx) => {
-                      const label = it.sneaker?.trim() || `Par ${idx + 1}`
+                      const label = it.sneaker?.trim() || `Item ${idx + 1}`
                       const active = idx === Math.min(activeItemIndex, items.length - 1)
                       return (
                         <button
@@ -1359,7 +1359,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="min-w-0 text-sm font-semibold text-[var(--wq-text)]">
-                          Par {itemIndex + 1}
+                          Item {itemIndex + 1}
                           {item.sneaker?.trim() ? (
                             <span className="font-normal text-[var(--wq-text-muted)]"> · {item.sneaker}</span>
                           ) : null}
@@ -1384,13 +1384,13 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                             patchItem(itemIndex, { sneaker: e.target.value })
                             if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
                           }}
-                          placeholder="Ex: Nike Air Max 90"
+                          placeholder="Ex.: referência do item"
                           className="bg-[var(--wq-surface)]"
                         />
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor={`item-notes-${itemIndex}`}>Obs. deste par</Label>
+                        <Label htmlFor={`item-notes-${itemIndex}`}>Observação</Label>
                         <Input
                           id={`item-notes-${itemIndex}`}
                           value={item.notes}
@@ -1478,7 +1478,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                       <div className="space-y-2 rounded-xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/80 p-3">
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
-                            Partida deste par
+                            Partida deste item
                           </p>
                           <p className="text-xs text-[var(--wq-text-muted)]">
                             Setores só deste tênis · Final entra sozinha
@@ -1516,7 +1516,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
                       <div className="space-y-2">
                         <div>
-                          <Label>Fotos deste par</Label>
+                          <Label>Fotos deste item</Label>
                           <p className="text-xs text-[var(--wq-text-muted)]">
                             Só deste modelo · máx. {MAX_PHOTOS}
                           </p>
@@ -1587,25 +1587,17 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               </section>
 
               {/* Block 2b — Acessórios (partida vai junto do pagamento) */}
-              <section className="space-y-3">
-                <div>
-                  <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                    Acessórios
-                  </h2>
-                  <p className="text-xs text-[var(--wq-text-muted)]">
-                    O que o cliente deixou junto com o par
-                  </p>
-                </div>
+              <section className="space-y-2 border-t border-[var(--wq-border)] pt-5">
+                <p className="text-sm font-medium text-[var(--wq-text)]">Acessórios</p>
+                <p className="text-xs text-[var(--wq-text-muted)]">O que veio junto. Pode pular.</p>
 
                 <div className="space-y-2">
                   <AccessoryPicker value={selectedAccessories} onChange={setSelectedAccessories} />
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--wq-text)]">
-                  Garantia, pagamento e prazo
-                </h2>
+              <section className="space-y-4 border-t border-[var(--wq-border)] pt-6">
+                <StepHeading step="3" title="Pagamento" hint="Prazo, sinal e garantia. O total sai dos serviços." />
 
                 <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1621,28 +1613,18 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         Garantia de 3 meses
                       </label>
                     </div>
-                    <span className="text-sm text-[var(--wq-text-muted)]">Proteção adicional</span>
+                    <span className="text-sm text-[var(--wq-text-muted)]">Opcional</span>
                   </div>
                   {hasWarranty && (
-                    <div className="grid grid-cols-1 gap-3 border-t border-[var(--wq-border)] pt-3 md:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="warrantyPrice">Preço da garantia (R$)</Label>
-                        <MoneyField
-                          id="warrantyPrice"
-                          value={warrantyPrice}
-                          onValue={handleWarrantyPriceChange}
-                          placeholder="0"
-                          className="bg-[var(--wq-surface)]"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm text-[var(--wq-text-muted)]">Cobertura</Label>
-                        <div className="rounded-lg bg-[var(--wq-surface)] p-2 text-sm text-[var(--wq-text)]">
-                          <p>Retrabalho gratuito por defeitos</p>
-                          <p>Troca de peças com defeito</p>
-                          <p>Suporte técnico especializado</p>
-                        </div>
-                      </div>
+                    <div className="max-w-xs space-y-1.5 border-t border-[var(--wq-border)] pt-3">
+                      <Label htmlFor="warrantyPrice">Preço da garantia (R$)</Label>
+                      <MoneyField
+                        id="warrantyPrice"
+                        value={warrantyPrice}
+                        onValue={handleWarrantyPriceChange}
+                        placeholder="0"
+                        className="bg-[var(--wq-surface)]"
+                      />
                     </div>
                   )}
                 </div>
@@ -1872,7 +1854,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <span className="font-semibold">R$ {remaining.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--wq-text-muted)]">Pares</span>
+                    <span className="text-[var(--wq-text-muted)]">Itens</span>
                     <span className="font-semibold">{items.length}</span>
                   </div>
                 </div>
@@ -1889,7 +1871,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </p>
                 <p className="truncate">
                   Restante R$ {remaining.toFixed(2)} · {items.length}{" "}
-                  {items.length === 1 ? "par" : "pares"}
+                  {items.length === 1 ? "item" : "itens"}
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">
@@ -1944,7 +1926,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </div>
                 {createReview.missingPhoto ? (
                   <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950">
-                    Tem par sem foto. Pode criar assim e anexar depois.
+                    Tem item sem foto. Pode criar assim e anexar depois.
                   </p>
                 ) : null}
               </div>
