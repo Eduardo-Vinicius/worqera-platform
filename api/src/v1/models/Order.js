@@ -43,6 +43,7 @@ const sectorHistorySchema = new mongoose.Schema(
 const orderItemSchema = new mongoose.Schema(
   {
     shoeModel: { type: String, default: '' },
+    brand: { type: String, default: '' },
     services: { type: [serviceItemSchema], default: [] },
     photos: { type: [photoSchema], default: [] },
     notes: { type: String, default: null },
@@ -89,6 +90,7 @@ const orderSchema = new mongoose.Schema(
     clientPhone: { type: String, default: null },
     clientEmail: { type: String, default: null },
     shoeModel: { type: String, default: '' },
+    brand: { type: String, default: '' },
     services: { type: [serviceItemSchema], default: [] },
     accessories: { type: [mongoose.Schema.Types.Mixed], default: [] },
     warranty: { type: mongoose.Schema.Types.Mixed, default: {} },

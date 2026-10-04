@@ -127,6 +127,9 @@ async function listOrders(shopId, query = {}) {
         { code: new RegExp(`^${q}`, 'i') },
         { clientName: new RegExp(q, 'i') },
         { shoeModel: new RegExp(q, 'i') },
+        { brand: new RegExp(q, 'i') },
+        { 'items.brand': new RegExp(q, 'i') },
+        { 'items.shoeModel': new RegExp(q, 'i') },
         { clientPhone: new RegExp(q, 'i') },
       ];
     }
@@ -272,6 +275,7 @@ async function createOrder(shopId, userId, data) {
     const itemStart = itemPlanned[0] || startSector?._id || null;
     return {
       shoeModel: it.shoeModel,
+      brand: it.brand || '',
       services: it.services,
       photos: it.photos || [],
       notes: it.notes || null,
@@ -365,6 +369,7 @@ async function createOrder(shopId, userId, data) {
     clientPhone,
     clientEmail,
     shoeModel: normalized.shoeModel,
+    brand: (itemsWithSectors[0] && itemsWithSectors[0].brand) || '',
     services,
     accessories: data.accessories || data.acessorios || [],
     warranty,
@@ -756,6 +761,7 @@ function mirrorFlatFromFirstItem(order) {
   const first = order.items[0];
   if (!first) return;
   order.shoeModel = first.shoeModel || '';
+  order.brand = first.brand || '';
   order.services = first.services || [];
   syncOrderPhotosFromItems(order, { preserveOrphans: true });
 }
@@ -1016,6 +1022,9 @@ async function applyItemPatchInPlace(order, shopId, patch, allSectorsCached) {
   if (patch.shoeModel != null || patch.modeloTenis != null) {
     it.shoeModel = patch.shoeModel || patch.modeloTenis || '';
   }
+  if (patch.brand != null || patch.marca != null) {
+    it.brand = String(patch.brand != null ? patch.brand : patch.marca || '').trim();
+  }
   if (patch.services != null || patch.servicos != null) {
     it.services = (patch.services || patch.servicos || []).map(mapService);
   }
@@ -1097,6 +1106,7 @@ async function addOrderItem(shopId, orderId, userId, body) {
   const itemStart = planned[0] || startSector?._id || order.currentSectorId || null;
   order.items.push({
     shoeModel: String(shoeModel).trim(),
+    brand: String(body.brand || body.marca || '').trim(),
     services,
     photos: body.photos || body.fotos || [],
     notes: body.notes || body.observacoes || null,

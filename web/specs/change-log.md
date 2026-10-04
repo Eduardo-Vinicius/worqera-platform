@@ -4,7 +4,7 @@
 
 - **Acessórios:** Configuração → Acessórios. No pedido, Outro grava o nome na lista da loja e já deixa marcado para os próximos.
 
-- **Cadastro:** três passos na mesma tela — 1 Cliente, 2 Item, 3 Pagamento — sem etapa extra.
+- **Marca:** combo no item do pedido. Digita, escolhe, ou cadastra na hora. O modelo continua em texto.
 
 - **Kanban:** a soma “Pendente” de cada coluna aparece só para admin e dono. Atendimento vê o valor do pedido em uma linha discreta. Setor não vê preço.
 

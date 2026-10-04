@@ -42,6 +42,7 @@ function serializeOrderItem(it, { hidePrices = false } = {}) {
   return {
     id: it._id ? String(it._id) : undefined,
     shoeModel: it.shoeModel || '',
+    brand: it.brand || '',
     services: (it.services || []).map((s) => ({
       id: s.id || null,
       name: s.name || '',

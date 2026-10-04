@@ -10,5 +10,6 @@ module.exports = {
   WebhookEvent: require('./WebhookEvent'),
   ServiceCatalog: require('./ServiceCatalog'),
   AccessoryCatalog: require('./AccessoryCatalog'),
+  BrandCatalog: require('./BrandCatalog'),
   OrderCounter: require('./OrderCounter'),
 };

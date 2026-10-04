@@ -17,6 +17,7 @@ export type OrderItemDraft = {
   /** Index no pedido persistido; null/undefined = par novo ainda não gravado */
   serverItemIndex?: number | null
   sneaker: string
+  brand: string
   selectedServices: SelectedService[]
   photos: PhotoItem[]
   notes: string
@@ -26,6 +27,7 @@ export type OrderItemDraft = {
 
 export type CreatePedidoItemPayload = {
   shoeModel: string
+  brand?: string
   services: Array<{ id?: string; name: string; price: number }>
   notes?: string
   flowOptionIds?: string[]
@@ -34,6 +36,7 @@ export type CreatePedidoItemPayload = {
 
 export type OrderItemPatch = {
   sneaker?: string
+  brand?: string
   selectedServices?: SelectedService[]
   photos?: PhotoItem[]
   notes?: string
@@ -54,6 +57,7 @@ export function emptyOrderItemDraft(): OrderItemDraft {
   return {
     id: newOrderItemId(),
     sneaker: "",
+    brand: "",
     selectedServices: [],
     photos: [],
     notes: "",
@@ -64,6 +68,7 @@ export function emptyOrderItemDraft(): OrderItemDraft {
 export function isItemTouched(item: OrderItemDraft): boolean {
   return (
     Boolean(item.sneaker.trim()) ||
+    Boolean(item.brand.trim()) ||
     item.selectedServices.length > 0 ||
     item.photos.length > 0 ||
     Boolean(item.notes.trim())
@@ -97,6 +102,7 @@ export function suggestedTotal(
 export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoItemPayload[] {
   return items.map((item) => ({
     shoeModel: item.sneaker.trim(),
+    brand: item.brand.trim() || undefined,
     services: item.selectedServices.map((service) => ({
       id: service.id,
       name: service.name,
@@ -142,7 +148,7 @@ export function summarizeCreateReview(items: OrderItemDraft[]) {
   const filled = filterFilledItems(items)
   const pairs: CreateReviewPair[] = filled.map((item, index) => ({
     label: filled.length > 1 ? `Item ${index + 1}` : "Item",
-    model: item.sneaker.trim(),
+    model: [item.brand.trim(), item.sneaker.trim()].filter(Boolean).join(" · "),
     services: item.selectedServices.map((service) => service.name).filter(Boolean).join(", "),
     photoCount: item.photos.length,
   }))
@@ -156,6 +162,7 @@ export function serializeItemsForDraft(items: OrderItemDraft[]) {
   return items.map((item) => ({
     id: item.id,
     sneaker: item.sneaker,
+    brand: item.brand,
     selectedServices: item.selectedServices,
     notes: item.notes,
     flowOptionIds: item.flowOptionIds || ["atendimento"],
@@ -165,6 +172,7 @@ export function serializeItemsForDraft(items: OrderItemDraft[]) {
 function draftFromStored(item: {
   id?: string
   sneaker?: string
+  brand?: string
   selectedServices?: SelectedService[]
   notes?: string
   flowOptionIds?: string[]
@@ -172,6 +180,7 @@ function draftFromStored(item: {
   return {
     id: typeof item?.id === "string" && item.id.length > 0 ? item.id : newOrderItemId(),
     sneaker: typeof item?.sneaker === "string" ? item.sneaker : "",
+    brand: typeof item?.brand === "string" ? item.brand : "",
     selectedServices: Array.isArray(item?.selectedServices) ? item.selectedServices : [],
     photos: [],
     notes: typeof item?.notes === "string" ? item.notes : "",
@@ -235,6 +244,7 @@ export function hydrateDraftsFromOrder(order: {
     _id?: string
     id?: string
     shoeModel?: string
+    brand?: string
     services?: Array<{ id?: string; name?: string; price?: number }>
     photos?: unknown[]
     notes?: string | null
@@ -276,6 +286,7 @@ export function hydrateDraftsFromOrder(order: {
       id: String(it._id || it.id || newOrderItemId()),
       serverItemIndex: index,
       sneaker: String(it.shoeModel || ""),
+      brand: String(it.brand || ""),
       selectedServices: (it.services || []).map((s) => ({
         id: String(s.id || s.name || ""),
         name: String(s.name || ""),

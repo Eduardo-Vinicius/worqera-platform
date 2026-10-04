@@ -2,7 +2,7 @@
 
 ## 2026-10-04
 
-- **Acessórios:** catálogo da loja em `/accessories`. Atendimento também pode criar pelo campo Outro do pedido. Ocultar e apagar continuam com admin e dono.
+- **Marca:** catálogo da loja em `/brands`. O item do pedido guarda `brand` separado do modelo. Atendimento pode criar pelo combo.
 
 - **Preço por papel:** admin e dono veem o pendente de cada coluna do kanban e o detalhe do valor. Atendimento vê o total do pedido em texto discreto, sem a soma da coluna. Setor não recebe preço na ficha nem no kanban, e um patch de setor não altera o valor.
 

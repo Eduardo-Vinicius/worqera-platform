@@ -219,6 +219,7 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
     clientName: order.clientName,
     clientPhone: order.clientPhone || null,
     shoeModel: item.shoeModel || order.shoeModel || '',
+    brand: item.brand || order.brand || '',
     itemCount: items.length,
     priority: order.priority,
     dueAt: order.dueAt,

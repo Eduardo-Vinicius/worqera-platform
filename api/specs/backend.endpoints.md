@@ -166,6 +166,8 @@ GET /public/orders/{code}            # LIVE — status resumido sem auth
 ```
 GET/POST /services                   # LIVE
 PATCH/DELETE /services/{id}          # LIVE — DELETE remove o catálogo; pedido antigo guarda nome e preço
+GET/POST /brands                     # LIVE — combo de marca no pedido. POST também no atendimento
+PATCH/DELETE /brands/{id}            # LIVE — só admin/dono
 GET/POST /accessories                # LIVE — catálogo da loja. POST também no atendimento, ao informar Outro no pedido
 PATCH/DELETE /accessories/{id}       # LIVE — só admin/dono. DELETE remove do cadastro; pedido antigo guarda o nome
 ```

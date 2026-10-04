@@ -11,6 +11,7 @@ function normalizeItemsFromPayload(data) {
   if (rawItems && rawItems.length) {
     const items = rawItems.map((it) => ({
       shoeModel: it.shoeModel || it.modeloTenis || '',
+      brand: it.brand || it.marca || '',
       services: (it.services || it.servicos || []).map(mapService),
       photos: it.photos || it.fotos || [],
       notes: it.notes || it.observacoes || null,
@@ -34,7 +35,7 @@ function normalizeItemsFromPayload(data) {
   const photos = data.photos || data.fotos || [];
   const items =
     shoeModel || services.length || photos.length
-      ? [{ shoeModel, services, photos, notes: null }]
+      ? [{ shoeModel, brand: data.brand || data.marca || '', services, photos, notes: null }]
       : [];
   return { items, shoeModel, services, photos };
 }
@@ -44,6 +45,7 @@ function effectiveItems(order) {
   return [
     {
       shoeModel: order.shoeModel || '',
+      brand: order.brand || '',
       services: order.services || [],
       photos: order.photos || [],
       notes: null,
@@ -56,6 +58,7 @@ function hydrateItemsIfEmpty(order) {
     order.items = [
       {
         shoeModel: order.shoeModel,
+        brand: order.brand || '',
         services: order.services,
         photos: order.photos,
         notes: null,

@@ -17,6 +17,7 @@ router.use('/files', require('./routes/fileRoutes'));
 router.use('/public', require('./routes/publicRoutes'));
 router.use('/services', require('./routes/serviceRoutes'));
 router.use('/accessories', require('./routes/accessoryRoutes'));
+router.use('/brands', require('./routes/brandRoutes'));
 router.use('/platform', require('./routes/platformRoutes'));
 router.use('/alerts', require('./routes/alertsRoutes'));
 router.use('/invites', require('./routes/inviteRoutes'));

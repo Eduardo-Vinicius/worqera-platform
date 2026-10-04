@@ -70,6 +70,7 @@ type OrderCard = {
   clientName?: string
   clientPhone?: string
   shoeModel?: string
+  brand?: string
   modeloTenis?: string
   priority?: number
   dueAt?: string
@@ -322,6 +323,7 @@ function filterOrders(orders: OrderCard[], filterLate: boolean, query = "") {
       o.codigo,
       o.pairLabel,
       o.clientName,
+      o.brand,
       o.shoeModel,
       o.modeloTenis,
       o.clientPhone,
@@ -552,9 +554,9 @@ function KanbanCardBody({
           )}
         </div>
         <p className="mt-1 truncate text-sm text-[var(--wq-text)]">{order.clientName || "Cliente"}</p>
-        {(order.shoeModel || order.modeloTenis) && (
+        {(order.brand || order.shoeModel || order.modeloTenis) && (
           <p className="truncate text-xs text-[var(--wq-text-muted)]">
-            {order.shoeModel || order.modeloTenis}
+            {[order.brand, order.shoeModel || order.modeloTenis].filter(Boolean).join(" · ")}
           </p>
         )}
         {!cue.offFlow && cue.nextLabel && (

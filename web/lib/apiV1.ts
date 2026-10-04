@@ -784,6 +784,16 @@ export async function deleteAccessoryV1(id: string) {
   return v1Fetch(`/accessories/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
+export async function listBrandsV1() {
+  return v1Fetch<{
+    brands: Array<{ _id?: string; id?: string; name: string; active?: boolean }>
+  }>("/brands")
+}
+
+export async function createBrandV1(body: { name: string }) {
+  return v1Fetch<{ name?: string }>("/brands", { method: "POST", body: JSON.stringify(body) })
+}
+
 export function clearSession() {
   try {
     localStorage.removeItem("token")

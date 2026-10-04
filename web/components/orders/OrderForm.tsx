@@ -53,6 +53,7 @@ import {
 } from "./orderItems"
 import { MoneyField } from "./MoneyField"
 import { AccessoryPicker } from "./AccessoryPicker"
+import { BrandField } from "./BrandField"
 
 export type OrderFormMode = "create" | "edit"
 
@@ -874,6 +875,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       const flowSelections = buildFlowSelections(draft.flowOptionIds || [])
       const payload = {
         shoeModel: draft.sneaker.trim(),
+        brand: draft.brand.trim() || undefined,
         services: draft.selectedServices.map((s) => ({
           id: s.id,
           name: s.name,
@@ -1312,7 +1314,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               {/* Block 2 — Itens */}
               <section id="wq-item-block" className="scroll-mt-24 space-y-3 border-t border-[var(--wq-border)] pt-6 sm:space-y-4">
                 <div className="flex items-start justify-between gap-2">
-                  <StepHeading step="2" title="Item" hint="Modelo, serviços, setores e fotos." />
+                  <StepHeading step="2" title="Item" hint="Marca, modelo, serviços, setores e fotos." />
                   <Button
                     type="button"
                     variant="outline"
@@ -1330,7 +1332,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {items.length > 1 ? (
                   <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {items.map((it, idx) => {
-                      const label = it.sneaker?.trim() || `Item ${idx + 1}`
+                      const label = [it.brand, it.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ") || `Item ${idx + 1}`
                       const active = idx === Math.min(activeItemIndex, items.length - 1)
                       return (
                         <button
@@ -1360,8 +1362,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="min-w-0 text-sm font-semibold text-[var(--wq-text)]">
                           Item {itemIndex + 1}
-                          {item.sneaker?.trim() ? (
-                            <span className="font-normal text-[var(--wq-text-muted)]"> · {item.sneaker}</span>
+                          {[item.brand, item.sneaker].map((part) => part?.trim()).filter(Boolean).length ? (
+                            <span className="font-normal text-[var(--wq-text-muted)]">
+                              {" "}
+                              · {[item.brand, item.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ")}
+                            </span>
                           ) : null}
                         </h3>
                         {items.length > 1 ? (
@@ -1373,6 +1378,15 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                             Remover
                           </button>
                         ) : null}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`brand-${itemIndex}`}>Marca</Label>
+                        <BrandField
+                          id={`brand-${itemIndex}`}
+                          value={item.brand}
+                          onChange={(name) => patchItem(itemIndex, { brand: name })}
+                        />
                       </div>
 
                       <div className="space-y-1.5">
