@@ -672,6 +672,7 @@ function DroppableColumn({
   onNotifyReady,
   query = "",
   dragEnabled = true,
+  showPending = false,
 }: {
   column: Column
   filterLate: boolean
