@@ -13,7 +13,7 @@ import { getPedidosConsultaService } from "@/lib/apiService"
 import { createDemoOrderV1, deleteOrderV1, exportOrdersCsvV1, listSectorsV1, purgeOrderV1, restoreOrderV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
-import { formatBRL, readOrderPricing } from "@/lib/orderMoney"
+import { formatBRL, moneyVisibility, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
 type StatusTab = "ativos" | "finalizados" | "todos" | "lixeira"
 
@@ -74,12 +74,14 @@ export default function PedidosPage() {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [canPurge, setCanPurge] = useState(false)
+  const [moneyTone, setMoneyTone] = useState<MoneyVisibility>("hidden")
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const role = String(localStorage.getItem("role") || "").toLowerCase()
     setIsOwner(role === "owner")
     setCanPurge(role === "owner" || role === "admin")
+    setMoneyTone(moneyVisibility(role))
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("q")?.trim()
       if (fromUrl) {
@@ -391,17 +393,25 @@ export default function PedidosPage() {
                             .join(" · ")}
                         </p>
                       </div>
+                      {moneyTone === "hidden" ? null : (
                       <div className="text-right">
-                        <p className="text-sm font-semibold">{formatMoney(money.total)}</p>
-                        {money.discount > 0 ? (
-                          <p className="text-[11px] text-[var(--wq-text-muted)]">desconto {formatBRL(money.discount)}</p>
-                        ) : null}
-                        {money.remaining > 0.009 ? (
-                          <p className="text-[11px] font-medium text-amber-800">falta {formatBRL(money.remaining)}</p>
-                        ) : money.total > 0 ? (
-                          <p className="text-[11px] text-emerald-700">pago</p>
-                        ) : null}
+                        {moneyTone === "quiet" ? (
+                          <p className="text-xs text-[var(--wq-text-muted)]">{formatMoney(money.total)}</p>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold">{formatMoney(money.total)}</p>
+                            {money.discount > 0 ? (
+                              <p className="text-[11px] text-[var(--wq-text-muted)]">desconto {formatBRL(money.discount)}</p>
+                            ) : null}
+                            {money.remaining > 0.009 ? (
+                              <p className="text-[11px] font-medium text-amber-800">falta {formatBRL(money.remaining)}</p>
+                            ) : money.total > 0 ? (
+                              <p className="text-[11px] text-emerald-700">pago</p>
+                            ) : null}
+                          </>
+                        )}
                       </div>
+                      )}
                     </button>
                     {tab === "lixeira" ? (
                       <div className="flex flex-wrap gap-1.5">

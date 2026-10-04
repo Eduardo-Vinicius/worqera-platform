@@ -130,6 +130,28 @@ export function validateOrderItems(items: OrderItemDraft[]): Record<string, stri
   return errors
 }
 
+export type CreateReviewPair = {
+  label: string
+  model: string
+  services: string
+  photoCount: number
+}
+
+/** Resumo do que vai ser criado. Foto em falta não bloqueia. */
+export function summarizeCreateReview(items: OrderItemDraft[]) {
+  const filled = filterFilledItems(items)
+  const pairs: CreateReviewPair[] = filled.map((item, index) => ({
+    label: filled.length > 1 ? `Par ${index + 1}` : "Par",
+    model: item.sneaker.trim(),
+    services: item.selectedServices.map((service) => service.name).filter(Boolean).join(", "),
+    photoCount: item.photos.length,
+  }))
+  return {
+    pairs,
+    missingPhoto: pairs.some((pair) => pair.photoCount === 0),
+  }
+}
+
 export function serializeItemsForDraft(items: OrderItemDraft[]) {
   return items.map((item) => ({
     id: item.id,

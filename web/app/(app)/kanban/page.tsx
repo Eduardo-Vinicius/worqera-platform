@@ -52,7 +52,7 @@ import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import QRCode from "qrcode"
-import { formatBRL } from "@/lib/orderMoney"
+import { formatBRL, moneyVisibility } from "@/lib/orderMoney"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 
 type OrderCard = {
@@ -84,6 +84,7 @@ type OrderCard = {
   photoThumb?: string | null
   hasPhotos?: boolean
   lineValue?: number
+  linePending?: number
 }
 
 type Column = {
@@ -683,10 +684,11 @@ function DroppableColumn({
   onNotifyReady?: (order: OrderCard) => void
   query?: string
   dragEnabled?: boolean
+  showPending?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, filterLate, query)
-  const columnValue = orders.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
+  const columnPending = orders.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
 
   return (
@@ -713,9 +715,11 @@ function DroppableColumn({
             {orders.length}
           </Badge>
         </div>
-        <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--wq-text)]">
-          {formatBRL(columnValue)}
-        </p>
+        {showPending ? (
+          <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--wq-text)]">
+            Pendente {formatBRL(columnPending)}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         {orders.length === 0 && (
@@ -760,6 +764,8 @@ export default function KanbanPage() {
   const [showAllOrderPhotos, setShowAllOrderPhotos] = useState(false)
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const isSectorRole = membershipRole === "sector"
+  const moneyTone = moneyVisibility(membershipRole)
+  const showColumnMoney = moneyTone === "explicit"
 
   const [pendingMove, setPendingMove] = useState<{
     orderId: string
@@ -1397,7 +1403,7 @@ export default function KanbanPage() {
                 {columns.map((col) => {
                   const active = col.sector._id === activeSectorId
                   const visible = filterOrders(col.orders, filterLate, codeQuery)
-                  const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
+                  const columnPending = visible.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
                   return (
                     <button
                       key={col.sector._id}
@@ -1417,9 +1423,11 @@ export default function KanbanPage() {
                           {visible.length}
                         </Badge>
                       </span>
-                      <span className={cn("font-mono text-[11px] tabular-nums", active ? "text-white/90" : "text-[var(--wq-text-muted)]")}>
-                        {formatBRL(columnValue)}
-                      </span>
+                      {showColumnMoney ? (
+                        <span className={cn("font-mono text-[11px] tabular-nums", active ? "text-white/90" : "text-[var(--wq-text-muted)]")}>
+                          Pendente {formatBRL(columnPending)}
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}
@@ -1435,6 +1443,7 @@ export default function KanbanPage() {
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
                   compact
+                  showPending={showColumnMoney}
                   onMarkDelivered={markDelivered}
                   onNotifyReady={notifyReady}
                 />
@@ -1496,6 +1505,7 @@ export default function KanbanPage() {
                   onFocusCard={setFocusedCardId}
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
+                  showPending={showColumnMoney}
                   onMarkDelivered={markDelivered}
                   onNotifyReady={notifyReady}
                 />
@@ -1543,9 +1553,14 @@ export default function KanbanPage() {
                     <p className="text-sm font-medium text-[var(--wq-text)]">
                       {detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "Cliente"}
                     </p>
-                    <div className="mt-3">
-                      <OrderPricingSummary order={detail} />
-                    </div>
+                    {moneyTone !== "hidden" ? (
+                      <div className={moneyTone === "quiet" ? "mt-1" : "mt-3"}>
+                        <OrderPricingSummary
+                          order={detail}
+                          tone={moneyTone === "quiet" ? "quiet" : "explicit"}
+                        />
+                      </div>
+                    ) : null}
                     {detail.dueAt && (
                       <p
                         className={cn(
@@ -1893,7 +1908,7 @@ export default function KanbanPage() {
                       <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
                         Dados rápidos
                       </p>
-                      {detail.id ? (
+                      {detail.id && !isSectorRole ? (
                         <Link
                           href={`/pedidos/${detail.id}/editar`}
                           className="text-[11px] font-medium text-[var(--wq-brand-text)] hover:underline"

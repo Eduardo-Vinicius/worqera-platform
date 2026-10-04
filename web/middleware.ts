@@ -118,7 +118,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/clientes') ||
       pathname === '/pedidos' ||
-      pathname.startsWith('/pedidos/novo');
+      pathname.startsWith('/pedidos/');
     if (blocked) {
       return NextResponse.redirect(new URL('/kanban', request.url));
     }

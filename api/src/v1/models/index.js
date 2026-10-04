@@ -9,5 +9,6 @@ module.exports = {
   Subscription: require('./Subscription'),
   WebhookEvent: require('./WebhookEvent'),
   ServiceCatalog: require('./ServiceCatalog'),
+  AccessoryCatalog: require('./AccessoryCatalog'),
   OrderCounter: require('./OrderCounter'),
 };

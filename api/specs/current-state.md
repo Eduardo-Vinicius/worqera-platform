@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-03 (desconto em reais, falta pagar, valor por card no kanban)
+**Atualizado:** 2026-10-04 (catálogo de acessórios da loja; preço só para admin/dono no kanban)
 
 ## Em uma frase
 

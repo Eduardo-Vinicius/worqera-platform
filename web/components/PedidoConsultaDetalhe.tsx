@@ -23,10 +23,11 @@ import {
 } from "@/lib/apiService"
 import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1, resendOrderEmailV1 } from "@/lib/apiV1"
 import { compressImageFiles } from "@/lib/compressImage"
-import { clampDiscount, netTotal, readOrderPricing, roundMoney } from "@/lib/orderMoney"
+import { clampDiscount, moneyVisibility, netTotal, readOrderPricing, roundMoney, tidyMoneyTyping, type MoneyVisibility } from "@/lib/orderMoney"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
+import { AccessoryPicker } from "@/components/orders/AccessoryPicker"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { resolveItemNoun } from "@/lib/itemNoun"
@@ -118,6 +119,7 @@ export function PedidoConsultaDetalhe({
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const [uploadItemIndex, setUploadItemIndex] = useState(0)
   const [canPurge, setCanPurge] = useState(false)
+  const [moneyTone, setMoneyTone] = useState<MoneyVisibility>("hidden")
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [clientName, setClientName] = useState("")
@@ -132,7 +134,7 @@ export function PedidoConsultaDetalhe({
   const [deposit, setDeposit] = useState("")
   const [priority, setPriority] = useState("2")
   const [dueAt, setDueAt] = useState("")
-  const [accessoriesText, setAccessoriesText] = useState("")
+  const [accessories, setAccessories] = useState<string[]>([])
   const [hasWarranty, setHasWarranty] = useState(false)
   const [warrantyPrice, setWarrantyPrice] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
@@ -154,7 +156,7 @@ export function PedidoConsultaDetalhe({
     const due = fresh?.dueAt || fresh?.dataPrevistaEntrega
     setDueAt(due ? String(due).slice(0, 10) : "")
     const acc = fresh?.accessories || fresh?.acessorios || []
-    setAccessoriesText(Array.isArray(acc) ? acc.join(", ") : "")
+    setAccessories(Array.isArray(acc) ? acc.map(String).filter(Boolean) : [])
     const w = fresh?.warranty || fresh?.garantia
     setHasWarranty(Boolean(w?.active ?? w?.ativa))
     setWarrantyPrice(String(w?.preco ?? w?.price ?? ""))
@@ -164,6 +166,7 @@ export function PedidoConsultaDetalhe({
     if (!open) return
     const role = String(localStorage.getItem("role") || "").toLowerCase()
     setCanPurge(role === "owner" || role === "admin")
+    setMoneyTone(moneyVisibility(role))
     ;(async () => {
       try {
         const shop = await getShopCurrentV1()
@@ -272,10 +275,6 @@ export function PedidoConsultaDetalhe({
       const discountN = clampDiscount(subtotalN, Number(String(discount).replace(",", ".")) || 0)
       const totalN = netTotal(subtotalN, discountN)
       const depositN = Math.min(roundMoney(Number(String(deposit).replace(",", ".")) || 0), totalN)
-      const accessories = accessoriesText
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
       const updated = await updateOrderService(orderId, {
         clientName: clientName.trim(),
         clientPhone: clientPhone.trim() || undefined,
@@ -562,6 +561,7 @@ export function PedidoConsultaDetalhe({
                     placeholder="Ex.: Nike Dunk Low"
                   />
                 </div>
+                {moneyTone === "hidden" ? null : (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Desconto (R$)</Label>
@@ -570,10 +570,10 @@ export function PedidoConsultaDetalhe({
                       inputMode="decimal"
                       value={discount}
                       onChange={(e) => {
-                        const raw = e.target.value
+                        const raw = tidyMoneyTyping(e.target.value)
                         setDiscount(raw)
                         const sub = Number(String(subtotal).replace(",", ".")) || 0
-                        const next = netTotal(sub, Number(String(raw).replace(",", ".")) || 0)
+                        const next = netTotal(sub, Number(raw) || 0)
                         setTotal(String(next))
                       }}
                     />
@@ -584,11 +584,14 @@ export function PedidoConsultaDetalhe({
                       className="rounded-[10px]"
                       inputMode="decimal"
                       value={deposit}
-                      onChange={(e) => setDeposit(e.target.value)}
+                      onChange={(e) => setDeposit(tidyMoneyTyping(e.target.value))}
                     />
                   </div>
                 </div>
+                )}
+                {moneyTone === "hidden" ? null : (
                 <OrderPricingSummary
+                  tone={moneyTone === "quiet" ? "quiet" : "explicit"}
                   order={{
                     pricing: {
                       subtotal: Number(String(subtotal).replace(",", ".")) || 0,
@@ -603,6 +606,7 @@ export function PedidoConsultaDetalhe({
                     },
                   }}
                 />
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Prioridade</Label>
@@ -628,13 +632,8 @@ export function PedidoConsultaDetalhe({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Acessórios (vírgula)</Label>
-                  <Input
-                    className="rounded-[10px]"
-                    value={accessoriesText}
-                    onChange={(e) => setAccessoriesText(e.target.value)}
-                    placeholder="Cadarços, caixa…"
-                  />
+                  <Label className="text-xs">Acessórios</Label>
+                  <AccessoryPicker value={accessories} onChange={setAccessories} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-sm">
@@ -645,12 +644,12 @@ export function PedidoConsultaDetalhe({
                     />
                     Garantia
                   </label>
-                  {hasWarranty ? (
+                  {hasWarranty && moneyTone !== "hidden" ? (
                     <Input
                       className="h-9 w-28 rounded-[10px]"
                       inputMode="decimal"
                       value={warrantyPrice}
-                      onChange={(e) => setWarrantyPrice(e.target.value)}
+                      onChange={(e) => setWarrantyPrice(tidyMoneyTyping(e.target.value))}
                       placeholder="R$"
                     />
                   ) : null}

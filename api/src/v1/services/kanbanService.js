@@ -112,13 +112,23 @@ async function getKanban(shopId, membership) {
     if (dirty) dirtyOrders.push(order);
 
     const items = effectiveItems(order);
-    const lineValues = lineValuesForOrder(order, items);
+    const hidePrices = role === 'sector';
+    const lineValues = hidePrices ? null : shareAmount(items, order?.pricing?.total);
+    const linePending = hidePrices ? null : shareAmount(items, order?.pricing?.remaining);
     items.forEach((item, index) => {
       const itemSector = asId(item.currentSectorId) || asId(order.currentSectorId);
       if (!itemSector || !sectorIdStrs.has(itemSector)) return;
       if (!bySector[itemSector]) return;
       bySector[itemSector].push(
-        summarizeItemCard(order, item, index, sectorsById, lineValues[index] || 0)
+        summarizeItemCard(
+          order,
+          item,
+          index,
+          sectorsById,
+          hidePrices
+            ? null
+            : { lineValue: lineValues[index] || 0, linePending: linePending[index] || 0 }
+        )
       );
     });
   }
@@ -169,10 +179,10 @@ function itemServiceSum(item) {
   return (item?.services || []).reduce((acc, service) => acc + (Number(service?.price) || 0), 0);
 }
 
-/** Share of pricing.total by service price. The last pair absorbs the leftover cent. */
-function lineValuesForOrder(order, items) {
+/** Share of an amount by service price. The last pair absorbs the leftover cent. */
+function shareAmount(items, amount) {
   const list = items || [];
-  const net = roundMoney(order?.pricing?.total);
+  const net = roundMoney(amount);
   if (!list.length) return [];
   const weights = list.map((item) => Math.max(0, itemServiceSum(item)));
   const weightSum = weights.reduce((acc, weight) => acc + weight, 0);
@@ -182,11 +192,11 @@ function lineValuesForOrder(order, items) {
     return roundMoney(net * share);
   });
   const used = values.slice(0, -1).reduce((acc, value) => acc + value, 0);
-  values[list.length - 1] = roundMoney(net - used);
+  values[list.length - 1] = roundMoney(Math.max(0, net - used));
   return values;
 }
 
-function summarizeItemCard(order, item, index, sectorsById, lineValue = 0) {
+function summarizeItemCard(order, item, index, sectorsById, money = null) {
   const items = effectiveItems(order);
   const photos = Array.isArray(item.photos) && item.photos.length
     ? item.photos
@@ -227,7 +237,12 @@ function summarizeItemCard(order, item, index, sectorsById, lineValue = 0) {
     reopened: Boolean(order.reopenedAt),
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
-    lineValue: roundMoney(lineValue),
+    ...(money
+      ? {
+          lineValue: roundMoney(money.lineValue),
+          linePending: roundMoney(money.linePending),
+        }
+      : {}),
   };
 }
 

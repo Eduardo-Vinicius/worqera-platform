@@ -754,6 +754,36 @@ export async function deleteServiceV1(id: string) {
   return v1Fetch(`/services/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
+export async function listAccessoriesV1() {
+  return v1Fetch<{
+    accessories: Array<{
+      _id?: string
+      id?: string
+      name: string
+      active?: boolean
+      sortOrder?: number
+    }>
+  }>("/accessories")
+}
+
+export async function createAccessoryV1(body: { name: string; active?: boolean; sortOrder?: number }) {
+  return v1Fetch("/accessories", { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function patchAccessoryV1(
+  id: string,
+  body: Partial<{ name: string; active: boolean; sortOrder: number }>
+) {
+  return v1Fetch(`/accessories/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteAccessoryV1(id: string) {
+  return v1Fetch(`/accessories/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
 export function clearSession() {
   try {
     localStorage.removeItem("token")

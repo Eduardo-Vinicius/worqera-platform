@@ -9,6 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Search, Upload, X, Plus } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import Link from "next/link"
 import {
   createPedidoService,
@@ -37,12 +44,15 @@ import {
   mapItemsToCreatePayload,
   servicesSum,
   suggestedTotal,
+  summarizeCreateReview,
   validateOrderItems,
   type OrderItemDraft,
   type OrderItemPatch,
   type PhotoItem,
   type SelectedService,
 } from "./orderItems"
+import { MoneyField } from "./MoneyField"
+import { AccessoryPicker } from "./AccessoryPicker"
 
 export type OrderFormMode = "create" | "edit"
 
@@ -68,18 +78,6 @@ const FALLBACK_SERVICES: Array<{
   { id: "costura", name: "Costura", suggestedPrice: 35 },
 ]
 
-// Acessórios disponíveis (vindos do env ou padrão)
-const defaultAccessories = [
-  "Cadarços originais",
-  "Palmilhas",
-  "Sola extra",
-  "Etiquetas de marca",
-  "Caixa original",
-  "Sacola de proteção",
-  "Manual de cuidados",
-  "Certificado de garantia"
-];
-
 // Fallback de fluxo se a API de setores falhar
 const FALLBACK_FLOW_SECTORS = [
   { id: "atendimento", name: "Atendimento", slug: "atendimento", isTerminal: false },
@@ -101,6 +99,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const isEdit = mode === "edit" && Boolean(orderId);
   const DRAFT_KEY = "new-order-draft-v1";
   const [bootLoading, setBootLoading] = useState(isEdit);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string>("open");
   const [formData, setFormData] = useState({
     clientId: "",
@@ -122,7 +121,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [hasWarranty, setHasWarranty] = useState(false)
   const [warrantyPrice, setWarrantyPrice] = useState(0) // Preço padrão da garantia
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([])
-  const [customAccessory, setCustomAccessory] = useState("")
   const [clientSearch, setClientSearch] = useState("")
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
@@ -727,28 +725,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     }
   };
 
-  // Função para toggle de acessório
-  const toggleAccessory = (accessory: string, checked: boolean) => {
-    if (checked) {
-      setSelectedAccessories(prev => [...prev, accessory]);
-    } else {
-      setSelectedAccessories(prev => prev.filter(acc => acc !== accessory));
-    }
-  };
-
-  // Função para adicionar acessório customizado
-  const addCustomAccessory = () => {
-    if (customAccessory.trim() && !selectedAccessories.includes(customAccessory.trim())) {
-      setSelectedAccessories(prev => [...prev, customAccessory.trim()]);
-      setCustomAccessory("");
-    }
-  };
-
-  // Função para remover acessório
-  const removeAccessory = (accessory: string) => {
-    setSelectedAccessories(prev => prev.filter(acc => acc !== accessory));
-  };
-
   const resetDraft = () => {
     localStorage.removeItem(DRAFT_KEY);
     setFormData({
@@ -771,7 +747,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     setHasWarranty(false);
     setWarrantyPrice(0);
     setSelectedAccessories([]);
-    setCustomAccessory("");
     setPrioridade("2");
     setClientSearch("");
     setShowNewClient(false);
@@ -937,12 +912,13 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     router.push(`/pedidos`)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent, confirmed = false) => {
+    e?.preventDefault();
 
     const { isValid, firstError } = validateForm();
     if (!isValid) {
       if (firstError) toast.error(firstError);
+      setConfirmOpen(false);
       return;
     }
 
@@ -950,6 +926,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     const tooManyPhotos = filledItems.some((item) => item.photos.length > MAX_PHOTOS)
     if (tooManyPhotos) {
       toast.error(`Máximo de ${MAX_PHOTOS} fotos por item`);
+      setConfirmOpen(false);
+      return;
+    }
+
+    if (!isEdit && !confirmed) {
+      setConfirmOpen(true);
       return;
     }
 
@@ -1094,6 +1076,16 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
   const itemsServicesTotal = servicesSum(items)
   const remaining = Math.max(0, totalPrice - signalValue)
+  const createReview = summarizeCreateReview(items)
+  const confirmClientName =
+    selectedClient?.nomeCompleto || selectedClient?.name || clientNameOverride || ""
+  const confirmPhone = selectedClient?.telefone || selectedClient?.phone || clientPhone || ""
+  const confirmDue = (() => {
+    const value = formData.expectedDate
+    const [year, month, day] = String(value || "").split("-")
+    if (!year || !month || !day) return value || ""
+    return `${day}/${month}/${year}`
+  })()
 
   const renderSubmitButton = () => (
     <Button
@@ -1462,14 +1454,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-xs">Preço</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={service.price}
-                                    onChange={(e) =>
-                                      updateService(itemIndex, service.id, "price", Number(e.target.value))
-                                    }
+                                  <MoneyField
+                                    value={Number(service.price) || 0}
+                                    onValue={(next) => updateService(itemIndex, service.id, "price", next)}
                                     className="h-10"
                                   />
                                 </div>
@@ -1611,67 +1598,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {defaultAccessories.map((accessory) => {
-                      const isSelected = selectedAccessories.includes(accessory)
-                      return (
-                        <button
-                          key={accessory}
-                          type="button"
-                          onClick={() => toggleAccessory(accessory, !isSelected)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                            isSelected
-                              ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
-                              : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/30"
-                          }`}
-                        >
-                          {accessory}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="flex min-w-0 gap-2">
-                    <Input
-                      placeholder="Outro acessório…"
-                      value={customAccessory}
-                      onChange={(e) => setCustomAccessory(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          addCustomAccessory()
-                        }
-                      }}
-                      className="h-9 min-w-0 flex-1"
-                    />
-                    <Button
-                      type="button"
-                      onClick={addCustomAccessory}
-                      disabled={!customAccessory.trim()}
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {selectedAccessories.length > 0 &&
-                  selectedAccessories.some((a) => !defaultAccessories.includes(a)) ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedAccessories
-                        .filter((a) => !defaultAccessories.includes(a))
-                        .map((accessory) => (
-                          <span
-                            key={accessory}
-                            className="inline-flex items-center gap-1 rounded-full bg-[var(--wq-brand-soft)] px-2.5 py-1 text-xs"
-                          >
-                            {accessory}
-                            <button type="button" onClick={() => removeAccessory(accessory)} aria-label="Remover">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        ))}
-                    </div>
-                  ) : null}
+                  <AccessoryPicker value={selectedAccessories} onChange={setSelectedAccessories} />
                 </div>
               </section>
 
@@ -1700,14 +1627,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <div className="grid grid-cols-1 gap-3 border-t border-[var(--wq-border)] pt-3 md:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label htmlFor="warrantyPrice">Preço da garantia (R$)</Label>
-                        <Input
+                        <MoneyField
                           id="warrantyPrice"
-                          type="number"
-                          step="0.01"
-                          min="0"
                           value={warrantyPrice}
-                          onChange={(e) => handleWarrantyPriceChange(Number(e.target.value))}
-                          placeholder="0.00"
+                          onValue={handleWarrantyPriceChange}
+                          placeholder="0"
                           className="bg-[var(--wq-surface)]"
                         />
                       </div>
@@ -1728,15 +1652,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="discount">Desconto (R$)</Label>
-                        <Input
+                        <MoneyField
                           id="discount"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={suggestedTotal(items, hasWarranty, warrantyPrice)}
                           value={discount}
-                          onChange={(e) => handleDiscountChange(Number(e.target.value))}
-                          placeholder="0.00"
+                          onValue={handleDiscountChange}
+                          placeholder="0"
                           className="w-36 text-lg font-semibold"
                         />
                       </div>
@@ -1800,15 +1720,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="signalValue">Sinal (R$)</Label>
-                          <Input
+                          <MoneyField
                             id="signalValue"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max={totalPrice}
                             value={signalValue}
-                            onChange={(e) => setSignalValue(Number(e.target.value))}
-                            placeholder="0.00"
+                            onValue={(next) => setSignalValue(Math.min(Math.max(0, next), totalPrice))}
+                            placeholder="0"
                             disabled={signalType !== "custom"}
                             className={`text-lg font-semibold ${signalType !== "custom" ? "bg-[var(--wq-paper)]" : ""}`}
                           />
@@ -1982,6 +1898,85 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             </div>
           </div>
         </form>
+        {!isEdit ? (
+          <Dialog
+            open={confirmOpen}
+            onOpenChange={(open) => {
+              if (!isLoading) setConfirmOpen(open)
+            }}
+          >
+            <DialogContent className="max-h-[85dvh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Confirmar pedido</DialogTitle>
+                <DialogDescription>
+                  O pedido só entra no kanban depois desta confirmação.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-xs text-[var(--wq-text-muted)]">Cliente</p>
+                  <p className="font-medium text-[var(--wq-text)]">{confirmClientName || "—"}</p>
+                  {confirmPhone ? (
+                    <p className="text-[var(--wq-text-muted)]">{confirmPhone}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  {createReview.pairs.map((pair) => (
+                    <div key={pair.label} className="rounded-xl border border-[var(--wq-border)] px-3 py-2">
+                      <p className="text-xs text-[var(--wq-text-muted)]">{pair.label}</p>
+                      <p className="font-medium text-[var(--wq-text)]">{pair.model}</p>
+                      <p className="text-[var(--wq-text-muted)]">{pair.services}</p>
+                      <p className={pair.photoCount > 0 ? "text-[var(--wq-text-muted)]" : "text-amber-800"}>
+                        {pair.photoCount > 0
+                          ? `${pair.photoCount} foto${pair.photoCount === 1 ? "" : "s"}`
+                          : "Sem foto"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--wq-text-muted)]">Prazo</span>
+                  <span className="font-medium">{confirmDue}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--wq-text-muted)]">Total</span>
+                  <span className="font-medium">{formatBRL(totalPrice)}</span>
+                </div>
+                {createReview.missingPhoto ? (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950">
+                    Tem par sem foto. Pode criar assim e anexar depois.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  className="h-11 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                  onClick={() => void handleSubmit(undefined, true)}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    "Confirmar e criar"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-[10px]"
+                  disabled={isLoading}
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Voltar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
     </div>
   )

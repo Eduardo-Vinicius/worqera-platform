@@ -38,14 +38,14 @@ function serializeClient(client) {
   };
 }
 
-function serializeOrderItem(it) {
+function serializeOrderItem(it, { hidePrices = false } = {}) {
   return {
     id: it._id ? String(it._id) : undefined,
     shoeModel: it.shoeModel || '',
     services: (it.services || []).map((s) => ({
       id: s.id || null,
       name: s.name || '',
-      price: Number(s.price) || 0,
+      ...(hidePrices ? {} : { price: Number(s.price) || 0 }),
     })),
     photos: (it.photos || []).map((p) => resolvePhotoUrl(p)).filter(Boolean),
     notes: it.notes || null,
@@ -76,7 +76,13 @@ function serializeSectorHistoryEntry(h) {
   };
 }
 
-function serializeOrder(order) {
+function withoutMoney(warranty) {
+  if (!warranty || typeof warranty !== 'object') return {};
+  const { price, preco, amount, value, ...rest } = warranty;
+  return rest;
+}
+
+function serializeOrder(order, { hidePrices = false } = {}) {
   if (!order) return null;
   const id = idOf(order);
   const code = order.code || order.codigo || '';
@@ -86,7 +92,7 @@ function serializeOrder(order) {
   const services = (Array.isArray(order.services) ? order.services : []).map((s) => ({
     id: s.id || null,
     name: s.name || s.nome || '',
-    price: Number(s.price != null ? s.price : s.preco) || 0,
+    ...(hidePrices ? {} : { price: Number(s.price != null ? s.price : s.preco) || 0 }),
   }));
   const pricing = order.pricing || {};
   const total = pricing.total != null ? pricing.total : order.precoTotal || 0;
@@ -94,7 +100,7 @@ function serializeOrder(order) {
     ? String(order.currentSectorId._id || order.currentSectorId)
     : null;
   const clientId = order.clientId ? String(order.clientId._id || order.clientId) : null;
-  const items = effectiveItems(order).map(serializeOrderItem);
+  const items = effectiveItems(order).map((it) => serializeOrderItem(it, { hidePrices }));
   const plannedSectorIds = Array.isArray(order.plannedSectorIds)
     ? order.plannedSectorIds.map((s) => String(s._id || s)).filter(Boolean)
     : [];
@@ -107,10 +113,14 @@ function serializeOrder(order) {
     publicToken: order.publicToken || null,
     shoeModel,
     photos: photoUrls,
-    pricing: {
-      ...pricing,
-      total,
-    },
+    ...(hidePrices
+      ? {}
+      : {
+          pricing: {
+            ...pricing,
+            total,
+          },
+        }),
     services,
     items,
     itemCount: items.length,
@@ -121,8 +131,8 @@ function serializeOrder(order) {
     clientPhone: order.clientPhone || null,
     clientEmail: order.clientEmail || null,
     dueAt: order.dueAt || null,
-    warranty: order.warranty || {},
-    garantia: order.warranty || {},
+    warranty: hidePrices ? withoutMoney(order.warranty) : order.warranty || {},
+    garantia: hidePrices ? withoutMoney(order.warranty) : order.warranty || {},
     clientId,
     client: order.clientId && typeof order.clientId === 'object' ? serializeClient(order.clientId) : undefined,
     assigneeEmployeeId: order.assigneeEmployeeId || null,
@@ -175,9 +185,15 @@ function serializeEmployee(employee) {
   };
 }
 
+function presentOrder(req, order) {
+  const role = String(req?.membership?.role || '').toLowerCase();
+  return serializeOrder(order, { hidePrices: role === 'sector' });
+}
+
 module.exports = {
   idOf,
   serializeClient,
   serializeOrder,
+  presentOrder,
   serializeEmployee,
 };

@@ -1,5 +1,5 @@
 const kanbanService = require('../services/kanbanService');
-const { serializeOrder } = require('../serializers');
+const { presentOrder } = require('../serializers');
 const { wrap } = require('./helpers');
 
 exports.getBoard = wrap(async (req, res) => {
@@ -24,7 +24,7 @@ exports.moveOrder = wrap(async (req, res) => {
     () => null
   );
   res.status(200).json({
-    ...serializeOrder(order),
+    ...presentOrder(req, order),
     whatsappSuggest: whatsappSuggest || undefined,
   });
 });
@@ -47,7 +47,7 @@ exports.moveOrderItem = wrap(async (req, res) => {
       ? await buildMoveWhatsAppSuggest(req.shopId, order, toSector).catch(() => null)
       : null;
   res.status(200).json({
-    ...serializeOrder(order),
+    ...presentOrder(req, order),
     whatsappSuggest: whatsappSuggest || undefined,
   });
 });

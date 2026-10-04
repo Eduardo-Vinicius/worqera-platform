@@ -16,6 +16,7 @@ import { ENABLE_WA_ME } from "@/lib/featureFlags";
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink";
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun";
 import SetorProgress from "@/components/SetorProgress";
+import { moneyVisibility, type MoneyVisibility } from "@/lib/orderMoney"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary";
 import MoverSetorButton from "@/components/MoverSetorButton";
 import { usePedidoAssets } from "@/hooks/usePedidoAssets";
@@ -113,6 +114,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   const [itemSingular, setItemSingular] = useState("peça");
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [moneyTone, setMoneyTone] = useState<MoneyVisibility>("hidden");
   const hasRefreshedOnOpenRef = useRef(false);
   const lastRefreshIdRef = useRef<string | null>(null);
   const lastClientFetchRef = useRef<string | null>(null);
@@ -132,6 +134,10 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
   } = usePedidoAssets(pedido?.id, pedido);
 
   const pedidoAtual = (pedidoAtualizado || pedido) as PedidoDetalhes | null;
+
+  useEffect(() => {
+    setMoneyTone(moneyVisibility(typeof window === "undefined" ? "" : localStorage.getItem("role")))
+  }, [open])
 
   // Busca os dados do cliente quando o modal é aberto
   useEffect(() => {
@@ -515,7 +521,9 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
           {pedidoAtual.descricaoServicos && (
             <div><strong>Descrição:</strong> {pedidoAtual.descricaoServicos}</div>
           )}
-          <OrderPricingSummary order={pedidoAtual} />
+          {moneyTone === "hidden" ? null : (
+            <OrderPricingSummary order={pedidoAtual} tone={moneyTone === "quiet" ? "quiet" : "explicit"} />
+          )}
           {pedidoAtual.funcionarioAtual && (
             <div><strong>Funcionário Atual:</strong> {pedidoAtual.funcionarioAtual}</div>
           )}
@@ -587,7 +595,9 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
               <div className="font-semibold mb-2 text-blue-800">Garantia Contratada:</div>
               <div className="text-sm space-y-1">
                 <div><strong>Duração:</strong> {pedidoAtual.garantia.duracao}</div>
-                <div><strong>Valor:</strong> R$ {Number(pedidoAtual.garantia.preco || 0).toFixed(2)}</div>
+                {moneyTone === "explicit" ? (
+                  <div><strong>Valor:</strong> R$ {Number(pedidoAtual.garantia.preco || 0).toFixed(2)}</div>
+                ) : null}
                 {pedidoAtual.garantia.data && (
                   <div><strong>Válida até:</strong> {pedidoAtual.garantia.data}</div>
                 )}

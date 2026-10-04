@@ -7,6 +7,7 @@ import {
   migrateDraftToItems,
   servicesSum,
   suggestedTotal,
+  summarizeCreateReview,
   validateOrderItems,
   type PhotoItem,
 } from "./orderItems.ts"
@@ -28,6 +29,29 @@ function draft(partial: {
 }
 
 const limpeza = { id: "limpeza", name: "Limpeza", price: 30, description: "" }
+
+describe("summarizeCreateReview", () => {
+  it("lists filled pairs and flags a pair without photo", () => {
+    const review = summarizeCreateReview([
+      draft({ sneaker: "Nike Dunk", selectedServices: [limpeza], photos: [photoStub()] }),
+      draft({ sneaker: "Loro Piana", selectedServices: [limpeza] }),
+      draft({ sneaker: "" }),
+    ])
+    assert.equal(review.pairs.length, 2)
+    assert.equal(review.pairs[0].model, "Nike Dunk")
+    assert.equal(review.pairs[0].photoCount, 1)
+    assert.equal(review.pairs[1].label, "Par 2")
+    assert.equal(review.missingPhoto, true)
+  })
+
+  it("does not flag missing photo when every pair has one", () => {
+    const review = summarizeCreateReview([
+      draft({ sneaker: "Nike Dunk", selectedServices: [limpeza], photos: [photoStub()] }),
+    ])
+    assert.equal(review.missingPhoto, false)
+    assert.equal(review.pairs[0].label, "Par")
+  })
+})
 
 describe("emptyOrderItemDraft", () => {
   it("starts with empty sneaker, services, photos, notes and a stable id", () => {

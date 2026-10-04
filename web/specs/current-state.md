@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-03 (desconto no pedido, falta pagar, soma em reais nas colunas do kanban)
+**Atualizado:** 2026-10-04 (acessórios da loja no cadastro; confirmação antes de criar o pedido)
 
 ## Em uma frase
 

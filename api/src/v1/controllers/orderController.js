@@ -3,7 +3,7 @@ const archiver = require('archiver');
 const orderService = require('../services/orderService');
 const pdfService = require('../services/pdfService');
 const storageService = require('../services/storageService');
-const { serializeOrder } = require('../serializers');
+const { presentOrder } = require('../serializers');
 const { wrap } = require('./helpers');
 
 const upload = multer({
@@ -26,7 +26,7 @@ exports.uploadPhotosMiddleware = (req, res, next) => {
 
 exports.list = wrap(async (req, res) => {
   const result = await orderService.listOrders(req.shopId, req.query);
-  const data = result.data.map(serializeOrder);
+  const data = result.data.map((order) => presentOrder(req, order));
   res.status(200).json({
     data,
     orders: data,
@@ -43,7 +43,7 @@ exports.create = wrap(async (req, res) => {
   }).catch(() => null);
   const emailNotify = order.emailNotify || null;
   res.status(201).json({
-    ...serializeOrder(order),
+    ...presentOrder(req, order),
     whatsappSuggest: whatsappSuggest || undefined,
     emailNotify: emailNotify || undefined,
   });
@@ -51,7 +51,7 @@ exports.create = wrap(async (req, res) => {
 
 exports.createDemo = wrap(async (req, res) => {
   const order = await orderService.createDemoOrder(req.shopId, req.auth.userId);
-  res.status(201).json(serializeOrder(order));
+  res.status(201).json(presentOrder(req, order));
 });
 
 exports.exportCsv = wrap(async (req, res) => {
@@ -64,17 +64,28 @@ exports.exportCsv = wrap(async (req, res) => {
 
 exports.get = wrap(async (req, res) => {
   const order = await orderService.getOrder(req.shopId, req.params.id);
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.patch = wrap(async (req, res) => {
+  const body = { ...(req.body || {}) };
+  if (String(req.membership?.role || '').toLowerCase() === 'sector') {
+    delete body.pricing;
+    delete body.precoTotal;
+    delete body.valorSinal;
+    delete body.valorRestante;
+    delete body.desconto;
+    delete body.total;
+    delete body.deposit;
+    delete body.remaining;
+  }
   const order = await orderService.patchOrder(
     req.shopId,
     req.params.id,
     req.auth.userId,
-    req.body || {}
+    body
   );
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.patchItem = wrap(async (req, res) => {
@@ -85,7 +96,7 @@ exports.patchItem = wrap(async (req, res) => {
     req.auth.userId,
     req.body || {}
   );
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.addItem = wrap(async (req, res) => {
@@ -95,7 +106,7 @@ exports.addItem = wrap(async (req, res) => {
     req.auth.userId,
     req.body || {}
   );
-  res.status(201).json(serializeOrder(order));
+  res.status(201).json(presentOrder(req, order));
 });
 
 exports.deleteItem = wrap(async (req, res) => {
@@ -105,7 +116,7 @@ exports.deleteItem = wrap(async (req, res) => {
     req.params.itemIndex,
     req.auth.userId
   );
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.reopen = wrap(async (req, res) => {
@@ -115,7 +126,7 @@ exports.reopen = wrap(async (req, res) => {
     req.auth.userId,
     req.body || {}
   );
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.addComment = wrap(async (req, res) => {
@@ -125,17 +136,17 @@ exports.addComment = wrap(async (req, res) => {
     req.auth.userId,
     req.body || {}
   );
-  res.status(201).json(serializeOrder(order));
+  res.status(201).json(presentOrder(req, order));
 });
 
 exports.remove = wrap(async (req, res) => {
   const order = await orderService.deleteOrder(req.shopId, req.params.id, req.auth.userId);
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.restore = wrap(async (req, res) => {
   const order = await orderService.restoreOrder(req.shopId, req.params.id, req.auth.userId);
-  res.status(200).json(serializeOrder(order));
+  res.status(200).json(presentOrder(req, order));
 });
 
 exports.purge = wrap(async (req, res) => {
@@ -147,7 +158,7 @@ exports.uploadPhotos = wrap(async (req, res) => {
   const order = await orderService.uploadItemPhotos(req.shopId, req.params.id, 0, req.files || []);
   res.status(200).json({
     success: true,
-    order: serializeOrder(order),
+    order: presentOrder(req, order),
     photos: order.photos,
     urls: (order.photos || []).map((p) => p.url),
   });
@@ -160,7 +171,7 @@ exports.uploadItemPhotos = wrap(async (req, res) => {
     req.params.itemIndex,
     req.files || []
   );
-  const serialized = serializeOrder(order);
+  const serialized = presentOrder(req, order);
   const idx = Number(req.params.itemIndex);
   const itemPhotos = (order.items && order.items[idx] && order.items[idx].photos) || [];
   res.status(200).json({
@@ -178,7 +189,7 @@ exports.deleteItemPhoto = wrap(async (req, res) => {
     req.params.itemIndex,
     req.params.photoIndex
   );
-  const serialized = serializeOrder(order);
+  const serialized = presentOrder(req, order);
   const idx = Number(req.params.itemIndex);
   const itemPhotos = (order.items && order.items[idx] && order.items[idx].photos) || [];
   res.status(200).json({

@@ -459,14 +459,18 @@ async function generateOrderPdf(shopId, orderId) {
   y = sectionTitle(doc, 'Totais', y, pageWidth, accent);
   const pricing = order.pricing || {};
   const total = pricing.total != null ? Number(pricing.total) : grandServices;
-  const discount = Number(pricing.discount) || 0;
-  const subtotal = pricing.subtotal != null ? Number(pricing.subtotal) : total + discount;
+  const storedSubtotal = pricing.subtotal != null ? Number(pricing.subtotal) : null;
+  let discount = Number(pricing.discount) || 0;
+  if (discount <= 0 && storedSubtotal != null && storedSubtotal > total + 0.009) {
+    discount = Math.round((storedSubtotal - total) * 100) / 100;
+  }
+  const subtotal = storedSubtotal != null ? storedSubtotal : total + discount;
   const deposit = Number(pricing.deposit) || 0;
   const remaining =
     pricing.remaining != null ? Number(pricing.remaining) : Math.max(0, total - deposit);
-  if (discount > 0) {
+  if (discount > 0.009) {
     y = kvLine(doc, 'Subtotal', formatCurrency(subtotal), y, pageWidth);
-    y = kvLine(doc, 'Desconto', formatCurrency(discount), y, pageWidth);
+    y = kvLine(doc, 'Desconto', `- ${formatCurrency(discount)}`, y, pageWidth);
   }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);

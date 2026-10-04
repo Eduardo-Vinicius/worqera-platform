@@ -1,8 +1,23 @@
-import { formatBRL, readOrderPricing } from "@/lib/orderMoney"
+import { formatBRL, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
-export function OrderPricingSummary({ order }: { order: any }) {
+export function OrderPricingSummary({
+  order,
+  tone = "explicit",
+}: {
+  order: any
+  tone?: Extract<MoneyVisibility, "explicit" | "quiet">
+}) {
   const pricing = readOrderPricing(order)
   const paid = pricing.total > 0 && pricing.remaining <= 0.009
+
+  if (tone === "quiet") {
+    return (
+      <p className="text-xs text-[var(--wq-text-muted)]">
+        {formatBRL(pricing.total)}
+        {pricing.remaining > 0.009 ? ` · falta ${formatBRL(pricing.remaining)}` : paid ? " · pago" : ""}
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-1.5 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3 text-sm">

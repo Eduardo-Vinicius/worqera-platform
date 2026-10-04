@@ -1,8 +1,17 @@
 # Worqera Web — Change log
 
+## 2026-10-04
+
+- **Acessórios:** Configuração → Acessórios. O cadastro e a consulta do pedido mostram só o que a loja cadastrou.
+
+- **Cadastro:** Criar pedido abre uma confirmação. Cliente, modelo, serviço e prazo continuam obrigatórios. Dá para criar sem foto, com aviso.
+
+- **Kanban:** a soma “Pendente” de cada coluna aparece só para admin e dono. Atendimento vê o valor do pedido em uma linha discreta. Setor não vê preço.
+
 ## 2026-10-03
 
 - **Laudo:** no kanban e no pedido dá para corrigir o e-mail e reenviar o mesmo aviso da criação (PDF do laudo e link do QR).
+- **Valores no cadastro:** preço, desconto, garantia e sinal não ficam mais com zero à esquerda enquanto digita.
 - **Pedido:** desconto em reais no cadastro e na edição. O total acompanha subtotal menos desconto, e o sinal de 50% ou 100% usa esse total. Falta pagar aparece no formulário, no kanban, na lista, na consulta e no detalhe.
 - **Kanban:** topo de cada coluna (e o chip no celular) mostra a soma em reais dos cards visíveis.
 - **Kanban:** o detalhe do par mostra as fotos daquele item mesmo quando elas só estavam na cópia do pedido, e o caminho do pedido quando o par ficou só com atendimento e final. O pedido inteiro continua mostrando a foto que estava só na cópia geral.
