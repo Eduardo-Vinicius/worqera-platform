@@ -3,6 +3,8 @@
 ## 2026-10-04
 
 - **Marca:** catálogo da loja em `/brands`. O item do pedido guarda `brand` separado do modelo. Atendimento pode criar pelo combo.
+- **Kanban:** card de quem vê preço traz o total e o restante do pedido (`paymentTotal`, `paymentRemaining`), para a confirmação na entrega.
+- **Pedidos:** `GET /orders?payment=due` lista saldo em aberto. Combinado com `status=delivered`, só quem levou e não quitou. Setor não usa esse filtro.
 
 - **Preço por papel:** admin e dono veem o pendente de cada coluna do kanban e o detalhe do valor. Atendimento vê o total do pedido em texto discreto, sem a soma da coluna. Setor não recebe preço na ficha nem no kanban, e um patch de setor não altera o valor.
 

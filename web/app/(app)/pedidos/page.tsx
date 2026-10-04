@@ -15,13 +15,20 @@ import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { formatBRL, moneyVisibility, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
-type StatusTab = "ativos" | "finalizados" | "todos" | "lixeira"
+type StatusTab = "ativos" | "a_pagar" | "entregue_aberto" | "finalizados" | "todos" | "lixeira"
 
 const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   ativos: "open,in_progress,ready",
+  a_pagar: "open,in_progress,ready,delivered",
+  entregue_aberto: "delivered",
   finalizados: "delivered",
   todos: undefined,
   lixeira: undefined,
+}
+
+const PAYMENT_FILTER: Partial<Record<StatusTab, string>> = {
+  a_pagar: "due",
+  entregue_aberto: "due",
 }
 
 function looksLikeCode(term: string) {
@@ -160,6 +167,7 @@ export default function PedidosPage() {
           dataInicio: dataInicio || undefined,
           dataFim: dataFim || undefined,
           status: statusTab === "lixeira" ? undefined : STATUS_FILTER[statusTab],
+          payment: PAYMENT_FILTER[statusTab],
           deleted: statusTab === "lixeira" ? "1" : undefined,
           lastKey: overrides?.cursor || undefined,
         }
@@ -238,6 +246,12 @@ export default function PedidosPage() {
           {(
             [
               ["ativos", "Ativos"],
+              ...(moneyTone === "hidden"
+                ? []
+                : ([
+                    ["a_pagar", "Falta pagar"],
+                    ["entregue_aberto", "Entregue sem pagar"],
+                  ] as const)),
               ["finalizados", "Finalizados"],
               ["todos", "Todos"],
               ["lixeira", "Lixeira"],
@@ -313,14 +327,24 @@ export default function PedidosPage() {
           <div className="rounded-2xl border border-dashed border-[var(--wq-border)] px-4 py-12 text-center sm:py-14">
             <Package className="mx-auto mb-3 h-10 w-10 opacity-40" />
             <p className="font-medium text-[var(--wq-text)]">
-              {tab === "lixeira" ? "Lixeira vazia" : "Nenhum pedido neste filtro"}
+              {tab === "lixeira"
+                ? "Lixeira vazia"
+                : tab === "a_pagar"
+                  ? "Nenhum pedido com valor em aberto"
+                  : tab === "entregue_aberto"
+                    ? "Nenhum pedido entregue com saldo"
+                    : "Nenhum pedido neste filtro"}
             </p>
             <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
               {tab === "lixeira"
                 ? "Pedidos excluídos aparecem aqui. Recuperar ou apagar de vez."
-                : "Crie o primeiro pedido ou gere um exemplo para conhecer o kanban."}
+                : tab === "a_pagar"
+                  ? "Quando faltar pagamento, o pedido aparece aqui — em andamento ou já entregue."
+                  : tab === "entregue_aberto"
+                    ? "Quem levou o serviço e ainda não quitou aparece aqui."
+                    : "Crie o primeiro pedido ou gere um exemplo para conhecer o kanban."}
             </p>
-            {tab === "lixeira" ? null : (
+            {tab === "lixeira" || tab === "a_pagar" || tab === "entregue_aberto" ? null : (
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <Button asChild className="rounded-[10px] bg-[var(--wq-action)]">
                   <Link href="/pedidos/novo">Criar pedido</Link>
@@ -396,7 +420,12 @@ export default function PedidosPage() {
                       {moneyTone === "hidden" ? null : (
                       <div className="text-right">
                         {moneyTone === "quiet" ? (
-                          <p className="text-xs text-[var(--wq-text-muted)]">{formatMoney(money.total)}</p>
+                          <>
+                            <p className="text-xs text-[var(--wq-text-muted)]">{formatMoney(money.total)}</p>
+                            {money.remaining > 0.009 ? (
+                              <p className="text-[11px] font-medium text-amber-800">falta {formatBRL(money.remaining)}</p>
+                            ) : null}
+                          </>
                         ) : (
                           <>
                             <p className="text-sm font-semibold">{formatMoney(money.total)}</p>

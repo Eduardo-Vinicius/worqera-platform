@@ -135,6 +135,9 @@ async function listOrders(shopId, query = {}) {
     }
   }
 
+  if (query.payment === 'due') {
+    filter['pricing.remaining'] = { $gt: 0.009 };
+  }
   if (query.hasFeedback === '1' || query.hasFeedback === 'true') {
     filter['feedback.score'] = { $gte: 1 };
   }

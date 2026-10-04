@@ -34,6 +34,13 @@ import {
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,6 +93,8 @@ type OrderCard = {
   hasPhotos?: boolean
   lineValue?: number
   linePending?: number
+  paymentTotal?: number
+  paymentRemaining?: number
 }
 
 type Column = {
@@ -462,6 +471,7 @@ function KanbanCardBody({
   isTerminalColumn,
   onMarkDelivered,
   onNotifyReady,
+  showPayment = false,
 }: {
   order: OrderCard
   focused?: boolean
@@ -474,6 +484,7 @@ function KanbanCardBody({
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  showPayment?: boolean
 }) {
   const late = order.dueAt && new Date(order.dueAt).getTime() < Date.now()
   const pairs = pairCount(order)
@@ -530,6 +541,11 @@ function KanbanCardBody({
           {order.hasPhotos === false && (
             <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
               Sem foto
+            </Badge>
+          )}
+          {showPayment && Number(order.linePending) > 0.009 && (
+            <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
+              A pagar
             </Badge>
           )}
           {cue.offFlow && (
@@ -624,6 +640,7 @@ function DraggableCard({
   onMarkDelivered,
   onNotifyReady,
   dragEnabled = true,
+  showPayment = false,
 }: {
   order: OrderCard
   focused?: boolean
@@ -635,6 +652,7 @@ function DraggableCard({
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
   dragEnabled?: boolean
+  showPayment?: boolean
 }) {
   const id = cardKey(order)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -657,6 +675,7 @@ function DraggableCard({
         isTerminalColumn={isTerminalColumn}
         onMarkDelivered={onMarkDelivered}
         onNotifyReady={onNotifyReady}
+        showPayment={showPayment}
       />
     </div>
   )
@@ -691,6 +710,7 @@ function DroppableColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, filterLate, query)
+  const columnValue = orders.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
   const columnPending = orders.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
 
@@ -719,9 +739,19 @@ function DroppableColumn({
           </Badge>
         </div>
         {showPending ? (
-          <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--wq-text)]">
-            Pendente {formatBRL(columnPending)}
-          </p>
+          <div className="mt-1 space-y-0.5">
+            <p className="font-mono text-sm font-semibold tabular-nums text-[var(--wq-text)]">
+              Total {formatBRL(columnValue)}
+            </p>
+            <p
+              className={cn(
+                "font-mono text-xs tabular-nums",
+                columnPending > 0.009 ? "font-medium text-amber-800" : "text-[var(--wq-text-muted)]"
+              )}
+            >
+              A pagar {formatBRL(columnPending)}
+            </p>
+          </div>
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
@@ -743,6 +773,7 @@ function DroppableColumn({
             onMarkDelivered={onMarkDelivered}
             onNotifyReady={onNotifyReady}
             dragEnabled={dragEnabled}
+            showPayment={showPending}
           />
         ))}
       </div>
@@ -770,6 +801,8 @@ export default function KanbanPage() {
   const moneyTone = moneyVisibility(membershipRole)
   const showColumnMoney = moneyTone === "explicit"
 
+  const [deliverPrompt, setDeliverPrompt] = useState<OrderCard | null>(null)
+  const [deliverBusy, setDeliverBusy] = useState(false)
   const [pendingMove, setPendingMove] = useState<{
     orderId: string
     itemId?: string
@@ -919,23 +952,45 @@ export default function KanbanPage() {
     return null
   }
 
-  const markDelivered = async (order: OrderCard) => {
+  const markDelivered = async (
+    order: OrderCard,
+    settle: "none" | "paid" = "none"
+  ) => {
     const id = orderId(order)
     if (!id) return
+    setDeliverBusy(true)
     try {
+      const total = Number(order.paymentTotal) || 0
       await updateOrderService(id, {
         status: "delivered",
         deliveredAt: new Date().toISOString(),
+        ...(settle === "paid" ? { pricing: { deposit: total, remaining: 0 } } : {}),
       })
-      toast.success(`${orderCode(order)} marcado como entregue`)
+      toast.success(
+        settle === "paid"
+          ? `${orderCode(order)} pago e entregue`
+          : `${orderCode(order)} marcado como entregue`
+      )
       if (detailOpen && detail && String(detail.id) === id) {
         setDetailOpen(false)
         setDetail(null)
       }
+      setDeliverPrompt(null)
       await load()
     } catch (err: any) {
       toast.error(err?.message || "Falha ao marcar entregue")
+    } finally {
+      setDeliverBusy(false)
     }
+  }
+
+  const requestDeliver = (order: OrderCard) => {
+    const due = Number(order.paymentRemaining)
+    if (Number.isFinite(due) && due > 0.009) {
+      setDeliverPrompt(order)
+      return
+    }
+    void markDelivered(order)
   }
 
   const notifyReady = (order: OrderCard) => {
@@ -1406,6 +1461,7 @@ export default function KanbanPage() {
                 {columns.map((col) => {
                   const active = col.sector._id === activeSectorId
                   const visible = filterOrders(col.orders, filterLate, codeQuery)
+                  const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
                   const columnPending = visible.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
                   return (
                     <button
@@ -1427,8 +1483,11 @@ export default function KanbanPage() {
                         </Badge>
                       </span>
                       {showColumnMoney ? (
-                        <span className={cn("font-mono text-[11px] tabular-nums", active ? "text-white/90" : "text-[var(--wq-text-muted)]")}>
-                          Pendente {formatBRL(columnPending)}
+                        <span className={cn("font-mono text-[10px] tabular-nums leading-tight", active ? "text-white/90" : "text-[var(--wq-text-muted)]")}>
+                          Total {formatBRL(columnValue)}
+                          <span className={cn("block", !active && columnPending > 0.009 && "text-amber-800")}>
+                            A pagar {formatBRL(columnPending)}
+                          </span>
                         </span>
                       ) : null}
                     </button>
@@ -1447,7 +1506,7 @@ export default function KanbanPage() {
                   sectorNameById={sectorNameById}
                   compact
                   showPending={showColumnMoney}
-                  onMarkDelivered={markDelivered}
+                  onMarkDelivered={requestDeliver}
                   onNotifyReady={notifyReady}
                 />
               )}
@@ -1509,7 +1568,7 @@ export default function KanbanPage() {
                   onOpenCard={openDetail}
                   sectorNameById={sectorNameById}
                   showPending={showColumnMoney}
-                  onMarkDelivered={markDelivered}
+                  onMarkDelivered={requestDeliver}
                   onNotifyReady={notifyReady}
                 />
               ))}
@@ -1522,6 +1581,7 @@ export default function KanbanPage() {
                     order={dragCard}
                     columnSectorId={String(dragCard.currentSectorId || "")}
                     sectorNameById={sectorNameById}
+                    showPayment={showColumnMoney}
                   />
                 </div>
               ) : null}
@@ -2171,6 +2231,70 @@ export default function KanbanPage() {
           </div>
         </div>
       )}
+
+      <Dialog
+        open={Boolean(deliverPrompt)}
+        onOpenChange={(open) => {
+          if (!open && !deliverBusy) setDeliverPrompt(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ainda falta pagar</DialogTitle>
+            <DialogDescription>
+              {deliverPrompt ? orderCode(deliverPrompt) : "Este pedido"} ainda tem valor em aberto.
+              {Number(deliverPrompt?.itemCount) > 1
+                ? " Entregar encerra o pedido inteiro."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-4xl font-semibold tabular-nums tracking-tight text-amber-800">
+            {formatBRL(Number(deliverPrompt?.paymentRemaining) || 0)}
+          </p>
+          <p className="text-center text-sm text-[var(--wq-text-muted)]">
+            Falta receber neste pedido.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              disabled={deliverBusy}
+              className="h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+              onClick={() => {
+                if (deliverPrompt) void markDelivered(deliverPrompt, "paid")
+              }}
+            >
+              Cliente já pagou o restante
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deliverBusy}
+              className="h-11"
+              onClick={() => {
+                if (deliverPrompt) void markDelivered(deliverPrompt, "none")
+              }}
+            >
+              Entregar mesmo assim
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={deliverBusy}
+              onClick={() => setDeliverPrompt(null)}
+            >
+              Voltar
+            </Button>
+            {deliverPrompt && orderId(deliverPrompt) ? (
+              <Link
+                href={`/pedidos/${orderId(deliverPrompt)}/editar`}
+                className="pt-1 text-center text-sm text-[var(--wq-brand-text)] underline"
+              >
+                Recebeu só uma parte? Ajustar o valor
+              </Link>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

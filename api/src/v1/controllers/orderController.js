@@ -25,7 +25,9 @@ exports.uploadPhotosMiddleware = (req, res, next) => {
 };
 
 exports.list = wrap(async (req, res) => {
-  const result = await orderService.listOrders(req.shopId, req.query);
+  const query = { ...req.query };
+  if (req.membership?.role === 'sector') delete query.payment;
+  const result = await orderService.listOrders(req.shopId, query);
   const data = result.data.map((order) => presentOrder(req, order));
   res.status(200).json({
     data,

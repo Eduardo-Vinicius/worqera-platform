@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-04 (acessórios da loja no cadastro; confirmação antes de criar o pedido)
+**Atualizado:** 2026-10-04 (pedidos: falta pagar e entregue sem pagar)
 
 ## Em uma frase
 

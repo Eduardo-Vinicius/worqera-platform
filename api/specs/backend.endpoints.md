@@ -114,7 +114,7 @@ LEGADO: `/clientes`.
 ## Orders
 
 ```
-GET    /orders                       # LIVE — shop-scoped; cada row: items + itemCount + flat
+GET    /orders                       # LIVE — shop-scoped; cada row: items + itemCount + flat; ?payment=due (saldo > 0; setor ignora)
 POST   /orders                       # LIVE — body items[] ou flat (shoeModel/services/photos)
 GET    /orders/{id}                  # LIVE
 PATCH  /orders/{id}                  # LIVE — scalars + opcional itemPatches[]; items[] wholesale → 400 USE_ITEM_ENDPOINTS

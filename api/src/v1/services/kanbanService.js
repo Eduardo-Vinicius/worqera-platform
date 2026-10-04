@@ -242,6 +242,8 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
       ? {
           lineValue: roundMoney(money.lineValue),
           linePending: roundMoney(money.linePending),
+          paymentTotal: roundMoney(order?.pricing?.total),
+          paymentRemaining: roundMoney(order?.pricing?.remaining),
         }
       : {}),
   };

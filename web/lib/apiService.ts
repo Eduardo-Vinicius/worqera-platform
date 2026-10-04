@@ -1282,6 +1282,7 @@ export async function getPedidosConsultaService(params: {
   deleted?: string;
   trash?: string;
   q?: string;
+  payment?: string;
   limit?: number;
   lastKey?: string;
 } = {}, opts: { forceRefresh?: boolean } = {}) {

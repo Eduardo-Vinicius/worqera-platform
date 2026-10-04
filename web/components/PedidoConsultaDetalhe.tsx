@@ -23,7 +23,14 @@ import {
 } from "@/lib/apiService"
 import { listSectorsV1, reopenOrderV1, getShopCurrentV1, deleteOrderV1, purgeOrderV1, resendOrderEmailV1 } from "@/lib/apiV1"
 import { compressImageFiles } from "@/lib/compressImage"
-import { clampDiscount, moneyVisibility, netTotal, readOrderPricing, roundMoney, tidyMoneyTyping, type MoneyVisibility } from "@/lib/orderMoney"
+import { clampDiscount, formatBRL, moneyVisibility, netTotal, readOrderPricing, roundMoney, tidyMoneyTyping, type MoneyVisibility } from "@/lib/orderMoney"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
@@ -113,6 +120,7 @@ export function PedidoConsultaDetalhe({
   const [sectorId, setSectorId] = useState("")
   const [reopening, setReopening] = useState(false)
   const [delivering, setDelivering] = useState(false)
+  const [deliverAsk, setDeliverAsk] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -249,15 +257,42 @@ export function PedidoConsultaDetalhe({
     }
   }
 
-  const markDelivered = async () => {
+  const formMoney = () => {
+    const subtotalN = roundMoney(Number(String(subtotal).replace(",", ".")) || 0)
+    const discountN = clampDiscount(subtotalN, Number(String(discount).replace(",", ".")) || 0)
+    const totalN = netTotal(subtotalN, discountN)
+    const depositN = Math.min(roundMoney(Number(String(deposit).replace(",", ".")) || 0), totalN)
+    return {
+      subtotalN,
+      discountN,
+      totalN,
+      depositN,
+      remainingN: roundMoney(Math.max(0, totalN - depositN)),
+    }
+  }
+
+  const markDelivered = async (settle: "none" | "paid" = "none") => {
     if (!orderId) return
     setDelivering(true)
     try {
+      const money = formMoney()
       const updated = await updateOrderService(orderId, {
         status: "delivered",
         deliveredAt: new Date().toISOString(),
+        ...(settle === "paid"
+          ? {
+              pricing: {
+                subtotal: money.subtotalN,
+                discount: money.discountN,
+                total: money.totalN,
+                deposit: money.totalN,
+                remaining: 0,
+              },
+            }
+          : {}),
       })
-      toast.success("Pedido marcado como entregue")
+      toast.success(settle === "paid" ? "Pago e entregue" : "Pedido marcado como entregue")
+      setDeliverAsk(false)
       syncForm(updated)
       onSaved?.(updated)
     } catch (err: any) {
@@ -265,6 +300,14 @@ export function PedidoConsultaDetalhe({
     } finally {
       setDelivering(false)
     }
+  }
+
+  const askDeliver = () => {
+    if (moneyTone !== "hidden" && formMoney().remainingN > 0.009) {
+      setDeliverAsk(true)
+      return
+    }
+    void markDelivered()
   }
 
   const save = async () => {
@@ -441,7 +484,7 @@ export function PedidoConsultaDetalhe({
                   <Button
                     className="w-full rounded-[10px] bg-emerald-700 text-white hover:bg-emerald-800"
                     disabled={delivering}
-                    onClick={markDelivered}
+                    onClick={askDeliver}
                   >
                     {delivering ? "Salvando…" : "Marcar como entregue"}
                   </Button>
@@ -885,6 +928,55 @@ export function PedidoConsultaDetalhe({
           </Button>
         </div>
       </aside>
+
+      <Dialog
+        open={deliverAsk}
+        onOpenChange={(open) => {
+          if (!open && !delivering) setDeliverAsk(false)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ainda falta pagar</DialogTitle>
+            <DialogDescription>
+              {code} ainda tem valor em aberto. Se recebeu só uma parte, volte e ajuste o sinal.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-4xl font-semibold tabular-nums tracking-tight text-amber-800">
+            {formatBRL(formMoney().remainingN)}
+          </p>
+          <p className="text-center text-sm text-[var(--wq-text-muted)]">
+            Falta receber neste pedido.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              disabled={delivering}
+              className="h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+              onClick={() => void markDelivered("paid")}
+            >
+              Cliente já pagou o restante
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={delivering}
+              className="h-11"
+              onClick={() => void markDelivered("none")}
+            >
+              Entregar mesmo assim
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={delivering}
+              onClick={() => setDeliverAsk(false)}
+            >
+              Voltar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

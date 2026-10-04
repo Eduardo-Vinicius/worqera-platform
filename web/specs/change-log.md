@@ -6,7 +6,9 @@
 
 - **Marca:** combo no item do pedido. Digita, escolhe, ou cadastra na hora. O modelo continua em texto.
 
-- **Kanban:** a soma “Pendente” de cada coluna aparece só para admin e dono. Atendimento vê o valor do pedido em uma linha discreta. Setor não vê preço.
+- **Kanban:** admin vê o total e o que falta pagar em cada coluna. Card em aberto ganha a marca A pagar.
+- **Entrega:** se ainda falta pagar, marcar como entregue abre a confirmação. Dá para registrar que o cliente pagou o restante ou entregar mesmo assim.
+- **Pedidos:** filtros Falta pagar (qualquer etapa) e Entregue sem pagar.
 
 ## 2026-10-03
 

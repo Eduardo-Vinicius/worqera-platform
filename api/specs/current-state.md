@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-04 (catálogo de acessórios da loja; preço só para admin/dono no kanban)
+**Atualizado:** 2026-10-04 (`GET /orders?payment=due` para saldo em aberto)
 
 ## Em uma frase
 
