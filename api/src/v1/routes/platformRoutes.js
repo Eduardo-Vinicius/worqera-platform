@@ -9,5 +9,11 @@ const guard = [auth, requirePlatformAdmin];
 router.get('/shops', ...guard, platformController.listShops);
 router.get('/shops/:id', ...guard, platformController.getShop);
 router.patch('/shops/:id', ...guard, platformController.patchShop);
+router.get('/ops', ...guard, platformController.ops);
+router.get('/config', ...guard, platformController.getConfig);
+router.put('/config', ...guard, platformController.putConfig);
+router.get('/notices', ...guard, platformController.listNotices);
+router.post('/notices', ...guard, platformController.createNotice);
+router.delete('/notices/:id', ...guard, platformController.deleteNotice);
 
 module.exports = router;

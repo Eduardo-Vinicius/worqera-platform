@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const jwt = require('jsonwebtoken');
 const { wrap } = require('./helpers');
 const { sendError } = require('../middleware/errors');
 
@@ -83,8 +84,19 @@ exports.refresh = wrap(async (req, res) => {
   res.status(200).json(result);
 });
 
-exports.logout = wrap(async (_req, res) => {
+exports.logout = wrap(async (req, res) => {
   clearRefreshCookie(res);
+  const header = req.headers.authorization || req.headers.Authorization || '';
+  const token = String(header).startsWith('Bearer ') ? String(header).slice(7).trim() : '';
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'changeme');
+      const userId = decoded.sub || decoded.userId;
+      if (userId) await authService.revokeSession(userId);
+    } catch {
+      /* token already expired — local session still clears */
+    }
+  }
   res.status(200).json({ ok: true });
 });
 

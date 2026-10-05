@@ -75,7 +75,15 @@ PATCH /shops/current/members/{id}    # LIVE — role / sectorIds / active
 ```
 GET   /platform/shops                # LIVE — list + search
 GET   /platform/shops/{id}           # LIVE
-PATCH /platform/shops/{id}           # LIVE — status, extendTrialDays, subscriptionStatus
+PATCH /platform/shops/{id}           # LIVE — status, extendTrialDays, subscriptionStatus, seal
+GET   /platform/ops                  # LIVE — métricas da API, erros, última posição
+GET   /platform/config               # LIVE — funções e serviços
+PUT   /platform/config               # LIVE
+GET   /platform/notices              # LIVE
+POST  /platform/notices              # LIVE
+DELETE /platform/notices/{id}        # LIVE
+GET   /runtime/config                # LIVE — ?platform=web|ios|android&version=&region=
+POST  /runtime/location              # LIVE — { lat, lng }
 ```
 
 ## Sectors (carro-chefe)

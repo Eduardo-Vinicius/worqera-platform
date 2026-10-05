@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-04 (`GET /orders?payment=due` para saldo em aberto)
+**Atualizado:** 2026-10-04 (portal da plataforma: métricas da API, parâmetros, notícias, sessão)
 
 ## Em uma frase
 

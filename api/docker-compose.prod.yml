@@ -5,8 +5,8 @@
 # - Rede proxy EXISTENTE (nginx/certbot); rede internal só API↔Mongo
 #
 # Pré-requisito no host:
-#   sudo mkdir -p /volumes/worqera/mongodb /volumes/worqera/api/storage
-#   sudo chown -R 999:999 /volumes/worqera/mongodb
+#   sudo mkdir -p /volumes/worqera/mongodb /volumes/worqera/redis /volumes/worqera/api/storage
+#   sudo chown -R 999:999 /volumes/worqera/mongodb /volumes/worqera/redis
 #
 # 1. cp .env.prod.example .env.prod && chmod 600 .env.prod
 # 2. Editar JWT_*, PUBLIC_*, WORQERA_DOCKER_NETWORK
@@ -31,6 +31,21 @@ services:
       timeout: 5s
       retries: 12
       start_period: 15s
+
+  worqera-redis:
+    image: redis:7-alpine
+    container_name: worqera-redis
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - /volumes/worqera/redis:/data
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
   worqera-mongodb-init:
     image: mongo:7
@@ -64,12 +79,15 @@ services:
       NODE_ENV: production
       PORT: "80"
       MONGODB_URI: mongodb://worqera-mongodb:27017/worqera?replicaSet=rs0
+      REDIS_URL: redis://worqera-redis:6379
       STORAGE_PATH: /app/storage
     expose:
       - "80"
     volumes:
       - /volumes/worqera/api/storage:/app/storage
     depends_on:
+      worqera-redis:
+        condition: service_healthy
       worqera-mongodb-init:
         condition: service_completed_successfully
     networks:

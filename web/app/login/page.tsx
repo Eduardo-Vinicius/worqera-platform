@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { loginService } from "@/lib/apiService"
 import { loginV1 } from "@/lib/apiV1"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,7 +39,7 @@ export default function LoginPage() {
             `Não conectou na API (${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001"}). Confirme make api-dev e abra o front em http://127.0.0.1:3000`
           )
         }
-        await loginService(email, password)
+        throw first
       }
       window.location.href =
         localStorage.getItem("platformAdmin") === "1" ? "/admin/shops" : "/dashboard"

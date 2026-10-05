@@ -8,6 +8,8 @@ import { NAV_SECTIONS, isNavActive } from "./nav"
 import { cn } from "@/lib/utils"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { logoutV1 } from "@/lib/apiV1"
+import { featureOn, runtimeSnapshot, serviceOn } from "@/lib/runtimeFlags"
+import { sealLabel } from "./PlatformNoticeBanner"
 
 function resolveLogoSrc(url: string) {
   const raw = String(url || "").trim()
@@ -37,6 +39,8 @@ export function AppSidebar({
   const [logoBroken, setLogoBroken] = useState(false)
   const [userName, setUserName] = useState("Usuário")
   const [platformAdmin, setPlatformAdmin] = useState(false)
+  const [seal, setSeal] = useState("")
+  const [, setRuntimeTick] = useState(0)
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
 
   useEffect(() => {
@@ -57,7 +61,16 @@ export function AppSidebar({
     }
     sync()
     window.addEventListener("wq-session-updated", sync)
-    return () => window.removeEventListener("wq-session-updated", sync)
+    const onRuntime = () => {
+      setSeal(runtimeSnapshot()?.seal || "")
+      setRuntimeTick((n) => n + 1)
+    }
+    onRuntime()
+    window.addEventListener("wq-runtime-config", onRuntime)
+    return () => {
+      window.removeEventListener("wq-session-updated", sync)
+      window.removeEventListener("wq-runtime-config", onRuntime)
+    }
   }, [])
 
   const isOwner = role === "owner"
@@ -95,7 +108,7 @@ export function AppSidebar({
               {isPlatformOnly ? "Worqera Platform" : shopName}
             </div>
             <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-              {isPlatformOnly ? "Console" : appName}
+              {isPlatformOnly ? "Console" : sealLabel(seal) || appName}
             </div>
           </div>
         </Link>
@@ -109,6 +122,8 @@ export function AppSidebar({
             if (item.ownerOnly && !isOwner) return false
             if (item.ownerAdminOnly && !isOwnerAdmin) return false
             if (item.hideForSector && isSector) return false
+            if (item.featureKey && !featureOn(item.featureKey)) return false
+            if (item.serviceKey && !serviceOn(item.serviceKey)) return false
             return true
           })
           if (!items.length) return null

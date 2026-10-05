@@ -33,6 +33,7 @@ function createExpressApp() {
 
   app.use(correlationId);
   app.use(requestLog);
+  app.use(require('./v1/middleware/apiMetrics').apiMetrics);
 
   app.get('/health', (req, res) => {
     res.status(200).json({

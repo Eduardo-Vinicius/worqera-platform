@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { sendError } = require('./errors');
+const { readTokenVersion } = require('../lib/sessionVersion');
 
 const JWT_SECRET = () => process.env.JWT_SECRET || 'changeme';
 
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
     return sendError(res, 401, {
@@ -15,8 +16,18 @@ function auth(req, res, next) {
   const token = String(authHeader).slice(7).trim();
   try {
     const decoded = jwt.verify(token, JWT_SECRET());
+    const userId = decoded.sub || decoded.userId;
+    const current = await readTokenVersion(userId);
+    const tokenTv = Number(decoded.tv ?? 0);
+    if (current == null || tokenTv !== current) {
+      return sendError(res, 401, {
+        title: 'Unauthorized',
+        detail: 'Session revoked',
+        code: 'UNAUTHORIZED',
+      });
+    }
     req.auth = {
-      userId: decoded.sub || decoded.userId,
+      userId,
       email: decoded.email,
       role: decoded.role,
       shopId: decoded.shopId || null,
@@ -26,11 +37,14 @@ function auth(req, res, next) {
     };
     return next();
   } catch (err) {
-    return sendError(res, 401, {
-      title: 'Unauthorized',
-      detail: 'Invalid or expired token',
-      code: 'UNAUTHORIZED',
-    });
+    if (err?.name === 'JsonWebTokenError' || err?.name === 'TokenExpiredError') {
+      return sendError(res, 401, {
+        title: 'Unauthorized',
+        detail: 'Invalid or expired token',
+        code: 'UNAUTHORIZED',
+      });
+    }
+    return next(err);
   }
 }
 

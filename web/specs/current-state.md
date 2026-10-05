@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-04 (pedidos: falta pagar e entregue sem pagar)
+**Atualizado:** 2026-10-04 (portal Worqera: visão, parâmetros e notícias)
 
 ## Em uma frase
 

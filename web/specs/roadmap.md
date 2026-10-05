@@ -129,7 +129,7 @@ Rebuild PRD web+api → smoke mobile CdT → Meta Cloud API (opcional, hoje wa.m
 3. **Trial e-mails** D-2 / D-0 — script + [ops doc](../../docs/ops/trial-reminders.md); cron PRD  
 4. **WhatsApp auto** Cloud API (adiado; hoje Status Pack wa.me)  
 5. **Metas SLA** simples no dashboard owner  
-6. ~~Platform admin trial/pedidos/nota~~ **feito (base)**  
+6. ~~Platform admin trial/pedidos/nota~~ **feito (base)** — portal em `/admin/plataforma` (métricas da API, parâmetros, notícias)  
 7. **App nativo** — AS-IS em `docs/superpowers/specs/2026-09-18-worqera-app-asis-mirror.md`  
 8. ~~**Starter Kits** por vertical~~ **feito** (Empresa → Aplicar kit)  
 

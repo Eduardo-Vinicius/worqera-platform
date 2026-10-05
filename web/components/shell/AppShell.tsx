@@ -15,6 +15,7 @@ import { meV1, resendVerificationV1 } from "@/lib/apiV1"
 import { AppSidebar } from "./AppSidebar"
 import { TrialBanner } from "./TrialBanner"
 import { DelayAlertsBanner } from "./DelayAlertsBanner"
+import { PlatformNoticeBanner } from "./PlatformNoticeBanner"
 import { QuickOrderJump } from "./QuickOrderJump"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -170,7 +171,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     try {
       const isPlatform = localStorage.getItem("platformAdmin") === "1"
       const noShop = !localStorage.getItem("shopId")
-      setPlatformConsole(isPlatform && (noShop || pathname.startsWith("/admin/shops")))
+      setPlatformConsole(
+        (isPlatform && noShop) ||
+          pathname.startsWith("/admin/shops") ||
+          pathname.startsWith("/admin/plataforma")
+      )
     } catch {
       setPlatformConsole(pathname.startsWith("/admin/shops"))
     }
@@ -284,6 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           {platformConsole ? null : <EmailUnverifiedBanner />}
           {platformConsole ? null : <TrialBanner />}
+          {platformConsole ? null : <PlatformNoticeBanner />}
           {platformConsole ? null : <DelayAlertsBanner />}
         </div>
         <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">

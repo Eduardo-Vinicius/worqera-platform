@@ -3,6 +3,7 @@ const Subscription = require('../models/Subscription');
 const Membership = require('../models/Membership');
 const User = require('../models/User');
 const { PLAN_CODES } = require('./billingService');
+const { bustRuntimeCache } = require('./platformConsoleService');
 
 function assertPlanCode(raw) {
   const incoming = String(raw || '').trim().toUpperCase();
@@ -90,6 +91,7 @@ async function listShops({ q, status, limit = 50 } = {}) {
       status: shop.status,
       createdAt: shop.createdAt,
       adminNote: shop.adminNote || '',
+      seal: shop.seal || '',
       memberCount: countByShop[String(shop._id)] || 0,
       orderCount: ord?.orderCount || 0,
       openCount: ord?.openCount || 0,
@@ -129,7 +131,18 @@ async function patchShop(shopId, updates = {}) {
   if (updates.adminNote != null) {
     shop.adminNote = String(updates.adminNote || '').slice(0, 2000);
   }
+  if (updates.seal != null) {
+    const seal = String(updates.seal || '');
+    if (!['', 'verificado', 'destaque', 'parceiro'].includes(seal)) {
+      const err = new Error('Selo inválido');
+      err.status = 400;
+      err.code = 'VALIDATION_ERROR';
+      throw err;
+    }
+    shop.seal = seal;
+  }
   await shop.save();
+  if (updates.seal != null) await bustRuntimeCache();
 
   let subscription = await Subscription.findOne({ shopId }).lean();
 
@@ -190,6 +203,7 @@ async function patchShop(shopId, updates = {}) {
     name: shop.name,
     slug: shop.slug,
     status: shop.status,
+    seal: shop.seal || '',
     createdAt: shop.createdAt,
     subscription: subscription
       ? {
@@ -225,6 +239,7 @@ async function getShopDetail(shopId) {
     name: shop.name,
     slug: shop.slug,
     status: shop.status,
+    seal: shop.seal || '',
     createdAt: shop.createdAt,
     branding: shop.branding,
     subscription,

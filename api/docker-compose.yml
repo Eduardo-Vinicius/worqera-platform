@@ -18,5 +18,21 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    container_name: worqera-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - worqera_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   worqera_mongo_data:
+  worqera_redis_data:

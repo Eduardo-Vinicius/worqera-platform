@@ -9,6 +9,7 @@
 - **Kanban:** admin vê o total e o que falta pagar em cada coluna. Card em aberto ganha a marca A pagar.
 - **Entrega:** se ainda falta pagar, marcar como entregue abre a confirmação. Dá para registrar que o cliente pagou o restante ou entregar mesmo assim.
 - **Pedidos:** filtros Falta pagar (qualquer etapa) e Entregue sem pagar.
+- **Portal:** time Worqera vê uso da API, erros e última posição. Parâmetros ligam função, serviço e selo na hora. Notícia da plataforma aparece no app. Sair da conta invalida o token.
 
 ## 2026-10-03
 

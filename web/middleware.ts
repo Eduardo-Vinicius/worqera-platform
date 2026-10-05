@@ -72,7 +72,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/shops', request.url));
   }
 
-  if (pathname.startsWith('/admin/shops')) {
+  if (pathname.startsWith('/admin/shops') || pathname.startsWith('/admin/plataforma')) {
     const allowed = platformAdminEmails();
     const ok =
       Boolean(payload?.platformAdmin) ||
@@ -83,10 +83,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Pure platform admin (no shop membership): only Oficinas + logout paths
+  // Pure platform admin (no shop membership): oficinas + portal
   if (platformAdmin && role === 'platform') {
     const allowed =
       pathname.startsWith('/admin/shops') ||
+      pathname.startsWith('/admin/plataforma') ||
       pathname.startsWith('/forbidden') ||
       pathname.startsWith('/login');
     if (!allowed) {

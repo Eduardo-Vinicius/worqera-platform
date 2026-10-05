@@ -29,6 +29,12 @@ const shopSchema = new mongoose.Schema(
     },
     /** Platform-only free-text note (objeção, PIX, plano). */
     adminNote: { type: String, default: '' },
+    /** Platform badge shown in the shop shell. Empty = none. */
+    seal: {
+      type: String,
+      enum: ['', 'verificado', 'destaque', 'parceiro'],
+      default: '',
+    },
     tvSettings: {
       client: {
         title: { type: String, default: '' },

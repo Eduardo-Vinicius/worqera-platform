@@ -19,6 +19,7 @@ router.use('/services', require('./routes/serviceRoutes'));
 router.use('/accessories', require('./routes/accessoryRoutes'));
 router.use('/brands', require('./routes/brandRoutes'));
 router.use('/platform', require('./routes/platformRoutes'));
+router.use('/runtime', require('./routes/runtimeRoutes'));
 router.use('/alerts', require('./routes/alertsRoutes'));
 router.use('/invites', require('./routes/inviteRoutes'));
 

@@ -11,6 +11,14 @@ const userSchema = new mongoose.Schema(
     emailVerifiedAt: { type: Date, default: null },
     emailVerifyTokenHash: { type: String, default: null },
     emailVerifyExpires: { type: Date, default: null },
+    /** Incremented on logout. JWTs with an older tv are rejected. */
+    tokenVersion: { type: Number, default: 0 },
+    lastLocation: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+      at: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

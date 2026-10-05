@@ -97,7 +97,8 @@ Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp Clou
 
 ## Propostas backend (trimestre)
 
-- **Audit log** platform admin (suspend shop, extend trial)  
+- **Audit log** platform admin (suspend shop, extend trial)
+- **Portal plataforma:** Redis (métricas 30 dias, usuários ativos), erros no Mongo, `runtime/config`, sessão `tokenVersion`  
 - **Rate limit** consulta pública `/public/orders` anti-scrape  
 - **Webhook retry** AbacatePay idempotente (dedupe event id)  
 - **Soft delete** shop vs hard delete (LGPD export antes)  

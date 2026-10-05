@@ -12,4 +12,7 @@ module.exports = {
   AccessoryCatalog: require('./AccessoryCatalog'),
   BrandCatalog: require('./BrandCatalog'),
   OrderCounter: require('./OrderCounter'),
+  PlatformError: require('./PlatformError'),
+  PlatformConfig: require('./PlatformConfig'),
+  PlatformNotice: require('./PlatformNotice'),
 };

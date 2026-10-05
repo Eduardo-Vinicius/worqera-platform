@@ -7,6 +7,7 @@ const Membership = require('../models/Membership');
 const Subscription = require('../models/Subscription');
 const Sector = require('../models/Sector');
 const { isPlatformAdminEmail } = require('../middleware/platformAdmin');
+const { writeTokenVersion } = require('../lib/sessionVersion');
 
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 const JWT_SECRET = () => process.env.JWT_SECRET || 'changeme';
@@ -51,6 +52,7 @@ function signAccessToken({ user, membership }) {
       shopId: membership ? String(membership.shopId) : null,
       membershipId: membership ? String(membership._id) : null,
       platformAdmin: Boolean(platformAdmin),
+      tv: Number(user.tokenVersion) || 0,
     },
     JWT_SECRET(),
     { expiresIn: JWT_EXPIRES() }
@@ -58,9 +60,11 @@ function signAccessToken({ user, membership }) {
 }
 
 function signRefreshToken(user) {
-  return jwt.sign({ sub: String(user._id) }, REFRESH_SECRET(), {
-    expiresIn: REFRESH_EXPIRES(),
-  });
+  return jwt.sign(
+    { sub: String(user._id), tv: Number(user.tokenVersion) || 0 },
+    REFRESH_SECRET(),
+    { expiresIn: REFRESH_EXPIRES() }
+  );
 }
 
 async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref }) {
@@ -267,6 +271,14 @@ async function refresh(refreshToken) {
     err.code = 'UNAUTHORIZED';
     throw err;
   }
+  const tokenTv = Number(payload.tv ?? 0);
+  if (tokenTv !== (Number(user.tokenVersion) || 0)) {
+    const err = new Error('Session revoked');
+    err.status = 401;
+    err.code = 'UNAUTHORIZED';
+    err.detail = 'Session revoked';
+    throw err;
+  }
 
   const membership = await Membership.findOne({ userId: user._id, active: true });
   const accessToken = signAccessToken({ user, membership });
@@ -447,6 +459,17 @@ async function me(userId) {
   };
 }
 
+async function revokeSession(userId) {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $inc: { tokenVersion: 1 } },
+    { new: true }
+  );
+  if (!user) return null;
+  await writeTokenVersion(user._id, user.tokenVersion);
+  return user.tokenVersion;
+}
+
 module.exports = {
   signup,
   login,
@@ -459,6 +482,7 @@ module.exports = {
   hashPassword,
   verifyPassword,
   signAccessToken,
+  revokeSession,
   slugify,
   DEFAULT_SECTORS,
 };

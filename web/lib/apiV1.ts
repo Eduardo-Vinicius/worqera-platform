@@ -69,6 +69,7 @@ function persistSession(data: {
   emailVerified?: boolean
   emailVerificationRequired?: boolean
 }) {
+  clearSession()
   const token = data.token || data.accessToken
   if (token) {
     localStorage.setItem("token", token)
@@ -426,12 +427,99 @@ export async function patchPlatformShopV1(
     subscriptionStatus: string
     planCode: string
     adminNote: string
+    seal: string
   }>
 ) {
   return v1Fetch(`/platform/shops/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   })
+}
+
+export type PlatformFlag = {
+  key: string
+  label: string
+  enabled: boolean
+  shops: Array<{ shopId: string; enabled: boolean }>
+}
+
+export async function getPlatformOpsV1() {
+  return v1Fetch<{
+    redis: "up" | "down"
+    activeUsers: number
+    endpoints: Array<{ method: string; route: string; count: number; avgMs: number; maxMs: number; errors: number }>
+    errors: Array<{ id: string; message: string; route: string; method: string; status: number; at: string }>
+    locations: Array<{
+      userId: string
+      name: string
+      email: string
+      shopName: string
+      lat: number
+      lng: number
+      at: string
+    }>
+  }>("/platform/ops")
+}
+
+export async function getPlatformConfigV1() {
+  return v1Fetch<{ features: PlatformFlag[]; services: PlatformFlag[]; seals: string[] }>("/platform/config")
+}
+
+export async function putPlatformConfigV1(body: {
+  features?: Array<{ key: string; enabled?: boolean; shopId?: string; shopEnabled?: boolean; inherit?: boolean }>
+  services?: Array<{ key: string; enabled?: boolean; shopId?: string; shopEnabled?: boolean; inherit?: boolean }>
+}) {
+  return v1Fetch<{ features: PlatformFlag[]; services: PlatformFlag[] }>("/platform/config", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  })
+}
+
+export type PlatformNotice = {
+  id: string
+  title: string
+  body: string
+  startsAt?: string | null
+  endsAt?: string | null
+  intervalHours: number
+  region: string
+  platform: string
+  minVersion: string
+  maxVersion: string
+  active: boolean
+}
+
+export async function listPlatformNoticesV1() {
+  return v1Fetch<{ notices: PlatformNotice[] }>("/platform/notices")
+}
+
+export async function createPlatformNoticeV1(body: Partial<PlatformNotice> & { title: string }) {
+  return v1Fetch<{ notice: PlatformNotice }>("/platform/notices", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deletePlatformNoticeV1(id: string) {
+  return v1Fetch(`/platform/notices/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export async function getRuntimeConfigV1(params: { platform?: string; version?: string; region?: string } = {}) {
+  const qs = new URLSearchParams()
+  if (params.platform) qs.set("platform", params.platform)
+  if (params.version) qs.set("version", params.version)
+  if (params.region) qs.set("region", params.region)
+  const suffix = qs.toString() ? `?${qs}` : ""
+  return v1Fetch<{
+    seal?: string
+    features?: Record<string, boolean>
+    services?: Record<string, boolean>
+    notices?: PlatformNotice[]
+  }>(`/runtime/config${suffix}`)
+}
+
+export async function postRuntimeLocationV1(body: { lat: number; lng: number; accuracy?: number }) {
+  return v1Fetch("/runtime/location", { method: "POST", body: JSON.stringify(body) })
 }
 
 export async function getShopCurrentV1() {
@@ -803,9 +891,13 @@ export function clearSession() {
     localStorage.removeItem("role")
     localStorage.removeItem("shopName")
     localStorage.removeItem("shopDisplayName")
+    localStorage.removeItem("shopSlug")
+    localStorage.removeItem("shopLogoUrl")
     localStorage.removeItem("userName")
     localStorage.removeItem("email")
     localStorage.removeItem("platformAdmin")
+    localStorage.removeItem("wq-email-unverified")
+    localStorage.removeItem("wq-email-unverified-dismissed")
   } catch {}
   document.cookie = "token=; path=/; max-age=0; samesite=lax"
 }
