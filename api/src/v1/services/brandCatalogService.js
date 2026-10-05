@@ -1,4 +1,5 @@
 const BrandCatalog = require('../models/BrandCatalog');
+const Order = require('../models/Order');
 
 function fail(status, code, message) {
   const err = new Error(message);
@@ -44,17 +45,28 @@ async function createBrand(shopId, data) {
 async function patchBrand(shopId, id, updates) {
   const brand = await BrandCatalog.findOne({ _id: id, shopId });
   if (!brand) throw fail(404, 'NOT_FOUND', 'Marca não encontrada');
+  let previous = '';
   if (updates.name != null) {
     const name = String(updates.name || '').trim();
     if (!name) throw fail(400, 'VALIDATION_ERROR', 'Nome é obrigatório');
     if (await findByName(shopId, name, brand._id)) {
       throw fail(409, 'DUPLICATE', 'Já existe uma marca com esse nome');
     }
+    previous = brand.name;
     brand.name = name;
   }
   if (updates.active != null) brand.active = Boolean(updates.active);
   if (updates.sortOrder != null) brand.sortOrder = Number(updates.sortOrder) || 0;
   await brand.save();
+  if (previous && previous !== brand.name) {
+    const same = new RegExp(`^${escapeRegex(previous)}$`, 'i');
+    await Order.updateMany({ shopId, brand: same }, { $set: { brand: brand.name } });
+    await Order.updateMany(
+      { shopId, items: { $elemMatch: { brand: same } } },
+      { $set: { 'items.$[el].brand': brand.name } },
+      { arrayFilters: [{ 'el.brand': same }] }
+    );
+  }
   return brand.toObject();
 }
 

@@ -29,6 +29,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Novo pedido + `clientEmail` | LIVE (PDF/link auto) |
 | Editar pedido `/pedidos/[id]/editar` | LIVE (form compartilhado; drawers quick-edit) |
 | Serviços / Pedidos / etiqueta | LIVE (Zap/wa.me oculto) |
+| Marcas `/settings/marcas` | LIVE (lista, renomear, ocultar, apagar) |
 | Empresa vertical + itemLabel + e-mail toggle | LIVE |
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |
 | Avaliações `/avaliacoes` | LIVE |

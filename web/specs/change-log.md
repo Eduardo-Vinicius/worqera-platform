@@ -5,6 +5,7 @@
 - **Acessórios:** Configuração → Acessórios. No pedido, Outro grava o nome na lista da loja e já deixa marcado para os próximos.
 
 - **Marca:** combo no item do pedido. Digita, escolhe, ou cadastra na hora. O modelo continua em texto.
+- **Marcas:** Configuração → Marcas lista, renomeia, oculta e apaga. Corrigir o nome também corrige os pedidos que usam essa marca.
 
 - **Kanban:** admin vê o total e o que falta pagar em cada coluna. Card em aberto ganha a marca A pagar.
 - **Entrega:** se ainda falta pagar, marcar como entregue abre a confirmação. Dá para registrar que o cliente pagou o restante ou entregar mesmo assim.

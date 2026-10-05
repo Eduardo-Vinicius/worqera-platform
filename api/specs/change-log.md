@@ -2,7 +2,7 @@
 
 ## 2026-10-04
 
-- **Marca:** catálogo da loja em `/brands`. O item do pedido guarda `brand` separado do modelo. Atendimento pode criar pelo combo.
+- **Marca:** catálogo da loja em `/brands`. O item do pedido guarda `brand` separado do modelo. Atendimento pode criar pelo combo. Renomear a marca atualiza o nome nos pedidos da loja.
 - **Kanban:** card de quem vê preço traz o total e o restante do pedido (`paymentTotal`, `paymentRemaining`), para a confirmação na entrega.
 - **Pedidos:** `GET /orders?payment=due` lista saldo em aberto. Combinado com `status=delivered`, só quem levou e não quitou. Setor não usa esse filtro.
 - **Portal da plataforma:** Redis para métricas da API (30 dias) e usuários ativos (30 min). Mongo guarda funções, selo, notícias e os últimos 1000 erros. Logout incrementa `tokenVersion` e invalida o JWT. `GET /runtime/config` e `POST /runtime/location` servem o site e o app.

@@ -904,6 +904,17 @@ export async function createBrandV1(body: { name: string }) {
   return v1Fetch<{ name?: string }>("/brands", { method: "POST", body: JSON.stringify(body) })
 }
 
+export async function patchBrandV1(id: string, body: Partial<{ name: string; active: boolean }>) {
+  return v1Fetch(`/brands/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteBrandV1(id: string) {
+  return v1Fetch(`/brands/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
 export function clearSession() {
   try {
     localStorage.removeItem("token")
