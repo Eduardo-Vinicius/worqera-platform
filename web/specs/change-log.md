@@ -11,6 +11,8 @@
 - **Pedidos:** filtros Falta pagar (qualquer etapa) e Entregue sem pagar.
 - **Portal:** time Worqera vê uso da API, erros e última posição. Parâmetros ligam função, serviço e selo na hora. Notícia da plataforma aparece no app. Sair da conta invalida o token.
 - **Portal:** a home junta oficinas, chamadas em 1h/24h/30 dias, tempo médio, últimos 100 erros e o que está desligado ou no ar.
+- **Parâmetros:** o menu da oficina (kanban, pedidos, clientes, consultas, avaliações, financeiro, métricas, TVs), a página pública do pedido e o e-mail do laudo. O selo continua na oficina. WhatsApp ficou de fora: o botão ainda está desligado no produto, então um interruptor não mudaria nada.
+- **Oficinas:** lista em uma linha (plano, situação, pedidos abertos). Plano, trial, suspensão e nota abrem ao clicar.
 
 ## 2026-10-03
 

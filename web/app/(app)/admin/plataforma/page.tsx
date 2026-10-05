@@ -253,9 +253,7 @@ export default function PlatformPortalPage() {
                       ops?.disabled.map((item) => (
                         <li key={`${item.kind}-${item.key}`} className="px-4 py-2.5 text-sm">
                           <p className="font-medium">{item.label}</p>
-                          <p className="text-xs text-[var(--wq-text-muted)]">
-                            {item.kind === "feature" ? "Função" : "Serviço"}
-                          </p>
+                          <p className="text-xs text-[var(--wq-text-muted)]">Fora do menu da oficina</p>
                         </li>
                       ))
                     )}

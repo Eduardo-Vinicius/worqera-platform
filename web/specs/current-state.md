@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-04 (portal Worqera: visão, parâmetros e notícias)
+**Atualizado:** 2026-10-04 (parâmetros do menu e lista de oficinas)
 
 ## Em uma frase
 
@@ -20,7 +20,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Login `/login` · signup | LIVE |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |
-| Oficinas `/admin/shops` | LIVE (allowlist) |
+| Oficinas `/admin/shops` | LIVE (lista limpa; ajuste ao clicar) |
 | Dashboard / Tour Loop | LIVE (compacto mobile + atalho Finanças) |
 | Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item** |
 | Financeiro `/admin/financeiro` | LIVE (owner/admin; líquido em destaque) |

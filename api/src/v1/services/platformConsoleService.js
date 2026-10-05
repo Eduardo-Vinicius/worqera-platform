@@ -6,32 +6,40 @@ const Shop = require('../models/Shop');
 const { redisCmd } = require('../lib/redisClient');
 const { noticeMatches } = require('../lib/runtimeMatch');
 
-const DEFAULT_FEATURES = [
-  { key: 'whatsapp', label: 'WhatsApp', enabled: true, shops: [] },
+const MODULES = [
+  { key: 'kanban', label: 'Kanban', enabled: true, shops: [] },
+  { key: 'orders', label: 'Pedidos', enabled: true, shops: [] },
+  { key: 'clients', label: 'Clientes', enabled: true, shops: [] },
+  { key: 'consultas', label: 'Consultas', enabled: true, shops: [] },
   { key: 'publicOrder', label: 'Consulta pública', enabled: true, shops: [] },
   { key: 'reviews', label: 'Avaliações', enabled: true, shops: [] },
   { key: 'emailNotify', label: 'E-mail do laudo', enabled: true, shops: [] },
+  { key: 'finance', label: 'Financeiro', enabled: true, shops: [] },
+  { key: 'metrics', label: 'Métricas', enabled: true, shops: [] },
+  { key: 'tv', label: 'TVs', enabled: true, shops: [] },
 ];
 
-const DEFAULT_SERVICES = [
-  { key: 'kanban', label: 'Kanban', enabled: true, shops: [] },
-  { key: 'orders', label: 'Pedidos', enabled: true, shops: [] },
-  { key: 'finance', label: 'Financeiro', enabled: true, shops: [] },
-  { key: 'metrics', label: 'Métricas da oficina', enabled: true, shops: [] },
-];
+const DEFAULT_FEATURES = [];
+const DEFAULT_SERVICES = MODULES;
 
 const SEALS = new Set(['', 'verificado', 'destaque', 'parceiro']);
 
 function mergeFlags(current, defaults) {
   const list = Array.isArray(current) ? current.map((item) => ({ ...item.toObject?.() || item })) : [];
+  const added = [];
   let changed = false;
   for (const def of defaults) {
-    if (!list.some((item) => item.key === def.key)) {
+    const row = list.find((item) => item.key === def.key);
+    if (!row) {
       list.push({ ...def, shops: [] });
+      added.push(def.key);
+      changed = true;
+    } else if (row.label !== def.label) {
+      row.label = def.label;
       changed = true;
     }
   }
-  return { list, changed };
+  return { list, changed, added };
 }
 
 async function bustRuntimeCache() {
@@ -49,6 +57,14 @@ async function ensureConfig() {
   }
   const features = mergeFlags(doc.features, DEFAULT_FEATURES);
   const services = mergeFlags(doc.services, DEFAULT_SERVICES);
+  if (services.added.includes('reviews')) {
+    const previous = (doc.features || []).find((item) => item.key === 'reviews');
+    const next = services.list.find((item) => item.key === 'reviews');
+    if (previous && next) {
+      next.enabled = previous.enabled !== false;
+      next.shops = previous.shops || [];
+    }
+  }
   if (features.changed || services.changed) {
     doc.features = features.list;
     doc.services = services.list;
@@ -67,6 +83,13 @@ function presentFlag(item) {
       enabled: Boolean(s.enabled),
     })),
   };
+}
+
+async function moduleEnabled(shopId, key) {
+  const doc = await ensureConfig();
+  const item = (doc.services || []).find((row) => row.key === key);
+  if (!item) return true;
+  return resolveFlag(item, shopId);
 }
 
 function resolveFlag(item, shopId) {
@@ -99,9 +122,12 @@ function applyFlagUpdate(list, incoming) {
 
 async function getConfig() {
   const doc = await ensureConfig();
+  const known = new Set(MODULES.map((item) => item.key));
+  const stored = new Map((doc.services || []).filter((item) => known.has(item.key)).map((item) => [item.key, item]));
+  const services = MODULES.map((item) => stored.get(item.key) || item);
   return {
-    features: (doc.features || []).map(presentFlag),
-    services: (doc.services || []).map(presentFlag),
+    features: [],
+    services: services.map(presentFlag),
     seals: ['', 'verificado', 'destaque', 'parceiro'],
   };
 }
@@ -263,6 +289,7 @@ module.exports = {
   SEALS,
   getConfig,
   updateConfig,
+  moduleEnabled,
   listNotices,
   createNotice,
   deleteNotice,

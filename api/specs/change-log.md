@@ -7,6 +7,7 @@
 - **Pedidos:** `GET /orders?payment=due` lista saldo em aberto. Combinado com `status=delivered`, só quem levou e não quitou. Setor não usa esse filtro.
 - **Portal da plataforma:** Redis para métricas da API (30 dias) e usuários ativos (30 min). Mongo guarda funções, selo, notícias e os últimos 1000 erros. Logout incrementa `tokenVersion` e invalida o JWT. `GET /runtime/config` e `POST /runtime/location` servem o site e o app.
 - **Portal:** `GET /platform/ops` devolve chamadas em 1h, 24h e 30 dias (2xx, 4xx, 5xx), os últimos 100 erros, o resumo das oficinas, notícias vigentes e flags globais desligadas.
+- **Parâmetros:** serviços do menu (kanban, pedidos, clientes, consultas, avaliações, financeiro, métricas, TVs), consulta pública e e-mail do laudo. Desligar a consulta pública responde 404 no link do cliente. Desligar o e-mail pula o aviso. O selo continua na oficina.
 
 - **Preço por papel:** admin e dono veem o pendente de cada coluna do kanban e o detalhe do valor. Atendimento vê o total do pedido em texto discreto, sem a soma da coluna. Setor não recebe preço na ficha nem no kanban, e um patch de setor não altera o valor.
 

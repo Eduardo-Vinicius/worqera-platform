@@ -128,6 +128,11 @@ async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
       });
       return { ok: false, skipped: true, reason: 'email-disabled' };
     }
+    const { moduleEnabled } = require('./platformConsoleService');
+    const shopId = shop._id || shop.id || order.shopId;
+    if (!(await moduleEnabled(shopId, 'emailNotify'))) {
+      return { ok: false, skipped: true, reason: 'email-disabled' };
+    }
     const to = String(order.clientEmail || '').trim();
     if (!to) {
       console.info('[orderNotify] skip', {

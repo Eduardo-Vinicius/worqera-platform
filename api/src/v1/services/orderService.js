@@ -1593,6 +1593,14 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     throw err;
   }
 
+  const { moduleEnabled } = require('./platformConsoleService');
+  if (!(await moduleEnabled(shop._id, 'publicOrder'))) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
   const order = await Order.findOne({
     shopId: shop._id,
     code: normalizedCode,

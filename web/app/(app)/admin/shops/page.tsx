@@ -40,11 +40,10 @@ type PlanCode = (typeof PLANS)[number]["code"] | "WORQERA_EARLY" | "WORQERA_PREM
 
 function planLabel(code?: string | null) {
   const c = String(code || "").toUpperCase()
-  if (c === "WORQERA_BASIC") return "Basic · R$ 147"
-  if (c === "WORQERA_PRO") return "Pro · R$ 297"
-  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM") return "Business · R$ 499"
-  if (c === "WORQERA_EARLY") return "Early (legado) · R$ 147"
-  return c || "—"
+  if (c === "WORQERA_BASIC" || c === "WORQERA_EARLY") return "Basic"
+  if (c === "WORQERA_PRO") return "Pro"
+  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM") return "Business"
+  return "Sem plano"
 }
 
 function selectableCode(code?: string | null): PlanCode {
@@ -73,8 +72,9 @@ export default function PlatformShopsPage() {
   const [allowed, setAllowed] = useState(false)
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [planDrafts, setPlanDrafts] = useState<Record<string, PlanCode>>({})
-  const [savingNote, setSavingNote] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [savingNote, setSavingNote] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -254,53 +254,14 @@ export default function PlatformShopsPage() {
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
-        title="Oficinas (Worqera)"
-        subtitle={`${filtered.length} listada${filtered.length === 1 ? "" : "s"} · planos Basic / Pro / Business`}
+        title="Oficinas"
+        subtitle="Quem está no ar, em trial ou suspensa"
       />
 
-      <div className="mx-auto max-w-[1180px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
-        <section className="overflow-hidden rounded-2xl border-2 border-[var(--wq-brand)]/35 bg-[var(--wq-brand-soft)]/50 p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--wq-brand-text)]">
-                Planos Worqera
-              </p>
-              <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)] sm:text-2xl">
-                Ladder comercial
-              </h2>
-              <p className="text-xs text-[var(--wq-text-muted)] sm:text-sm">
-                Ative ou troque o plano por oficina · Basic 147 · Pro 297 · Business 499
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {PLANS.map((p) => {
-              const n =
-                p.code === "WORQERA_BASIC"
-                  ? planStats.WORQERA_BASIC
-                  : p.code === "WORQERA_PRO"
-                    ? planStats.WORQERA_PRO
-                    : planStats.WORQERA_BUSINESS
-              return (
-                <div
-                  key={p.code}
-                  className={cn(
-                    "rounded-xl border bg-white px-3 py-3 shadow-sm",
-                    planBadgeClass(p.code)
-                  )}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-bold">{p.label}</p>
-                    <p className="font-mono text-sm font-semibold">{p.price}</p>
-                  </div>
-                  <p className="mt-1 text-xs opacity-80">
-                    {n} oficina{n === 1 ? "" : "s"} neste plano
-                  </p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
+      <div className="mx-auto max-w-[860px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <p className="text-sm text-[var(--wq-text-muted)]">
+          Basic {planStats.WORQERA_BASIC} · Pro {planStats.WORQERA_PRO} · Business {planStats.WORQERA_BUSINESS}
+        </p>
 
         <div className="flex flex-wrap gap-2">
           <Input
@@ -333,209 +294,143 @@ export default function PlatformShopsPage() {
           ))}
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-[var(--wq-border)] bg-white">
-          <div className="hidden min-w-[860px] grid-cols-[1.2fr_1fr_1.4fr_70px_70px_160px] gap-3 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)] md:grid">
-            <span>Oficina</span>
-            <span>Assinatura</span>
-            <span>Plano</span>
-            <span>Pedidos</span>
-            <span>Membros</span>
-            <span>Ações</span>
-          </div>
-          <ul className="min-w-[860px] divide-y divide-[var(--wq-border)] md:min-w-0">
-            {loading && (
-              <li className="px-4 py-10 text-center text-sm text-[var(--wq-text-muted)]">
-                Carregando…
-              </li>
-            )}
-            {!loading && filtered.length === 0 && (
-              <li className="px-4 py-10 text-center text-sm text-[var(--wq-text-muted)]">
-                Nenhuma oficina neste filtro.
-              </li>
-            )}
-            {filtered.map((s) => {
-              const urgent =
-                s.subscription?.status === "trialing" &&
-                s.trialDaysLeft != null &&
-                s.trialDaysLeft <= 3
-              const busy = busyId === s.id
-              const draft = planDrafts[s.id] || "WORQERA_PRO"
-              const current = String(s.subscription?.planCode || "").toUpperCase()
-              const dirty =
-                draft !== selectableCode(s.subscription?.planCode) ||
-                s.subscription?.status !== "active"
-              return (
-                <li
-                  key={s.id}
-                  className={cn(
-                    "grid gap-2 px-4 py-3 md:grid-cols-[1.2fr_1fr_1.4fr_70px_70px_160px] md:items-start",
-                    urgent && "bg-amber-50/80"
-                  )}
+        <ul className="divide-y divide-[var(--wq-border)] overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+          {loading && (
+            <li className="px-4 py-10 text-center text-sm text-[var(--wq-text-muted)]">Carregando…</li>
+          )}
+          {!loading && filtered.length === 0 && (
+            <li className="px-4 py-10 text-center text-sm text-[var(--wq-text-muted)]">
+              Nenhuma oficina neste filtro.
+            </li>
+          )}
+          {filtered.map((s) => {
+            const open = openId === s.id
+            const urgent =
+              s.subscription?.status === "trialing" &&
+              s.trialDaysLeft != null &&
+              s.trialDaysLeft <= 3
+            const busy = busyId === s.id
+            const draft = planDrafts[s.id] || "WORQERA_PRO"
+            const statusLabel =
+              s.status === "suspended"
+                ? "Suspensa"
+                : s.subscription?.status === "trialing"
+                  ? s.trialDaysLeft != null && s.trialDaysLeft <= 0
+                    ? "Trial hoje"
+                    : `Trial ${s.trialDaysLeft ?? "—"}d`
+                  : s.subscription?.status === "active"
+                    ? "Ativa"
+                    : s.subscription?.status || "Sem plano"
+            return (
+              <li key={s.id} className={cn(urgent && "bg-amber-50/70")}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                  onClick={() => setOpenId(open ? null : s.id)}
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{s.name}</p>
-                    <p className="truncate font-mono text-xs text-[var(--wq-text-muted)]">
-                      {s.slug} · {s.status}
-                    </p>
+                    <p className="truncate text-xs text-[var(--wq-text-muted)]">{s.slug}</p>
                   </div>
-                  <div className="text-sm">
-                    <p className="capitalize">{s.subscription?.status || "—"}</p>
-                    <span
-                      className={cn(
-                        "mt-1 inline-flex rounded-lg border px-2 py-0.5 text-xs font-semibold",
-                        planBadgeClass(s.subscription?.planCode)
-                      )}
-                    >
-                      {planLabel(s.subscription?.planCode)}
-                    </span>
-                    {s.subscription?.status === "trialing" && s.trialDaysLeft != null ? (
-                      <p
-                        className={cn(
-                          "text-xs",
-                          s.trialDaysLeft <= 3
-                            ? "font-semibold text-amber-800"
-                            : "text-[var(--wq-text-muted)]"
-                        )}
-                      >
-                        {s.trialDaysLeft <= 0
-                          ? "Trial expirado / hoje"
-                          : `${s.trialDaysLeft}d restantes`}
-                      </p>
-                    ) : s.subscription?.trialEndsAt ? (
-                      <p className="text-xs text-[var(--wq-text-muted)]">
-                        até {new Date(s.subscription.trialEndsAt).toLocaleDateString("pt-BR")}
-                      </p>
-                    ) : null}
-                    {s.lastOrderAt ? (
-                      <p className="text-[10px] text-[var(--wq-text-muted)]">
-                        último pedido {new Date(s.lastOrderAt).toLocaleDateString("pt-BR")}
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-[var(--wq-text-muted)]">sem pedidos</p>
+                  <span
+                    className={cn(
+                      "hidden shrink-0 rounded-lg border px-2 py-0.5 text-xs font-medium sm:inline-flex",
+                      planBadgeClass(s.subscription?.planCode)
                     )}
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-[var(--wq-brand)]/25 bg-[var(--wq-brand-soft)]/40 p-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
-                      Plano
+                  >
+                    {planLabel(s.subscription?.planCode)}
+                  </span>
+                  <span className="shrink-0 text-xs text-[var(--wq-text-muted)]">{statusLabel}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--wq-text-muted)]">
+                    {s.openCount ?? 0}/{s.orderCount ?? 0}
+                  </span>
+                </button>
+                {open ? (
+                  <div className="space-y-3 border-t border-[var(--wq-border)] px-4 py-3">
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      {s.memberCount ?? 0} pessoas
+                      {s.lastOrderAt
+                        ? ` · último pedido ${new Date(s.lastOrderAt).toLocaleDateString("pt-BR")}`
+                        : " · sem pedidos"}
                     </p>
-                    <select
-                      className="h-9 w-full rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs font-medium"
-                      value={draft}
-                      disabled={busy}
-                      onChange={(e) =>
-                        setPlanDrafts((d) => ({
-                          ...d,
-                          [s.id]: e.target.value as PlanCode,
-                        }))
-                      }
-                    >
-                      {PLANS.map((p) => (
-                        <option key={p.code} value={p.code}>
-                          {p.label} · {p.price}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        className="h-9 rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-paper)] px-2 text-sm"
+                        value={draft}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setPlanDrafts((d) => ({ ...d, [s.id]: e.target.value as PlanCode }))
+                        }
+                      >
+                        {PLANS.map((p) => (
+                          <option key={p.code} value={p.code}>
+                            {p.label} · {p.price}
+                          </option>
+                        ))}
+                      </select>
                       <Button
                         type="button"
                         size="sm"
-                        className="h-8 rounded-[8px] bg-[var(--wq-action)] px-2 text-xs text-white hover:bg-[var(--wq-action)]/90"
-                        disabled={busy || !dirty}
+                        className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                        disabled={busy}
                         onClick={() => applyPlan(s.id)}
                       >
-                        {s.subscription?.status === "active" &&
-                        selectableCode(current) !== draft
-                          ? "Trocar plano"
-                          : "Ativar plano"}
+                        Aplicar plano
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="rounded-[10px]" disabled={busy} onClick={() => extend(s.id)}>
+                        +7 dias
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-8 rounded-[8px] bg-white px-2 text-xs"
+                        className="rounded-[10px]"
                         disabled={busy || s.subscription?.status === "canceled"}
                         onClick={() => revokePlan(s.id)}
                       >
                         Revogar
                       </Button>
+                      {s.status === "suspended" ? (
+                        <Button type="button" size="sm" variant="outline" className="rounded-[10px]" disabled={busy} onClick={() => setStatus(s.id, "active")}>
+                          Reativar
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" variant="outline" className="rounded-[10px]" disabled={busy} onClick={() => setStatus(s.id, "suspended")}>
+                          Suspender
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        className="h-9 flex-1 rounded-[10px] text-sm"
+                        placeholder="Nota interna"
+                        value={noteDrafts[s.id] ?? ""}
+                        onChange={(e) => setNoteDrafts((d) => ({ ...d, [s.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            saveNote(s.id)
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={savingNote === s.id}
+                        onClick={() => saveNote(s.id)}
+                      >
+                        {savingNote === s.id ? "…" : "Salvar nota"}
+                      </Button>
                     </div>
                   </div>
-
-                  <p className="font-mono text-sm">
-                    {s.openCount ?? 0}
-                    <span className="text-[var(--wq-text-muted)]">/{s.orderCount ?? 0}</span>
-                  </p>
-                  <p className="font-mono text-sm">{s.memberCount ?? "—"}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-[8px] text-xs"
-                      disabled={busy}
-                      onClick={() => extend(s.id)}
-                    >
-                      +7d trial
-                    </Button>
-                    {s.status === "suspended" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-[8px] text-xs"
-                        disabled={busy}
-                        onClick={() => setStatus(s.id, "active")}
-                      >
-                        Reativar
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-[8px] text-xs"
-                        disabled={busy}
-                        onClick={() => setStatus(s.id, "suspended")}
-                      >
-                        Suspender
-                      </Button>
-                    )}
-                  </div>
-                  <div className="md:col-span-6 mt-1 flex gap-2">
-                    <Input
-                      className="h-8 flex-1 rounded-[8px] text-xs"
-                      placeholder="Nota interna (PIX, objeção, plano…)"
-                      value={noteDrafts[s.id] ?? ""}
-                      onChange={(e) =>
-                        setNoteDrafts((d) => ({ ...d, [s.id]: e.target.value }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          saveNote(s.id)
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 shrink-0 text-xs"
-                      disabled={savingNote === s.id}
-                      onClick={() => saveNote(s.id)}
-                    >
-                      {savingNote === s.id ? "…" : "Salvar"}
-                    </Button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
         <p className="text-xs text-[var(--wq-text-muted)]">
-          Plano: Basic 147 · Pro 297 · Business 499. Trocar = upgrade/downgrade. Revogar = cancela
-          assinatura (não suspende a loja). Pedidos = abertos / total.
+          Clique na oficina para plano, trial, suspensão e nota. Pedidos = abertos / total.
         </p>
       </div>
     </div>

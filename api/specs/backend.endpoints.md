@@ -77,7 +77,7 @@ GET   /platform/shops                # LIVE — list + search
 GET   /platform/shops/{id}           # LIVE
 PATCH /platform/shops/{id}           # LIVE — status, extendTrialDays, subscriptionStatus, seal
 GET   /platform/ops                  # LIVE — métricas da API, erros, última posição
-GET   /platform/config               # LIVE — funções e serviços
+GET   /platform/config               # LIVE — menu, consulta pública e e-mail do laudo
 PUT   /platform/config               # LIVE
 GET   /platform/notices              # LIVE
 POST  /platform/notices              # LIVE

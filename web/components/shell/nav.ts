@@ -57,9 +57,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard, hideForSector: true },
       { href: "/kanban", label: "Kanban", icon: KanbanSquare, serviceKey: "kanban" },
       { href: "/pedidos", label: "Pedidos", icon: ClipboardList, hideForSector: true, serviceKey: "orders" },
-      { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true },
-      { href: "/consultas", label: "Consultas", icon: Search },
-      { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true, featureKey: "reviews" },
+      { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true, serviceKey: "clients" },
+      { href: "/consultas", label: "Consultas", icon: Search, serviceKey: "consultas" },
+      { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true, serviceKey: "reviews" },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/settings/acessorios", label: "Acessórios", icon: Package, ownerAdminOnly: true },
       { href: "/settings/equipe", label: "Equipe", icon: UsersRound, ownerAdminOnly: true },
       { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
-      { href: "/settings/tv", label: "TVs", icon: Tv, ownerAdminOnly: true },
+      { href: "/settings/tv", label: "TVs", icon: Tv, ownerAdminOnly: true, serviceKey: "tv" },
     ],
   },
   {
