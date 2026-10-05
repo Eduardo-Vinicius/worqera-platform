@@ -443,21 +443,43 @@ export type PlatformFlag = {
   shops: Array<{ shopId: string; enabled: boolean }>
 }
 
+export type OpsEndpoint = {
+  method: string
+  route: string
+  count: number
+  avgMs: number
+  maxMs: number
+  ok: number
+  clientErrors: number
+  errors: number
+  errorRate: number
+}
+
+export type OpsWindow = {
+  calls: number
+  errors: number
+  avgMs: number
+  endpoints: OpsEndpoint[]
+}
+
 export async function getPlatformOpsV1() {
   return v1Fetch<{
     redis: "up" | "down"
     activeUsers: number
-    endpoints: Array<{ method: string; route: string; count: number; avgMs: number; maxMs: number; errors: number }>
-    errors: Array<{ id: string; message: string; route: string; method: string; status: number; at: string }>
-    locations: Array<{
-      userId: string
-      name: string
-      email: string
-      shopName: string
-      lat: number
-      lng: number
+    windows: { "1h": OpsWindow; "24h": OpsWindow; "30d": OpsWindow }
+    errors: Array<{
+      id: string
+      message: string
+      route: string
+      method: string
+      status: number
+      shopId?: string | null
+      shopName?: string
       at: string
     }>
+    shops: { total: number; suspended: number; trialing: number; active: number; openOrders: number }
+    notices: PlatformNotice[]
+    disabled: Array<{ kind: "feature" | "service"; key: string; label: string }>
   }>("/platform/ops")
 }
 

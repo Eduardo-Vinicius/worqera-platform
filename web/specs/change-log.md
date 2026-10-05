@@ -10,6 +10,7 @@
 - **Entrega:** se ainda falta pagar, marcar como entregue abre a confirmação. Dá para registrar que o cliente pagou o restante ou entregar mesmo assim.
 - **Pedidos:** filtros Falta pagar (qualquer etapa) e Entregue sem pagar.
 - **Portal:** time Worqera vê uso da API, erros e última posição. Parâmetros ligam função, serviço e selo na hora. Notícia da plataforma aparece no app. Sair da conta invalida o token.
+- **Portal:** a home junta oficinas, chamadas em 1h/24h/30 dias, tempo médio, últimos 100 erros e o que está desligado ou no ar.
 
 ## 2026-10-03
 

@@ -22,12 +22,49 @@ exports.patchShop = wrap(async (req, res) => {
   res.status(200).json({ shop });
 });
 
+function noticeIsLive(notice, now = new Date()) {
+  if (!notice || notice.active === false) return false;
+  if (notice.startsAt && new Date(notice.startsAt) > now) return false;
+  if (notice.endsAt && new Date(notice.endsAt) < now) return false;
+  return true;
+}
+
 exports.ops = wrap(async (_req, res) => {
-  const [ops, locations] = await Promise.all([
+  const [ops, config, notices, shops] = await Promise.all([
     readOpsSnapshot(),
-    platformConsole.listLocations(),
+    platformConsole.getConfig(),
+    platformConsole.listNotices(),
+    platformService.listShops({ limit: 200 }),
   ]);
-  res.status(200).json({ ...ops, locations });
+  const shopName = Object.fromEntries(shops.map((s) => [String(s.id), s.name]));
+  const disabled = [
+    ...(config.features || [])
+      .filter((f) => !f.enabled)
+      .map((f) => ({ kind: 'feature', key: f.key, label: f.label })),
+    ...(config.services || [])
+      .filter((s) => !s.enabled)
+      .map((s) => ({ kind: 'service', key: s.key, label: s.label })),
+  ];
+  res.status(200).json({
+    ...ops,
+    errors: (ops.errors || []).map((e) => ({
+      ...e,
+      shopName: e.shopId ? shopName[String(e.shopId)] || '' : '',
+    })),
+    shops: {
+      total: shops.length,
+      suspended: shops.filter((s) => s.status === 'suspended').length,
+      trialing: shops.filter(
+        (s) => s.status !== 'suspended' && s.subscription?.status === 'trialing'
+      ).length,
+      active: shops.filter(
+        (s) => s.status !== 'suspended' && s.subscription?.status === 'active'
+      ).length,
+      openOrders: shops.reduce((n, s) => n + (Number(s.openCount) || 0), 0),
+    },
+    notices: notices.filter((n) => noticeIsLive(n)).slice(0, 8),
+    disabled,
+  });
 });
 
 exports.getConfig = wrap(async (_req, res) => {
