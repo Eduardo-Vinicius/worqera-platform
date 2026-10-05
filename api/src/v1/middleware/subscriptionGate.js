@@ -15,6 +15,14 @@ async function subscriptionGate(req, res, next) {
     }
 
     const sub = await Subscription.findOne({ shopId }).lean();
+
+    // Local and any non-production run stay open so the app can be tried
+    // without a paid or trialing plan. Production still requires one.
+    if (process.env.NODE_ENV !== 'production') {
+      req.subscription = sub || { status: 'active', planCode: 'dev', devBypass: true };
+      return next();
+    }
+
     if (!sub || !ACTIVE_STATUSES.has(sub.status)) {
       return sendError(res, 402, {
         title: 'Subscription Inactive',

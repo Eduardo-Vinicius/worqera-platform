@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+- **Assinatura em dev:** fora de produção o gate de plano não bloqueia kanban, pedidos e o resto. Produção continua exigindo trial ou plano ativo.
 - **Marca:** catálogo da loja em `/brands`. O item do pedido guarda `brand` separado do modelo. Atendimento pode criar pelo combo. Renomear a marca atualiza o nome nos pedidos da loja.
 - **Kanban:** card de quem vê preço traz o total e o restante do pedido (`paymentTotal`, `paymentRemaining`), para a confirmação na entrega.
 - **Pedidos:** `GET /orders?payment=due` lista saldo em aberto. Combinado com `status=delivered`, só quem levou e não quitou. Setor não usa esse filtro.

@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+## 2026-10-05
+
+- **Kanban:** a soma da coluna (total e a pagar) fica oculta, inclusive para admin e dono. O valor do pedido na ficha continua.
+
 ## 2026-10-04
 
 - **Landing:** a home fala de empresas com fila, vários ramos e o item de cada um. Prova de 1.000+ pedidos e R$ 200 mil+ gerados. Parceiros em destaque. Login e cadastro deixam de dizer “oficina”. Logo, cores e fontes iguais.

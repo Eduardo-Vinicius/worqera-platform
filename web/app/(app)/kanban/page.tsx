@@ -799,7 +799,8 @@ export default function KanbanPage() {
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const isSectorRole = membershipRole === "sector"
   const moneyTone = moneyVisibility(membershipRole)
-  const showColumnMoney = moneyTone === "explicit"
+  // Soma da coluna fica oculta por ora, inclusive para admin e dono.
+  const showColumnMoney = false
 
   const [deliverPrompt, setDeliverPrompt] = useState<OrderCard | null>(null)
   const [deliverBusy, setDeliverBusy] = useState(false)
