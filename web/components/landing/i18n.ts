@@ -9,15 +9,23 @@ const pt = {
   },
   hero: {
     brand: "Worqera",
-    headline: "A fila da sua oficina, sob controle.",
-    sub: "Kanban por setores e consulta pública por código. Do tênis à lavanderia — o mesmo loop.",
+    kicker: "Sistema de gestão de pedidos",
+    headline: "A fila da empresa, do pedido ao pronto.",
+    sub: "Kanban por setores, ordem de serviço, etiqueta com QR e status para o cliente. Lavanderia, assistência, calçados, automotivo e atelier no mesmo sistema.",
     cta: "Testar grátis por 7 dias",
     secondary: "Já tenho conta",
     note: "Sem cartão · Setup em minutos · Cancele quando quiser",
   },
+  proof: {
+    items: [
+      { value: "1.000+", label: "pedidos operados na Worqera" },
+      { value: "R$ 200 mil+", label: "gerados para os clientes" },
+      { value: "Vários ramos", label: "lavanderia, assistência, calçados, auto e atelier" },
+    ],
+  },
   loop: {
     title: "O item muda. O fluxo não.",
-    subtitle: "Um loop operacional para qualquer negócio com etapas e cliente perguntando status.",
+    subtitle: "Um loop para qualquer empresa com etapas e cliente perguntando status.",
     steps: [
       {
         n: "01",
@@ -27,7 +35,7 @@ const pt = {
       {
         n: "02",
         title: "Anda na fila",
-        desc: "Cada setor é uma coluna. A equipe move; o dono vê a oficina inteira.",
+        desc: "Cada setor é uma coluna. A equipe move; a empresa vê a operação inteira.",
       },
       {
         n: "03",
@@ -37,17 +45,16 @@ const pt = {
     ],
   },
   trades: {
-    title: "Feito para quem tem fila",
-    line: "Se o seu negócio tem etapas e cliente perguntando status, encaixa.",
-    hint: "Configure setores e o nome do item na Empresa — sem micro-app por vertical.",
+    title: "Gestão de pedidos para vários ramos.",
+    line: "Um kanban para a fila de lavanderia, assistência técnica, calçados, automotivo, atelier e encomenda. O item muda. O controle é o mesmo.",
+    hint: "Setores e o nome do item se configuram na empresa. Não existe um app diferente por vertical.",
     items: [
-      "Calçados",
-      "Automotivo",
-      "Lavanderia",
-      "Assistência",
-      "Atelier",
-      "Reparo",
-      "Custom",
+      { trade: "Calçados", item: "Calçado" },
+      { trade: "Lavanderia", item: "Roupa" },
+      { trade: "Assistência", item: "Aparelho" },
+      { trade: "Automotivo", item: "Veículo" },
+      { trade: "Atelier", item: "Peça sob medida" },
+      { trade: "Encomenda", item: "Pedido sob medida" },
     ],
   },
   practice: {
@@ -57,18 +64,18 @@ const pt = {
     lookupLabel: "Consulta pública",
     lookupCode: "0042",
     lookupStatus: "Em andamento",
-    lookupHint: "Seu cliente abre o QR e vê onde está o pedido.",
+    lookupHint: "O cliente abre o QR e vê onde está o pedido.",
   },
   clients: {
-    title: "Quem já opera",
-    subtitle: "Negócios reais no dia a dia — não demo genérica.",
+    title: "Parceiros",
+    subtitle: "Empresas que operam na Worqera no dia a dia.",
     names: ["Casa do Tênis", "Sapataria Paulista", "Axisbyte"],
   },
   pricing: {
-    title: "Preço claro. Uma oficina, um plano.",
+    title: "Preço claro. Uma empresa, um plano.",
     subtitle: "Basic = fila. Pro = fila + caixa. Business = Worqera lado a lado. 7 dias grátis.",
     guarantee: "Cancele quando quiser",
-    trust: "Pagamento AbacatePay · dados da sua loja",
+    trust: "Pagamento AbacatePay · dados da sua empresa",
     custom: "Business: onboarding, carga de dados e acompanhamento — fale com a Worqera.",
     plans: [
       {
@@ -80,7 +87,7 @@ const pt = {
           "Kanban por setores",
           "Pedidos, clientes e equipe ilimitados",
           "Consulta pública + etiqueta",
-          "TVs Cliente e Oficina",
+          "TVs do cliente e da operação",
           "Sem Financeiro do dono",
           "Sem Métricas / TV Financeiro",
         ],
@@ -97,7 +104,7 @@ const pt = {
           "Financeiro do dono",
           "Métricas + TV Financeiro",
           "Digest semanal por e-mail",
-          "Branding da oficina",
+          "Marca da empresa",
           "Suporte prioritário",
         ],
         cta: "Começar trial",
@@ -124,12 +131,12 @@ const pt = {
     title: "Perguntas frequentes",
     items: [
       {
-        q: "Serve só para tênis?",
-        a: "Não. Calçados é onde começamos. O core é fila + consulta — automotivo, lavanderia, assistência, atelier e outros ramos usam o mesmo loop.",
+        q: "Atende mais de um ramo?",
+        a: "Sim. Calçado, roupa, aparelho, veículo, peça sob medida e encomenda usam o mesmo loop: pedido, setores e consulta.",
       },
       {
         q: "Preciso de cartão no trial?",
-        a: "Não. Crie a conta, configure a oficina e use 7 dias. Só cobra se assinar.",
+        a: "Não. Crie a conta, configure a empresa e use 7 dias. Só cobra se assinar.",
       },
       {
         q: "Como o cliente acompanha?",
@@ -137,7 +144,7 @@ const pt = {
       },
       {
         q: "Dá para ter conta por setor?",
-        a: "Sim. O dono vê tudo; contas de setor veem só a própria fila e encaminham o pedido.",
+        a: "Sim. Quem administra vê tudo; contas de setor veem só a própria fila e encaminham o pedido.",
       },
       {
         q: "E WhatsApp automático?",
@@ -146,7 +153,7 @@ const pt = {
     ],
   },
   footer: {
-    tagline: "Fila operacional para oficinas de serviço",
+    tagline: "Sistema de gestão de pedidos, kanban e status para o cliente",
     rights: "Todos os direitos reservados.",
   },
 }
@@ -160,15 +167,23 @@ const en: typeof pt = {
   },
   hero: {
     brand: "Worqera",
-    headline: "Your workshop queue, under control.",
-    sub: "Sector kanban and public tracking by code. From sneakers to laundry — same loop.",
+    kicker: "Order management system",
+    headline: "The company queue, from order to ready.",
+    sub: "Sector kanban, work orders, QR labels and customer status. Laundry, repair, footwear, automotive and atelier in one system.",
     cta: "Try free for 7 days",
     secondary: "I have an account",
     note: "No card · Setup in minutes · Cancel anytime",
   },
+  proof: {
+    items: [
+      { value: "1,000+", label: "orders run on Worqera" },
+      { value: "R$ 200k+", label: "generated for clients" },
+      { value: "Many trades", label: "laundry, repair, footwear, auto and atelier" },
+    ],
+  },
   loop: {
     title: "The item changes. The flow doesn’t.",
-    subtitle: "One ops loop for any business with stages and customers asking for status.",
+    subtitle: "One loop for any company with stages and customers asking for status.",
     steps: [
       {
         n: "01",
@@ -178,7 +193,7 @@ const en: typeof pt = {
       {
         n: "02",
         title: "Moves in the queue",
-        desc: "Each sector is a column. The team moves; the owner sees the whole operation.",
+        desc: "Each sector is a column. The team moves; the company sees the whole operation.",
       },
       {
         n: "03",
@@ -188,38 +203,37 @@ const en: typeof pt = {
     ],
   },
   trades: {
-    title: "Built for anyone with a queue",
-    line: "If your business has stages and customers asking for status, it fits.",
-    hint: "Configure sectors and the item name in Company settings — no micro-app per vertical.",
+    title: "Order management for many trades.",
+    line: "One kanban for laundry, repair shops, footwear, automotive, atelier and made-to-order. The item changes. The control stays.",
+    hint: "Sectors and the item name are set on the company. There is no separate app per vertical.",
     items: [
-      "Footwear",
-      "Automotive",
-      "Laundry",
-      "Repair shop",
-      "Atelier",
-      "Service desk",
-      "Custom",
+      { trade: "Footwear", item: "Shoe" },
+      { trade: "Laundry", item: "Garment" },
+      { trade: "Repair", item: "Device" },
+      { trade: "Automotive", item: "Vehicle" },
+      { trade: "Atelier", item: "Made to measure" },
+      { trade: "Made to order", item: "Custom order" },
     ],
   },
   practice: {
     title: "In practice",
-    subtitle: "Kanban in the shop. Lookup in the customer’s pocket.",
+    subtitle: "Kanban in the operation. Lookup in the customer’s pocket.",
     boardLabel: "Kanban · sectors",
     lookupLabel: "Public lookup",
     lookupCode: "0042",
     lookupStatus: "In progress",
-    lookupHint: "Your customer opens the QR and sees where the order is.",
+    lookupHint: "The customer opens the QR and sees where the order is.",
   },
   clients: {
-    title: "Already running",
-    subtitle: "Real businesses, day to day — not a generic demo.",
+    title: "Partners",
+    subtitle: "Companies running on Worqera, day to day.",
     names: ["Casa do Tênis", "Sapataria Paulista", "Axisbyte"],
   },
   pricing: {
-    title: "Clear pricing. One shop, one plan.",
+    title: "Clear pricing. One company, one plan.",
     subtitle: "Basic = ops. Pro = ops + cash. Business = Worqera beside you. 7 days free.",
     guarantee: "Cancel anytime",
-    trust: "AbacatePay billing · your shop’s data",
+    trust: "AbacatePay billing · your company’s data",
     custom: "Business: onboarding, data load and monthly follow-up — talk to Worqera.",
     plans: [
       {
@@ -231,7 +245,7 @@ const en: typeof pt = {
           "Sector kanban",
           "Unlimited orders, clients & team",
           "Public tracking + labels",
-          "Client & workshop TVs",
+          "Customer and operations TVs",
           "No owner finance",
           "No metrics / finance TV",
         ],
@@ -248,7 +262,7 @@ const en: typeof pt = {
           "Owner finance",
           "Metrics + finance TV",
           "Weekly email digest",
-          "Shop branding",
+          "Company brand",
           "Priority support",
         ],
         cta: "Start trial",
@@ -275,12 +289,12 @@ const en: typeof pt = {
     title: "FAQ",
     items: [
       {
-        q: "Is it only for sneakers?",
-        a: "No. Footwear is where we started. The core is queue + lookup — automotive, laundry, repair, atelier and others use the same loop.",
+        q: "Does it cover more than one trade?",
+        a: "Yes. Shoes, garments, devices, vehicles, made-to-measure pieces and custom orders use the same loop: order, sectors and lookup.",
       },
       {
         q: "Do I need a card for the trial?",
-        a: "No. Create the account, set up the shop, use 7 days. You only pay if you subscribe.",
+        a: "No. Create the account, set up the company, use 7 days. You only pay if you subscribe.",
       },
       {
         q: "How does the customer track?",
@@ -288,7 +302,7 @@ const en: typeof pt = {
       },
       {
         q: "Can I have sector accounts?",
-        a: "Yes. Owners see everything; sector accounts see their own queue and forward orders.",
+        a: "Yes. Admins see everything; sector accounts see their own queue and forward orders.",
       },
       {
         q: "What about automatic WhatsApp?",
@@ -297,7 +311,7 @@ const en: typeof pt = {
     ],
   },
   footer: {
-    tagline: "Operational queue for service workshops",
+    tagline: "Order management, kanban and customer status",
     rights: "All rights reserved.",
   },
 }

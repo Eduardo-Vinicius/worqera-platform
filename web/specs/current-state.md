@@ -16,7 +16,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 
 | Área | Status |
 |------|--------|
-| Landing `/` | LIVE (premium multi-ramo · ink/papel) |
+| Landing `/` | LIVE (empresas, ramos, prova 1.000+ / R$ 200 mil+ · ink/papel) |
 | Login `/login` · signup | LIVE |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |

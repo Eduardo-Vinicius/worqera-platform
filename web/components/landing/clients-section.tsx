@@ -6,17 +6,20 @@ export function ClientsSection() {
   const { t } = useLanguage()
 
   return (
-    <section id="clientes" className="border-t border-[var(--border)] py-14 sm:py-16">
+    <section id="clientes" className="border-t border-[var(--border)] py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <h2 className="lp-display text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
+        <h2 className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
           {t.clients.title}
         </h2>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)] sm:text-base">{t.clients.subtitle}</p>
+        <p className="mt-3 max-w-xl text-base text-[var(--muted-foreground)] sm:text-lg">{t.clients.subtitle}</p>
 
-        <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-3 border-t border-[var(--border)] pt-8 sm:gap-x-12">
+        <ul className="mt-10 grid gap-4 sm:grid-cols-3">
           {t.clients.names.map((name) => (
-            <li key={name} className="lp-display text-lg font-semibold text-[var(--ink)] sm:text-xl">
-              {name}
+            <li
+              key={name}
+              className="border border-[var(--border)] bg-[var(--surface)] px-5 py-6"
+            >
+              <p className="lp-display text-xl font-semibold tracking-tight text-[var(--ink)] sm:text-2xl">{name}</p>
             </li>
           ))}
         </ul>

@@ -108,7 +108,7 @@ export default function SignupPage() {
             <span style={{ color: "#ae50fd" }}>sem cartão.</span>
           </h2>
           <p className="max-w-xs text-base leading-relaxed text-[#9d9da1]">
-            Cadastre sua oficina e explore todas as funcionalidades durante o período de trial.
+            Cadastre sua empresa e explore todas as funcionalidades durante o período de trial.
           </p>
 
           <ul className="space-y-2">
@@ -146,7 +146,7 @@ export default function SignupPage() {
               Criar conta
             </h1>
             <p style={{ color: "var(--wq-text-muted)" }} className="text-sm">
-              7 dias grátis para testar o kanban e a gestão da sua oficina.
+              7 dias grátis para testar o kanban e a gestão da sua empresa.
             </p>
           </div>
 
@@ -156,7 +156,7 @@ export default function SignupPage() {
               <Input
                 id="shopName"
                 required
-                placeholder="Ex.: Oficina do Zé"
+                placeholder="Ex.: Empresa Alfa"
                 className="bg-white"
                 {...field("shopName")}
               />
@@ -166,7 +166,7 @@ export default function SignupPage() {
               <Label htmlFor="shopSlug">Slug (sua frase na URL)</Label>
               <Input
                 id="shopSlug"
-                placeholder="ex.: oficina-do-ze"
+                placeholder="ex.: empresa-alfa"
                 className="bg-white"
                 {...field("shopSlug")}
               />

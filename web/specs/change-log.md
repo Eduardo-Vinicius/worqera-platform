@@ -2,6 +2,8 @@
 
 ## 2026-10-04
 
+- **Landing:** a home fala de empresas com fila, vários ramos e o item de cada um. Prova de 1.000+ pedidos e R$ 200 mil+ gerados. Parceiros em destaque. Login e cadastro deixam de dizer “oficina”. Logo, cores e fontes iguais.
+
 - **Acessórios:** Configuração → Acessórios. No pedido, Outro grava o nome na lista da loja e já deixa marcado para os próximos.
 
 - **Marca:** combo no item do pedido. Digita, escolhe, ou cadastra na hora. O modelo continua em texto.

@@ -13,12 +13,11 @@ export function TradesSection() {
         </h2>
         <p className="mt-3 max-w-xl text-base text-white/65 sm:text-lg">{t.trades.line}</p>
 
-        <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-4 sm:mt-12 sm:gap-x-10">
-          {t.trades.items.map((item) => (
-            <li key={item}>
-              <span className="lp-display lp-trade cursor-default text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {item}
-              </span>
+        <ul className="mt-10 grid gap-6 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
+          {t.trades.items.map((row) => (
+            <li key={row.trade} className="border-t border-white/15 pt-4">
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-white/45 uppercase">{row.trade}</p>
+              <p className="lp-display mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{row.item}</p>
             </li>
           ))}
         </ul>

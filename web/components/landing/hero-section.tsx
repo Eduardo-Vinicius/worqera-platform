@@ -14,40 +14,40 @@ function ProductBoard({ pt }: { pt: boolean }) {
         {
           name: "Recebido",
           cards: [
-            { code: "0041", meta: "2 pares" },
-            { code: "0043", meta: "Prioridade" },
+            { code: "0041", meta: "Peça" },
+            { code: "0043", meta: "Roupa" },
           ],
         },
         {
-          name: "Oficina",
+          name: "Em produção",
           cards: [
-            { code: "0038", meta: "Em andamento" },
-            { code: "0035", meta: "Cola" },
+            { code: "0038", meta: "Aparelho" },
+            { code: "0035", meta: "Veículo" },
           ],
         },
         {
           name: "Pronto",
-          cards: [{ code: "0032", meta: "Retirada", ready: true }],
+          cards: [{ code: "0032", meta: "Encomenda", ready: true }],
         },
       ]
     : [
         {
           name: "Intake",
           cards: [
-            { code: "0041", meta: "2 pairs" },
-            { code: "0043", meta: "Priority" },
+            { code: "0041", meta: "Piece" },
+            { code: "0043", meta: "Garment" },
           ],
         },
         {
-          name: "Workshop",
+          name: "In production",
           cards: [
-            { code: "0038", meta: "In progress" },
-            { code: "0035", meta: "Glue" },
+            { code: "0038", meta: "Device" },
+            { code: "0035", meta: "Vehicle" },
           ],
         },
         {
           name: "Ready",
-          cards: [{ code: "0032", meta: "Pickup", ready: true }],
+          cards: [{ code: "0032", meta: "Custom order", ready: true }],
         },
       ]
 
@@ -95,9 +95,10 @@ export function HeroSection() {
     <section className="relative overflow-hidden pt-14 sm:pt-16">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-16 lg:pt-20">
         <div className="lp-animate-in mx-auto max-w-3xl text-center">
-          <p className="lp-display mb-5 text-sm font-semibold tracking-[0.28em] text-[var(--primary)] uppercase">
+          <p className="lp-display mb-3 text-sm font-semibold tracking-[0.28em] text-[var(--primary)] uppercase">
             {t.hero.brand}
           </p>
+          <p className="mb-5 text-sm font-medium text-[var(--ink)]">{t.hero.kicker}</p>
           <h1 className="lp-display text-balance text-4xl font-semibold leading-[1.05] text-[var(--ink)] sm:text-5xl lg:text-[3.5rem]">
             {t.hero.headline}
           </h1>

@@ -79,7 +79,7 @@ export default function LoginPage() {
           >
             Gestão moderna
             <br />
-            <span style={{ color: "#ae50fd" }}>para sua oficina.</span>
+            <span style={{ color: "#ae50fd" }}>para sua empresa.</span>
           </h2>
           <p className="max-w-xs text-base leading-relaxed text-[#9d9da1]">
             Kanban por setores, pedidos, clientes e métricas — tudo em um painel pensado
@@ -186,7 +186,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-sm text-center" style={{ color: "var(--wq-text-muted)" }}>
-            Nova oficina?{" "}
+            Nova empresa?{" "}
             <Link
               href="/signup"
               className="font-medium hover:underline"
