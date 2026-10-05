@@ -70,6 +70,7 @@ function persistSession(data: {
   emailVerificationRequired?: boolean
 }) {
   clearSession()
+  void import("./authRefresh").then((mod) => mod.clearRefreshBlock())
   const token = data.token || data.accessToken
   if (token) {
     localStorage.setItem("token", token)
@@ -453,6 +454,7 @@ export type OpsEndpoint = {
   clientErrors: number
   errors: number
   errorRate: number
+  clientErrorRate?: number
 }
 
 export type OpsWindow = {
@@ -475,6 +477,7 @@ export async function getPlatformOpsV1() {
       status: number
       shopId?: string | null
       shopName?: string
+      count?: number
       at: string
     }>
     shops: { total: number; suspended: number; trialing: number; active: number; openOrders: number }

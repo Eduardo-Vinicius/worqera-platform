@@ -22,14 +22,29 @@ function shouldSkip(req) {
 
 async function logApiError({ message, route, method, status, shopId }) {
   try {
-    await PlatformError.create({
+    const doc = {
       message: String(message || 'error').slice(0, 500),
       route: String(route || ''),
       method: String(method || ''),
       status: Number(status) || 500,
       shopId: shopId ? String(shopId) : null,
-      at: new Date(),
+    };
+    const since = new Date(Date.now() - 15 * 60 * 1000);
+    const existing = await PlatformError.findOne({
+      method: doc.method,
+      route: doc.route,
+      status: doc.status,
+      message: doc.message,
+      at: { $gte: since },
     });
+    if (existing) {
+      await PlatformError.updateOne(
+        { _id: existing._id },
+        { $inc: { count: 1 }, $set: { at: new Date(), shopId: doc.shopId } }
+      );
+      return;
+    }
+    await PlatformError.create({ ...doc, count: 1, at: new Date() });
     const count = await PlatformError.countDocuments();
     if (count > ERROR_CAP) {
       const overflow = count - ERROR_CAP;
@@ -72,7 +87,7 @@ async function recordApiCall(req, res, ms) {
     }
   });
 
-  if (status >= 500) {
+  if (status >= 400) {
     await logApiError({
       message: res.locals?.apiError || `HTTP ${status}`,
       route,
@@ -137,6 +152,7 @@ function presentWindow(map) {
       clientErrors: row.s4,
       errors: row.s5,
       errorRate: count ? Math.round((row.s5 / count) * 1000) / 10 : 0,
+      clientErrorRate: count ? Math.round((row.s4 / count) * 1000) / 10 : 0,
     };
   });
   endpoints.sort((a, b) => b.count - a.count);
@@ -219,6 +235,7 @@ async function readOpsSnapshot() {
       method: e.method,
       status: e.status,
       shopId: e.shopId,
+      count: e.count || 1,
       at: e.at,
     })),
   };

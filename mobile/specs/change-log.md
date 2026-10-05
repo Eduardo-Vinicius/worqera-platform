@@ -2,6 +2,7 @@
 
 ## 2026-10-05
 
+- **Atendimento:** em Mais, vê Configuração (empresa, marcas e o restante). Plano, financeiro e métricas ficam só para admin e dono.
 - **Kanban:** a soma da coluna fica oculta, inclusive para admin e dono.
 
 ## 2026-10-05

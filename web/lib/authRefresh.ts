@@ -2,6 +2,12 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001").re
 const API_V1 = `${API_BASE}/api/v1`
 
 let refreshInflight: Promise<boolean> | null = null
+let refreshBlocked = false
+
+/** Login succeeds and may try refresh again. A failed refresh stays blocked for this tab. */
+export function clearRefreshBlock() {
+  refreshBlocked = false
+}
 
 function persistAccessToken(token: string) {
   if (typeof window === "undefined") return
@@ -13,6 +19,7 @@ function persistAccessToken(token: string) {
 /** Exchange refreshToken (cookie HttpOnly and/or localStorage) for a new access token. */
 export async function tryRefreshSession(): Promise<boolean> {
   if (typeof window === "undefined") return false
+  if (refreshBlocked) return false
   if (refreshInflight) return refreshInflight
 
   refreshInflight = (async () => {
@@ -24,10 +31,16 @@ export async function tryRefreshSession(): Promise<boolean> {
         credentials: "include",
         body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       })
-      if (!res.ok) return false
+      if (!res.ok) {
+        refreshBlocked = true
+        return false
+      }
       const data = await res.json().catch(() => ({}))
       const token = data.token || data.accessToken
-      if (!token) return false
+      if (!token) {
+        refreshBlocked = true
+        return false
+      }
       persistAccessToken(String(token))
       if (data.refreshToken) localStorage.setItem("refreshToken", String(data.refreshToken))
       return true

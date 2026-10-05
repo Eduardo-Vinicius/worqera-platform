@@ -29,7 +29,7 @@ class MoreScreen extends StatelessWidget {
           _row(context, 'Consultas', Icons.search, () => open(ConsultasScreen(api: api, openOrder: (id) => context.push('/orders/$id'), openClient: (id) => open(ClientDetailScreen(api: api, clientId: id))))),
           if (!session.isSector) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),
           _row(context, 'Ler QR', Icons.qr_code_scanner, () => context.go('/qr')),
-          if (session.isAdmin) ...[
+          if (session.seesShopSetup) ...[
             const _Heading('Configuração'),
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
             _row(context, 'Setores', Icons.view_column_outlined, () => open(CatalogScreen(api: api, title: 'Setores', subtitle: 'Colunas do kanban', path: '/sectors', sector: true))),
@@ -39,6 +39,8 @@ class MoreScreen extends StatelessWidget {
             _row(context, 'Equipe', Icons.group_outlined, () => open(TeamScreen(api: api))),
             _row(context, 'Funcionários', Icons.badge_outlined, () => open(CatalogScreen(api: api, title: 'Funcionários', subtitle: 'Quem executa, sem login', path: '/employees'))),
             _row(context, 'TVs', Icons.tv_outlined, () => open(const TvScreen())),
+          ],
+          if (session.isAdmin) ...[
             const _Heading('Gestão'),
             _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
             _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api))),

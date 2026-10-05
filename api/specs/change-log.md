@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-10-05
+
+- **Portal:** 4xx passa a ser guardado junto com o 5xx. A mesma rota e a mesma mensagem viram uma linha com contagem, em vez de mil registros iguais.
+- **Atendimento:** pode alterar empresa, catálogo (setores, serviços, marcas, acessórios), funcionários e equipe. Financeiro e métricas seguem só para admin e dono.
+
 ## 2026-10-04
 
 - **Assinatura em dev:** fora de produção o gate de plano não bloqueia kanban, pedidos e o resto. Produção continua exigindo trial ou plano ativo.

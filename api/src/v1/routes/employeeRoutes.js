@@ -6,7 +6,7 @@ const { subscriptionGate } = require('../middleware/subscriptionGate');
 const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
-const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin')];
+const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin', 'atendimento')];
 
 router.get('/', ...guard, employeeController.list);
 router.post('/', ...guard, employeeController.create);

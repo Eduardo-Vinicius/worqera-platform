@@ -66,14 +66,14 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Configuração",
     items: [
-      { href: "/settings/empresa", label: "Empresa", icon: Building2, ownerAdminOnly: true },
-      { href: "/settings/setores", label: "Setores", icon: Layers, ownerAdminOnly: true },
-      { href: "/settings/servicos", label: "Serviços", icon: Wrench, ownerAdminOnly: true },
-      { href: "/settings/marcas", label: "Marcas", icon: Tag, ownerAdminOnly: true },
-      { href: "/settings/acessorios", label: "Acessórios", icon: Package, ownerAdminOnly: true },
-      { href: "/settings/equipe", label: "Equipe", icon: UsersRound, ownerAdminOnly: true },
-      { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
-      { href: "/settings/tv", label: "TVs", icon: Tv, ownerAdminOnly: true, serviceKey: "tv" },
+      { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
+      { href: "/settings/setores", label: "Setores", icon: Layers, hideForSector: true },
+      { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true },
+      { href: "/settings/marcas", label: "Marcas", icon: Tag, hideForSector: true },
+      { href: "/settings/acessorios", label: "Acessórios", icon: Package, hideForSector: true },
+      { href: "/settings/equipe", label: "Equipe", icon: UsersRound, hideForSector: true },
+      { href: "/funcionarios", label: "Funcionários", icon: UserCog, hideForSector: true },
+      { href: "/settings/tv", label: "TVs", icon: Tv, hideForSector: true, serviceKey: "tv" },
     ],
   },
   {

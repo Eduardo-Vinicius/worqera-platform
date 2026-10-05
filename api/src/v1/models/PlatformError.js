@@ -7,6 +7,7 @@ const platformErrorSchema = new mongoose.Schema(
     method: { type: String, default: '' },
     status: { type: Number, default: 500 },
     shopId: { type: String, default: null },
+    count: { type: Number, default: 1 },
     at: { type: Date, default: Date.now },
   },
   { timestamps: false }

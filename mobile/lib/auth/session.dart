@@ -25,6 +25,7 @@ class SessionStore extends ChangeNotifier {
   bool get loggedIn => token != null && token!.isNotEmpty;
   bool get isSector => role == 'sector';
   bool get isAdmin => role == 'owner' || role == 'admin';
+  bool get seesShopSetup => isAdmin || role == 'atendimento';
   bool get seesMoney => role == 'owner' || role == 'admin' || role == 'atendimento';
   // Soma da coluna fica oculta por ora, inclusive para admin e dono.
   bool get seesColumnMoney => false;

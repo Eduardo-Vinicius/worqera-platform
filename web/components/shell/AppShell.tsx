@@ -186,16 +186,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     ;(async () => {
       try {
         const me = await meV1()
-        if (!cancelled) {
-          const slug = me?.memberships?.[0]?.shop?.slug
-          if (slug) localStorage.setItem("shopSlug", String(slug))
-          const { bindBrandToTheme } = await import("@/lib/shopBrand")
-          bindBrandToTheme()
-          window.dispatchEvent(new Event("wq-session-updated"))
-          const isPlatform = me?.platformAdmin === true
-          const noShop = !(me?.memberships?.[0]?.shop?.id || localStorage.getItem("shopId"))
-          setPlatformConsole(Boolean(isPlatform && (noShop || pathname.startsWith("/admin/shops"))))
-        }
+        if (cancelled) return
+        const slug = me?.memberships?.[0]?.shop?.slug
+        if (slug) localStorage.setItem("shopSlug", String(slug))
+        const { bindBrandToTheme } = await import("@/lib/shopBrand")
+        bindBrandToTheme()
+        window.dispatchEvent(new Event("wq-session-updated"))
+        const isPlatform = me?.platformAdmin === true
+        const noShop = !(me?.memberships?.[0]?.shop?.id || localStorage.getItem("shopId"))
+        setPlatformConsole(Boolean(isPlatform && noShop))
       } catch {
         // ignore
       }
@@ -203,7 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [pathname])
+  }, [])
 
   useEffect(() => {
     const syncBrand = async () => {

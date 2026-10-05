@@ -10,7 +10,7 @@ const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, accessoryController.list);
 router.post('/', ...guard, requireRole('owner', 'admin', 'atendimento'), accessoryController.create);
-router.patch('/:id', ...guard, requireRole('owner', 'admin'), accessoryController.patch);
-router.delete('/:id', ...guard, requireRole('owner', 'admin'), accessoryController.remove);
+router.patch('/:id', ...guard, requireRole('owner', 'admin', 'atendimento'), accessoryController.patch);
+router.delete('/:id', ...guard, requireRole('owner', 'admin', 'atendimento'), accessoryController.remove);
 
 module.exports = router;

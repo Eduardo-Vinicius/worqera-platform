@@ -139,15 +139,29 @@ for (const row of work) {
   const pairs = Math.max(1, Number(row.pairsHint) || 1);
   const priceEach = pairs > 1 ? total / pairs : Number(row.services) || total;
   const clientId = nameToId[row.clientName] || null;
+  const importedLines = Array.isArray(row.lines) ? row.lines.filter((l) => l && l.name) : [];
 
   const items = [];
-  for (let i = 0; i < pairs; i += 1) {
-    items.push({
-      shoeModel: '',
-      services: [{ id: 'import', name: 'Serviço (importação)', price: Math.round(priceEach * 100) / 100 }],
-      photos: [],
-      notes: null,
-    });
+  if (importedLines.length) {
+    for (const line of importedLines) {
+      const label = String(line.name).slice(0, 180);
+      const price = Math.round((Number(line.price) || 0) * 100) / 100;
+      items.push({
+        shoeModel: label,
+        services: [{ id: 'import', name: label, price }],
+        photos: [],
+        notes: null,
+      });
+    }
+  } else {
+    for (let i = 0; i < pairs; i += 1) {
+      items.push({
+        shoeModel: '',
+        services: [{ id: 'import', name: 'Serviço (importação)', price: Math.round(priceEach * 100) / 100 }],
+        photos: [],
+        notes: null,
+      });
+    }
   }
 
   const doc = {
@@ -158,7 +172,13 @@ for (const row of work) {
     clientPhone: null,
     clientEmail: null,
     shoeModel: '',
-    services: [{ id: 'import', name: 'Serviço (importação)', price: Number(row.services) || total }],
+    services: importedLines.length
+      ? importedLines.map((line) => ({
+          id: 'import',
+          name: String(line.name).slice(0, 180),
+          price: Math.round((Number(line.price) || 0) * 100) / 100,
+        }))
+      : [{ id: 'import', name: 'Serviço (importação)', price: Number(row.services) || total }],
     accessories: [],
     warranty: {},
     pricing: { total, deposit, remaining, expenses: 0 },

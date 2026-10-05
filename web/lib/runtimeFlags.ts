@@ -9,6 +9,8 @@ export type RuntimeSnapshot = {
 
 let current: RuntimeSnapshot | null = null
 let inflight: Promise<RuntimeSnapshot | null> | null = null
+let lastFetchedAt = 0
+const RUNTIME_GAP_MS = 5 * 60 * 1000
 
 export function runtimeSnapshot() {
   return current
@@ -27,6 +29,7 @@ export function serviceOn(key: string) {
 export async function refreshRuntimeConfig() {
   if (typeof window === "undefined") return null
   if (!localStorage.getItem("token")) return null
+  if (current && Date.now() - lastFetchedAt < RUNTIME_GAP_MS) return current
   if (inflight) return inflight
   inflight = (async () => {
     try {
@@ -40,6 +43,7 @@ export async function refreshRuntimeConfig() {
         services: data.services || {},
         notices: data.notices || [],
       }
+      lastFetchedAt = Date.now()
       window.dispatchEvent(new Event("wq-runtime-config"))
       return current
     } catch {

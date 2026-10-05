@@ -27,8 +27,13 @@ function formatWhen(value?: string | null) {
 function sortEndpoints(rows: OpsEndpoint[], sort: SortId) {
   const list = [...rows]
   if (sort === "slow") list.sort((a, b) => b.avgMs - a.avgMs || b.count - a.count)
-  else if (sort === "errors") list.sort((a, b) => b.errors - a.errors || b.errorRate - a.errorRate)
-  else list.sort((a, b) => b.count - a.count)
+  else if (sort === "errors") {
+    list.sort(
+      (a, b) =>
+        b.clientErrors + b.errors - (a.clientErrors + a.errors) ||
+        (b.clientErrorRate || 0) - (a.clientErrorRate || 0)
+    )
+  } else list.sort((a, b) => b.count - a.count)
   return list
 }
 
@@ -41,13 +46,6 @@ export default function PlatformPortalPage() {
 
   const load = useCallback(async () => {
     try {
-      const me = await meV1()
-      if (!me?.platformAdmin) {
-        setAllowed(false)
-        toast.error("Acesso restrito ao time Worqera")
-        return
-      }
-      setAllowed(true)
       setOps(await getPlatformOpsV1())
     } catch (err: any) {
       toast.error(err?.message || "Falha ao carregar o portal")
@@ -57,10 +55,36 @@ export default function PlatformPortalPage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    let cancelled = false
+    ;(async () => {
+      try {
+        const me = await meV1()
+        if (cancelled) return
+        if (!me?.platformAdmin) {
+          setAllowed(false)
+          setLoading(false)
+          toast.error("Acesso restrito ao time Worqera")
+          return
+        }
+        setAllowed(true)
+        await load()
+      } catch (err: any) {
+        if (!cancelled) {
+          setLoading(false)
+          toast.error(err?.message || "Falha ao carregar o portal")
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [load])
+
+  useEffect(() => {
+    if (!allowed) return
     const timer = window.setInterval(() => void load(), 30000)
     return () => window.clearInterval(timer)
-  }, [load])
+  }, [allowed, load])
 
   const view = ops?.windows?.[windowId]
   const rows = useMemo(() => sortEndpoints(view?.endpoints || [], sort), [view, sort])
@@ -155,7 +179,7 @@ export default function PlatformPortalPage() {
                       <th className="px-4 py-2 font-medium">2xx</th>
                       <th className="px-4 py-2 font-medium">4xx</th>
                       <th className="px-4 py-2 font-medium">5xx</th>
-                      <th className="px-4 py-2 font-medium">Erro</th>
+                      <th className="px-4 py-2 font-medium">4xx %</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -177,7 +201,7 @@ export default function PlatformPortalPage() {
                           <td className="px-4 py-2 tabular-nums">{row.ok}</td>
                           <td className="px-4 py-2 tabular-nums">{row.clientErrors}</td>
                           <td className="px-4 py-2 tabular-nums">{row.errors}</td>
-                          <td className="px-4 py-2 tabular-nums">{row.errorRate}%</td>
+                          <td className="px-4 py-2 tabular-nums">{row.clientErrorRate ?? 0}%</td>
                         </tr>
                       ))
                     )}
@@ -189,16 +213,19 @@ export default function PlatformPortalPage() {
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
               <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
                 <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">
-                  Últimos {ops?.errors?.length || 0} erros
+                  Últimos erros (4xx e 5xx)
                 </h2>
                 <ul className="max-h-[520px] divide-y divide-[var(--wq-border)] overflow-y-auto">
                   {(ops?.errors || []).length === 0 ? (
-                    <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">Nenhum erro 5xx guardado.</li>
+                    <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">
+                      Nenhum 4xx ou 5xx guardado ainda. A coluna 4xx conta o volume; o texto do erro entra daqui pra frente.
+                    </li>
                   ) : (
                     ops?.errors.map((err) => (
                       <li key={err.id} className="px-4 py-2.5 text-sm">
                         <p className="font-medium">
                           {err.status} · {err.message}
+                          {(err.count || 1) > 1 ? ` · ${err.count}×` : ""}
                         </p>
                         <p className="font-mono text-xs text-[var(--wq-text-muted)]">
                           {err.method} {err.route}

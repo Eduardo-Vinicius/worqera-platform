@@ -66,6 +66,7 @@ const orders = rows.map((r) => ({
   received: Number(r.received) || 0,
   toReceive: Number(r.toReceive) || 0,
   pairsHint: r.pairsHint || null,
+    lines: Array.isArray(r.lines) ? r.lines : undefined,
 }));
 
 const dates = [...new Set(orders.map((o) => o.date))].sort();

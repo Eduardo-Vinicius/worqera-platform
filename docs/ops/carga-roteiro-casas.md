@@ -241,11 +241,13 @@ db.shops.findOne({ slug: "sapataria-paulista" }, { name: 1, slug: 1 })
 
 Se der erro de **duplicate key**, a errada ainda existe — volte ao passo 2.
 
-#### 4) Carga depois do rename
+#### 4) Carga deste PDF
+
+O relatório `sapataria-paulista/report001 (8).pdf` **não** passa no extrator da Casa do Tênis.  
+Roteiro completo (comandos para colar): [carga-sapataria-paulista.md](carga-sapataria-paulista.md).
 
 ```bash
 export SHOP_SLUG='sapataria-paulista'
-# … extract / payload / dry-run / APPLY com esse slug
 ```
 
 Público fica `/p/sapataria-paulista/{codigo}`.  

@@ -36,7 +36,10 @@ export function FeedbackBell({ className }: { className?: string }) {
   useEffect(() => {
     if (!allowed) return
     let cancelled = false
+    let timer = 0
+    const stop = () => window.clearInterval(timer)
     const load = async () => {
+      if (document.hidden) return
       try {
         const res = await getAlertsInboxV1()
         if (cancelled) return
@@ -46,14 +49,23 @@ export function FeedbackBell({ className }: { className?: string }) {
         setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
       } catch (err: any) {
         if (cancelled) return
+        if (err?.status === 401 || err?.status === 403) {
+          stop()
+          return
+        }
         setLoadError(err?.message || "Falha ao carregar avisos")
       }
     }
-    load()
-    const id = setInterval(load, 60_000)
+    const onVisible = () => {
+      if (!document.hidden) void load()
+    }
+    void load()
+    timer = window.setInterval(load, 180_000)
+    document.addEventListener("visibilitychange", onVisible)
     return () => {
       cancelled = true
-      clearInterval(id)
+      stop()
+      document.removeEventListener("visibilitychange", onVisible)
     }
   }, [allowed])
 

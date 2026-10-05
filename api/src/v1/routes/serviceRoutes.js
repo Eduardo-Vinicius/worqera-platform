@@ -9,8 +9,8 @@ const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, serviceController.list);
-router.post('/', ...guard, requireRole('owner', 'admin'), serviceController.create);
-router.patch('/:id', ...guard, requireRole('owner', 'admin'), serviceController.patch);
-router.delete('/:id', ...guard, requireRole('owner', 'admin'), serviceController.remove);
+router.post('/', ...guard, requireRole('owner', 'admin', 'atendimento'), serviceController.create);
+router.patch('/:id', ...guard, requireRole('owner', 'admin', 'atendimento'), serviceController.patch);
+router.delete('/:id', ...guard, requireRole('owner', 'admin', 'atendimento'), serviceController.remove);
 
 module.exports = router;

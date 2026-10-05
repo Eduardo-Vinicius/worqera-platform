@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+- **Portal:** a tabela mostra a porcentagem de 4xx. A lista de erros inclui 4xx e 5xx, com quantas vezes a mesma falha se repetiu.
+- **Sessão:** uma renovação que falha não é tentada de novo na mesma aba. O sino de avisos para no 401/403, não consulta com a aba escondida e espera 3 minutos. `/auth/me` roda uma vez por abertura, não a cada tela. Configuração da plataforma no máximo a cada 5 minutos.
+- **Atendimento:** vê Configuração (empresa, setores, serviços, marcas, acessórios, equipe, funcionários e TVs). Plano, financeiro, métricas e TV financeiro continuam só para admin e dono.
 - **Kanban:** a soma da coluna (total e a pagar) fica oculta, inclusive para admin e dono. O valor do pedido na ficha continua.
 
 ## 2026-10-04

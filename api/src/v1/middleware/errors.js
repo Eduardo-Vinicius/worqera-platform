@@ -1,11 +1,14 @@
 function sendError(res, status, { title, detail, code, type = 'about:blank', extras = {} }) {
   const correlationId = res.req?.correlationId || null;
+  const resolvedCode = code || defaultCode(status);
+  const resolvedDetail = detail || title || statusTitle(status);
+  res.locals.apiError = `${resolvedCode}: ${resolvedDetail}`.slice(0, 500);
   return res.status(status).json({
     type,
     title: title || statusTitle(status),
     status,
     detail: detail || title || statusTitle(status),
-    code: code || defaultCode(status),
+    code: resolvedCode,
     correlationId,
     ...extras,
   });

@@ -12,56 +12,56 @@ router.get('/current', ...guard, shopController.getCurrent);
 router.patch(
   '/current',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.patchCurrent
 );
 router.post(
   '/current/logo',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.uploadLogoMiddleware,
   shopController.uploadLogo
 );
 router.post(
   '/current/seed-catalog',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.seedCatalog
 );
 router.post(
   '/current/apply-starter-kit',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.applyStarterKit
 );
 router.get(
   '/current/members',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.listMembers
 );
 router.post(
   '/current/members',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.addMember
 );
 router.patch(
   '/current/members/:id',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.patchMember
 );
 router.post(
   '/current/members/:id/reset-password',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.resetMemberPassword
 );
 router.post(
   '/current/invites',
   ...guard,
-  requireRole('owner', 'admin'),
+  requireRole('owner', 'admin', 'atendimento'),
   shopController.createInvite
 );
 

@@ -125,13 +125,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // atendimento: ops only — no settings / billing / funcionários / admin
+  // atendimento: configuração da loja sim; gestão (plano, financeiro, métricas) não
   if (role === 'atendimento') {
     const blocked =
-      pathname.startsWith('/settings') ||
       pathname.startsWith('/admin') ||
-      pathname.startsWith('/funcionarios') ||
       pathname.startsWith('/billing') ||
+      pathname.startsWith('/tv-financeiro') ||
       pathname.startsWith('/onboarding');
     if (blocked) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
