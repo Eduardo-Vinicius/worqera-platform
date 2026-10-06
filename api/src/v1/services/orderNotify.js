@@ -114,34 +114,41 @@ function buildHtml({ kind, title, body, link, trackLink, code, primary, pdfAttac
   return parts.join('\n');
 }
 
+async function notifyGate(shop, order, kind) {
+  if (!shop || !order) {
+    console.info('[orderNotify] skip', { kind, reason: 'missing' });
+    return { ok: false, skipped: true, reason: 'missing' };
+  }
+  if (!emailEnabled(shop)) {
+    console.info('[orderNotify] skip', {
+      kind,
+      code: order.code,
+      reason: 'email-disabled',
+    });
+    return { ok: false, skipped: true, reason: 'email-disabled' };
+  }
+  const { moduleEnabled } = require('./platformConsoleService');
+  const shopId = shop._id || shop.id || order.shopId;
+  if (!(await moduleEnabled(shopId, 'emailNotify'))) {
+    return { ok: false, skipped: true, reason: 'email-disabled' };
+  }
+  const to = String(order.clientEmail || '').trim();
+  if (!to) {
+    console.info('[orderNotify] skip', {
+      kind,
+      code: order.code,
+      reason: 'no-email',
+    });
+    return { ok: false, skipped: true, reason: 'no-email' };
+  }
+  return null;
+}
+
 async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
   try {
-    if (!shop || !order) {
-      console.info('[orderNotify] skip', { kind, reason: 'missing' });
-      return { ok: false, skipped: true, reason: 'missing' };
-    }
-    if (!emailEnabled(shop)) {
-      console.info('[orderNotify] skip', {
-        kind,
-        code: order.code,
-        reason: 'email-disabled',
-      });
-      return { ok: false, skipped: true, reason: 'email-disabled' };
-    }
-    const { moduleEnabled } = require('./platformConsoleService');
-    const shopId = shop._id || shop.id || order.shopId;
-    if (!(await moduleEnabled(shopId, 'emailNotify'))) {
-      return { ok: false, skipped: true, reason: 'email-disabled' };
-    }
+    const gated = await notifyGate(shop, order, kind);
+    if (gated) return gated;
     const to = String(order.clientEmail || '').trim();
-    if (!to) {
-      console.info('[orderNotify] skip', {
-        kind,
-        code: order.code,
-        reason: 'no-email',
-      });
-      return { ok: false, skipped: true, reason: 'no-email' };
-    }
 
     if (!order.publicToken) {
       const { ensureOrderPublicToken } = require('../utils/publicOrderToken');
@@ -218,9 +225,18 @@ function notifyOrderStatusSafe(shop, order, kind, extras) {
   });
 }
 
+/** Fast answer for create/resend. PDF and SMTP finish after the HTTP response. */
+async function enqueueNotifyOrderStatus(shop, order, kind, extras) {
+  const gated = await notifyGate(shop, order, kind);
+  if (gated) return gated;
+  notifyOrderStatusSafe(shop, order, kind, extras);
+  return { ok: true, queued: true };
+}
+
 module.exports = {
   notifyOrderStatus,
   notifyOrderStatusSafe,
+  enqueueNotifyOrderStatus,
   emailEnabled,
   publicOrderUrl,
 };

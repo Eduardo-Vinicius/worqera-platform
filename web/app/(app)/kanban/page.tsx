@@ -1729,7 +1729,9 @@ export default function KanbanPage() {
                             setDetail(updated as DetailOrder)
                             const result = await resendOrderEmailV1(String(detail.id), "created")
                             const notify = result?.emailNotify || result
-                            if (notify?.ok && notify?.provider !== "console") {
+                            if (notify?.queued) {
+                              toast.success(`Laudo a caminho para ${email}`)
+                            } else if (notify?.ok && notify?.provider !== "console") {
                               toast.success(`Laudo reenviado para ${email}`)
                             } else if (notify?.ok) {
                               toast.message("E-mail só foi para o log da API")

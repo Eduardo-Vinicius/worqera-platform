@@ -2,6 +2,13 @@
 
 ## 2026-10-05
 
+- **Sessão:** sair envia o refresh guardado, para a API invalidar a conta mesmo com o acesso vencido.
+- **Privacidade:** `/privacidade` descreve conta, clientes, pedidos, link público e que o produto não lê localização. O login aponta para essa página.
+
+- **Consulta pública:** QR, WhatsApp, etiqueta e copiar link usam `/p/o/{token}`. A página não coloca o nome da empresa na barra de endereço. Link antigo continua válido.
+- **Sino:** abrir o aviso marca como lido. O número some e só volta quando entra pedido pronto, reaberto ou avaliação nova.
+
+- **Pedido:** criar e reenviar o laudo não esperam o Gmail. A tela avisa que o e-mail está a caminho.
 - **Portal:** a tabela mostra a porcentagem de 4xx. A lista de erros inclui 4xx e 5xx, com quantas vezes a mesma falha se repetiu.
 - **Sessão:** uma renovação que falha não é tentada de novo na mesma aba. O sino de avisos para no 401/403, não consulta com a aba escondida e espera 3 minutos. `/auth/me` roda uma vez por abertura, não a cada tela. Configuração da plataforma no máximo a cada 5 minutos.
 - **Atendimento:** vê Configuração (empresa, setores, serviços, marcas, acessórios, equipe, funcionários e TVs). Plano, financeiro, métricas e TV financeiro continuam só para admin e dono.

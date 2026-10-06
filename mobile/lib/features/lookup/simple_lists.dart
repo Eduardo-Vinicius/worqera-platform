@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
+import '../../design/flow.dart';
+import '../../design/sheet.dart';
 import '../../design/ui.dart';
 
 class ClientsScreen extends StatefulWidget {
@@ -15,11 +17,6 @@ class ClientsScreen extends StatefulWidget {
 
 class _ClientsScreenState extends State<ClientsScreen> {
   final q = TextEditingController();
-  final name = TextEditingController();
-  final phone = TextEditingController();
-  final email = TextEditingController();
-  final cpf = TextEditingController();
-  final notes = TextEditingController();
   List<Map<String, dynamic>> rows = [];
   String? error;
 
@@ -42,19 +39,68 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   Future<void> create() async {
-    if (name.text.trim().isEmpty) return;
-    await widget.api.dio.post('/clients', data: {
+    final name = TextEditingController();
+    final phone = TextEditingController();
+    final email = TextEditingController();
+    final cpf = TextEditingController();
+    final notes = TextEditingController();
+    final cep = TextEditingController();
+    final address = TextEditingController();
+    final ok = await showWqSheet<bool>(
+      context,
+      title: 'Novo cliente',
+      child: (sheet) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+          TextField(
+            controller: phone,
+            decoration: const InputDecoration(labelText: 'Telefone'),
+            onChanged: (value) {
+              final next = maskPhone(value);
+              if (next != value) phone.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+            },
+          ),
+          TextField(
+            controller: cep,
+            decoration: const InputDecoration(labelText: 'CEP'),
+            onSubmitted: (_) async {
+              final digits = cep.text.replaceAll(RegExp(r'\D'), '');
+              if (digits.length != 8) return;
+              try {
+                final res = await widget.api.dio.get('https://viacep.com.br/ws/$digits/json/');
+                final body = Map<String, dynamic>.from(res.data as Map);
+                if (body['erro'] == true) return;
+                address.text = '${body['logradouro'] ?? ''}, ${body['bairro'] ?? ''} · ${body['localidade'] ?? ''}';
+              } catch (e) {
+                if (!sheet.mounted) return;
+                wqToast(sheet, widget.api.message(e));
+              }
+            },
+          ),
+          TextField(controller: address, decoration: const InputDecoration(labelText: 'Endereço')),
+          TextField(controller: email, decoration: const InputDecoration(labelText: 'E-mail')),
+          TextField(controller: cpf, decoration: const InputDecoration(labelText: 'CPF')),
+          TextField(controller: notes, decoration: const InputDecoration(labelText: 'Observações')),
+          const SizedBox(height: 8),
+          FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Cadastrar')),
+        ],
+      ),
+    );
+    final payload = {
       'name': name.text.trim(),
       'phone': phone.text.trim(),
       'email': email.text.trim(),
       'cpf': cpf.text.trim(),
       'notes': notes.text.trim(),
-    });
-    name.clear();
-    phone.clear();
-    email.clear();
-    cpf.clear();
-    notes.clear();
+      'address': address.text.trim(),
+      'zip': cep.text.trim(),
+    };
+    for (final ctrl in [name, phone, email, cpf, notes, cep, address]) {
+      ctrl.dispose();
+    }
+    if (ok != true || payload['name']!.isEmpty) return;
+    await widget.api.dio.post('/clients', data: payload);
     await load();
   }
 
@@ -73,25 +119,20 @@ class _ClientsScreenState extends State<ClientsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
               if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
-              WqCard(
-                child: Column(children: [
-                  TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
-                  const SizedBox(height: 8),
-                  TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
-                  TextField(controller: email, decoration: const InputDecoration(labelText: 'E-mail')),
-                  TextField(controller: cpf, decoration: const InputDecoration(labelText: 'CPF')),
-                  TextField(controller: notes, decoration: const InputDecoration(labelText: 'Observações')),
-                  const SizedBox(height: 8),
-                  Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: create, child: const Text('Cadastrar'))),
-                ]),
-              ),
+              FilledButton(onPressed: create, child: const Text('Novo cliente')),
               const SizedBox(height: 12),
               for (final row in rows) ...[
                 WqCard(
                   onTap: widget.openClient == null ? null : () => widget.openClient!('${row['id'] ?? row['_id']}'),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('${row['name'] ?? row['nomeCompleto'] ?? 'Cliente'}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text('${row['phone'] ?? row['telefone'] ?? row['email'] ?? ''}', style: const TextStyle(color: Wq.muted)),
+                    Text(
+                      [
+                        '${row['phone'] ?? row['telefone'] ?? row['email'] ?? ''}',
+                        maskCpf('${row['cpf'] ?? ''}'),
+                      ].where((part) => part.isNotEmpty).join(' · '),
+                      style: const TextStyle(color: Wq.muted),
+                    ),
                   ]),
                 ),
                 const SizedBox(height: 8),
@@ -139,7 +180,49 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                WqCard(child: Text('${client!['email'] ?? 'Sem e-mail'}')),
+                WqCard(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${client!['email'] ?? 'Sem e-mail'}'),
+                    Text(maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}')),
+                    if (maskCpf('${client!['cpf'] ?? ''}').isNotEmpty) Text(maskCpf('${client!['cpf'] ?? ''}')),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () async {
+                        final name = TextEditingController(text: '${client!['name'] ?? client!['nomeCompleto'] ?? ''}');
+                        final phone = TextEditingController(text: maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}'));
+                        final email = TextEditingController(text: '${client!['email'] ?? ''}');
+                        final cpf = TextEditingController(text: '${client!['cpf'] ?? ''}');
+                        final ok = await showWqSheet<bool>(
+                          context,
+                          title: 'Editar cliente',
+                          child: (sheet) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
+                              TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
+                              TextField(controller: email, decoration: const InputDecoration(labelText: 'E-mail')),
+                              TextField(controller: cpf, decoration: const InputDecoration(labelText: 'CPF')),
+                              const SizedBox(height: 8),
+                              FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
+                            ],
+                          ),
+                        );
+                        final payload = {'name': name.text.trim(), 'phone': phone.text.trim(), 'email': email.text.trim(), 'cpf': cpf.text.trim()};
+                        name.dispose();
+                        phone.dispose();
+                        email.dispose();
+                        cpf.dispose();
+                        if (ok != true) return;
+                        await widget.api.dio.patch('/clients/${widget.clientId}', data: payload);
+                        final res = await widget.api.dio.get('/clients/${widget.clientId}');
+                        if (!context.mounted) return;
+                        setState(() => client = Map<String, dynamic>.from(res.data as Map));
+                        wqToast(context, 'Cliente atualizado');
+                      },
+                      child: const Text('Editar'),
+                    ),
+                  ]),
+                ),
                 const SizedBox(height: 12),
                 const WqSectionTitle('Pedidos'),
                 for (final order in orders)
@@ -166,7 +249,8 @@ class ConsultasScreen extends StatefulWidget {
 }
 
 class _ConsultasScreenState extends State<ConsultasScreen> {
-  String mode = 'ativos';
+  bool hub = true;
+  String mode = 'clientes';
   final q = TextEditingController();
   List<Map<String, dynamic>> rows = [];
   String? error;
@@ -200,8 +284,14 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Consultas',
-      subtitle: 'Clientes, ativos e finalizados',
-      child: Column(children: [
+      subtitle: hub ? 'Escolha o que buscar' : 'Clientes, ativos e finalizados',
+      child: hub
+          ? ListView(padding: const EdgeInsets.all(16), children: [
+              WqCard(onTap: () => setState(() { hub = false; mode = 'clientes'; }), child: const ListTile(contentPadding: EdgeInsets.zero, title: Text('Clientes'), subtitle: Text('Nome, telefone ou e-mail'))),
+              const SizedBox(height: 8),
+              WqCard(onTap: () => setState(() { hub = false; mode = 'ativos'; }), child: const ListTile(contentPadding: EdgeInsets.zero, title: Text('Pedidos'), subtitle: Text('Código e cliente. A ficha abre laudo e etiqueta.'))),
+            ])
+          : Column(children: [
         SizedBox(
           height: 44,
           child: ListView(

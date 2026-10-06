@@ -242,9 +242,14 @@ async function sendWeeklyDigest(shopId) {
   };
 }
 
-async function getOwnerInbox(shopId) {
+function unseenIds(rows, seenIds) {
+  const seen = new Set((seenIds || []).map((id) => String(id)));
+  return rows.filter((row) => !seen.has(String(row._id)));
+}
+
+async function loadInboxSnapshot(shopId) {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const [feedbackItems, readyCount, reopenedCount] = await Promise.all([
+  const [feedbackItems, readyOrders, reopenedOrders] = await Promise.all([
     Order.find({
       shopId,
       'feedback.score': { $gte: 1 },
@@ -254,20 +259,37 @@ async function getOwnerInbox(shopId) {
       .limit(20)
       .select('code clientName status feedback')
       .lean(),
-    Order.countDocuments({ shopId, status: 'ready', deletedAt: null }),
-    Order.countDocuments({
+    Order.find({ shopId, status: 'ready', deletedAt: null }).select('_id').limit(500).lean(),
+    Order.find({
       shopId,
       reopenedAt: { $ne: null },
       deletedAt: null,
       status: { $nin: ['delivered', 'cancelled'] },
-    }),
+    })
+      .select('_id')
+      .limit(500)
+      .lean(),
   ]);
+  return { feedbackItems, readyOrders, reopenedOrders };
+}
+
+async function getOwnerInbox(shopId, userId) {
+  const [{ feedbackItems, readyOrders, reopenedOrders }, membership] = await Promise.all([
+    loadInboxSnapshot(shopId),
+    userId
+      ? Membership.findOne({ shopId, userId, active: true }).select('inboxSeen').lean()
+      : null,
+  ]);
+  const seen = membership?.inboxSeen || {};
+  const unreadReady = unseenIds(readyOrders, seen.readyIds);
+  const unreadReopened = unseenIds(reopenedOrders, seen.reopenedIds);
+  const unreadFeedback = unseenIds(feedbackItems, seen.feedbackIds);
 
   return {
-    readyCount,
-    reopenedCount,
-    feedbackCount: feedbackItems.length,
-    feedback: feedbackItems.map((o) => ({
+    readyCount: unreadReady.length,
+    reopenedCount: unreadReopened.length,
+    feedbackCount: unreadFeedback.length,
+    feedback: unreadFeedback.map((o) => ({
       id: String(o._id),
       code: o.code,
       clientName: o.clientName || '',
@@ -278,6 +300,24 @@ async function getOwnerInbox(shopId) {
       createdAt: o.feedback?.createdAt || null,
     })),
   };
+}
+
+async function markInboxRead(shopId, userId) {
+  if (!userId) return { ok: false };
+  const { feedbackItems, readyOrders, reopenedOrders } = await loadInboxSnapshot(shopId);
+  await Membership.updateOne(
+    { shopId, userId, active: true },
+    {
+      $set: {
+        inboxSeen: {
+          readyIds: readyOrders.map((row) => String(row._id)),
+          reopenedIds: reopenedOrders.map((row) => String(row._id)),
+          feedbackIds: feedbackItems.map((row) => String(row._id)),
+        },
+      },
+    }
+  );
+  return { ok: true };
 }
 
 /**
@@ -426,6 +466,7 @@ module.exports = {
   buildWeeklyStats,
   sendWeeklyDigest,
   getOwnerInbox,
+  markInboxRead,
   listFeedback,
   exportFeedbackCsv,
 };

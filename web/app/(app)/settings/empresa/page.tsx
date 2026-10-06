@@ -269,10 +269,10 @@ export default function EmpresaPage() {
               )}
               {field(
                 "slug",
-                "Slug (sua frase na URL)",
+                "Slug interno",
                 form.slug,
                 (v) => setForm((f) => ({ ...f, slug: v })),
-                form.slug ? `Consulta pública: /p/${form.slug}/CODIGO?t=…` : undefined
+                "Não aparece no link do cliente"
               )}
               {field(
                 "emailFromName",
@@ -380,7 +380,7 @@ export default function EmpresaPage() {
                       Link público base
                     </p>
                     <p className="truncate font-mono text-xs text-[var(--wq-text)]">
-                      /p/{form.slug}/CODIGO?t=…
+                      /p/o/…
                     </p>
                   </div>
                   <Button
@@ -391,7 +391,7 @@ export default function EmpresaPage() {
                     onClick={async () => {
                       const origin =
                         typeof window !== "undefined" ? window.location.origin : "https://worqera.com"
-                      const base = `${origin}/p/${form.slug}/CODIGO?t=…`
+                      const base = `${origin}/p/o/…`
                       try {
                         await navigator.clipboard.writeText(base)
                         toast.success("Formato do link copiado (token vem de cada pedido)")

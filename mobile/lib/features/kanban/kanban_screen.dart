@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
+import '../../design/flow.dart';
 import '../../design/ui.dart';
 
 class KanbanScreen extends StatefulWidget {
@@ -58,6 +59,23 @@ class _KanbanScreenState extends State<KanbanScreen> {
   Future<void> move(Map card, String toSectorId, {bool settle = false}) async {
     final orderId = '${card['orderId'] ?? card['id']}';
     final itemId = '${card['itemId'] ?? ''}';
+    final planned = (card['plannedSectorIds'] as List?)?.map((e) => '$e').toList() ?? const <String>[];
+    if (!settle && planned.isNotEmpty && toSectorId.isNotEmpty && !planned.contains(toSectorId)) {
+      final note = TextEditingController();
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Fora do fluxo'),
+          content: TextField(controller: note, decoration: const InputDecoration(labelText: 'Comentário obrigatório')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, note.text.trim().isNotEmpty), child: const Text('Mover')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await widget.api.dio.post('/orders/$orderId/comments', data: {'text': note.text.trim()});
+    }
     if (settle) {
       final total = num.tryParse('${card['paymentTotal'] ?? 0}') ?? 0;
       await widget.api.dio.patch('/orders/$orderId', data: {
@@ -71,6 +89,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
       await widget.api.dio.post('/kanban/orders/$orderId/move', data: {'toSectorId': toSectorId});
     }
     await load();
+    if (mounted) wqToast(context, settle ? 'Pago e entregue' : 'Movido');
   }
 
   Future<void> deliver(Map card) async {
@@ -105,6 +124,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
       'deliveredAt': DateTime.now().toUtc().toIso8601String(),
     });
     await load();
+    if (mounted) wqToast(context, 'Pedido marcado como entregue');
   }
 
   Future<void> shift(Map card, int delta) async {
@@ -161,10 +181,10 @@ class _KanbanScreenState extends State<KanbanScreen> {
                           final count = ordersOf(columns[i]).length;
                           final color = _hex(sector['color']);
                           return Material(
-                            color: selected ? Wq.brand : Wq.surface,
+                            color: selected ? Wq.brand : context.wqSurface,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: selected ? Wq.brand : Wq.line),
+                              side: BorderSide(color: selected ? Wq.brand : context.wqLine),
                             ),
                             child: InkWell(
                               onTap: () => setState(() => index = i),
@@ -175,7 +195,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
                                   Row(children: [
                                     Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                                     const SizedBox(width: 6),
-                                    Text('${sector['name']}', style: TextStyle(color: selected ? Colors.white : Wq.ink, fontWeight: FontWeight.w600)),
+                                    Text('${sector['name']}', style: TextStyle(color: selected ? Colors.white : context.wqInk, fontWeight: FontWeight.w600)),
                                     const SizedBox(width: 6),
                                     Text('$count', style: TextStyle(color: selected ? Colors.white70 : Wq.muted, fontSize: 12)),
                                   ]),
@@ -223,22 +243,42 @@ class _KanbanScreenState extends State<KanbanScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Wq.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: late ? const Color(0xFFFDA4AF) : Wq.line),
+        color: context.wqSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: late ? const Color(0xFFFDA4AF) : context.wqLine),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: InkWell(
-        onTap: () => widget.openOrder('${card['orderId'] ?? card['id']}'),
-        borderRadius: BorderRadius.circular(12),
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          showDragHandle: true,
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${card['pairLabel'] ?? card['code'] ?? 'Pedido'}', style: monoStyle(size: 22)),
+                Text('${card['clientName'] ?? ''}'),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: () {
+                  Navigator.pop(ctx);
+                  widget.openOrder('${card['orderId'] ?? card['id']}');
+                }, child: const Text('Abrir ficha')),
+              ]),
+            ),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text('${card['pairLabel'] ?? card['code'] ?? 'Pedido'}', style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text('${card['pairLabel'] ?? card['code'] ?? 'Pedido'}', style: monoStyle(size: 15)),
+              if (pairCount(card) > 1)
+                Padding(padding: const EdgeInsets.only(left: 8), child: Text('${pairCount(card)} pares', style: const TextStyle(color: Wq.brand, fontSize: 12, fontWeight: FontWeight.w700))),
               if (late) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Atrasado', style: TextStyle(color: Wq.danger, fontSize: 12))),
               if (card['hasPhotos'] != true) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Sem foto', style: TextStyle(color: Wq.warn, fontSize: 12))),
             ]),
-            Text('${card['clientName'] ?? ''}', style: const TextStyle(color: Wq.ink)),
+            Text('${card['clientName'] ?? ''}', style: TextStyle(color: context.wqInk)),
             if ('${card['brand'] ?? card['shoeModel'] ?? ''}'.isNotEmpty)
               Text('${card['brand'] ?? ''} · ${card['shoeModel'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
             if (widget.session.seesColumnMoney && pending > 0.009)

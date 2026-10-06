@@ -12,14 +12,40 @@ class ShopsScreen extends StatefulWidget {
 }
 
 class _ShopsScreenState extends State<ShopsScreen> {
+  static const plans = [
+    ('WORQERA_BASIC', 'Basic · R\$ 147'),
+    ('WORQERA_PRO', 'Pro · R\$ 297'),
+    ('WORQERA_BUSINESS', 'Business · R\$ 499'),
+  ];
+
   List<Map<String, dynamic>> rows = [];
   String? openId;
+  String? busyId;
   String? error;
+  final planDrafts = <String, String>{};
 
   @override
   void initState() {
     super.initState();
     load();
+  }
+
+  String shopId(Map row) => '${row['id'] ?? row['_id']}';
+
+  String planCode(Map row) {
+    final sub = row['subscription'];
+    final raw = sub is Map ? '${sub['planCode'] ?? ''}' : '${row['planCode'] ?? ''}';
+    if (raw == 'WORQERA_PREMIUM') return 'WORQERA_BUSINESS';
+    if (raw == 'WORQERA_EARLY') return 'WORQERA_BASIC';
+    if (raw == 'WORQERA_BASIC' || raw == 'WORQERA_PRO' || raw == 'WORQERA_BUSINESS') return raw;
+    return 'WORQERA_PRO';
+  }
+
+  String planLabel(String code) {
+    for (final plan in plans) {
+      if (plan.$1 == code) return plan.$2.split(' · ').first;
+    }
+    return code;
   }
 
   Future<void> load() async {
@@ -28,6 +54,23 @@ class _ShopsScreenState extends State<ShopsScreen> {
       setState(() => rows = asMaps(res.data));
     } catch (e) {
       setState(() => error = widget.api.message(e));
+    }
+  }
+
+  Future<void> patch(String id, Map<String, dynamic> body, String ok) async {
+    setState(() => busyId = id);
+    try {
+      await widget.api.dio.patch('/platform/shops/$id', data: body);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok)));
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.api.message(e))));
+      }
+    } finally {
+      if (mounted) setState(() => busyId = null);
     }
   }
 
@@ -41,18 +84,58 @@ class _ShopsScreenState extends State<ShopsScreen> {
         children: [
           if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
           for (final row in rows) ...[
-            WqCard(
-              onTap: () => setState(() => openId = openId == '${row['id']}' ? null : '${row['id'] ?? row['_id']}'),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                Text('${row['slug'] ?? ''} · ${row['planCode'] ?? row['plan'] ?? 'Sem plano'} · ${row['status'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
-                if (openId == '${row['id'] ?? row['_id']}')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text('Trial ${row['trialEndsAt'] ?? '—'}', style: const TextStyle(fontSize: 12)),
-                  ),
-              ]),
-            ),
+            Builder(builder: (context) {
+              final id = shopId(row);
+              final open = openId == id;
+              final suspended = row['status'] == 'suspended';
+              final draft = planDrafts[id] ?? planCode(row);
+              final sub = row['subscription'] is Map ? row['subscription'] as Map : null;
+              return WqCard(
+                onTap: () => setState(() => openId = open ? null : id),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text('${row['slug'] ?? ''} · ${planLabel(planCode(row))} · ${row['status'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                  if (open) ...[
+                    const SizedBox(height: 8),
+                    Text('Assinatura ${sub?['status'] ?? '—'} · trial ${sub?['trialEndsAt'] ?? row['trialDaysLeft'] ?? '—'}', style: const TextStyle(fontSize: 12)),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Nota interna'),
+                      onSubmitted: (value) => patch(id, {'adminNote': value}, 'Nota salva'),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      value: draft,
+                      isExpanded: true,
+                      items: [
+                        for (final plan in plans) DropdownMenuItem(value: plan.$1, child: Text(plan.$2)),
+                      ],
+                      onChanged: busyId == id ? null : (value) => setState(() => planDrafts[id] = value ?? draft),
+                    ),
+                    Wrap(spacing: 8, children: [
+                      OutlinedButton(
+                        onPressed: busyId == id
+                            ? null
+                            : () => patch(id, {'status': suspended ? 'active' : 'suspended'}, suspended ? 'Oficina reativada' : 'Oficina suspensa'),
+                        child: Text(suspended ? 'Reativar' : 'Suspender'),
+                      ),
+                      FilledButton(
+                        onPressed: busyId == id
+                            ? null
+                            : () => patch(id, {
+                                  'subscriptionStatus': 'active',
+                                  'planCode': draft,
+                                  'status': 'active',
+                                }, 'Plano ${planLabel(draft)} aplicado'),
+                        child: const Text('Aplicar plano'),
+                      ),
+                      OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'extendTrialDays': 7}, 'Trial estendido'), child: const Text('+7 dias')),
+                      OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'subscriptionStatus': 'canceled'}, 'Assinatura revogada'), child: const Text('Revogar')),
+                      OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'seal': 'verificado'}, 'Selo verificado'), child: const Text('Selo')),
+                    ]),
+                  ],
+                ]),
+              );
+            }),
             const SizedBox(height: 8),
           ],
         ],
@@ -97,6 +180,13 @@ class _PortalScreenState extends State<PortalScreen> {
                 _kpi('Oficinas', '${shops['total'] ?? shops['count'] ?? '—'}'),
                 _kpi('Em trial', '${shops['trialing'] ?? '—'}'),
                 _kpi('Chamadas 24h', '${calls['h24'] ?? calls['day'] ?? data?['requests24h'] ?? '—'}'),
+                const WqSectionTitle('Endpoints'),
+                for (final row in asMaps({'data': data?['endpoints']}).take(12))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${row['method'] ?? ''} ${row['route'] ?? ''}', style: const TextStyle(fontSize: 13)),
+                    trailing: Text('${row['clientErrorRate'] ?? 0}% 4xx', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
                 const WqSectionTitle('Erros recentes'),
                 for (final row in errors.take(12))
                   Padding(

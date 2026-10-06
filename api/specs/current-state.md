@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-04 (portal da plataforma: métricas da API, parâmetros, notícias, sessão)
+**Atualizado:** 2026-10-05 (logout revoga pelo refresh; produção recusa segredo padrão)
 
 ## Em uma frase
 
@@ -11,15 +11,15 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Área | Endpoint |
 |------|----------|
 | Health | `GET /health` |
-| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`) |
+| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`; logout revoga via refresh mesmo com access vencido) |
 | Shop / members | `/shops/current` (+ vertical, itemLabel, starter kit) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
 | Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |
 | Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready |
-| Alerts | inbox + **`GET /alerts/feedback`** (lista + summary) |
+| Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary) |
 | Services / clients / employees | CRUD |
 | Billing | `/billing/*` + webhook HMAC |
-| Public / files | `/public/shops/:slug/orders/:code?t=` + feedback; `/files/*` |
+| Public / files | `/public/track/:token` (URL `/p/o/{token}`); antigo `/public/shops/:slug/orders/:code?t=` segue; `/files/*` |
 
 ## Env chave
 

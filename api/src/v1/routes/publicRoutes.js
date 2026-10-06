@@ -23,6 +23,8 @@ const publicFilesLimit = rateLimit({
   keyFn: (req) => `pub-files:${req.ip || 'unknown'}`,
 });
 
+router.get('/track/:token', publicReadLimit, orderController.publicByToken);
+router.post('/track/:token/feedback', publicFeedbackLimit, orderController.publicFeedbackByToken);
 router.get('/orders/:code', publicReadLimit, orderController.publicByCode);
 router.get('/shops/:shopSlug/orders/:code', publicReadLimit, orderController.publicByCode);
 router.post(

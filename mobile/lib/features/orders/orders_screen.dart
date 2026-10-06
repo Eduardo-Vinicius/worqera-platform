@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
+import '../../design/flow.dart';
 import '../../design/ui.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -42,13 +43,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
       query['status'] = 'delivered';
       query['payment'] = 'due';
     }
-    if (tab == 'finalizados') query['status'] = 'delivered';
+    if (tab == 'finalizados' || tab == 'garantia') query['status'] = 'delivered,open,in_progress,ready';
     if (tab == 'lixeira') query['deleted'] = '1';
     try {
       final res = await widget.api.dio.get('/orders', queryParameters: query);
       if (mounted) {
         setState(() {
           rows = asMaps(res.data);
+          if (tab == 'garantia') {
+            rows = rows.where((row) {
+              final warranty = row['warranty'] ?? row['garantia'];
+              return warranty is Map && (warranty['ativa'] == true || warranty['active'] == true);
+            }).toList();
+          }
           error = null;
         });
       }
@@ -66,6 +73,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (widget.session.seesMoney) ('a_pagar', 'Falta pagar'),
       if (widget.session.seesMoney) ('entregue_aberto', 'Entregue sem pagar'),
       ('finalizados', 'Finalizados'),
+      ('garantia', 'Garantia'),
       ('todos', 'Todos'),
       ('lixeira', 'Lixeira'),
     ];
@@ -130,7 +138,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             onTap: () => widget.openOrder('${row['id'] ?? row['_id']}'),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Row(children: [
-                                Text('${row['code'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                                Text('${row['code'] ?? ''}', style: monoStyle(size: 16)),
+                                if (pairCount(row) > 1) Padding(padding: const EdgeInsets.only(left: 8), child: Text('${pairCount(row)} pares', style: const TextStyle(color: Wq.brand, fontSize: 12, fontWeight: FontWeight.w700))),
                                 const SizedBox(width: 8),
                                 StatusChip(row['status']),
                                 const Spacer(),

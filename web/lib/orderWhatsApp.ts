@@ -47,9 +47,7 @@ export function buildOrderWaFromShop(opts: {
 
   const origin = typeof window !== "undefined" ? window.location.origin : ""
   const slug = opts.shop?.slug || (typeof localStorage !== "undefined" ? localStorage.getItem("shopSlug") : "") || ""
-  const link =
-    buildPublicOrderUrl(origin, slug, opts.code, opts.publicToken) ||
-    `${origin}/p/${encodeURIComponent(opts.code)}`
+  const link = buildPublicOrderUrl(origin, slug, opts.code, opts.publicToken)
   const shopName =
     opts.shop?.branding?.displayName ||
     opts.shop?.name ||

@@ -63,7 +63,7 @@ class WorqeraApi {
 
   Future<void> logout() async {
     try {
-      await dio.post('/auth/logout', data: {});
+      await dio.post('/auth/logout', data: {'refreshToken': session.refreshToken});
     } catch (_) {}
     await session.clear();
   }

@@ -15,7 +15,7 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 | `/status` | Redirect `/kanban` | |
 | `/pedidos/novo` | Multi-tênis (`items[]`), sticky CTA, pós-create → `/sucesso` | Catálogo ainda com fallback local |
 | `/pedidos/[id]/sucesso` | QR + laudo (preview/imprimir/baixar) + Zap / e-mail / etiqueta | |
-| `/pedidos/[id]/etiqueta` | Código grande + QR `/p/{slug}/{code}?t=`; modo pares `{code}-n` | |
+| `/pedidos/[id]/etiqueta` | Código grande + QR `/p/o/{token}`; modo pares `{code}-n` | |
 | `/pedidos` | Lista + badge `N pares` + filtro garantia + aba **Lixeira** (recuperar) | |
 | `/settings/servicos` | CRUD catálogo `/services` | |
 | `/clientes` | Lista, busca, edit modal, máscara PII | |

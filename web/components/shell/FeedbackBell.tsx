@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Bell } from "lucide-react"
-import { getAlertsInboxV1 } from "@/lib/apiV1"
+import { getAlertsInboxV1, markAlertsInboxReadV1 } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 
 function canSee() {
@@ -14,6 +14,8 @@ function canSee() {
 
 export function FeedbackBell({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
+  const [badgeOff, setBadgeOff] = useState(false)
+  const reading = useRef(false)
   const [allowed, setAllowed] = useState(false)
   const [readyCount, setReadyCount] = useState(0)
   const [reopenedCount, setReopenedCount] = useState(0)
@@ -39,11 +41,12 @@ export function FeedbackBell({ className }: { className?: string }) {
     let timer = 0
     const stop = () => window.clearInterval(timer)
     const load = async () => {
-      if (document.hidden) return
+      if (document.hidden || reading.current) return
       try {
         const res = await getAlertsInboxV1()
-        if (cancelled) return
+        if (cancelled || reading.current) return
         setLoadError("")
+        setBadgeOff(false)
         setReadyCount(Number(res?.readyCount) || 0)
         setReopenedCount(Number(res?.reopenedCount) || 0)
         setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
@@ -80,13 +83,29 @@ export function FeedbackBell({ className }: { className?: string }) {
 
   if (!allowed) return null
 
-  const badge = feedback.length + (readyCount > 0 ? 1 : 0) + (reopenedCount > 0 ? 1 : 0)
+  const badge = badgeOff
+    ? 0
+    : feedback.length + (readyCount > 0 ? 1 : 0) + (reopenedCount > 0 ? 1 : 0)
+
+  const toggle = () => {
+    setOpen((current) => {
+      const next = !current
+      if (next) {
+        reading.current = true
+        setBadgeOff(true)
+        void markAlertsInboxReadV1().catch(() => setBadgeOff(false))
+      } else {
+        reading.current = false
+      }
+      return next
+    })
+  }
 
   return (
     <div className={cn("relative", className)}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="relative rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-2 text-[var(--wq-text)] hover:bg-[var(--wq-paper)]"
         aria-label="Avisos e feedback"
         aria-expanded={open}

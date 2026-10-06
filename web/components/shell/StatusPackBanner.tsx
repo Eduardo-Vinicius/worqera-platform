@@ -12,7 +12,6 @@ import { ENABLE_WA_ME } from "@/lib/featureFlags"
  */
 export function StatusPackBanner() {
   const [show, setShow] = useState(false)
-  const [slug, setSlug] = useState("")
 
   useEffect(() => {
     if (!ENABLE_WA_ME) {
@@ -27,7 +26,6 @@ export function StatusPackBanner() {
         const doc = shop?.shop || shop
         const waOn = Boolean(doc?.notifications?.whatsapp?.enabled)
         if (cancelled) return
-        setSlug(String(doc?.slug || ""))
         setShow(!waOn)
       } catch {
         // ignore
@@ -50,8 +48,7 @@ export function StatusPackBanner() {
           Ative o pacote “cliente para de ligar”
         </p>
         <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
-          Etiqueta + QR + consulta pública
-          {slug ? ` (/p/${slug}/código?t=…)` : ""} + WhatsApp no create/move/pronto.
+          Etiqueta + QR + consulta pública (/p/o/…) + WhatsApp no create/move/pronto.
         </p>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">

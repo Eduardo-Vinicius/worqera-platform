@@ -294,6 +294,9 @@ export default function PedidoSucessoPage() {
   const emailStatusLabel = (() => {
     if (!clientEmail) return "Cliente sem e-mail — não há envio automático."
     if (!emailNotify) return "Status do envio ainda não chegou — use Reenviar e-mail se precisar."
+    if (emailNotify.queued) {
+      return "E-mail a caminho, com o PDF. A tela não espera o Gmail terminar."
+    }
     if (emailNotify.ok && emailNotify.provider === "console") {
       return "SMTP não entregou de verdade (modo console). Veja o log da API: [mailer:dev]."
     }
@@ -323,7 +326,9 @@ export default function PedidoSucessoPage() {
       try {
         sessionStorage.setItem(`wq-email-notify:${id}`, JSON.stringify(notify || null))
       } catch {}
-      if (notify?.ok && notify?.provider !== "console") {
+      if (notify?.queued) {
+        toast.success("Laudo a caminho")
+      } else if (notify?.ok && notify?.provider !== "console") {
         toast.success("E-mail reenviado")
       } else if (notify?.ok && notify?.provider === "console") {
         toast.message("Logado no console da API", {

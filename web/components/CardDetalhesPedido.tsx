@@ -195,9 +195,7 @@ export const CardDetalhesPedido: React.FC<CardDetalhesPedidoProps> = ({ open, on
         const code = pedidoAtual.codigo || pedidoAtual.id
         const origin = typeof window !== "undefined" ? window.location.origin : ""
         const token = pedidoAtual.publicToken || ""
-        const link =
-          buildPublicOrderUrl(origin, slug, code, token) ||
-          (slug ? `${origin}/p/${slug}/${code}` : `${origin}/p/${code}`)
+        const link = buildPublicOrderUrl(origin, slug, code, token)
         const shopName = doc?.branding?.displayName || doc?.name || "Worqera"
         const isReady = String(pedidoAtual.status || "").toLowerCase() === "ready"
         const tpl = isReady

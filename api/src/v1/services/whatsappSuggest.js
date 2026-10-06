@@ -77,9 +77,7 @@ async function buildOrderWhatsAppSuggest(shopId, order, { templateKey, sectorNam
   const slug = shop?.slug || '';
   const token = order.publicToken || '';
   const { buildPublicOrderUrl } = require('../utils/publicOrderToken');
-  const link =
-    buildPublicOrderUrl(webBase, slug, code, token) ||
-    (slug ? `${webBase}/p/${slug}/${code}` : `${webBase}/p/${code}`);
+  const link = buildPublicOrderUrl(webBase, slug, code, token);
   const shopName = shop?.branding?.displayName || shop?.name || 'Worqera';
 
   const templates = wa.templates || {};

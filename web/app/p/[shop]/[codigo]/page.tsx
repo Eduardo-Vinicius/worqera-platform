@@ -3,7 +3,12 @@
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { getPublicOrderV1, submitPublicFeedbackV1 } from "@/lib/apiV1"
+import {
+  getPublicOrderByTokenV1,
+  getPublicOrderV1,
+  submitPublicFeedbackByTokenV1,
+  submitPublicFeedbackV1,
+} from "@/lib/apiV1"
 import { hexToRgba, normalizeHex, resolveBrandColors } from "@/lib/shopBrand"
 import { cn } from "@/lib/utils"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
@@ -28,9 +33,10 @@ const FEEDBACK_TAGS = [
 function PublicOrderByShopInner() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const shop = String(params?.shop || "")
-  const code = String(params?.codigo || "")
-  const token = String(searchParams?.get("t") || searchParams?.get("token") || "")
+  const trackToken = String(params?.token || "")
+  const shop = trackToken ? "" : String(params?.shop || "")
+  const code = trackToken ? "" : String(params?.codigo || "")
+  const token = trackToken || String(searchParams?.get("t") || searchParams?.get("token") || "")
   const itemParam = Number(searchParams?.get("item") || "0")
   const focusItemIndex = itemParam >= 1 ? itemParam : null
   const [data, setData] = useState<any>(null)
@@ -42,6 +48,12 @@ function PublicOrderByShopInner() {
   const [fbMsg, setFbMsg] = useState("")
 
   useEffect(() => {
+    if (trackToken) {
+      getPublicOrderByTokenV1(trackToken)
+        .then(setData)
+        .catch((e) => setError(e.message || "Pedido não encontrado"))
+      return
+    }
     if (!code || !shop) return
     if (!token) {
       setError("Link incompleto — use o QR ou o link enviado pela oficina.")
@@ -50,7 +62,7 @@ function PublicOrderByShopInner() {
     getPublicOrderV1(code, shop, token)
       .then(setData)
       .catch((e) => setError(e.message || "Pedido não encontrado"))
-  }, [code, shop, token])
+  }, [code, shop, token, trackToken])
 
   const sectorName = data?.currentSector?.name || data?.sectorName
   const sectorColor = normalizeHex(data?.currentSector?.color) || ""
@@ -91,7 +103,11 @@ function PublicOrderByShopInner() {
     setSending(true)
     setFbMsg("")
     try {
-      await submitPublicFeedbackV1(shop, code, { score, comment, tags }, token)
+      if (trackToken) {
+        await submitPublicFeedbackByTokenV1(trackToken, { score, comment, tags })
+      } else {
+        await submitPublicFeedbackV1(shop, code, { score, comment, tags }, token)
+      }
       setData((d: any) => ({
         ...d,
         canFeedback: false,
@@ -143,7 +159,7 @@ function PublicOrderByShopInner() {
               <p className="text-sm text-[var(--wq-danger)]">{error}</p>
               <p className="text-xs text-[var(--wq-text-muted)]">
                 Use o link completo da etiqueta:{" "}
-                <code className="font-mono">/p/oficina/código?t=…</code>
+                <code className="font-mono">/p/o/…</code>
               </p>
             </div>
           )}

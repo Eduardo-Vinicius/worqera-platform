@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../brand/theme.dart';
+import '../brand/tokens.dart';
 
 String brl(dynamic value) {
   final n = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
@@ -59,6 +60,79 @@ List<Map<String, dynamic>> asMaps(dynamic body) {
   return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 
+class WqDock extends StatelessWidget {
+  const WqDock({super.key, required this.items, required this.selected, required this.onTap, this.actionIndex});
+
+  final List<(IconData, String)> items;
+  final int selected;
+  final ValueChanged<int> onTap;
+  final int? actionIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: dark ? WqTokens.darkSurface.withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
+          border: Border(top: BorderSide(color: dark ? WqTokens.darkBorder : Wq.line)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(child: _item(context, i)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _item(BuildContext context, int index) {
+    final action = actionIndex == index;
+    final on = selected == index;
+    final color = action ? Wq.action : on ? Wq.brand : context.wqMuted;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => onTap(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: on && !action ? Wq.brand.withValues(alpha: 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (action)
+              Container(
+                width: 36,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: Wq.action, borderRadius: BorderRadius.circular(10)),
+                child: Icon(items[index].$1, size: 18, color: Colors.white),
+              )
+            else
+              Icon(items[index].$1, size: 22, color: color),
+            const SizedBox(height: 3),
+            Text(
+              items[index].$2,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, fontWeight: on || action ? FontWeight.w800 : FontWeight.w600, color: color, letterSpacing: -0.1),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class ShellScope extends InheritedWidget {
   const ShellScope({super.key, required this.openMenu, required super.child});
   final VoidCallback openMenu;
@@ -88,17 +162,28 @@ class WqPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final menu = ShellScope.maybeOf(context)?.openMenu;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final paper = dark ? WqTokens.darkPaper : Wq.paper;
+    final ink = dark ? WqTokens.darkText : Wq.ink;
+    final muted = dark ? WqTokens.darkMuted : Wq.muted;
     return Scaffold(
-      backgroundColor: Wq.paper,
+      backgroundColor: paper,
       floatingActionButton: floating,
       appBar: AppBar(
-        backgroundColor: Wq.paper,
-        leading: menu == null ? null : IconButton(onPressed: menu, icon: const Icon(Icons.menu)),
+        backgroundColor: paper,
+        foregroundColor: ink,
+        toolbarHeight: subtitle == null ? 56 : 68,
+        leading: menu == null
+            ? null
+            : IconButton(
+                onPressed: menu,
+                icon: const Icon(Icons.menu_rounded),
+              ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Wq.ink)),
-            if (subtitle != null) Text(subtitle!, style: const TextStyle(fontSize: 12, color: Wq.muted, fontWeight: FontWeight.w500)),
+            Text(title, style: TextStyle(fontSize: 22, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: ink)),
+            if (subtitle != null) Text(subtitle!, style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w500)),
           ],
         ),
         actions: actions,
@@ -116,18 +201,33 @@ class WqCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final box = Container(
-      width: double.infinity,
-      padding: padding,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(10);
+    final surface = dark ? WqTokens.darkSurface : Wq.surface;
+    final line = dark ? WqTokens.darkBorder : Wq.line;
+    final box = DecoratedBox(
       decoration: BoxDecoration(
-        color: Wq.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Wq.line),
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
       ),
-      child: child,
+      child: Material(
+        color: surface,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: padding,
+            decoration: BoxDecoration(borderRadius: radius, border: Border.all(color: line)),
+            child: child,
+          ),
+        ),
+      ),
     );
-    if (onTap == null) return box;
-    return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(16), child: box));
+    return box;
   }
 }
 
@@ -141,7 +241,7 @@ class WqSectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 4),
       child: Row(children: [
-        Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Wq.ink)),
+        Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.2, color: Theme.of(context).colorScheme.onSurface)),
         const Spacer(),
         ?trailing,
       ]),
@@ -163,8 +263,8 @@ class StatusChip extends StatelessWidget {
       _ => Wq.brand,
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
       child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }

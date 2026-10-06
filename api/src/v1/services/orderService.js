@@ -421,8 +421,8 @@ async function createOrder(shopId, userId, data) {
       emailNotify = { ok: false, skipped: true, reason: 'no-email' };
       console.info('[orderCreate] email skip', { code: order.code, reason: 'no-email' });
     } else {
-      const { notifyOrderStatus } = require('./orderNotify');
-      emailNotify = await notifyOrderStatus(shop, order.toObject(), 'created', {
+      const { enqueueNotifyOrderStatus } = require('./orderNotify');
+      emailNotify = await enqueueNotifyOrderStatus(shop, order.toObject(), 'created', {
         sectorName: rollupSector?.name || startSector?.name,
       });
     }
@@ -1560,6 +1560,62 @@ async function replaceOrderPhotos(shopId, orderId, files) {
   return uploadItemPhotos(shopId, orderId, 0, files);
 }
 
+async function getPublicOrderByToken(token) {
+  const normalizedToken = String(token || '').trim();
+  if (!normalizedToken || normalizedToken.length < 6) {
+    const err = new Error('Link incompleto');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const found = await Order.findOne({ publicToken: normalizedToken, deletedAt: null })
+    .select('code shopId')
+    .lean();
+  if (!found) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findById(found.shopId).select('slug').lean();
+  if (!shop?.slug) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return getPublicOrderByCode(found.code, { shopSlug: shop.slug, token: normalizedToken });
+}
+
+async function submitPublicFeedbackByToken(token, { score, comment, tags } = {}) {
+  const normalizedToken = String(token || '').trim();
+  const found = await Order.findOne({ publicToken: normalizedToken, deletedAt: null })
+    .select('code shopId')
+    .lean();
+  if (!found) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findById(found.shopId).select('slug').lean();
+  if (!shop?.slug) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return submitPublicFeedback(found.code, {
+    shopSlug: shop.slug,
+    token: normalizedToken,
+    score,
+    comment,
+    tags,
+  });
+}
+
 async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
   const normalizedCode = String(code || '').trim();
   const normalizedToken = String(token || '').trim();
@@ -1631,7 +1687,6 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     if (visible) {
       currentSector = {
         name: sectorDoc.name,
-        slug: sectorDoc.slug,
         color: sectorDoc.color,
         publicHidden: false,
       };
@@ -1841,7 +1896,9 @@ module.exports = {
   uploadItemPhotos,
   deleteItemPhoto,
   getPublicOrderByCode,
+  getPublicOrderByToken,
   submitPublicFeedback,
+  submitPublicFeedbackByToken,
   ensureOrderPublicToken,
   nextOrderCode,
   servicesTotal,

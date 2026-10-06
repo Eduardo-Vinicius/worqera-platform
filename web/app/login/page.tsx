@@ -199,6 +199,10 @@ export default function LoginPage() {
             <Link href="/" className="hover:underline">
               ← Voltar para a página inicial
             </Link>
+            {" · "}
+            <Link href="/privacidade" className="hover:underline">
+              Privacidade
+            </Link>
           </p>
         </div>
       </div>

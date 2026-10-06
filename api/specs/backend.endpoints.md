@@ -166,7 +166,9 @@ Query (EN): `period`, `startDate`, `endDate`, `limit`, `servicesLimit`
 ## Público (TOP-02)
 
 ```
-GET /public/orders/{code}            # LIVE — status resumido sem auth
+GET /public/orders/{code}            # LIVE — status resumido sem auth (link antigo)
+GET /public/track/{token}            # LIVE — mesmo status, só pelo token opaco
+POST /public/track/{token}/feedback  # LIVE — avaliação sem slug na URL
 ```
 
 ## Catálogo (TOP-01)

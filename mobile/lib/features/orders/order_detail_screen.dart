@@ -1,9 +1,15 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 
 import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
+import '../../design/flow.dart';
 import '../../design/ui.dart';
+import 'label_screen.dart';
+import 'public_order_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   const OrderDetailScreen({super.key, required this.api, required this.session, required this.orderId, required this.onEdit});
@@ -93,6 +99,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> resendEmail() async {
+    try {
+      final res = await widget.api.dio.post('/orders/${widget.orderId}/resend-email', data: {'kind': 'created'});
+      final body = Map<String, dynamic>.from(res.data as Map);
+      final notify = body['emailNotify'] is Map ? Map<String, dynamic>.from(body['emailNotify'] as Map) : body;
+      if (!mounted) return;
+      final queued = notify['queued'] == true;
+      final ok = notify['ok'] == true;
+      wqToast(context, queued || ok ? 'Laudo a caminho' : 'Não enviou o laudo');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.api.message(e))));
+    }
+  }
+
   Future<void> sendComment() async {
     if (comment.text.trim().isEmpty) return;
     await widget.api.dio.post('/orders/${widget.orderId}/comments', data: {'text': comment.text.trim()});
@@ -109,6 +130,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       await widget.api.dio.post('/kanban/orders/${widget.orderId}/move', data: {'toSectorId': target['id']});
     }
     await load();
+    if (mounted) wqToast(context, 'Encaminhado');
+  }
+
+  Future<void> sharePdf() async {
+    try {
+      final res = await widget.api.dio.post('/orders/${widget.orderId}/pdf', options: Options(responseType: ResponseType.bytes));
+      final bytes = res.data;
+      if (bytes is List<int>) await Printing.sharePdf(bytes: Uint8List.fromList(bytes), filename: 'laudo-${order?['code'] ?? 'pedido'}.pdf');
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    }
+  }
+
+  Future<void> whatsApp() async {
+    final phone = '${order?['clientPhone'] ?? ''}';
+    final url = publicOrderUrl(slug: widget.session.shopSlug, code: '${order?['code'] ?? ''}', token: '${order?['publicToken'] ?? ''}');
+    final link = waMeUrl(phone, 'Pedido ${order?['code'] ?? ''} · ${order?['clientName'] ?? ''}\n$url');
+    if (link.isEmpty) {
+      wqToast(context, 'Sem telefone para o WhatsApp.');
+      return;
+    }
+    await openLink(link);
+  }
+
+  String _photo(dynamic photo) {
+    if (photo is Map) return fileUrl('${photo['url'] ?? photo['src'] ?? photo['key'] ?? ''}');
+    return fileUrl('$photo');
   }
 
   @override
@@ -153,6 +201,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ],
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            if (!widget.session.isSector && '${order!['clientEmail'] ?? ''}'.trim().isNotEmpty)
+              OutlinedButton(onPressed: resendEmail, child: const Text('Reenviar laudo')),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LabelScreen(api: widget.api, session: widget.session, order: order!))),
+              child: const Text('Etiqueta'),
+            ),
+            if (items.length > 1)
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LabelScreen(api: widget.api, session: widget.session, order: order!, pairs: true))),
+                child: const Text('Etiqueta por par'),
+              ),
+            OutlinedButton(onPressed: sharePdf, child: const Text('Laudo PDF')),
+            OutlinedButton(onPressed: whatsApp, child: const Text('WhatsApp')),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PublicOrderScreen(api: widget.api, slug: widget.session.shopSlug, code: '${order!['code'] ?? ''}', token: '${order!['publicToken'] ?? ''}'))),
+              child: const Text('Ver como cliente'),
+            ),
             if (!delivered) FilledButton(style: FilledButton.styleFrom(backgroundColor: Wq.success), onPressed: () => deliver(paid: false), child: const Text('Marcar entregue')),
             if (delivered) OutlinedButton(onPressed: reopen, child: const Text('Reabrir')),
             if (!widget.session.isSector) TextButton(onPressed: trash, child: const Text('Lixeira', style: TextStyle(color: Wq.danger))),
@@ -176,7 +241,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   Text('${item['brand'] ?? ''} ${item['shoeModel'] ?? ''}'.trim(), style: const TextStyle(fontWeight: FontWeight.w700)),
                   Text(((item['services'] as List?) ?? const []).whereType<Map>().map((s) => s['name']).join(', '), style: const TextStyle(color: Wq.muted)),
                   if ('${item['notes'] ?? ''}'.isNotEmpty) Text('${item['notes']}'),
-                  if (((item['photos'] as List?) ?? const []).isEmpty) const Text('Sem foto', style: TextStyle(color: Wq.warn, fontSize: 12)),
+                  if (((item['photos'] as List?) ?? const []).isEmpty)
+                    const Text('Sem foto', style: TextStyle(color: Wq.warn, fontSize: 12))
+                  else
+                    SizedBox(
+                      height: 72,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          for (final photo in (item['photos'] as List))
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Image.network(_photo(photo), width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox(width: 72, child: Icon(Icons.image_not_supported_outlined))),
+                            ),
+                        ],
+                      ),
+                    ),
                 ]),
               ),
             ),

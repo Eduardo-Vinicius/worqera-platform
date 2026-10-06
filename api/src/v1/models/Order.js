@@ -81,8 +81,7 @@ const orderSchema = new mongoose.Schema(
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
     code: { type: String, required: true },
     /**
-     * Secret segment for public /p links (QR, e-mail, WhatsApp).
-     * Required with shop slug + code — prevents guessing other orders.
+     * Segredo do link público /p/o/{token}. Não identifica a empresa.
      */
     publicToken: { type: String, default: null, index: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null },

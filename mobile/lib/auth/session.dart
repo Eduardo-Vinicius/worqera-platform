@@ -17,6 +17,7 @@ class SessionStore extends ChangeNotifier {
   String shopId = '';
   String shopName = '';
   String shopSlug = '';
+  String logoUrl = '';
   String userName = '';
   String email = '';
   bool platformAdmin = false;
@@ -41,6 +42,7 @@ class SessionStore extends ChangeNotifier {
         shopId = '${data['shopId'] ?? ''}';
         shopName = '${data['shopName'] ?? ''}';
         shopSlug = '${data['shopSlug'] ?? ''}';
+        logoUrl = '${data['logoUrl'] ?? ''}';
         userName = '${data['userName'] ?? ''}';
         email = '${data['email'] ?? ''}';
         platformAdmin = data['platformAdmin'] == true;
@@ -60,6 +62,8 @@ class SessionStore extends ChangeNotifier {
     shopId = '${shop?['id'] ?? membership?['shopId'] ?? first?['shopId'] ?? keep?.shopId ?? shopId}';
     shopName = '${shop?['name'] ?? keep?.shopName ?? shopName}';
     shopSlug = '${shop?['slug'] ?? keep?.shopSlug ?? shopSlug}';
+    final branding = shop?['branding'] is Map ? shop!['branding'] as Map : null;
+    logoUrl = '${branding?['logoUrl'] ?? shop?['logoUrl'] ?? keep?.logoUrl ?? logoUrl}';
     final user = data['user'] as Map?;
     userName = '${user?['name'] ?? keep?.userName ?? userName}';
     email = '${user?['email'] ?? keep?.email ?? email}';
@@ -79,6 +83,7 @@ class SessionStore extends ChangeNotifier {
     shopId = '';
     shopName = '';
     shopSlug = '';
+    logoUrl = '';
     userName = '';
     email = '';
     platformAdmin = false;
@@ -96,6 +101,7 @@ class SessionStore extends ChangeNotifier {
         'shopId': shopId,
         'shopName': shopName,
         'shopSlug': shopSlug,
+        'logoUrl': logoUrl,
         'userName': userName,
         'email': email,
         'platformAdmin': platformAdmin,

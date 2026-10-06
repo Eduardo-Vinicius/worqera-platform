@@ -1,6 +1,6 @@
 /**
- * Unguessable public access token for client order links / QR.
- * Format: ~12 url-safe chars. Required together with shop slug + code.
+ * Token opaco do link do cliente. A URL nova é /p/o/{token}
+ * e não leva slug nem código do pedido.
  */
 const crypto = require('crypto');
 
@@ -8,13 +8,10 @@ function newPublicToken() {
   return crypto.randomBytes(9).toString('base64url');
 }
 
-function buildPublicOrderPath(shopSlug, code, token) {
-  const slug = encodeURIComponent(String(shopSlug || '').trim());
-  const c = encodeURIComponent(String(code || '').trim());
+function buildPublicOrderPath(_shopSlug, _code, token) {
   const t = String(token || '').trim();
-  if (!slug || !c) return '';
-  const base = `/p/${slug}/${c}`;
-  return t ? `${base}?t=${encodeURIComponent(t)}` : base;
+  if (!t) return '';
+  return `/p/o/${encodeURIComponent(t)}`;
 }
 
 function buildPublicOrderUrl(webBase, shopSlug, code, token) {

@@ -228,8 +228,8 @@ exports.resendEmail = wrap(async (req, res) => {
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
-  const { notifyOrderStatus } = require('../services/orderNotify');
-  const emailNotify = await notifyOrderStatus(shop, order, kind, {
+  const { enqueueNotifyOrderStatus } = require('../services/orderNotify');
+  const emailNotify = await enqueueNotifyOrderStatus(shop, order, kind, {
     sectorName: undefined,
   });
   res.status(200).json({ ok: Boolean(emailNotify?.ok), emailNotify });
@@ -266,6 +266,20 @@ exports.zipPhotos = wrap(async (req, res) => {
   }
 
   await archive.finalize();
+});
+
+exports.publicByToken = wrap(async (req, res) => {
+  const order = await orderService.getPublicOrderByToken(req.params.token);
+  res.status(200).json(order);
+});
+
+exports.publicFeedbackByToken = wrap(async (req, res) => {
+  const result = await orderService.submitPublicFeedbackByToken(req.params.token, {
+    score: req.body?.score,
+    comment: req.body?.comment,
+    tags: req.body?.tags,
+  });
+  res.status(200).json(result);
 });
 
 exports.publicByCode = wrap(async (req, res) => {

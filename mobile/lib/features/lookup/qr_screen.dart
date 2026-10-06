@@ -29,12 +29,25 @@ class _QrScreenState extends State<QrScreen> {
     });
     try {
       var value = raw.trim();
-      final match = RegExp(r'/p/([^/]+)/([^/?#]+)').firstMatch(value);
-      if (match != null) {
-        final slug = match.group(1)!;
-        value = Uri.decodeComponent(match.group(2)!);
-        if (widget.session.shopSlug.isNotEmpty && slug != widget.session.shopSlug) {
+      final opaque = RegExp(r'/p/o/([^/?#]+)').firstMatch(value);
+      if (opaque != null) {
+        final token = Uri.decodeComponent(opaque.group(1)!);
+        final pub = await widget.api.dio.get('/public/track/$token');
+        final body = Map<String, dynamic>.from(pub.data as Map);
+        final shop = body['shop'] is Map ? Map<String, dynamic>.from(body['shop'] as Map) : const <String, dynamic>{};
+        final slug = '${shop['slug'] ?? ''}';
+        if (widget.session.shopSlug.isNotEmpty && slug.isNotEmpty && slug != widget.session.shopSlug) {
           throw Exception('Este QR é de outra empresa.');
+        }
+        value = '${body['code'] ?? ''}';
+      } else {
+        final match = RegExp(r'/p/([^/]+)/([^/?#]+)').firstMatch(value);
+        if (match != null) {
+          final slug = match.group(1)!;
+          value = Uri.decodeComponent(match.group(2)!);
+          if (widget.session.shopSlug.isNotEmpty && slug != widget.session.shopSlug) {
+            throw Exception('Este QR é de outra empresa.');
+          }
         }
       }
       final res = await widget.api.dio.get('/orders', queryParameters: {'code': value});
@@ -52,12 +65,10 @@ class _QrScreenState extends State<QrScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(onPressed: () => ShellScope.maybeOf(context)?.openMenu(), icon: const Icon(Icons.menu)),
-        title: const Text('Ler QR'),
-      ),
-      body: Column(children: [
+    return WqPage(
+      title: 'Ler QR',
+      subtitle: 'Etiqueta do pedido',
+      child: Column(children: [
         SizedBox(
           height: 280,
           child: MobileScanner(onDetect: (capture) {

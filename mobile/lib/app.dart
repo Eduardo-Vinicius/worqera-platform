@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'api/worqera_api.dart';
 import 'auth/session.dart';
 import 'brand/theme.dart';
+import 'brand/theme_store.dart';
+import 'features/auth/account_screens.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/kanban/kanban_screen.dart';
@@ -23,6 +25,7 @@ class WorqeraApp extends StatefulWidget {
 
 class _WorqeraAppState extends State<WorqeraApp> {
   final session = SessionStore();
+  final theme = ThemeStore();
   late final WorqeraApi api = WorqeraApi(session);
   late final GoRouter router = GoRouter(
     navigatorKey: _root,
@@ -31,7 +34,10 @@ class _WorqeraAppState extends State<WorqeraApp> {
     redirect: (context, state) {
       if (!session.ready) return null;
       final loc = state.matchedLocation;
-      if (!session.loggedIn) return loc == '/login' ? null : '/login';
+      if (!session.loggedIn) {
+        if (loc == '/login' || loc == '/signup' || loc == '/invite') return null;
+        return '/login';
+      }
       if (loc == '/login') {
         if (session.platformAdmin && session.shopId.isEmpty) return '/more';
         return session.isSector ? '/kanban' : '/home';
@@ -41,9 +47,12 @@ class _WorqeraAppState extends State<WorqeraApp> {
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, _) => LoginScreen(api: api)),
+      GoRoute(path: '/login', builder: (_, _) => LoginScreen(api: api, session: session)),
+      GoRoute(path: '/signup', builder: (_, _) => SignupScreen(api: api, session: session)),
+      GoRoute(path: '/invite', builder: (_, _) => InviteScreen(api: api, session: session)),
+      GoRoute(path: '/onboarding', builder: (_, _) => OnboardingScreen(api: api)),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => AppShell(session: session, api: api, navigationShell: shell),
+        builder: (context, state, shell) => AppShell(session: session, api: api, theme: theme, navigationShell: shell),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(path: '/home', builder: (_, _) => HomeScreen(api: api, session: session)),
@@ -64,7 +73,7 @@ class _WorqeraAppState extends State<WorqeraApp> {
                 openNew: () => context.push('/orders/new'),
               ),
               routes: [
-                GoRoute(path: 'new', parentNavigatorKey: _root, builder: (_, _) => OrderFormScreen(api: api)),
+                GoRoute(path: 'new', parentNavigatorKey: _root, builder: (_, _) => OrderFormScreen(api: api, session: session)),
                 GoRoute(
                   path: ':id',
                   parentNavigatorKey: _root,
@@ -78,7 +87,7 @@ class _WorqeraAppState extends State<WorqeraApp> {
                     GoRoute(
                       path: 'edit',
                       parentNavigatorKey: _root,
-                      builder: (context, state) => OrderFormScreen(api: api, orderId: state.pathParameters['id']),
+                      builder: (context, state) => OrderFormScreen(api: api, session: session, orderId: state.pathParameters['id']),
                     ),
                   ],
                 ),
@@ -106,10 +115,15 @@ class _WorqeraAppState extends State<WorqeraApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Worqera',
-      theme: buildWorqeraTheme(),
-      routerConfig: router,
+    return ListenableBuilder(
+      listenable: theme,
+      builder: (context, _) => MaterialApp.router(
+        title: 'Worqera',
+        theme: buildWorqeraTheme(),
+        darkTheme: buildWorqeraTheme(dark: true),
+        themeMode: theme.mode,
+        routerConfig: router,
+      ),
     );
   }
 }

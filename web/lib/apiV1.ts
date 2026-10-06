@@ -324,6 +324,10 @@ export async function listDelayAlertsV1() {
   }>("/alerts/delays")
 }
 
+export async function markAlertsInboxReadV1() {
+  return v1Fetch<{ ok: boolean }>("/alerts/inbox/read", { method: "POST" })
+}
+
 export async function getAlertsInboxV1() {
   return v1Fetch<{
     readyCount: number
@@ -777,6 +781,20 @@ export async function completeCheckoutDevV1() {
   })
 }
 
+export async function getPublicOrderByTokenV1(token: string) {
+  return v1Fetch(`/public/track/${encodeURIComponent(token)}`)
+}
+
+export async function submitPublicFeedbackByTokenV1(
+  token: string,
+  body: { score: number; comment?: string; tags?: string[] }
+) {
+  return v1Fetch(`/public/track/${encodeURIComponent(token)}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
 export async function getPublicOrderV1(
   code: string,
   shopSlug?: string,
@@ -941,7 +959,11 @@ export function clearSession() {
 /** Clears refresh cookie on API then local session. */
 export async function logoutV1() {
   try {
-    await v1Fetch("/auth/logout", { method: "POST" })
+    const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null
+    await v1Fetch("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+    })
   } catch {
     // still clear local
   }

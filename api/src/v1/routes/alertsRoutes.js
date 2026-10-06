@@ -11,6 +11,7 @@ const ownerGuard = [auth, shopContext, subscriptionGate, requireRole('owner')];
 
 router.get('/delays', ...guard, alertsController.listDelays);
 router.get('/inbox', ...guard, alertsController.inbox);
+router.post('/inbox/read', ...guard, alertsController.markInboxRead);
 router.get('/feedback/export.csv', ...guard, alertsController.feedbackExportCsv);
 router.get('/feedback', ...guard, alertsController.feedback);
 router.post('/delays/digest', ...guard, alertsController.sendDigest);

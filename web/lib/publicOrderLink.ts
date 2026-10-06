@@ -1,18 +1,16 @@
 /**
- * Public client order URL: /p/{slug}/{code}?t={secretToken}
+ * Link público: /p/o/{token}. O token não revela a empresa.
+ * Sem token o endereço fica vazio — o link antigo com slug continua válido se já foi impresso.
  */
 
 export function buildPublicOrderPath(
-  shopSlug: string | null | undefined,
-  code: string | null | undefined,
+  _shopSlug: string | null | undefined,
+  _code: string | null | undefined,
   token?: string | null
 ): string {
-  const slug = encodeURIComponent(String(shopSlug || "").trim())
-  const c = encodeURIComponent(String(code || "").trim())
   const t = String(token || "").trim()
-  if (!slug || !c) return ""
-  const base = `/p/${slug}/${c}`
-  return t ? `${base}?t=${encodeURIComponent(t)}` : base
+  if (!t) return ""
+  return `/p/o/${encodeURIComponent(t)}`
 }
 
 export function buildPublicOrderUrl(

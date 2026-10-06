@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../api/worqera_api.dart';
+import '../../auth/session.dart';
 import '../../brand/theme.dart';
+import 'privacy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.api});
+  const LoginScreen({super.key, required this.api, required this.session});
   final WorqeraApi api;
+  final SessionStore session;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,21 +47,36 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Wq.paper,
+      backgroundColor: context.wqPaper,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
           children: [
-            const SizedBox(height: 36),
-            const Text('WORQERA', style: TextStyle(letterSpacing: 3, fontSize: 12, fontWeight: FontWeight.w800, color: Wq.brand)),
-            const SizedBox(height: 8),
-            Text('A fila da empresa.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, color: Wq.ink)),
-            const SizedBox(height: 6),
-            const Text('Gestão de pedidos, do recebido ao pronto.', style: TextStyle(color: Wq.muted)),
-            const SizedBox(height: 24),
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Wq.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: Wq.line)),
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: const LinearGradient(colors: [Color(0xFF4F0FA6), Color(0xFF7D26DE)]),
+              ),
+              child: const Text('W', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 20),
+            const Text('WORQERA', style: TextStyle(letterSpacing: 3.2, fontSize: 12, fontWeight: FontWeight.w800, color: Wq.brand)),
+            const SizedBox(height: 8),
+            Text('A fila da empresa.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.6, color: context.wqInk)),
+            const SizedBox(height: 6),
+            Text('Gestão de pedidos, do recebido ao pronto.', style: TextStyle(color: context.wqMuted, height: 1.35)),
+            const SizedBox(height: 28),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: context.wqSurface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: context.wqLine),
+                boxShadow: [BoxShadow(color: const Color(0xFF4F0FA6).withValues(alpha: 0.06), blurRadius: 24, offset: const Offset(0, 12))],
+              ),
               child: Column(children: [
                 TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
                 if (!forgot) ...[
@@ -70,6 +90,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ]),
             ),
             TextButton(onPressed: () => setState(() => forgot = !forgot), child: Text(forgot ? 'Voltar ao login' : 'Esqueci a senha')),
+            TextButton(onPressed: () => context.go('/signup'), child: const Text('Criar empresa')),
+            TextButton(onPressed: () => context.go('/invite'), child: const Text('Tenho um convite')),
+            TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())), child: const Text('Privacidade')),
           ],
         ),
       ),

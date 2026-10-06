@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-04 (parâmetros do menu e lista de oficinas)
+**Atualizado:** 2026-10-05 (privacidade e logout com refresh)
 
 ## Em uma frase
 
@@ -17,7 +17,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Área | Status |
 |------|--------|
 | Landing `/` | LIVE (empresas, ramos, prova 1.000+ / R$ 200 mil+ · ink/papel) |
-| Login `/login` · signup | LIVE |
+| Login `/login` · signup · `/privacidade` | LIVE |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |
 | Oficinas `/admin/shops` | LIVE (lista limpa; ajuste ao clicar) |
@@ -33,7 +33,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Empresa vertical + itemLabel + e-mail toggle | LIVE |
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |
 | Avaliações `/avaliacoes` | LIVE |
-| Consulta `/p/{slug}/{code}?t=` + `#avaliar` | LIVE |
+| Consulta `/p/o/{token}` (antigo `/p/{slug}/{code}?t=` segue válido) + `#avaliar` | LIVE |
 | Billing lock UX | LIVE (AbacatePay) |
 | TV Cliente / TV Oficina | LIVE |
 

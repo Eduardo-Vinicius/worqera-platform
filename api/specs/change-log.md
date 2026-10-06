@@ -2,7 +2,14 @@
 
 ## 2026-10-05
 
+- **Sessão:** sair revoga a conta mesmo com o token de acesso vencido, usando o refresh do cookie ou do corpo. Em produção a API não sobe se `JWT_SECRET`, `REFRESH_SECRET` ou o segredo de arquivo for o padrão de desenvolvimento.
+- **Consulta pública:** a resposta não devolve o slug interno do setor. O nome do cliente continua só o primeiro nome.
+
+- **Consulta pública:** link novo é `/p/o/{token}`. O endereço não leva o slug da empresa. O caminho antigo `/p/{slug}/{código}?t=` continua abrindo. `GET /public/track/:token` e o feedback no mesmo token.
+- **Sino:** `POST /alerts/inbox/read` grava, na membership, os pedidos prontos, reabertos e as avaliações já vistos. O inbox seguinte só conta o que chegou depois.
+
 - **Portal:** 4xx passa a ser guardado junto com o 5xx. A mesma rota e a mesma mensagem viram uma linha com contagem, em vez de mil registros iguais.
+- **E-mail do pedido:** criar e reenviar respondem na hora. O PDF e o SMTP seguem depois. Sem e-mail ou com aviso desligado, a resposta continua imediata e diz que não enviou.
 - **Atendimento:** pode alterar empresa, catálogo (setores, serviços, marcas, acessórios), funcionários e equipe. Financeiro e métricas seguem só para admin e dono.
 
 ## 2026-10-04

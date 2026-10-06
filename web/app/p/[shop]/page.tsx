@@ -9,7 +9,7 @@ import { getPublicOrderV1 } from "@/lib/apiV1"
 /**
  * Legacy `/p/{code}` — first segment is named `shop` to match `/p/[shop]/[codigo]`
  * (Next.js requires the same dynamic slug name at this level).
- * Prefer `/p/{shopSlug}/{code}?t=token` for multi-tenant safety.
+ * O endereço atual do cliente é /p/o/{token}. Este caminho antigo continua abrindo.
  */
 function PublicOrderLegacyInner() {
   const params = useParams()
@@ -29,13 +29,8 @@ function PublicOrderLegacyInner() {
     getPublicOrderV1(code, shopHint, token)
       .then((res) => {
         setData(res)
-        const slug = (res as any)?.shop?.slug
-        if (slug && typeof window !== "undefined") {
-          window.history.replaceState(
-            null,
-            "",
-            `/p/${slug}/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`
-          )
+        if (token && typeof window !== "undefined") {
+          window.history.replaceState(null, "", `/p/o/${encodeURIComponent(token)}`)
         }
       })
       .catch((e) => setError(e.message || "Pedido não encontrado"))
@@ -52,7 +47,7 @@ function PublicOrderLegacyInner() {
             <p className="text-sm text-[var(--wq-danger)]">{error}</p>
             <p className="text-xs text-[var(--wq-text-muted)]">
               Use o link da etiqueta:{" "}
-              <code className="font-mono">/p/&#123;oficina&#125;/&#123;código&#125;?t=…</code>
+              <code className="font-mono">/p/o/…</code>
             </p>
           </div>
         )}
@@ -71,10 +66,10 @@ function PublicOrderLegacyInner() {
                 </Badge>
               )}
             </div>
-            {data.shop?.slug && token ? (
+            {token ? (
               <Link
                 className="text-sm text-[var(--wq-brand-text)] underline"
-                href={`/p/${data.shop.slug}/${encodeURIComponent(data.code || code)}?t=${encodeURIComponent(token)}`}
+                href={`/p/o/${encodeURIComponent(token)}`}
               >
                 Link permanente
               </Link>

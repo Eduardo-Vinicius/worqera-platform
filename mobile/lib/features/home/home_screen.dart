@@ -5,6 +5,7 @@ import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/ui.dart';
+import '../lookup/simple_lists.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.api, required this.session});
@@ -18,6 +19,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map? data;
   String? error;
+  String trialLabel = '';
+  int clientCount = 0;
   bool loading = true;
 
   @override
@@ -30,9 +33,26 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => loading = true);
     try {
       final res = await widget.api.dio.get('/dashboard');
+      String trial = '';
+      var clients = 0;
+      try {
+        final sub = await widget.api.dio.get('/billing/subscription');
+        final body = Map<String, dynamic>.from(sub.data as Map);
+        final row = body['subscription'] is Map ? body['subscription'] as Map : body;
+        if ('${row['status']}' == 'trialing' && row['trialEndsAt'] != null) {
+          trial = 'Trial até ${dayLabel(row['trialEndsAt'])}';
+        }
+      } catch (_) {}
+      try {
+        final listed = await widget.api.dio.get('/clients', queryParameters: {'limit': 1});
+        final body = listed.data;
+        clients = body is Map ? int.tryParse('${body['count'] ?? body['total'] ?? ''}') ?? asMaps(body).length : 0;
+      } catch (_) {}
       if (mounted) {
         setState(() {
           data = Map<String, dynamic>.from(res.data as Map);
+          trialLabel = trial;
+          clientCount = clients;
           error = null;
         });
       }
@@ -55,8 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final maxCount = sectors.fold<num>(1, (m, s) => (num.tryParse('${s['count']}') ?? 0) > m ? (num.tryParse('${s['count']}') ?? 0) : m);
 
     return WqPage(
-      title: 'Visão geral',
-      subtitle: shop.isEmpty ? 'O que fazer agora na operação' : '$shop${first.isEmpty ? '' : ' · Olá, $first'}',
+      title: first.isEmpty ? 'Início' : 'Olá, $first',
+      subtitle: shop.isEmpty ? 'O que fazer agora' : shop,
       actions: [
         if (widget.session.role == 'owner')
           IconButton(
@@ -71,54 +91,59 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         IconButton(onPressed: load, icon: const Icon(Icons.refresh)),
       ],
-      floating: widget.session.isSector
-          ? null
-          : FloatingActionButton.extended(
-              backgroundColor: Wq.brand,
-              foregroundColor: Colors.white,
-              onPressed: () => context.push('/orders/new'),
-              icon: const Icon(Icons.add),
-              label: const Text('Novo pedido'),
-            ),
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
-                  WqCard(
-                    padding: EdgeInsets.zero,
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF4F0FA6), Color(0xFF7D26DE)]),
+                    ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('HOJE', style: TextStyle(fontSize: 11, letterSpacing: 1.4, color: Wq.muted, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          Text(shop.isEmpty ? 'Sua empresa' : shop, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                          Text('$open abertos${overdue > 0 ? ' · $overdue atrasados' : ' · fila em dia'}', style: const TextStyle(color: Wq.muted, fontSize: 12)),
-                        ]),
-                      ),
-                      const Divider(height: 1, color: Wq.line),
+                      const Text('HOJE', style: TextStyle(fontSize: 11, letterSpacing: 1.6, color: Color(0xFFE9D5FF), fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text(shop.isEmpty ? 'Sua empresa' : shop, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+                      Text('$open abertos${overdue > 0 ? ' · $overdue atrasados' : ' · fila em dia'}${trialLabel.isEmpty ? '' : ' · $trialLabel'}', style: const TextStyle(color: Color(0xFFE9D5FF), fontSize: 13)),
+                      const SizedBox(height: 14),
                       Row(children: [
-                        _kpi('Pedidos abertos', '$open', 'Em andamento'),
-                        _kpi('Atrasados', '$overdue', overdue > 0 ? 'Priorize no kanban' : 'Fila em dia', warn: overdue > 0),
-                      ]),
-                      const Divider(height: 1, color: Wq.line),
-                      Row(children: [
-                        _kpi('Prontos hoje', '${stats['completedToday'] ?? 0}', 'Finalizados no dia'),
-                        _kpi('Pendentes', '${stats['pendingOrders'] ?? 0}', 'Aguardando avanço'),
+                        _heroStat('$open', 'Abertos'),
+                        _heroStat('$overdue', 'Atrasados'),
+                        _heroStat('${stats['completedToday'] ?? 0}', 'Prontos hoje'),
+                        _heroStat('${stats['pendingOrders'] ?? 0}', 'Pendentes'),
                       ]),
                     ]),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _shortcut(context, 'Novo pedido', Icons.add, () => context.push('/orders/new'), primary: true),
-                    _shortcut(context, 'Kanban', Icons.view_kanban_outlined, () => context.go('/kanban')),
-                    _shortcut(context, 'Pedidos', Icons.receipt_long_outlined, () => context.go('/orders')),
-                    _shortcut(context, 'Consultas', Icons.search, () => context.push('/consultas')),
-                    _shortcut(context, 'Clientes', Icons.people_outline, () => context.push('/clients')),
+                  const SizedBox(height: 14),
+                  if (overdue > 0 || (stats['pendingOrders'] ?? 0) != 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Wrap(spacing: 8, runSpacing: 8, children: [
+                        if (overdue > 0) ActionChip(label: Text('$overdue atrasados'), onPressed: () => context.go('/kanban')),
+                        ActionChip(label: const Text('Pedidos'), onPressed: () => context.go('/orders')),
+                      ]),
+                    ),
+                  WqCard(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Para começar', style: TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
+                      Text(shop.isEmpty ? 'Empresa ainda sem nome' : 'Empresa ok', style: TextStyle(color: shop.isEmpty ? Wq.warn : Wq.success)),
+                      Text(sectors.isEmpty ? 'Falta criar setores' : 'Setores ok', style: TextStyle(color: sectors.isEmpty ? Wq.warn : Wq.success)),
+                      Text(clientCount == 0 && recent.isEmpty ? 'Ainda sem clientes' : 'Clientes ok', style: TextStyle(color: clientCount == 0 && recent.isEmpty ? Wq.warn : Wq.success)),
+                    ]),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    Expanded(child: _shortcut(context, 'Pedidos', Icons.receipt_long_outlined, () => context.go('/orders'))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _shortcut(context, 'Clientes', Icons.people_outline, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientsScreen(api: widget.api, openClient: (id) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientDetailScreen(api: widget.api, clientId: id)))))))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _shortcut(context, 'Consultas', Icons.search, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ConsultasScreen(api: widget.api, openOrder: (id) => context.push('/orders/$id'), openClient: (id) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientDetailScreen(api: widget.api, clientId: id)))))))),
                   ]),
                   const SizedBox(height: 16),
                   WqSectionTitle('Fila recente', trailing: TextButton(onPressed: () => context.go('/kanban'), child: const Text('Kanban'))),
@@ -153,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: LinearProgressIndicator(
                                   minHeight: 4,
                                   value: ((num.tryParse('${sector['count']}') ?? 0) / maxCount).clamp(0, 1).toDouble(),
-                                  backgroundColor: Wq.paper,
+                                  backgroundColor: context.wqPaper,
                                   color: Wq.brand,
                                 ),
                               ),
@@ -167,36 +192,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _kpi(String label, String value, String hint, {bool warn = false}) {
+  Widget _heroStat(String value, String label) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.only(right: 6),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 0.8, color: Wq.muted, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: warn ? Wq.warn : Wq.ink)),
-          Text(hint, style: const TextStyle(fontSize: 11, color: Wq.muted)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+          Text(label, style: const TextStyle(color: Color(0xFFE9D5FF), fontSize: 11, fontWeight: FontWeight.w600)),
         ]),
       ),
     );
   }
 
-  Widget _shortcut(BuildContext context, String label, IconData icon, VoidCallback onTap, {bool primary = false}) {
-    return Material(
-      color: primary ? Wq.brand.withValues(alpha: 0.14) : Wq.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: primary ? Wq.brand.withValues(alpha: 0.4) : Wq.line)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 16, color: primary ? Wq.brand : Wq.muted),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ]),
-        ),
-      ),
+  Widget _shortcut(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+    return WqCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      onTap: onTap,
+      child: Column(children: [
+        Icon(icon, size: 18, color: Wq.brand),
+        const SizedBox(height: 6),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+      ]),
     );
   }
 }
