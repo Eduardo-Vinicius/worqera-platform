@@ -1396,8 +1396,8 @@ export default function KanbanPage() {
                   : "Toque no pedido para abrir e mover"
             }
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-            <div className="relative min-w-0 flex-1 sm:flex-none">
+          <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:items-center">
+            <div className="relative w-full min-w-0 md:w-[240px]">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--wq-text-muted)]" />
               <Input
                 value={codeQuery}
@@ -1406,28 +1406,29 @@ export default function KanbanPage() {
                   if (e.key === "/") e.stopPropagation()
                 }}
                 placeholder="Cliente, código ou modelo"
-                className="h-8 w-full rounded-[10px] pl-8 text-sm sm:w-[200px] md:w-[240px]"
+                className="h-9 w-full min-w-0 rounded-[10px] pl-8 text-sm"
                 aria-label="Filtrar pedidos no kanban"
               />
             </div>
+            <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
             <div
               className={cn(
-                "flex h-8 items-center rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] pl-2",
+                "flex h-9 min-w-0 flex-1 items-center rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] pl-2 md:w-[11.5rem] md:flex-none",
                 filterDate && "border-[var(--wq-brand)]"
               )}
             >
-              <span className="shrink-0 text-[11px] text-[var(--wq-text-muted)]">Entrada</span>
+              <span className="shrink-0 text-[11px] text-[var(--wq-text-muted)]">Data</span>
               <Input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="h-8 w-[8.6rem] border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-0"
+                className="h-9 min-w-0 flex-1 border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-0"
                 aria-label="Filtrar pela data de entrada"
               />
               {filterDate ? (
                 <button
                   type="button"
-                  className="mr-1 rounded-md p-1 text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
+                  className="mr-1 shrink-0 rounded-md p-1 text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
                   aria-label="Limpar data"
                   onClick={() => setFilterDate("")}
                 >
@@ -1438,16 +1439,15 @@ export default function KanbanPage() {
             <Button
               variant={filterLate ? "default" : "outline"}
               size="sm"
-              className={cn("rounded-[10px]", filterLate && "bg-[var(--wq-warn)]")}
+              className={cn("h-9 shrink-0 rounded-[10px]", filterLate && "bg-[var(--wq-warn)]")}
               onClick={() => setFilterLate((v) => !v)}
             >
-              <span className="sm:hidden">Atrasados</span>
-              <span className="hidden sm:inline">Só atrasados</span>
+              Atrasados
             </Button>
-            <Button variant="outline" size="sm" className="rounded-[10px]" onClick={load}>
-              <RefreshCw className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Atualizar</span>
+            <Button variant="outline" size="sm" className="h-9 shrink-0 rounded-[10px] px-2.5" onClick={load} aria-label="Atualizar">
+              <RefreshCw className="h-4 w-4" />
             </Button>
+            </div>
             {!isSectorRole ? (
               <Button asChild variant="outline" size="sm" className="hidden rounded-[10px] sm:inline-flex">
                 <Link href="/settings/setores">

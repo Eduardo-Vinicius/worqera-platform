@@ -242,7 +242,7 @@ export default function PedidosPage() {
       />
 
       <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2.5 sm:px-5 md:px-6 lg:px-8">
-        <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap gap-2">
           {(
             [
               ["ativos", "Ativos"],
@@ -262,7 +262,7 @@ export default function PedidosPage() {
               type="button"
               size="sm"
               variant={tab === id ? "default" : "outline"}
-              className={`h-10 shrink-0 rounded-[10px] ${
+              className={`h-9 rounded-[10px] ${
                 tab === id
                   ? id === "lixeira"
                     ? "bg-rose-600 hover:bg-rose-600/90"
@@ -277,11 +277,11 @@ export default function PedidosPage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 w-full flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
-              className="h-10 w-full rounded-[10px] pl-9"
+              className="h-10 w-full min-w-0 rounded-[10px] pl-9"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -291,29 +291,31 @@ export default function PedidosPage() {
           <Button
             onClick={() => runSearch()}
             disabled={loading}
-            className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
+            className="h-10 shrink-0 rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
           >
             {loading ? "…" : "Buscar"}
           </Button>
         </div>
 
-        <div className="grid gap-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">De</Label>
             <Input
               type="date"
-              className="rounded-[10px] bg-[var(--wq-surface)]"
+              className="h-10 w-full min-w-0 max-w-full rounded-[10px] bg-[var(--wq-surface)]"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
+              aria-label="Data inicial"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">Até</Label>
             <Input
               type="date"
-              className="rounded-[10px] bg-[var(--wq-surface)]"
+              className="h-10 w-full min-w-0 max-w-full rounded-[10px] bg-[var(--wq-surface)]"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
+              aria-label="Data final"
             />
           </div>
         </div>
@@ -377,11 +379,12 @@ export default function PedidosPage() {
                 const created = formatDate(order.createdAt || order.dataCriacao)
                 const deleted = formatDate(order.deletedAt)
                 return (
-                  <li key={id} className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--wq-paper)]">
+                  <li key={id} className="px-3 py-3 hover:bg-[var(--wq-paper)] sm:px-4">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                     <button
                       type="button"
                       onClick={() => setDetailId(id)}
-                      className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-left"
+                      className="flex min-w-0 w-full flex-1 items-start gap-3 text-left"
                     >
                       {setor && sectorMeta[String(setor)] && (
                         <span
@@ -418,7 +421,7 @@ export default function PedidosPage() {
                         </p>
                       </div>
                       {moneyTone === "hidden" ? null : (
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         {moneyTone === "quiet" ? (
                           <>
                             <p className="text-xs text-[var(--wq-text-muted)]">{formatMoney(money.total)}</p>
@@ -443,12 +446,12 @@ export default function PedidosPage() {
                       )}
                     </button>
                     {tab === "lixeira" ? (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex w-full shrink-0 gap-1.5 sm:w-auto">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="rounded-[10px]"
+                          className="h-9 flex-1 rounded-[10px] sm:flex-none"
                           disabled={restoreBusyId === id || purgeBusyId === id}
                           onClick={async () => {
                             setRestoreBusyId(id)
@@ -471,7 +474,7 @@ export default function PedidosPage() {
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="rounded-[10px] border-[var(--wq-danger)]/40 text-[var(--wq-danger)]"
+                            className="h-9 flex-1 rounded-[10px] border-[var(--wq-danger)]/40 text-[var(--wq-danger)] sm:flex-none"
                             disabled={purgeBusyId === id || restoreBusyId === id}
                             onClick={async () => {
                               const ok = window.confirm(
@@ -500,7 +503,7 @@ export default function PedidosPage() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="rounded-[10px] text-[var(--wq-text-muted)]"
+                        className="w-full rounded-[10px] text-[var(--wq-text-muted)] sm:w-auto"
                         disabled={deleteBusyId === id}
                         onClick={async () => {
                           const ok = window.confirm(
@@ -523,6 +526,7 @@ export default function PedidosPage() {
                         {deleteBusyId === id ? "…" : "Excluir"}
                       </Button>
                     )}
+                    </div>
                   </li>
                 )
               })}

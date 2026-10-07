@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Check, Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -167,7 +167,7 @@ export default function MarcasSettingsPage() {
               return (
                 <div
                   key={id}
-                  className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--wq-border)] px-3 py-2"
+                  className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--wq-border)] px-3 py-2"
                 >
                   {editing ? (
                     <Input
@@ -185,62 +185,65 @@ export default function MarcasSettingsPage() {
                       }}
                     />
                   ) : (
-                    <p className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "" : "text-[var(--wq-text-muted)]"}`}>
+                    <p className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "" : "text-[var(--wq-text-muted)] line-through"}`}>
                       {item.name}
-                      {active ? null : <span className="ml-2 text-xs font-normal">Oculta</span>}
                     </p>
                   )}
                   {editing ? (
-                    <>
+                    <div className="flex shrink-0 items-center gap-1">
                       <Button
                         type="button"
-                        size="sm"
-                        className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                        size="icon"
+                        className="h-9 w-9 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
                         disabled={busy || !draft.trim()}
+                        aria-label="Salvar nome"
                         onClick={() => void saveName(item)}
                       >
-                        Salvar
+                        <Check className="h-4 w-4" />
                       </Button>
-                      <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setEditingId("")}>
-                        Cancelar
+                      <Button type="button" size="icon" variant="ghost" className="h-9 w-9" disabled={busy} aria-label="Cancelar" onClick={() => setEditingId("")}>
+                        <X className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="flex shrink-0 items-center gap-1">
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-[10px]"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-[10px] text-[var(--wq-text-muted)]"
                         disabled={busy}
+                        aria-label="Editar nome"
                         onClick={() => {
                           setEditingId(id)
                           setDraft(item.name)
                         }}
                       >
-                        Alterar
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-[10px]"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-[10px] text-[var(--wq-text-muted)]"
                         disabled={busy}
+                        aria-label={active ? "Ocultar marca" : "Mostrar marca"}
                         onClick={() => void toggleActive(item)}
                       >
-                        {active ? "Ocultar" : "Mostrar"}
+                        {active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-[10px] text-[var(--wq-danger)]"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-[10px] text-[var(--wq-danger)]"
                         disabled={busy}
+                        aria-label="Apagar marca"
                         onClick={() => void remove(item)}
                       >
-                        Apagar
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               )

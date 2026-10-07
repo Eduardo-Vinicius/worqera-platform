@@ -183,7 +183,7 @@ function ConsultasPedidosInner() {
         }
       />
 
-      <div className="mx-auto max-w-[1100px] space-y-4 px-5 py-6 md:px-8">
+      <div className="mx-auto min-w-0 max-w-[1100px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -205,11 +205,11 @@ function ConsultasPedidosInner() {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 w-full flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
-              className="h-10 rounded-[10px] pl-9"
+              className="h-10 w-full min-w-0 rounded-[10px] pl-9"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -219,29 +219,31 @@ function ConsultasPedidosInner() {
           <Button
             onClick={() => runSearch()}
             disabled={loading}
-            className="rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
+            className="h-10 shrink-0 rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
           >
             {loading ? "…" : "Buscar"}
           </Button>
         </div>
 
-        <div className="grid gap-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">De</Label>
             <Input
               type="date"
-              className="rounded-[10px] bg-[var(--wq-surface)]"
+              className="h-10 w-full min-w-0 max-w-full rounded-[10px] bg-[var(--wq-surface)]"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
+              aria-label="Data inicial"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">Até</Label>
             <Input
               type="date"
-              className="rounded-[10px] bg-[var(--wq-surface)]"
+              className="h-10 w-full min-w-0 max-w-full rounded-[10px] bg-[var(--wq-surface)]"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
+              aria-label="Data final"
             />
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Eye, EyeOff, Plus, Trash2 } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -140,31 +140,30 @@ export default function AcessoriosSettingsPage() {
             return (
               <div
                 key={accessoryId(item) || item.name}
-                className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--wq-border)] px-3 py-2"
+                className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--wq-border)] px-3 py-2"
               >
-                <div className="min-w-0 flex-1">
-                  <p className={`truncate text-sm font-medium ${active ? "" : "text-[var(--wq-text-muted)]"}`}>
-                    {item.name}
-                    {active ? null : <span className="ml-2 text-xs font-normal">Oculto</span>}
-                  </p>
-                </div>
+                <p className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "" : "text-[var(--wq-text-muted)] line-through"}`}>
+                  {item.name}
+                </p>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-[10px]"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 rounded-[10px] text-[var(--wq-text-muted)]"
+                  aria-label={active ? "Ocultar acessório" : "Mostrar acessório"}
                   onClick={() => void toggleActive(item)}
                 >
-                  {active ? "Ocultar" : "Mostrar"}
+                  {active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-[10px] text-[var(--wq-danger)]"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 rounded-[10px] text-[var(--wq-danger)]"
+                  aria-label="Apagar acessório"
                   onClick={() => void remove(item)}
                 >
-                  Apagar
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             )
