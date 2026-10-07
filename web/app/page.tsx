@@ -24,9 +24,9 @@ const plex = localFont({
 })
 
 export const metadata = {
-  title: "Worqera — A fila do seu negócio, sob controle",
+  title: "Worqera — A fila, os avisos e o cliente",
   description:
-    "Kanban por setores e consulta pública por código. Calçados, automotivo, lavanderia, atelier — o mesmo loop. Teste grátis 7 dias.",
+    "Sistema da operação: kanban por setores, avisos para a equipe e o cliente, e o histórico que vira relacionamento. Teste grátis 7 dias.",
 }
 
 export default function HomePage() {

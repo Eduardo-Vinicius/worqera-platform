@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- **Site:** a página inicial mostra fila, avisos e o histórico do cliente, com o quadro e o aviso em movimento.
 - **Kanban:** um campo discreto de data filtra os cartões pelo dia em que o pedido entrou.
 - **Novo pedido:** o pedido é criado e a tela segue. As fotos de cada item sobem juntas, sem travar o sucesso. O e-mail do laudo espera essas fotos.
 - **Sino:** abrir marca a leitura e o número zera. A lista que estava aberta continua visível; a próxima busca não traz o mesmo aviso.

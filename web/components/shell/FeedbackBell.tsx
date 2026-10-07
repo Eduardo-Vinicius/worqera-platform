@@ -127,9 +127,11 @@ export function FeedbackBell({ className }: { className?: string }) {
     setReadyCount(0)
     setReopenedCount(0)
     setFeedback([])
-    marked.current = markAlertsInboxReadV1().catch(() => {
-      void loadInbox()
-    })
+    marked.current = markAlertsInboxReadV1()
+      .then(() => undefined)
+      .catch(() => {
+        void loadInbox()
+      })
     setOpen(true)
   }
 

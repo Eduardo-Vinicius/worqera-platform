@@ -9,12 +9,34 @@ const pt = {
   },
   hero: {
     brand: "Worqera",
-    kicker: "Sistema de gestão de pedidos",
-    headline: "A fila da empresa, do pedido ao pronto.",
-    sub: "Kanban por setores, ordem de serviço, etiqueta com QR e status para o cliente. Lavanderia, assistência, calçados, automotivo e atelier no mesmo sistema.",
+    kicker: "O sistema da operação",
+    headline: "A fila anda. A equipe e o cliente são avisados.",
+    sub: "Worqera segura o pedido do recebimento ao pronto, avisa quem precisa agir e guarda o histórico de cada cliente. A fila é o agora. O relacionamento com o cliente cresce em cima disso.",
     cta: "Testar grátis por 7 dias",
     secondary: "Já tenho conta",
     note: "Sem cartão · Setup em minutos · Cancele quando quiser",
+  },
+  system: {
+    eyebrow: "Mais do que uma fila",
+    title: "Três peças. Um sistema só.",
+    subtitle: "Quem só controla a fila perde o aviso e o cliente. A Worqera junta os três.",
+    pillars: [
+      {
+        k: "01",
+        title: "Fila",
+        desc: "Cada setor é uma coluna. O pedido não some entre o balcão e a produção.",
+      },
+      {
+        k: "02",
+        title: "Avisos",
+        desc: "Pronto, consulta pública, e-mail e o sino da oficina. Quem precisa saber, sabe na hora.",
+      },
+      {
+        k: "03",
+        title: "Clientes",
+        desc: "Nome, pedido e histórico ficam na empresa. É a base para o relacionamento — o CRM vem depois, em cima disso.",
+      },
+    ],
   },
   proof: {
     items: [
@@ -167,12 +189,34 @@ const en: typeof pt = {
   },
   hero: {
     brand: "Worqera",
-    kicker: "Order management system",
-    headline: "The company queue, from order to ready.",
-    sub: "Sector kanban, work orders, QR labels and customer status. Laundry, repair, footwear, automotive and atelier in one system.",
+    kicker: "The operating system",
+    headline: "The queue moves. The team and the customer get told.",
+    sub: "Worqera holds the order from intake to ready, alerts whoever needs to act, and keeps each customer’s history. The queue is now. The relationship grows on top of it.",
     cta: "Try free for 7 days",
     secondary: "I have an account",
     note: "No card · Setup in minutes · Cancel anytime",
+  },
+  system: {
+    eyebrow: "More than a queue",
+    title: "Three pieces. One system.",
+    subtitle: "A queue alone drops the alert and the customer. Worqera keeps all three.",
+    pillars: [
+      {
+        k: "01",
+        title: "Queue",
+        desc: "Each sector is a column. The order does not vanish between the counter and production.",
+      },
+      {
+        k: "02",
+        title: "Alerts",
+        desc: "Ready, public lookup, email and the shop bell. The people who need to know, know now.",
+      },
+      {
+        k: "03",
+        title: "Customers",
+        desc: "Name, order and history stay with the company. That is the base of the relationship — CRM comes later, on top of it.",
+      },
+    ],
   },
   proof: {
     items: [

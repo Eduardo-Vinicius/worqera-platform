@@ -52,28 +52,29 @@ function ProductBoard({ pt }: { pt: boolean }) {
       ]
 
   return (
-    <div className="w-full border-y border-[var(--border)] bg-[var(--ink)] text-white sm:border sm:border-[var(--border)] sm:rounded-sm">
+    <div className="relative w-full border-y border-[var(--border)] bg-[var(--ink)] text-white sm:rounded-sm sm:border">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
         <p className="text-[11px] font-medium tracking-[0.16em] text-white/50 uppercase">
           {pt ? "Kanban · ao vivo" : "Kanban · live"}
         </p>
         <p className="lp-mono text-xs text-white/40">worqera</p>
       </div>
-      <div className="grid grid-cols-3 gap-px bg-white/10">
+      <div className="grid grid-cols-3 gap-px bg-white/10 pb-16 sm:pb-0">
         {cols.map((col) => (
           <div key={col.name} className="min-w-0 bg-[var(--ink)] p-3 sm:p-4">
             <p className="mb-3 truncate text-[10px] font-semibold tracking-[0.14em] text-white/45 uppercase sm:text-[11px]">
               {col.name}
             </p>
             <div className="space-y-2">
-              {col.cards.map((card) => (
+              {col.cards.map((card, index) => (
                 <div
                   key={card.code}
-                  className={`rounded-sm border px-2.5 py-2 ${
+                  className={`lp-board-card rounded-sm border px-2.5 py-2 ${
                     card.ready
-                      ? "border-[var(--ready)]/40 bg-[var(--ready)]/10"
+                      ? "lp-board-card-ready border-[var(--ready)]/40 bg-[var(--ready)]/10"
                       : "border-white/10 bg-white/5"
                   }`}
+                  style={{ animationDelay: `${0.15 + index * 0.12}s` }}
                 >
                   <p className="lp-mono text-sm font-medium tracking-tight">{card.code}</p>
                   <p className="mt-0.5 text-[11px] text-white/50">{card.meta}</p>
@@ -82,6 +83,17 @@ function ProductBoard({ pt }: { pt: boolean }) {
             </div>
           </div>
         ))}
+      </div>
+      <div className="lp-toast pointer-events-none absolute right-3 bottom-3 left-3 sm:right-4 sm:left-auto sm:w-64">
+        <p className="text-[10px] font-semibold tracking-[0.14em] text-white/50 uppercase">
+          {pt ? "Aviso" : "Alert"}
+        </p>
+        <p className="mt-1 text-sm font-medium text-white">
+          {pt ? "Pedido 0032 está pronto" : "Order 0032 is ready"}
+        </p>
+        <p className="mt-0.5 text-[11px] text-white/55">
+          {pt ? "Cliente e equipe avisados" : "Customer and team notified"}
+        </p>
       </div>
     </div>
   )
