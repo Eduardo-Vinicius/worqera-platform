@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
     emailVerifiedAt: { type: Date, default: null },
     emailVerifyTokenHash: { type: String, default: null },
     emailVerifyExpires: { type: Date, default: null },
-    /** Incremented on logout. JWTs with an older tv are rejected. */
+    /** Incremented when the password changes. Older JWTs are rejected. Logout does not bump this. */
     tokenVersion: { type: Number, default: 0 },
     lastLocation: {
       lat: { type: Number, default: null },

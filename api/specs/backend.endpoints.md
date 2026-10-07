@@ -123,7 +123,7 @@ LEGADO: `/clientes`.
 
 ```
 GET    /orders                       # LIVE — shop-scoped; cada row: items + itemCount + flat; ?payment=due (saldo > 0; setor ignora)
-POST   /orders                       # LIVE — body items[] ou flat (shoeModel/services/photos)
+POST   /orders                       # LIVE — body items[] ou flat; photoCounts[] adia o e-mail até as fotos
 GET    /orders/{id}                  # LIVE
 PATCH  /orders/{id}                  # LIVE — scalars + opcional itemPatches[]; items[] wholesale → 400 USE_ITEM_ENDPOINTS
 PATCH  /orders/{id}/items/{itemIndex} # LIVE — merge (preserva id/fotos/setor/histórico); delivered → 400
@@ -131,6 +131,7 @@ POST   /orders/{id}/items            # LIVE — novo par (bootstrap partida); de
 DELETE /orders/{id}/items/{itemIndex} # LIVE — remove par (mín. 1); delivered → 400
 POST   /orders/{id}/photos           # LIVE — item 0 (legado); multipart field photos; append
 POST   /orders/{id}/items/{itemIndex}/photos  # LIVE — append em items[itemIndex]; índice inválido → 400
+POST   /orders/{id}/notify-created   # LIVE — manda o e-mail de criação se ainda estava esperando as fotos
 DELETE /orders/{id}/items/{itemIndex}/photos/{photoIndex}  # LIVE
 POST   /orders/{id}/pdf              # LIVE
 GET    /orders/{id}/photos/zip       # LIVE — ainda só flat photos (item 0)

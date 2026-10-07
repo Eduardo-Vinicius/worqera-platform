@@ -23,6 +23,7 @@ import {
   getClientesService,
   getPedidoIdFromCreateResponse,
   getPedidoService,
+  notifyCreatedPedidoService,
   uploadPedidoItemFotosService,
   updateOrderService,
   patchPedidoItemService,
@@ -958,8 +959,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     setUploadStatus("idle");
     setUploadMessage("");
     setUploadProgress(0);
-    let uploadInProgress = false;
-    let progressTimer: NodeJS.Timeout | null = null;
 
     try {
       if (isEdit) {
@@ -1002,6 +1001,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         acessorios: selectedAccessories,
         // v1 business status (not sector/column name — that lives in currentSectorId)
         status: "open",
+        photoCounts: filledItems.map(
+          (item) => item.photos.filter((photo) => photo.file).length
+        ),
       };
 
       const createdPedidoResponse = await createPedidoService(payload);
@@ -1013,50 +1015,55 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         }))
         .filter((entry) => entry.files.length > 0)
 
+      const pedidoIdEarly = getPedidoIdFromCreateResponse(createdPedidoResponse);
       if (itemsWithPhotos.length > 0) {
-        const pedidoId = getPedidoIdFromCreateResponse(createdPedidoResponse);
-        if (!pedidoId) {
+        if (!pedidoIdEarly) {
           throw new Error("Pedido criado, mas não foi possível identificar o ID para upload das fotos");
         }
-
-        uploadInProgress = true;
-        setUploadStatus("loading");
-        setUploadMessage("Enviando fotos...");
-        setUploadProgress(10);
-        progressTimer = setInterval(() => {
-          setUploadProgress((prev) => Math.min(prev + 10, 90));
-        }, 400);
-        for (const entry of itemsWithPhotos) {
-          await uploadPedidoItemFotosService(pedidoId, entry.index, entry.files);
-        }
-        // Confirm photos landed on the right items (non-blocking warn)
-        try {
-          const fresh = await getPedidoService(pedidoId)
-          const itemsFresh = Array.isArray(fresh?.items) ? fresh.items : []
-          for (const entry of itemsWithPhotos) {
-            const got = itemsFresh[entry.index]?.photos?.length || 0
-            if (got < entry.files.length) {
-              toast.message(
-                `Item ${entry.index + 1}: esperava ${entry.files.length} foto(s), gravou ${got}`
-              )
+        const pedidoId = pedidoIdEarly
+        void (async () => {
+          await Promise.all(
+            itemsWithPhotos.map(async (entry) => {
+              try {
+                await uploadPedidoItemFotosService(pedidoId, entry.index, entry.files)
+              } catch {
+                try {
+                  await uploadPedidoItemFotosService(pedidoId, entry.index, entry.files)
+                } catch (err) {
+                  console.warn("[order] photo upload", entry.index, err)
+                }
+              }
+            })
+          )
+          try {
+            const fresh = await getPedidoService(pedidoId)
+            const itemsFresh = Array.isArray(fresh?.items) ? fresh.items : []
+            for (const entry of itemsWithPhotos) {
+              const got = itemsFresh[entry.index]?.photos?.length || 0
+              if (got < entry.files.length) {
+                toast.message(
+                  `Item ${entry.index + 1}: esperava ${entry.files.length} foto(s), gravou ${got}`
+                )
+              }
             }
+          } catch {
+            /* order already created */
           }
-        } catch {
-          /* ignore verify errors — order already created */
-        }
-        uploadInProgress = false;
-        setUploadStatus("success");
-        setUploadMessage("Fotos enviadas com sucesso.");
-        setUploadProgress(100);
+          await notifyCreatedPedidoService(pedidoId)
+        })()
       }
 
       const hasEmail = Boolean(
         selectedClient?.email || selectedClient?.clientEmail
       )
       toast.success(
-        hasEmail
-          ? "Pedido criado — e-mail com PDF e link público a caminho"
-          : "Pedido criado com sucesso!"
+        itemsWithPhotos.length > 0
+          ? hasEmail
+            ? "Pedido criado. As fotos sobem agora e o e-mail sai em seguida, já com elas."
+            : "Pedido criado. As fotos sobem agora."
+          : hasEmail
+            ? "Pedido criado — e-mail com PDF e link público a caminho"
+            : "Pedido criado com sucesso!"
       )
       setIsLoading(false);
       // revoke previews to free memory
@@ -1072,6 +1079,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             `wq-email-notify:${pedidoId}`,
             JSON.stringify(notify || { skipped: true, reason: hasEmail ? "unknown" : "no-email" })
           )
+          const photoCounts = filledItems.map((item) => item.photos.filter((photo) => photo.file).length)
+          if (photoCounts.some((count) => count > 0)) {
+            sessionStorage.setItem(`wq-photo-counts:${pedidoId}`, JSON.stringify(photoCounts))
+          }
         } catch {}
         router.push(`/pedidos/${pedidoId}/sucesso`);
       } else {
@@ -1079,16 +1090,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       }
     } catch (err: any) {
       setIsLoading(false);
-      if (uploadInProgress) {
-        setUploadStatus("error");
-        setUploadMessage(err.message || "Erro ao enviar fotos");
-      }
       const errMsg = err.message || "Erro ao criar pedido";
       setErrors({ api: errMsg });
       toast.error(errMsg);
-    }
-    finally {
-      if (progressTimer) clearInterval(progressTimer);
     }
   }
 

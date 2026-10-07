@@ -87,7 +87,7 @@ async function recordApiCall(req, res, ms) {
     }
   });
 
-  if (status >= 400) {
+  if (status >= 500) {
     await logApiError({
       message: res.locals?.apiError || `HTTP ${status}`,
       route,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -410,62 +411,71 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Future<void> openNewClient() async {
-    await showWqSheet<void>(
+    final draft = await showWqSheet<Map<String, String>>(
       context,
       title: 'Novo cliente',
       hint: 'Nome e telefone. E-mail só se for enviar o laudo.',
-      child: (sheet) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(controller: newName, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nome *'), autofocus: true),
-          const SizedBox(height: 8),
-          TextField(
-            controller: newPhone,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Telefone *'),
-            onChanged: (value) {
-              final next = maskPhone(value);
-              if (next != value) newPhone.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
-            },
-          ),
-          const SizedBox(height: 8),
-          TextField(controller: newCpf, decoration: const InputDecoration(labelText: 'CPF')),
-          const SizedBox(height: 8),
-          TextField(controller: newEmail, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail (PDF + link do pedido)')),
-          const SizedBox(height: 8),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Wq.action),
-            onPressed: savingClient
-                ? null
-                : () async {
-                    final ok = await saveClient();
-                    if (ok && sheet.mounted) Navigator.pop(sheet);
-                  },
-            child: Text(savingClient ? 'Salvando…' : 'Salvar cliente'),
-          ),
-        ],
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController()],
+        builder: (_, fields) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(controller: fields[0], textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nome *'), autofocus: true),
+            const SizedBox(height: 8),
+            TextField(
+              controller: fields[1],
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Telefone *'),
+              onChanged: (value) {
+                final next = maskPhone(value);
+                if (next != value) fields[1].value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(controller: fields[2], decoration: const InputDecoration(labelText: 'CPF')),
+            const SizedBox(height: 8),
+            TextField(controller: fields[3], keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail (PDF + link do pedido)')),
+            const SizedBox(height: 8),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Wq.action),
+              onPressed: () => Navigator.pop(sheet, {
+                'name': fields[0].text.trim(),
+                'phone': fields[1].text.trim(),
+                'cpf': fields[2].text.trim(),
+                'email': fields[3].text.trim(),
+              }),
+              child: const Text('Salvar cliente'),
+            ),
+          ],
+        ),
       ),
     );
+    if (draft == null || !mounted) return;
+    newName.text = draft['name'] ?? '';
+    newPhone.text = draft['phone'] ?? '';
+    newCpf.text = draft['cpf'] ?? '';
+    newEmail.text = draft['email'] ?? '';
+    await saveClient();
   }
 
   Future<void> openBrand(_ItemDraft item) async {
-    final ctrl = TextEditingController(text: item.brand.text.trim());
-    final ok = await showWqSheet<bool>(
+    final next = await showWqSheet<String>(
       context,
       title: 'Cadastrar marca',
       hint: 'Entra no catálogo da empresa.',
-      child: (sheet) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
-        ],
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController(text: item.brand.text.trim())],
+        builder: (_, fields) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: () => Navigator.pop(sheet, fields[0].text.trim()), child: const Text('Salvar')),
+          ],
+        ),
       ),
     );
-    final next = ctrl.text.trim();
-    ctrl.dispose();
-    if (ok != true || next.isEmpty) return;
+    if (next == null || next.isEmpty || !mounted) return;
     item.brand.text = next;
     await commitBrand(item);
   }
@@ -501,23 +511,23 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       });
       return;
     }
-    final ctrl = TextEditingController(text: name);
-    final ok = await showWqSheet<bool>(
+    final savedName = await showWqSheet<String>(
       context,
       title: 'Cadastrar acessório',
       hint: 'Entra no catálogo da empresa.',
-      child: (sheet) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
-        ],
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController(text: name)],
+        builder: (_, fields) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: () => Navigator.pop(sheet, fields[0].text.trim()), child: const Text('Salvar')),
+          ],
+        ),
       ),
     );
-    final savedName = ctrl.text.trim();
-    ctrl.dispose();
-    if (ok != true || savedName.isEmpty) return;
+    if (savedName == null || savedName.isEmpty || !mounted) return;
     try {
       final created = await widget.api.dio.post('/accessories', data: {'name': savedName});
       final body = created.data is Map ? Map<String, dynamic>.from(created.data as Map) : <String, dynamic>{};
@@ -731,12 +741,33 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         final created = await widget.api.dio.post('/orders', data: {
           ..._header(),
           'items': [for (final item in filledItems) _itemPayload(item)],
+          'photoCounts': [
+            for (final item in filledItems) item.photos.where((photo) => photo.file != null).length,
+          ],
         });
         final body = Map<String, dynamic>.from(created.data as Map);
         id = '${body['id'] ?? body['_id']}';
-        final withPhotos = filledItems.asMap().entries.where((entry) => entry.value.photos.any((photo) => photo.file != null));
-        for (final entry in withPhotos) {
-          await _upload(id, entry.key, entry.value);
+        final withPhotos = filledItems.asMap().entries.where((entry) => entry.value.photos.any((photo) => photo.file != null)).toList();
+        if (withPhotos.isNotEmpty) {
+          final api = widget.api;
+          unawaited(() async {
+            await Future.wait(withPhotos.map((entry) async {
+              try {
+                await _upload(id, entry.key, entry.value);
+              } catch (_) {
+                try {
+                  await _upload(id, entry.key, entry.value);
+                } catch (err) {
+                  debugPrint('photo upload ${entry.key}: $err');
+                }
+              }
+            }));
+            try {
+              await api.dio.post('/orders/$id/notify-created', data: {});
+            } catch (err) {
+              debugPrint('notify-created: $err');
+            }
+          }());
         }
       }
       if (!mounted) return;
@@ -745,7 +776,17 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         Navigator.of(context).pop(true);
       } else {
         final hasEmail = '${client?['email'] ?? ''}'.trim().isNotEmpty;
-        wqToast(context, hasEmail ? 'Pedido criado — e-mail a caminho' : 'Pedido criado');
+        final waitingPhotos = filledItems.any((item) => item.photos.any((photo) => photo.file != null));
+        wqToast(
+          context,
+          waitingPhotos
+              ? (hasEmail
+                  ? 'Pedido criado. As fotos sobem agora e o e-mail sai em seguida.'
+                  : 'Pedido criado. As fotos sobem agora.')
+              : hasEmail
+                  ? 'Pedido criado — e-mail a caminho'
+                  : 'Pedido criado',
+        );
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => SuccessScreen(api: widget.api, session: widget.session, orderId: id)));
       }
     } catch (e) {
@@ -757,7 +798,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   Future<void> _openConfirm() async {
     final missingPhoto = filledItems.any((item) => item.photos.isEmpty);
-    await showModalBottomSheet<void>(
+    final go = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -795,20 +836,16 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             const SizedBox(height: 12),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Wq.action, minimumSize: const Size.fromHeight(48)),
-              onPressed: saving
-                  ? null
-                  : () {
-                      Navigator.pop(ctx);
-                      save(confirmed: true);
-                    },
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Confirmar e criar'),
             ),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Voltar')),
+            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
           ]),
         ),
       ),
     );
+    if (go == true && mounted) await save(confirmed: true);
   }
 
   void clearDraft() {

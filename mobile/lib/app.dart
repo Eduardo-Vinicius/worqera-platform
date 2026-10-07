@@ -14,6 +14,7 @@ import 'features/more/more_screen.dart';
 import 'features/orders/order_detail_screen.dart';
 import 'features/orders/order_form_screen.dart';
 import 'features/orders/orders_screen.dart';
+import 'design/ui.dart';
 import 'features/shell/app_shell.dart';
 
 class WorqeraApp extends StatefulWidget {
@@ -60,7 +61,27 @@ class _WorqeraAppState extends State<WorqeraApp> {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/kanban',
-              builder: (context, _) => KanbanScreen(api: api, session: session, openOrder: (id) => context.push('/orders/$id')),
+              builder: (context, _) => KanbanScreen(
+                api: api,
+                session: session,
+                openOrder: (id) {
+                  final scope = ShellScope.maybeOf(context);
+                  if (scope != null) {
+                    scope.openPage(
+                      'order',
+                      OrderDetailScreen(
+                        api: api,
+                        session: session,
+                        orderId: id,
+                        onEdit: () => scope.openPage('order-edit', OrderFormScreen(api: api, session: session, orderId: id), stack: true),
+                      ),
+                      stack: true,
+                    );
+                    return;
+                  }
+                  context.push('/orders/$id');
+                },
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -69,7 +90,23 @@ class _WorqeraAppState extends State<WorqeraApp> {
               builder: (context, _) => OrdersScreen(
                 api: api,
                 session: session,
-                openOrder: (id) => context.push('/orders/$id'),
+                openOrder: (id) {
+                  final scope = ShellScope.maybeOf(context);
+                  if (scope != null) {
+                    scope.openPage(
+                      'order',
+                      OrderDetailScreen(
+                        api: api,
+                        session: session,
+                        orderId: id,
+                        onEdit: () => scope.openPage('order-edit', OrderFormScreen(api: api, session: session, orderId: id), stack: true),
+                      ),
+                      stack: true,
+                    );
+                    return;
+                  }
+                  context.push('/orders/$id');
+                },
                 openNew: () => context.push('/orders/new'),
               ),
               routes: [

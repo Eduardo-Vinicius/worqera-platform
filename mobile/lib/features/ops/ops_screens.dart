@@ -1,10 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
+import '../../design/flow.dart';
 import '../../design/ui.dart';
 
 class ReviewsScreen extends StatefulWidget {
@@ -16,6 +19,9 @@ class ReviewsScreen extends StatefulWidget {
 
 class _ReviewsScreenState extends State<ReviewsScreen> {
   String score = 'all';
+  String period = '90d';
+  int page = 1;
+  int total = 0;
   Map? data;
   String? error;
 
@@ -27,12 +33,29 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
   Future<void> load() async {
     try {
-      final query = <String, dynamic>{'period': '30d'};
+      final query = <String, dynamic>{'period': period, 'page': page, 'limit': 30};
       if (score != 'all') query['score'] = score;
       final res = await widget.api.dio.get('/alerts/feedback', queryParameters: query);
-      setState(() => data = Map<String, dynamic>.from(res.data as Map));
+      final body = Map<String, dynamic>.from(res.data as Map);
+      setState(() {
+        data = body;
+        total = int.tryParse('${body['total'] ?? 0}') ?? 0;
+        error = null;
+      });
     } catch (e) {
       setState(() => error = widget.api.message(e));
+    }
+  }
+
+  Future<void> exportCsv() async {
+    try {
+      final query = <String, dynamic>{'period': period};
+      if (score != 'all') query['score'] = score;
+      final res = await widget.api.dio.get('/alerts/feedback/export.csv', queryParameters: query, options: Options(responseType: ResponseType.plain));
+      await Clipboard.setData(ClipboardData(text: '${res.data}'));
+      if (mounted) wqToast(context, 'CSV copiado. Cole numa planilha.');
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
     }
   }
 
@@ -54,16 +77,42 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 Text('${summary['avg'] ?? summary['average'] ?? '—'}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
               ])),
               Text('${summary['count'] ?? rows.length} notas', style: const TextStyle(color: Wq.muted)),
+              if (summary['distribution'] is Map)
+                Text(
+                  [
+                    for (final star in ['5', '4', '3', '2', '1']) '$star★ ${(summary['distribution'] as Map)[star] ?? 0}',
+                  ].join('  '),
+                  style: const TextStyle(color: Wq.muted, fontSize: 12),
+                ),
             ]),
           ),
           const SizedBox(height: 8),
           Wrap(spacing: 8, children: [
-            for (final item in ['all', '5', '4', '3', '2', '1'])
+            for (final item in [('30d', '30 dias'), ('90d', '90 dias'), ('all', 'Tudo')])
               ChoiceChip(
-                label: Text(item == 'all' ? 'Todas' : item),
+                label: Text(item.$2),
+                selected: period == item.$1,
+                onSelected: (_) {
+                  setState(() {
+                    period = item.$1;
+                    page = 1;
+                  });
+                  load();
+                },
+              ),
+            ActionChip(label: const Text('CSV'), onPressed: exportCsv),
+          ]),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, children: [
+            for (final item in ['all', '1,2,3', '5', '4', '3', '2', '1'])
+              ChoiceChip(
+                label: Text(item == 'all' ? 'Todas' : item == '1,2,3' ? 'Críticas' : item),
                 selected: score == item,
                 onSelected: (_) {
-                  setState(() => score = item);
+                  setState(() {
+                    score = item;
+                    page = 1;
+                  });
                   load();
                 },
               ),
@@ -78,11 +127,20 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                   Text('${row['clientName'] ?? 'Cliente'}'),
                 ]),
                 if ('${row['comment'] ?? ''}'.isNotEmpty) Text('“${row['comment']}”', style: const TextStyle(color: Wq.muted)),
+                if (row['tags'] is List && (row['tags'] as List).isNotEmpty) Text((row['tags'] as List).join(' · '), style: const TextStyle(color: Wq.muted, fontSize: 12)),
                 if ('${row['code'] ?? ''}'.isNotEmpty) Text('${row['code']}', style: const TextStyle(fontSize: 12, color: Wq.muted)),
               ]),
             ),
             const SizedBox(height: 8),
           ],
+          if (page * 30 < total)
+            TextButton(
+              onPressed: () {
+                setState(() => page += 1);
+                load();
+              },
+              child: const Text('Próxima página'),
+            ),
         ],
       ),
     );
@@ -254,21 +312,28 @@ class MetricsScreen extends StatefulWidget {
 class _MetricsScreenState extends State<MetricsScreen> {
   Map? data;
   String? error;
+  String period = '30d';
+
   @override
   void initState() {
     super.initState();
-    widget.api.dio.get('/metrics/overview', queryParameters: {'period': '30d'}).then((res) async {
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final res = await widget.api.dio.get('/metrics/overview', queryParameters: {'period': period});
       final body = Map<String, dynamic>.from(res.data as Map);
       final inner = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
       try {
-        final delays = await widget.api.dio.get('/metrics/delays', queryParameters: {'period': '30d'});
+        final delays = await widget.api.dio.get('/metrics/delays', queryParameters: {'period': period});
         final delayBody = Map<String, dynamic>.from(delays.data as Map);
         inner['delays'] = delayBody['data'] is Map ? delayBody['data'] : delayBody;
       } catch (_) {}
       if (mounted) setState(() => data = inner);
-    }).catchError((e) {
+    } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
-    });
+    }
   }
 
   @override
@@ -293,6 +358,18 @@ class _MetricsScreenState extends State<MetricsScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                Wrap(spacing: 8, children: [
+                  for (final item in [('7d', '7 dias'), ('30d', '30 dias'), ('90d', '90 dias')])
+                    ChoiceChip(
+                      label: Text(item.$2),
+                      selected: period == item.$1,
+                      onSelected: (_) {
+                        setState(() => period = item.$1);
+                        load();
+                      },
+                    ),
+                ]),
+                const SizedBox(height: 12),
                 _kpi('Pedidos', '${summary['total'] ?? 0}'),
                 _kpi('Atraso médio', '${(data?['delays'] as Map?)?['averageDelayHours'] ?? 0} h'),
                 for (final row in bars) _bar(row.$1, row.$2, maxBar, row.$3),
@@ -349,6 +426,17 @@ class _BillingScreenState extends State<BillingScreen> {
     });
   }
 
+  String _planLine() {
+    final status = '${sub?['status'] ?? '—'}';
+    final end = DateTime.tryParse('${sub?['trialEndsAt'] ?? ''}');
+    if (status == 'trialing' && end != null) {
+      final left = end.difference(DateTime.now()).inDays;
+      final days = left < 0 ? 0 : left;
+      return 'Trial · $days dia${days == 1 ? '' : 's'} restantes';
+    }
+    return 'Status $status';
+  }
+
   Future<void> checkout(String plan) async {
     final res = await widget.api.dio.post('/billing/checkout-sessions', data: {'planCode': plan});
     final url = '${(res.data as Map)['url'] ?? ''}';
@@ -368,7 +456,7 @@ class _BillingScreenState extends State<BillingScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('SEU PLANO', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
               Text('${sub?['planCode'] ?? sub?['status'] ?? 'Sem assinatura'}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('Status ${sub?['status'] ?? '—'}', style: const TextStyle(color: Wq.muted)),
+              Text(_planLine(), style: const TextStyle(color: Wq.muted)),
             ]),
           ),
           const SizedBox(height: 12),

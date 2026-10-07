@@ -81,6 +81,7 @@ type OrderCard = {
   modeloTenis?: string
   priority?: number
   dueAt?: string
+  createdAt?: string
   itemCount?: number
   items?: unknown[]
   plannedSectorIds?: string[]
@@ -318,12 +319,22 @@ function routeCue(
   return { offFlow: false, nextLabel: null, stepLabel }
 }
 
-function filterOrders(orders: OrderCard[], filterLate: boolean, query = "") {
+function sameLocalDay(value: string | undefined, day: string) {
+  if (!value || !day) return false
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const dateDay = String(date.getDate()).padStart(2, "0")
+  return `${date.getFullYear()}-${month}-${dateDay}` === day
+}
+
+function filterOrders(orders: OrderCard[], filterLate: boolean, query = "", onDate = "") {
   const q = query.trim().toLowerCase()
   const qDigits = q.replace(/\D/g, "")
   const now = Date.now()
   return orders.filter((o) => {
     if (filterLate && !(o.dueAt && new Date(o.dueAt).getTime() < now)) return false
+    if (onDate && !sameLocalDay(o.createdAt, onDate)) return false
     if (!q) return true
     const phone = String(o.clientPhone || "").replace(/\D/g, "")
     const blob = [
@@ -692,6 +703,7 @@ function DroppableColumn({
   onMarkDelivered,
   onNotifyReady,
   query = "",
+  onDate = "",
   dragEnabled = true,
   showPending = false,
 }: {
@@ -705,11 +717,12 @@ function DroppableColumn({
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
   query?: string
+  onDate?: string
   dragEnabled?: boolean
   showPending?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
-  const orders = filterOrders(column.orders, filterLate, query)
+  const orders = filterOrders(column.orders, filterLate, query, onDate)
   const columnValue = orders.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
   const columnPending = orders.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
@@ -788,6 +801,7 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true)
   const [activeSectorId, setActiveSectorId] = useState<string | null>(null)
   const [filterLate, setFilterLate] = useState(false)
+  const [filterDate, setFilterDate] = useState("")
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   const [detailOpen, setDetailOpen] = useState(false)
@@ -924,8 +938,8 @@ export default function KanbanPage() {
   )
 
   const visibleOrders = useMemo(() => {
-    return filterOrders(activeColumn?.orders || [], filterLate, codeQuery)
-  }, [activeColumn, filterLate, codeQuery])
+    return filterOrders(activeColumn?.orders || [], filterLate, codeQuery, filterDate)
+  }, [activeColumn, filterLate, codeQuery, filterDate])
 
   useEffect(() => {
     if (!visibleOrders.length) {
@@ -1396,6 +1410,31 @@ export default function KanbanPage() {
                 aria-label="Filtrar pedidos no kanban"
               />
             </div>
+            <div
+              className={cn(
+                "flex h-8 items-center rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] pl-2",
+                filterDate && "border-[var(--wq-brand)]"
+              )}
+            >
+              <span className="shrink-0 text-[11px] text-[var(--wq-text-muted)]">Entrada</span>
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="h-8 w-[8.6rem] border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-0"
+                aria-label="Filtrar pela data de entrada"
+              />
+              {filterDate ? (
+                <button
+                  type="button"
+                  className="mr-1 rounded-md p-1 text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
+                  aria-label="Limpar data"
+                  onClick={() => setFilterDate("")}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              ) : null}
+            </div>
             <Button
               variant={filterLate ? "default" : "outline"}
               size="sm"
@@ -1442,8 +1481,15 @@ export default function KanbanPage() {
           </div>
         ) : (
           <>
-            {columns.every((c) => filterOrders(c.orders, filterLate, codeQuery).length === 0) &&
+            {filterDate &&
+            columns.every((c) => filterOrders(c.orders, filterLate, codeQuery, filterDate).length === 0) ? (
+              <p className="mb-3 shrink-0 text-center text-sm text-[var(--wq-text-muted)]">
+                Nenhum pedido entrou nessa data.
+              </p>
+            ) : null}
+            {columns.every((c) => filterOrders(c.orders, filterLate, codeQuery, filterDate).length === 0) &&
             !codeQuery.trim() &&
+            !filterDate &&
             !isSectorRole ? (
               <div className="mb-3 shrink-0 rounded-2xl border border-dashed border-[var(--wq-border)] bg-white px-4 py-5 text-center">
                 <p className="font-medium text-[var(--wq-text)]">Fila vazia</p>
@@ -1461,7 +1507,7 @@ export default function KanbanPage() {
               <div className="flex shrink-0 gap-2 overflow-x-auto pb-1">
                 {columns.map((col) => {
                   const active = col.sector._id === activeSectorId
-                  const visible = filterOrders(col.orders, filterLate, codeQuery)
+                  const visible = filterOrders(col.orders, filterLate, codeQuery, filterDate)
                   const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
                   const columnPending = visible.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
                   return (
@@ -1500,6 +1546,7 @@ export default function KanbanPage() {
                   column={activeColumn}
                   filterLate={filterLate}
                   query={codeQuery}
+                  onDate={filterDate}
                   dragEnabled={false}
                   focusedCardId={focusedCardId}
                   onFocusCard={setFocusedCardId}
@@ -1563,6 +1610,7 @@ export default function KanbanPage() {
                   column={col}
                   filterLate={filterLate}
                   query={codeQuery}
+                  onDate={filterDate}
                   dragEnabled
                   focusedCardId={focusedCardId}
                   onFocusCard={setFocusedCardId}

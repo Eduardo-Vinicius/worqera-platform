@@ -126,6 +126,16 @@ const orderSchema = new mongoose.Schema(
     reopenedAt: { type: Date, default: null },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
     pdfUrl: { type: String, default: null },
+    /**
+     * When the create request includes photos that upload afterwards.
+     * Email and the stored laudo wait until each item reaches `expected`,
+     * or until the client calls notify-created after the uploads finish.
+     */
+    photoNotify: {
+      expected: { type: [Number], default: undefined },
+      got: { type: [Number], default: undefined },
+      sent: { type: Boolean, default: false },
+    },
     notes: { type: String, default: null },
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

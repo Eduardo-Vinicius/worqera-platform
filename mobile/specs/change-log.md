@@ -1,6 +1,33 @@
 # App celular
 
+## 2026-10-06
+
+- **Kanban:** o chip Data filtra a fila pelo dia em que o pedido entrou. Tocar de novo limpa.
+- **Novo pedido:** o pedido é criado e a tela de sucesso abre na hora. As fotos de cada item sobem juntas. O e-mail do laudo sai depois, já com elas.
+- **Setores:** ordem, QR público, e-mail ao entrar e ocultar. Serviços gravam o preço que a API espera. Marcas e acessórios podem ficar inativos.
+- **Cliente:** a ficha mostra endereço e observação, e o pedido abre no mesmo lugar.
+- **Funcionários:** filtro por setor e por ativo.
+- **Oficinas:** busca, trial, pagas, suspensas e selos. Notícia escolhe a plataforma e pode ser apagada.
+- **Avaliações:** distribuição das notas, críticas e tags.
+
+- **Pedidos:** dono copia o CSV. Quem não é setor cria um pedido de exemplo.
+- **Avaliações:** período 30, 90 ou tudo, página seguinte e CSV.
+- **Métricas:** 7, 30 ou 90 dias.
+- **Plano:** mostra quantos dias de trial restam.
+
+- **Avisos:** abrir o sino marca como lido de verdade. O número some e a lista antiga não volta. Só entra o que acontecer depois.
+- **Portal:** oficinas em risco, chamadas de 24h, falhas 5xx e módulos desligados numa tela. Atualiza no botão, sem ficar pedindo a API sozinho.
+
 ## 2026-10-05
+
+- **Menu:** o item escolhido troca o conteúdo na mesma tela. O dock e a barra Worqera ficam. A seta de voltar só aparece quando se entra num detalhe (cliente, pedido, TV).
+- **Equipe:** convite com papel e setores, editar papel, desativar e reativar.
+- **Funcionários:** nome, telefone, e-mail, setor e ativo.
+- **Pedidos:** filtro por data e carregar mais.
+- **Empresa:** identidade, kit inicial, logo e paletas no mesmo cartão da marca.
+
+- **Faixa do plano:** some no simulador e no ambiente local, porque a API não bloqueia fora de produção. Em produção ela fica abaixo do relógio.
+- **Pedido:** confirmar o cliente ou a marca não descarta o campo enquanto a folha ainda está fechando.
 
 - **Folha de baixo:** cliente, marca, acessório, setor, serviço, equipe e funcionário sobem um painel em vez de formulário no meio da lista. Editar preço, cor e telefone vai no mesmo painel.
 - **Empresa:** nome no e-mail, tipo de negócio, prévia da marca, logo (enviar e remover), cores em `#RRGGBB`, WhatsApp com telefone e textos, código de parceiro e link de indicação. O slug fica marcado como interno.

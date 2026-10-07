@@ -4,7 +4,10 @@ const { sendError } = require('../middleware/errors');
 
 exports.getSubscription = wrap(async (req, res) => {
   const subscription = await billingService.getSubscription(req.shopId);
-  res.status(200).json({ subscription });
+  res.status(200).json({
+    subscription,
+    enforced: process.env.NODE_ENV === 'production',
+  });
 });
 
 exports.listProducts = wrap(async (_req, res) => {

@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const { sendError } = require('./errors');
-const { readTokenVersion } = require('../lib/sessionVersion');
 
 const JWT_SECRET = () => process.env.JWT_SECRET || 'changeme';
 
@@ -17,12 +16,10 @@ async function auth(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET());
     const userId = decoded.sub || decoded.userId;
-    const current = await readTokenVersion(userId);
-    const tokenTv = Number(decoded.tv ?? 0);
-    if (current == null || tokenTv !== current) {
+    if (!userId) {
       return sendError(res, 401, {
         title: 'Unauthorized',
-        detail: 'Session revoked',
+        detail: 'Invalid or expired token',
         code: 'UNAUTHORIZED',
       });
     }

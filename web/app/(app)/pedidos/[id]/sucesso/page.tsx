@@ -188,6 +188,45 @@ export default function PedidoSucessoPage() {
       setPdfStatus("loading")
       setPdfError("")
       try {
+        let expectedPhotos: number[] | null = null
+        try {
+          const raw = sessionStorage.getItem(`wq-photo-counts:${id}`)
+          const parsed = raw ? JSON.parse(raw) : null
+          if (Array.isArray(parsed) && parsed.some((n) => Number(n) > 0)) {
+            expectedPhotos = parsed.map((n) => Number(n) || 0)
+          }
+        } catch {
+          expectedPhotos = null
+        }
+        if (expectedPhotos) {
+          let readyBlob: Blob | null = null
+          for (let wait = 0; wait < 60 && !readyBlob; wait += 1) {
+            if (cancelled) return
+            const fresh = await getPedidoService(id).catch(() => null)
+            const items = Array.isArray(fresh?.items) ? fresh.items : []
+            const ready = expectedPhotos.every(
+              (need, index) => need < 1 || (items[index]?.photos?.length || 0) >= need
+            )
+            if (ready) {
+              try {
+                readyBlob = await generateOrderPDFService(id)
+              } catch {
+                readyBlob = null
+              }
+            }
+            if (!readyBlob) await new Promise((r) => setTimeout(r, 1000))
+          }
+          if (cancelled) return
+          if (!readyBlob) {
+            setPdfStatus("error")
+            setPdfError("As fotos ainda não entraram no laudo. Espere um pouco e abra de novo.")
+            return
+          }
+          const code = order?.code || id
+          setBlobPreview(readyBlob, `laudo-${code}.pdf`)
+          return
+        }
+        if (cancelled) return
         for (let attempt = 0; attempt < 6; attempt++) {
           if (cancelled) return
           const list = await listPedidoPdfsService(id).catch(() => [])
@@ -294,6 +333,9 @@ export default function PedidoSucessoPage() {
   const emailStatusLabel = (() => {
     if (!clientEmail) return "Cliente sem e-mail — não há envio automático."
     if (!emailNotify) return "Status do envio ainda não chegou — use Reenviar e-mail se precisar."
+    if (emailNotify.deferred) {
+      return "As fotos sobem agora. O e-mail com o PDF sai quando elas terminarem."
+    }
     if (emailNotify.queued) {
       return "E-mail a caminho, com o PDF. A tela não espera o Gmail terminar."
     }
@@ -477,7 +519,7 @@ export default function PedidoSucessoPage() {
             {pdfStatus === "loading" ? (
               <div className="flex h-[280px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-paper)] text-sm text-[var(--wq-text-muted)]">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Preparando laudo…
+                {emailNotify?.deferred ? "Subindo as fotos. O laudo abre quando elas terminarem." : "Preparando laudo…"}
               </div>
             ) : pdfStatus === "error" ? (
               <div className="flex h-[280px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 text-center text-sm text-amber-900">

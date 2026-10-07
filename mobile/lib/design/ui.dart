@@ -134,13 +134,24 @@ class WqDock extends StatelessWidget {
 }
 
 class ShellScope extends InheritedWidget {
-  const ShellScope({super.key, required this.openMenu, required super.child});
+  const ShellScope({
+    super.key,
+    required this.openMenu,
+    required this.openPage,
+    required this.popPage,
+    required this.depth,
+    required super.child,
+  });
+
   final VoidCallback openMenu;
+  final void Function(String id, Widget page, {bool stack}) openPage;
+  final VoidCallback popPage;
+  final int depth;
 
   static ShellScope? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ShellScope>();
 
   @override
-  bool updateShouldNotify(ShellScope oldWidget) => false;
+  bool updateShouldNotify(ShellScope oldWidget) => depth != oldWidget.depth;
 }
 
 class WqPage extends StatelessWidget {
@@ -161,7 +172,8 @@ class WqPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final menu = ShellScope.maybeOf(context)?.openMenu;
+    final scope = ShellScope.maybeOf(context);
+    final nested = scope != null && scope.depth > 1;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final paper = dark ? WqTokens.darkPaper : Wq.paper;
     final ink = dark ? WqTokens.darkText : Wq.ink;
@@ -173,12 +185,12 @@ class WqPage extends StatelessWidget {
         backgroundColor: paper,
         foregroundColor: ink,
         toolbarHeight: subtitle == null ? 56 : 68,
-        leading: menu == null
-            ? null
-            : IconButton(
-                onPressed: menu,
-                icon: const Icon(Icons.menu_rounded),
-              ),
+        automaticallyImplyLeading: false,
+        leading: nested
+            ? IconButton(tooltip: 'Voltar', onPressed: scope.popPage, icon: const Icon(Icons.arrow_back_rounded))
+            : scope == null && Navigator.canPop(context)
+                ? const BackButton()
+                : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

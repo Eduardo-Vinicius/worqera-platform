@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../api/worqera_api.dart';
+import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
+import '../orders/order_detail_screen.dart';
+import '../orders/order_form_screen.dart';
 
 class ClientsScreen extends StatefulWidget {
-  const ClientsScreen({super.key, required this.api, this.openClient});
+  const ClientsScreen({super.key, required this.api, this.openClient, this.session});
   final WorqeraApi api;
+  final SessionStore? session;
   final void Function(String id)? openClient;
 
   @override
@@ -39,67 +43,62 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   Future<void> create() async {
-    final name = TextEditingController();
-    final phone = TextEditingController();
-    final email = TextEditingController();
-    final cpf = TextEditingController();
-    final notes = TextEditingController();
-    final cep = TextEditingController();
-    final address = TextEditingController();
-    final ok = await showWqSheet<bool>(
+    final payload = await showWqSheet<Map<String, String>>(
       context,
       title: 'Novo cliente',
-      child: (sheet) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
-          TextField(
-            controller: phone,
-            decoration: const InputDecoration(labelText: 'Telefone'),
-            onChanged: (value) {
-              final next = maskPhone(value);
-              if (next != value) phone.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
-            },
-          ),
-          TextField(
-            controller: cep,
-            decoration: const InputDecoration(labelText: 'CEP'),
-            onSubmitted: (_) async {
-              final digits = cep.text.replaceAll(RegExp(r'\D'), '');
-              if (digits.length != 8) return;
-              try {
-                final res = await widget.api.dio.get('https://viacep.com.br/ws/$digits/json/');
-                final body = Map<String, dynamic>.from(res.data as Map);
-                if (body['erro'] == true) return;
-                address.text = '${body['logradouro'] ?? ''}, ${body['bairro'] ?? ''} · ${body['localidade'] ?? ''}';
-              } catch (e) {
-                if (!sheet.mounted) return;
-                wqToast(sheet, widget.api.message(e));
-              }
-            },
-          ),
-          TextField(controller: address, decoration: const InputDecoration(labelText: 'Endereço')),
-          TextField(controller: email, decoration: const InputDecoration(labelText: 'E-mail')),
-          TextField(controller: cpf, decoration: const InputDecoration(labelText: 'CPF')),
-          TextField(controller: notes, decoration: const InputDecoration(labelText: 'Observações')),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Cadastrar')),
-        ],
+      child: (sheet) => WqSheetFields(
+        create: () => List.generate(7, (_) => TextEditingController()),
+        builder: (_, fields) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+            TextField(
+              controller: fields[1],
+              decoration: const InputDecoration(labelText: 'Telefone'),
+              onChanged: (value) {
+                final next = maskPhone(value);
+                if (next != value) fields[1].value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+              },
+            ),
+            TextField(
+              controller: fields[2],
+              decoration: const InputDecoration(labelText: 'CEP'),
+              onSubmitted: (_) async {
+                final digits = fields[2].text.replaceAll(RegExp(r'\D'), '');
+                if (digits.length != 8) return;
+                try {
+                  final res = await widget.api.dio.get('https://viacep.com.br/ws/$digits/json/');
+                  final body = Map<String, dynamic>.from(res.data as Map);
+                  if (body['erro'] == true) return;
+                  fields[3].text = '${body['logradouro'] ?? ''}, ${body['bairro'] ?? ''} · ${body['localidade'] ?? ''}';
+                } catch (e) {
+                  if (!sheet.mounted) return;
+                  wqToast(sheet, widget.api.message(e));
+                }
+              },
+            ),
+            TextField(controller: fields[3], decoration: const InputDecoration(labelText: 'Endereço')),
+            TextField(controller: fields[4], decoration: const InputDecoration(labelText: 'E-mail')),
+            TextField(controller: fields[5], decoration: const InputDecoration(labelText: 'CPF')),
+            TextField(controller: fields[6], decoration: const InputDecoration(labelText: 'Observações')),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => Navigator.pop(sheet, {
+                'name': fields[0].text.trim(),
+                'phone': fields[1].text.trim(),
+                'zip': fields[2].text.trim(),
+                'address': fields[3].text.trim(),
+                'email': fields[4].text.trim(),
+                'cpf': fields[5].text.trim(),
+                'notes': fields[6].text.trim(),
+              }),
+              child: const Text('Cadastrar'),
+            ),
+          ],
+        ),
       ),
     );
-    final payload = {
-      'name': name.text.trim(),
-      'phone': phone.text.trim(),
-      'email': email.text.trim(),
-      'cpf': cpf.text.trim(),
-      'notes': notes.text.trim(),
-      'address': address.text.trim(),
-      'zip': cep.text.trim(),
-    };
-    for (final ctrl in [name, phone, email, cpf, notes, cep, address]) {
-      ctrl.dispose();
-    }
-    if (ok != true || payload['name']!.isEmpty) return;
+    if (payload == null || payload['name']!.isEmpty || !mounted) return;
     await widget.api.dio.post('/clients', data: payload);
     await load();
   }
@@ -123,7 +122,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
               const SizedBox(height: 12),
               for (final row in rows) ...[
                 WqCard(
-                  onTap: widget.openClient == null ? null : () => widget.openClient!('${row['id'] ?? row['_id']}'),
+                  onTap: () {
+                    final id = '${row['id'] ?? row['_id']}';
+                    final scope = ShellScope.maybeOf(context);
+                    if (scope != null) {
+                      scope.openPage('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session), stack: true);
+                      return;
+                    }
+                    widget.openClient?.call(id);
+                  },
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('${row['name'] ?? row['nomeCompleto'] ?? 'Cliente'}', style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text(
@@ -147,9 +154,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
 }
 
 class ClientDetailScreen extends StatefulWidget {
-  const ClientDetailScreen({super.key, required this.api, required this.clientId});
+  const ClientDetailScreen({super.key, required this.api, required this.clientId, this.session});
   final WorqeraApi api;
   final String clientId;
+  final SessionStore? session;
 
   @override
   State<ClientDetailScreen> createState() => _ClientDetailScreenState();
@@ -185,34 +193,47 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     Text('${client!['email'] ?? 'Sem e-mail'}'),
                     Text(maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}')),
                     if (maskCpf('${client!['cpf'] ?? ''}').isNotEmpty) Text(maskCpf('${client!['cpf'] ?? ''}')),
+                    if (_address(client!).isNotEmpty) Text(_address(client!)),
+                    if ('${client!['notes'] ?? ''}'.isNotEmpty) Text('${client!['notes']}', style: const TextStyle(color: Wq.muted)),
                     const SizedBox(height: 8),
                     OutlinedButton(
                       onPressed: () async {
-                        final name = TextEditingController(text: '${client!['name'] ?? client!['nomeCompleto'] ?? ''}');
-                        final phone = TextEditingController(text: maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}'));
-                        final email = TextEditingController(text: '${client!['email'] ?? ''}');
-                        final cpf = TextEditingController(text: '${client!['cpf'] ?? ''}');
-                        final ok = await showWqSheet<bool>(
+                        final initialName = '${client!['name'] ?? client!['nomeCompleto'] ?? ''}';
+                        final initialPhone = maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}');
+                        final initialEmail = '${client!['email'] ?? ''}';
+                        final initialCpf = '${client!['cpf'] ?? ''}';
+                        final payload = await showWqSheet<Map<String, String>>(
                           context,
                           title: 'Editar cliente',
-                          child: (sheet) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
-                              TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
-                              TextField(controller: email, decoration: const InputDecoration(labelText: 'E-mail')),
-                              TextField(controller: cpf, decoration: const InputDecoration(labelText: 'CPF')),
-                              const SizedBox(height: 8),
-                              FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
+                          child: (sheet) => WqSheetFields(
+                            create: () => [
+                              TextEditingController(text: initialName),
+                              TextEditingController(text: initialPhone),
+                              TextEditingController(text: initialEmail),
+                              TextEditingController(text: initialCpf),
                             ],
+                            builder: (_, fields) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome')),
+                                TextField(controller: fields[1], decoration: const InputDecoration(labelText: 'Telefone')),
+                                TextField(controller: fields[2], decoration: const InputDecoration(labelText: 'E-mail')),
+                                TextField(controller: fields[3], decoration: const InputDecoration(labelText: 'CPF')),
+                                const SizedBox(height: 8),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(sheet, {
+                                    'name': fields[0].text.trim(),
+                                    'phone': fields[1].text.trim(),
+                                    'email': fields[2].text.trim(),
+                                    'cpf': fields[3].text.trim(),
+                                  }),
+                                  child: const Text('Salvar'),
+                                ),
+                              ],
+                            ),
                           ),
                         );
-                        final payload = {'name': name.text.trim(), 'phone': phone.text.trim(), 'email': email.text.trim(), 'cpf': cpf.text.trim()};
-                        name.dispose();
-                        phone.dispose();
-                        email.dispose();
-                        cpf.dispose();
-                        if (ok != true) return;
+                        if (payload == null || !context.mounted) return;
                         await widget.api.dio.patch('/clients/${widget.clientId}', data: payload);
                         final res = await widget.api.dio.get('/clients/${widget.clientId}');
                         if (!context.mounted) return;
@@ -230,17 +251,46 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: Text('${order['code'] ?? ''}'),
                     trailing: StatusChip(order['status']),
+                    onTap: widget.session == null
+                        ? null
+                        : () {
+                            final id = '${order['id'] ?? order['_id']}';
+                            final session = widget.session!;
+                            ShellScope.maybeOf(context)?.openPage(
+                              'order',
+                              OrderDetailScreen(
+                                api: widget.api,
+                                session: session,
+                                orderId: id,
+                                onEdit: () => ShellScope.maybeOf(context)?.openPage('order-edit', OrderFormScreen(api: widget.api, session: session, orderId: id), stack: true),
+                              ),
+                              stack: true,
+                            );
+                          },
                   ),
                 if (orders.isEmpty) const Text('Sem pedidos ligados a esta ficha.', style: TextStyle(color: Wq.muted)),
               ],
             ),
     );
   }
+
+  String _address(Map client) {
+    final address = client['address'] is Map ? client['address'] as Map : client;
+    return [
+      address['logradouro'] ?? client['logradouro'],
+      address['numero'] ?? client['numero'],
+      address['bairro'] ?? client['bairro'],
+      address['cidade'] ?? client['cidade'],
+      address['estado'] ?? client['estado'],
+      address['cep'] ?? client['cep'],
+    ].map((part) => '$part').where((part) => part.isNotEmpty && part != 'null').join(', ');
+  }
 }
 
 class ConsultasScreen extends StatefulWidget {
-  const ConsultasScreen({super.key, required this.api, required this.openOrder, this.openClient});
+  const ConsultasScreen({super.key, required this.api, required this.openOrder, this.openClient, this.session});
   final WorqeraApi api;
+  final SessionStore? session;
   final void Function(String id) openOrder;
   final void Function(String id)? openClient;
 
@@ -327,11 +377,30 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
                         child: WqCard(
                           onTap: () {
                             final id = '${row['id'] ?? row['_id']}';
+                            final scope = ShellScope.maybeOf(context);
                             if (mode == 'clientes') {
+                              if (scope != null) {
+                                scope.openPage('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session), stack: true);
+                                return;
+                              }
                               widget.openClient?.call(id);
-                            } else {
-                              widget.openOrder(id);
+                              return;
                             }
+                            final session = widget.session;
+                            if (scope != null && session != null) {
+                              scope.openPage(
+                                'order',
+                                OrderDetailScreen(
+                                  api: widget.api,
+                                  session: session,
+                                  orderId: id,
+                                  onEdit: () => scope.openPage('order-edit', OrderFormScreen(api: widget.api, session: session, orderId: id), stack: true),
+                                ),
+                                stack: true,
+                              );
+                              return;
+                            }
+                            widget.openOrder(id);
                           },
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('${row['code'] ?? row['name'] ?? row['nomeCompleto'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),

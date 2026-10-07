@@ -21,6 +21,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
   int index = 0;
   bool loading = true;
   bool lateOnly = false;
+  DateTime? entryDay;
   String? error;
   final query = TextEditingController();
 
@@ -141,6 +142,12 @@ class _KanbanScreenState extends State<KanbanScreen> {
     final cards = (col == null ? <Map>[] : ordersOf(col)).where((card) {
       final late = card['dueAt'] != null && DateTime.tryParse('${card['dueAt']}')?.isBefore(DateTime.now()) == true;
       if (lateOnly && !late) return false;
+      if (entryDay != null) {
+        final created = DateTime.tryParse('${card['createdAt']}')?.toLocal();
+        if (created == null || created.year != entryDay!.year || created.month != entryDay!.month || created.day != entryDay!.day) {
+          return false;
+        }
+      }
       if (term.isEmpty) return true;
       final blob = '${card['pairLabel']} ${card['code']} ${card['clientName']} ${card['brand']} ${card['shoeModel']}'.toLowerCase();
       return blob.contains(term);
@@ -164,6 +171,25 @@ class _KanbanScreenState extends State<KanbanScreen> {
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
                       child: Row(children: [
                         Expanded(child: TextField(controller: query, onChanged: (_) => setState(() {}), decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search), hintText: 'Cliente, código ou modelo'))),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: Text(entryDay == null ? 'Data' : '${entryDay!.day.toString().padLeft(2, '0')}/${entryDay!.month.toString().padLeft(2, '0')}'),
+                          selected: entryDay != null,
+                          onSelected: (_) async {
+                            if (entryDay != null) {
+                              setState(() => entryDay = null);
+                              return;
+                            }
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now().add(const Duration(days: 1)),
+                              helpText: 'Data de entrada',
+                            );
+                            if (picked != null) setState(() => entryDay = picked);
+                          },
+                        ),
                         const SizedBox(width: 8),
                         FilterChip(label: const Text('Atrasados'), selected: lateOnly, onSelected: (v) => setState(() => lateOnly = v)),
                       ]),

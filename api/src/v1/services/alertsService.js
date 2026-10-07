@@ -242,9 +242,11 @@ async function sendWeeklyDigest(shopId) {
   };
 }
 
-function unseenIds(rows, seenIds) {
-  const seen = new Set((seenIds || []).map((id) => String(id)));
-  return rows.filter((row) => !seen.has(String(row._id)));
+function isAfter(value, seenAt) {
+  if (!seenAt) return true;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return false;
+  return time > new Date(seenAt).getTime();
 }
 
 async function loadInboxSnapshot(shopId) {
@@ -252,43 +254,54 @@ async function loadInboxSnapshot(shopId) {
   const [feedbackItems, readyOrders, reopenedOrders] = await Promise.all([
     Order.find({
       shopId,
+      deletedAt: null,
       'feedback.score': { $gte: 1 },
       'feedback.createdAt': { $gte: since },
     })
       .sort({ 'feedback.createdAt': -1 })
       .limit(20)
-      .select('code clientName status feedback')
+      .select('code clientName status feedback updatedAt')
       .lean(),
-    Order.find({ shopId, status: 'ready', deletedAt: null }).select('_id').limit(500).lean(),
+    Order.find({ shopId, status: 'ready', deletedAt: null })
+      .select('_id code clientName updatedAt')
+      .sort({ updatedAt: -1 })
+      .limit(40)
+      .lean(),
     Order.find({
       shopId,
       reopenedAt: { $ne: null },
       deletedAt: null,
       status: { $nin: ['delivered', 'cancelled'] },
     })
-      .select('_id')
-      .limit(500)
+      .select('_id code reopenedAt updatedAt')
+      .sort({ reopenedAt: -1 })
+      .limit(40)
       .lean(),
   ]);
   return { feedbackItems, readyOrders, reopenedOrders };
 }
 
-async function getOwnerInbox(shopId, userId) {
-  const [{ feedbackItems, readyOrders, reopenedOrders }, membership] = await Promise.all([
+async function getOwnerInbox(shopId, membership) {
+  const [{ feedbackItems, readyOrders, reopenedOrders }, fresh] = await Promise.all([
     loadInboxSnapshot(shopId),
-    userId
-      ? Membership.findOne({ shopId, userId, active: true }).select('inboxSeen').lean()
-      : null,
+    membership?._id ? Membership.findById(membership._id).select('inboxSeen').lean() : null,
   ]);
-  const seen = membership?.inboxSeen || {};
-  const unreadReady = unseenIds(readyOrders, seen.readyIds);
-  const unreadReopened = unseenIds(reopenedOrders, seen.reopenedIds);
-  const unreadFeedback = unseenIds(feedbackItems, seen.feedbackIds);
+  const seen = fresh?.inboxSeen || membership?.inboxSeen || {};
+  const seenAt = seen.at || null;
+  const unreadReady = readyOrders.filter((row) => isAfter(row.updatedAt, seenAt));
+  const unreadReopened = reopenedOrders.filter((row) => isAfter(row.reopenedAt || row.updatedAt, seenAt));
+  const unreadFeedback = feedbackItems.filter((row) => isAfter(row.feedback?.createdAt, seenAt));
 
   return {
+    readAt: seenAt,
     readyCount: unreadReady.length,
     reopenedCount: unreadReopened.length,
     feedbackCount: unreadFeedback.length,
+    ready: unreadReady.slice(0, 8).map((row) => ({
+      id: String(row._id),
+      code: row.code,
+      clientName: row.clientName || '',
+    })),
     feedback: unreadFeedback.map((o) => ({
       id: String(o._id),
       code: o.code,
@@ -302,22 +315,24 @@ async function getOwnerInbox(shopId, userId) {
   };
 }
 
-async function markInboxRead(shopId, userId) {
-  if (!userId) return { ok: false };
-  const { feedbackItems, readyOrders, reopenedOrders } = await loadInboxSnapshot(shopId);
-  await Membership.updateOne(
-    { shopId, userId, active: true },
-    {
-      $set: {
-        inboxSeen: {
-          readyIds: readyOrders.map((row) => String(row._id)),
-          reopenedIds: reopenedOrders.map((row) => String(row._id)),
-          feedbackIds: feedbackItems.map((row) => String(row._id)),
-        },
-      },
-    }
+async function markInboxRead(membershipId) {
+  if (!membershipId) {
+    const err = new Error('Sessão sem oficina');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const updated = await Membership.updateOne(
+    { _id: membershipId },
+    { $set: { 'inboxSeen.at': new Date(), 'inboxSeen.readyIds': [], 'inboxSeen.reopenedIds': [], 'inboxSeen.feedbackIds': [] } }
   );
-  return { ok: true };
+  if (!updated.matchedCount) {
+    const err = new Error('Não foi possível marcar os avisos');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return { ok: true, readyCount: 0, reopenedCount: 0, feedbackCount: 0, ready: [], feedback: [] };
 }
 
 /**

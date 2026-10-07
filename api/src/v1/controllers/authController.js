@@ -1,5 +1,4 @@
 const authService = require('../services/authService');
-const jwt = require('jsonwebtoken');
 const { wrap } = require('./helpers');
 const { sendError } = require('../middleware/errors');
 
@@ -86,29 +85,6 @@ exports.refresh = wrap(async (req, res) => {
 
 exports.logout = wrap(async (req, res) => {
   clearRefreshCookie(res);
-  let userId = null;
-  const refreshToken = req.body?.refreshToken || req.cookies?.[REFRESH_COOKIE] || null;
-  if (refreshToken) {
-    try {
-      const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refreshchangeme');
-      userId = decoded.sub || decoded.userId;
-    } catch {
-      /* refresh already expired */
-    }
-  }
-  if (!userId) {
-    const header = req.headers.authorization || req.headers.Authorization || '';
-    const token = String(header).startsWith('Bearer ') ? String(header).slice(7).trim() : '';
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'changeme');
-        userId = decoded.sub || decoded.userId;
-      } catch {
-        /* access already expired */
-      }
-    }
-  }
-  if (userId) await authService.revokeSession(userId);
   res.status(200).json({ ok: true });
 });
 

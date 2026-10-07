@@ -22,6 +22,7 @@ class SessionStore extends ChangeNotifier {
   String email = '';
   bool platformAdmin = false;
   bool ready = false;
+  String? notice;
 
   bool get loggedIn => token != null && token!.isNotEmpty;
   bool get isSector => role == 'sector';
@@ -76,7 +77,8 @@ class SessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clear() async {
+  Future<void> clear({String? notice}) async {
+    this.notice = notice;
     token = null;
     refreshToken = null;
     role = '';

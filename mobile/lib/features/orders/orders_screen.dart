@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
@@ -20,8 +22,12 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   String tab = 'ativos';
   final q = TextEditingController();
+  String? dataInicio;
+  String? dataFim;
+  String? nextToken;
   List<Map<String, dynamic>> rows = [];
   bool loading = true;
+  bool loadingMore = false;
   String? error;
 
   @override
@@ -30,10 +36,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
     load();
   }
 
-  Future<void> load() async {
-    setState(() => loading = true);
-    final query = <String, dynamic>{};
+  Map<String, dynamic> query({String? cursor}) {
+    final query = <String, dynamic>{'limit': 50};
     if (q.text.trim().isNotEmpty) query['q'] = q.text.trim();
+    if (dataInicio != null) query['dataInicio'] = dataInicio;
+    if (dataFim != null) query['dataFim'] = dataFim;
+    if (cursor != null) query['cursor'] = cursor;
     if (tab == 'ativos') query['status'] = 'open,in_progress,ready';
     if (tab == 'a_pagar') {
       query['status'] = 'open,in_progress,ready,delivered';
@@ -45,17 +53,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
     if (tab == 'finalizados' || tab == 'garantia') query['status'] = 'delivered,open,in_progress,ready';
     if (tab == 'lixeira') query['deleted'] = '1';
+    return query;
+  }
+
+  List<Map<String, dynamic>> filterRows(List<Map<String, dynamic>> list) {
+    if (tab != 'garantia') return list;
+    return list.where((row) {
+      final warranty = row['warranty'] ?? row['garantia'];
+      return warranty is Map && (warranty['ativa'] == true || warranty['active'] == true);
+    }).toList();
+  }
+
+  Future<void> load() async {
+    setState(() => loading = true);
     try {
-      final res = await widget.api.dio.get('/orders', queryParameters: query);
+      final res = await widget.api.dio.get('/orders', queryParameters: query());
       if (mounted) {
+        final body = res.data;
         setState(() {
-          rows = asMaps(res.data);
-          if (tab == 'garantia') {
-            rows = rows.where((row) {
-              final warranty = row['warranty'] ?? row['garantia'];
-              return warranty is Map && (warranty['ativa'] == true || warranty['active'] == true);
-            }).toList();
-          }
+          rows = filterRows(asMaps(body));
+          nextToken = body is Map && body['nextToken'] != null ? '${body['nextToken']}' : null;
+          if (nextToken != null && nextToken!.isEmpty) nextToken = null;
           error = null;
         });
       }
@@ -64,6 +82,66 @@ class _OrdersScreenState extends State<OrdersScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+
+  Future<void> loadMore() async {
+    final cursor = nextToken;
+    if (cursor == null || loadingMore) return;
+    setState(() => loadingMore = true);
+    try {
+      final res = await widget.api.dio.get('/orders', queryParameters: query(cursor: cursor));
+      if (!mounted) return;
+      final body = res.data;
+      setState(() {
+        rows = [...rows, ...filterRows(asMaps(body))];
+        nextToken = body is Map && body['nextToken'] != null ? '${body['nextToken']}' : null;
+        if (nextToken != null && nextToken!.isEmpty) nextToken = null;
+      });
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => loadingMore = false);
+    }
+  }
+
+  Future<void> exportCsv() async {
+    try {
+      final res = await widget.api.dio.get('/orders/export.csv', options: Options(responseType: ResponseType.plain));
+      await Clipboard.setData(ClipboardData(text: '${res.data}'));
+      if (mounted) wqToast(context, 'CSV copiado. Cole numa planilha.');
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    }
+  }
+
+  Future<void> demoOrder() async {
+    try {
+      await widget.api.dio.post('/orders/demo');
+      if (mounted) wqToast(context, 'Pedido de exemplo criado.');
+      await load();
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    }
+  }
+
+  Future<void> pickDate(bool start) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked == null || !mounted) return;
+    final iso = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    setState(() {
+      if (start) {
+        dataInicio = iso;
+      } else {
+        dataFim = iso;
+      }
+    });
+    await load();
   }
 
   @override
@@ -96,6 +174,26 @@ class _OrdersScreenState extends State<OrdersScreen> {
             onSubmitted: (_) => load(),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Wrap(spacing: 8, runSpacing: 8, children: [
+            ActionChip(label: Text(dataInicio == null ? 'De' : 'De $dataInicio'), onPressed: () => pickDate(true)),
+            ActionChip(label: Text(dataFim == null ? 'Até' : 'Até $dataFim'), onPressed: () => pickDate(false)),
+            if (dataInicio != null || dataFim != null)
+              ActionChip(
+                label: const Text('Limpar datas'),
+                onPressed: () {
+                  setState(() {
+                    dataInicio = null;
+                    dataFim = null;
+                  });
+                  load();
+                },
+              ),
+            if (widget.session.role == 'owner') ActionChip(label: const Text('CSV'), onPressed: exportCsv),
+            if (!widget.session.isSector) ActionChip(label: const Text('Exemplo'), onPressed: demoOrder),
+          ]),
+        ),
         SizedBox(
           height: 44,
           child: ListView(
@@ -127,10 +225,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       onRefresh: load,
                       child: ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                        itemCount: rows.isEmpty ? 1 : rows.length,
+                        itemCount: rows.isEmpty ? 1 : rows.length + (nextToken != null ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (_, i) {
                           if (rows.isEmpty) return const Text('Nenhum pedido neste filtro.', style: TextStyle(color: Wq.muted));
+                          if (i >= rows.length) {
+                            return TextButton(onPressed: loadingMore ? null : loadMore, child: Text(loadingMore ? 'Carregando…' : 'Carregar mais'));
+                          }
                           final row = rows[i];
                           final pricing = row['pricing'] as Map?;
                           final due = dayLabel(row['dueAt']);

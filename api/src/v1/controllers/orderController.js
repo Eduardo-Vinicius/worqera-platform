@@ -216,6 +216,11 @@ exports.listPdfs = wrap(async (req, res) => {
   res.status(200).json({ pdfs, data: pdfs });
 });
 
+exports.notifyCreated = wrap(async (req, res) => {
+  const result = await orderService.releaseCreatedEmail(req.shopId, req.params.id);
+  res.status(200).json(result);
+});
+
 exports.resendEmail = wrap(async (req, res) => {
   const order = await orderService.getOrder(req.shopId, req.params.id);
   const Shop = require('../models/Shop');

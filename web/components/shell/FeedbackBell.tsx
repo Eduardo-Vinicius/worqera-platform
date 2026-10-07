@@ -14,8 +14,19 @@ function canSee() {
 
 export function FeedbackBell({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
-  const [badgeOff, setBadgeOff] = useState(false)
-  const reading = useRef(false)
+  const [pinned, setPinned] = useState<{
+    ready: number
+    reopened: number
+    feedback: Array<{
+      id: string
+      code: string
+      clientName: string
+      score?: number
+      comment?: string
+      tags?: string[]
+    }>
+  } | null>(null)
+  const marked = useRef(Promise.resolve())
   const [allowed, setAllowed] = useState(false)
   const [readyCount, setReadyCount] = useState(0)
   const [reopenedCount, setReopenedCount] = useState(0)
@@ -41,12 +52,12 @@ export function FeedbackBell({ className }: { className?: string }) {
     let timer = 0
     const stop = () => window.clearInterval(timer)
     const load = async () => {
-      if (document.hidden || reading.current) return
+      if (document.hidden) return
       try {
+        await marked.current
         const res = await getAlertsInboxV1()
-        if (cancelled || reading.current) return
+        if (cancelled) return
         setLoadError("")
-        setBadgeOff(false)
         setReadyCount(Number(res?.readyCount) || 0)
         setReopenedCount(Number(res?.reopenedCount) || 0)
         setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
@@ -75,7 +86,10 @@ export function FeedbackBell({ className }: { className?: string }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === "Escape") {
+        setPinned(null)
+        setOpen(false)
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -83,22 +97,40 @@ export function FeedbackBell({ className }: { className?: string }) {
 
   if (!allowed) return null
 
-  const badge = badgeOff
-    ? 0
-    : feedback.length + (readyCount > 0 ? 1 : 0) + (reopenedCount > 0 ? 1 : 0)
+  const badge = feedback.length + (readyCount > 0 ? 1 : 0) + (reopenedCount > 0 ? 1 : 0)
+  const shownReady = pinned?.ready ?? readyCount
+  const shownReopened = pinned?.reopened ?? reopenedCount
+  const shownFeedback = pinned?.feedback ?? feedback
+
+  const loadInbox = async () => {
+    try {
+      const res = await getAlertsInboxV1()
+      setReadyCount(Number(res?.readyCount) || 0)
+      setReopenedCount(Number(res?.reopenedCount) || 0)
+      setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
+    } catch {
+      /* o próximo ciclo tenta de novo */
+    }
+  }
+
+  const close = () => {
+    setPinned(null)
+    setOpen(false)
+  }
 
   const toggle = () => {
-    setOpen((current) => {
-      const next = !current
-      if (next) {
-        reading.current = true
-        setBadgeOff(true)
-        void markAlertsInboxReadV1().catch(() => setBadgeOff(false))
-      } else {
-        reading.current = false
-      }
-      return next
+    if (open) {
+      close()
+      return
+    }
+    setPinned({ ready: readyCount, reopened: reopenedCount, feedback })
+    setReadyCount(0)
+    setReopenedCount(0)
+    setFeedback([])
+    marked.current = markAlertsInboxReadV1().catch(() => {
+      void loadInbox()
     })
+    setOpen(true)
   }
 
   return (
@@ -125,7 +157,7 @@ export function FeedbackBell({ className }: { className?: string }) {
             type="button"
             className="fixed inset-0 z-[60] cursor-default bg-black/20 md:bg-transparent"
             aria-label="Fechar"
-            onClick={() => setOpen(false)}
+            onClick={close}
           />
           <div
             className={cn(
@@ -145,45 +177,45 @@ export function FeedbackBell({ className }: { className?: string }) {
                 <p className="px-2 py-4 text-center text-xs text-[var(--wq-danger)]">{loadError}</p>
               ) : null}
 
-              {readyCount > 0 ? (
+              {shownReady > 0 ? (
                 <Link
                   href="/kanban"
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   className="block rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 hover:bg-emerald-100"
                 >
-                  <strong>{readyCount}</strong> pedido{readyCount === 1 ? "" : "s"}{" "}
+                  <strong>{shownReady}</strong> pedido{shownReady === 1 ? "" : "s"}{" "}
                   <strong>pronto</strong> — abra a coluna final e marque como entregue
                 </Link>
               ) : null}
 
-              {reopenedCount > 0 ? (
+              {shownReopened > 0 ? (
                 <Link
                   href="/kanban"
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   className="block rounded-xl bg-sky-50 px-3 py-2.5 text-sm text-sky-900 hover:bg-sky-100"
                 >
-                  <strong>{reopenedCount}</strong> reaberto
-                  {reopenedCount === 1 ? "" : "s"} no fluxo
+                  <strong>{shownReopened}</strong> reaberto
+                  {shownReopened === 1 ? "" : "s"} no fluxo
                 </Link>
               ) : null}
 
-              {!loadError && feedback.length === 0 && readyCount === 0 && reopenedCount === 0 ? (
+              {!loadError && shownFeedback.length === 0 && shownReady === 0 && shownReopened === 0 ? (
                 <p className="px-2 py-6 text-center text-xs text-[var(--wq-text-muted)]">
                   Sem feedback recente nem pedidos prontos
                 </p>
               ) : null}
 
-              {feedback.length > 0 ? (
+              {shownFeedback.length > 0 ? (
                 <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
                   Avaliações recentes
                 </p>
               ) : null}
 
-              {feedback.map((f) => (
+              {shownFeedback.map((f) => (
                 <Link
                   key={f.id}
                   href={`/pedidos?q=${encodeURIComponent(f.code)}`}
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   className="block rounded-xl px-3 py-2 hover:bg-[var(--wq-paper)]"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -205,14 +237,14 @@ export function FeedbackBell({ className }: { className?: string }) {
             <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--wq-border)] px-3 py-2">
               <Link
                 href="/avaliacoes"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="text-xs font-medium text-[var(--wq-brand-text)] hover:underline"
               >
                 Ver todas as avaliações →
               </Link>
               <Link
                 href="/pedidos?status=ready"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="text-xs font-medium text-[var(--wq-text-muted)] hover:underline"
               >
                 Pedidos prontos

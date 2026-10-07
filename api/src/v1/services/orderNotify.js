@@ -66,6 +66,7 @@ async function tryBuildPdfAttachment(shop, order) {
       contentType: 'application/pdf',
     };
   } catch (err) {
+    if (err?.code === 'PHOTOS_PENDING' || err?.code === 'PHOTOS_MISSING') throw err;
     console.warn('[orderNotify] pdf attach skipped', err?.message || err);
     return null;
   }
@@ -144,7 +145,7 @@ async function notifyGate(shop, order, kind) {
   return null;
 }
 
-async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
+async function notifyOrderStatus(shop, order, kind, { sectorName, pdfAttachment, requirePdf } = {}) {
   try {
     const gated = await notifyGate(shop, order, kind);
     if (gated) return gated;
@@ -165,8 +166,14 @@ async function notifyOrderStatus(shop, order, kind, { sectorName } = {}) {
 
     const attachments = [];
     if (kind === 'created') {
-      const pdf = await tryBuildPdfAttachment(shop, order);
-      if (pdf) attachments.push(pdf);
+      if (pdfAttachment?.content) attachments.push(pdfAttachment);
+      else {
+        const pdf = await tryBuildPdfAttachment(shop, order);
+        if (pdf) attachments.push(pdf);
+      }
+      if (requirePdf && !attachments.length) {
+        return { ok: false, error: 'laudo sem fotos', reason: 'photos-missing' };
+      }
     }
 
     const html = buildHtml({

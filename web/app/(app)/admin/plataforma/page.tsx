@@ -82,8 +82,16 @@ export default function PlatformPortalPage() {
 
   useEffect(() => {
     if (!allowed) return
-    const timer = window.setInterval(() => void load(), 30000)
-    return () => window.clearInterval(timer)
+    const tick = () => {
+      if (document.hidden) return
+      void load()
+    }
+    const timer = window.setInterval(tick, 60_000)
+    document.addEventListener("visibilitychange", tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", tick)
+    }
   }, [allowed, load])
 
   const view = ops?.windows?.[windowId]

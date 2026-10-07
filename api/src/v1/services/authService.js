@@ -271,15 +271,6 @@ async function refresh(refreshToken) {
     err.code = 'UNAUTHORIZED';
     throw err;
   }
-  const tokenTv = Number(payload.tv ?? 0);
-  if (tokenTv !== (Number(user.tokenVersion) || 0)) {
-    const err = new Error('Session revoked');
-    err.status = 401;
-    err.code = 'UNAUTHORIZED';
-    err.detail = 'Session revoked';
-    throw err;
-  }
-
   const membership = await Membership.findOne({ userId: user._id, active: true });
   const accessToken = signAccessToken({ user, membership });
   const nextRefresh = signRefreshToken(user);
@@ -348,6 +339,7 @@ async function resetPassword({ token, password }) {
   user.passwordResetTokenHash = null;
   user.passwordResetExpires = null;
   await user.save();
+  await revokeSession(user._id);
   return { ok: true };
 }
 

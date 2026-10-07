@@ -24,6 +24,16 @@ class _LoginScreenState extends State<LoginScreen> {
   String? error;
   String? info;
 
+  @override
+  void initState() {
+    super.initState();
+    final notice = widget.session.notice;
+    if (notice != null && notice.isNotEmpty) {
+      info = notice;
+      widget.session.notice = null;
+    }
+  }
+
   Future<void> submit() async {
     setState(() {
       loading = true;

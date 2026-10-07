@@ -10,6 +10,8 @@ import '../admin/admin_screens.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import '../ops/ops_screens.dart';
+import '../orders/order_detail_screen.dart';
+import '../orders/order_form_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
 
@@ -40,7 +42,28 @@ class _MoreScreenState extends State<MoreScreen> {
   Widget build(BuildContext context) {
     final session = widget.session;
     final api = widget.api;
-    final open = widget.open;
+    void open(Widget page, {String id = 'painel', bool stack = false}) {
+      final scope = ShellScope.maybeOf(context);
+      if (scope != null) {
+        scope.openPage(id, page, stack: stack);
+        return;
+      }
+      widget.open(page);
+    }
+    void openOrder(String id) {
+      final page = OrderDetailScreen(
+        api: api,
+        session: session,
+        orderId: id,
+        onEdit: () => open(OrderFormScreen(api: api, session: session, orderId: id), id: 'order-edit', stack: true),
+      );
+      final scope = ShellScope.maybeOf(context);
+      if (scope != null) {
+        scope.openPage('order', page, stack: true);
+        return;
+      }
+      context.push('/orders/$id');
+    }
     final inShop = session.shopId.isNotEmpty;
     return WqPage(
       title: 'Mais',
@@ -50,8 +73,8 @@ class _MoreScreenState extends State<MoreScreen> {
         children: [
           if (inShop) ...[
             const _Heading('Operação'),
-            if (!session.isSector && flags.on('clients')) _row(context, 'Clientes', Icons.people_outline, () => open(ClientsScreen(api: api, openClient: (id) => open(ClientDetailScreen(api: api, clientId: id))))),
-            if (flags.on('consultas')) _row(context, 'Consultas', Icons.search, () => open(ConsultasScreen(api: api, openOrder: (id) => context.push('/orders/$id'), openClient: (id) => open(ClientDetailScreen(api: api, clientId: id))))),
+            if (!session.isSector && flags.on('clients')) _row(context, 'Clientes', Icons.people_outline, () => open(ClientsScreen(api: api, session: session, openClient: (id) => open(ClientDetailScreen(api: api, clientId: id, session: session), id: 'client', stack: true)))),
+            if (flags.on('consultas')) _row(context, 'Consultas', Icons.search, () => open(ConsultasScreen(api: api, session: session, openOrder: openOrder))),
             if (!session.isSector && flags.on('reviews')) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),
             _row(context, 'Ler QR', Icons.qr_code_scanner, () => context.go('/qr')),
           ],
@@ -63,7 +86,7 @@ class _MoreScreenState extends State<MoreScreen> {
             _row(context, 'Marcas', Icons.sell_outlined, () => open(CatalogScreen(api: api, title: 'Marcas', subtitle: 'Catálogo usado no pedido', path: '/brands'))),
             _row(context, 'Acessórios', Icons.inventory_2_outlined, () => open(CatalogScreen(api: api, title: 'Acessórios', subtitle: 'Itens que acompanham o pedido', path: '/accessories'))),
             _row(context, 'Equipe', Icons.group_outlined, () => open(TeamScreen(api: api))),
-            _row(context, 'Funcionários', Icons.badge_outlined, () => open(CatalogScreen(api: api, title: 'Funcionários', subtitle: 'Quem executa, sem login', path: '/employees'))),
+            _row(context, 'Funcionários', Icons.badge_outlined, () => open(EmployeesScreen(api: api))),
             if (flags.on('tv')) _row(context, 'TVs', Icons.tv_outlined, () => open(TvScreen(api: api))),
           ],
           if (inShop && session.isAdmin) ...[

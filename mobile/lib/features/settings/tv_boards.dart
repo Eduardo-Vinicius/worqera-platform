@@ -67,7 +67,7 @@ class _TvClientScreenState extends State<TvClientScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: WqTokens.ink,
-      appBar: AppBar(backgroundColor: WqTokens.ink, foregroundColor: Colors.white, title: Text(title)),
+      appBar: _tvBar(context, title),
       body: PageView.builder(
         controller: page,
         itemCount: rows.isEmpty ? 1 : (rows.length / tiles).ceil(),
@@ -134,7 +134,7 @@ class _TvFloorScreenState extends State<TvFloorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: WqTokens.ink,
-      appBar: AppBar(backgroundColor: WqTokens.ink, foregroundColor: Colors.white, title: const Text('TV Oficina')),
+      appBar: _tvBar(context, 'TV Oficina'),
       body: GridView.count(
         crossAxisCount: 2,
         padding: const EdgeInsets.all(12),
@@ -184,7 +184,7 @@ class _TvFinanceBoardState extends State<TvFinanceBoard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: WqTokens.ink,
-      appBar: AppBar(backgroundColor: WqTokens.ink, foregroundColor: Colors.white, title: const Text('TV Financeiro')),
+      appBar: _tvBar(context, 'TV Financeiro'),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -218,4 +218,25 @@ class _TvFinanceBoardState extends State<TvFinanceBoard> {
       ]),
     );
   }
+}
+
+PreferredSizeWidget _tvBar(BuildContext context, String title) {
+  return AppBar(
+    backgroundColor: WqTokens.ink,
+    foregroundColor: Colors.white,
+    automaticallyImplyLeading: false,
+    leading: IconButton(
+      tooltip: 'Voltar',
+      icon: const Icon(Icons.arrow_back_rounded),
+      onPressed: () {
+        final scope = ShellScope.maybeOf(context);
+        if (scope != null && scope.depth > 0) {
+          scope.popPage();
+          return;
+        }
+        Navigator.maybePop(context);
+      },
+    ),
+    title: Text(title),
+  );
 }

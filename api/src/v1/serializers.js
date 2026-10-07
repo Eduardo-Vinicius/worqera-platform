@@ -159,6 +159,12 @@ function serializeOrder(order, { hidePrices = false } = {}) {
     deliveredAt: order.deliveredAt || null,
     deletedAt: order.deletedAt || null,
     reopenedAt: order.reopenedAt || null,
+    photosPending: Boolean(
+      order.photoNotify &&
+        order.photoNotify.sent !== true &&
+        Array.isArray(order.photoNotify.expected) &&
+        order.photoNotify.expected.some((n) => Number(n) > 0)
+    ),
     feedback: order.feedback?.score
       ? {
           score: order.feedback.score,
@@ -179,8 +185,10 @@ function serializeEmployee(employee) {
     shopId: employee.shopId,
     name: employee.name,
     phone: employee.phone || null,
+    email: employee.email || null,
     active: employee.active !== false,
-    sectorIds: employee.sectorIds || [],
+    sectorId: employee.sectorId || null,
+    sectorIds: employee.sectorId ? [employee.sectorId] : employee.sectorIds || [],
     createdAt: employee.createdAt,
     updatedAt: employee.updatedAt,
   };

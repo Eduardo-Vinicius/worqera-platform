@@ -1,5 +1,12 @@
 # Worqera API — Change log
 
+## 2026-10-06
+
+- **Pedido com foto:** o laudo não é gravado nem enviado enquanto faltar foto. Se uma imagem não entrar no PDF, o arquivo não é salvo e o e-mail não sai. Sem foto no pedido, o e-mail continua saindo na criação.
+- **Sessão:** um token válido não recebe mais "Session revoked". Sair não derruba os outros aparelhos. Se o login realmente acabar, o app e o site voltam para a tela de entrar e avisam.
+- **Sino:** abrir grava a hora na membership. O inbox seguinte ignora pronto, reaberto e avaliação anteriores a essa hora.
+- **Portal:** 401 e 403 deixam de virar erro de plataforma. A lista fica com falha 5xx.
+
 ## 2026-10-05
 
 - **Sessão:** sair revoga a conta mesmo com o token de acesso vencido, usando o refresh do cookie ou do corpo. Em produção a API não sobe se `JWT_SECRET`, `REFRESH_SECRET` ou o segredo de arquivo for o padrão de desenvolvimento.

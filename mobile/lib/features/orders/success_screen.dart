@@ -26,6 +26,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
   Map? shop;
   String? error;
   bool pdfBusy = false;
+  int photoWaits = 0;
 
   @override
   void initState() {
@@ -38,11 +39,18 @@ class _SuccessScreenState extends State<SuccessScreen> {
       final orderRes = await widget.api.dio.get('/orders/${widget.orderId}');
       final shopRes = await widget.api.dio.get('/shops/current');
       if (!mounted) return;
+      final next = Map<String, dynamic>.from(orderRes.data as Map);
       setState(() {
-        order = Map<String, dynamic>.from(orderRes.data as Map);
+        order = next;
         final body = Map<String, dynamic>.from(shopRes.data as Map);
         shop = body['shop'] is Map ? Map<String, dynamic>.from(body['shop'] as Map) : body;
       });
+      if (next['photosPending'] == true && photoWaits < 40) {
+        photoWaits += 1;
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) load();
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
     }
@@ -106,6 +114,10 @@ class _SuccessScreenState extends State<SuccessScreen> {
                     Text('${row['code'] ?? ''}', style: monoStyle(size: 36, color: Wq.brand)),
                     const SizedBox(height: 6),
                     Text('${row['clientName'] ?? ''}'),
+                    if (row['photosPending'] == true) ...[
+                      const SizedBox(height: 8),
+                      Text('As fotos estão subindo. O laudo e o e-mail saem com elas em seguida.', textAlign: TextAlign.center, style: TextStyle(color: context.wqMuted)),
+                    ],
                     if (url.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       QrImageView(data: url, size: 180, backgroundColor: Colors.white),
@@ -120,7 +132,10 @@ class _SuccessScreenState extends State<SuccessScreen> {
                   ]),
                 ),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: pdfBusy ? null : pdf, child: Text(pdfBusy ? 'Gerando laudo…' : 'Ver laudo em PDF')),
+                FilledButton(
+                  onPressed: pdfBusy || row['photosPending'] == true ? null : pdf,
+                  child: Text(row['photosPending'] == true ? 'Fotos subindo…' : pdfBusy ? 'Gerando laudo…' : 'Ver laudo em PDF'),
+                ),
                 const SizedBox(height: 8),
                 OutlinedButton(onPressed: whatsApp, child: const Text('Avisar no WhatsApp')),
                 const SizedBox(height: 8),

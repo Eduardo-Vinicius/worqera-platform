@@ -6,6 +6,8 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/ui.dart';
 import '../lookup/simple_lists.dart';
+import '../orders/order_detail_screen.dart';
+import '../orders/order_form_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.api, required this.session});
@@ -141,9 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(children: [
                     Expanded(child: _shortcut(context, 'Pedidos', Icons.receipt_long_outlined, () => context.go('/orders'))),
                     const SizedBox(width: 8),
-                    Expanded(child: _shortcut(context, 'Clientes', Icons.people_outline, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientsScreen(api: widget.api, openClient: (id) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientDetailScreen(api: widget.api, clientId: id)))))))),
+                    Expanded(child: _shortcut(context, 'Clientes', Icons.people_outline, () => ShellScope.maybeOf(context)?.openPage('clients', ClientsScreen(api: widget.api, session: widget.session, openClient: (id) => ShellScope.maybeOf(context)?.openPage('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session), stack: true))))),
                     const SizedBox(width: 8),
-                    Expanded(child: _shortcut(context, 'Consultas', Icons.search, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ConsultasScreen(api: widget.api, openOrder: (id) => context.push('/orders/$id'), openClient: (id) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ClientDetailScreen(api: widget.api, clientId: id)))))))),
+                    Expanded(child: _shortcut(context, 'Consultas', Icons.search, () => ShellScope.maybeOf(context)?.openPage('consultas', ConsultasScreen(api: widget.api, session: widget.session, openOrder: (_) {})))),
                   ]),
                   const SizedBox(height: 16),
                   WqSectionTitle('Fila recente', trailing: TextButton(onPressed: () => context.go('/kanban'), child: const Text('Kanban'))),
@@ -157,7 +159,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                 title: Text('${order['code'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
                                 subtitle: Text('${order['clientName'] ?? order['client']?['name'] ?? 'Cliente'}'),
                                 trailing: StatusChip(order['status']),
-                                onTap: () => context.push('/orders/${order['id'] ?? order['_id']}'),
+                                onTap: () {
+                                  final id = '${order['id'] ?? order['_id']}';
+                                  final scope = ShellScope.maybeOf(context);
+                                  if (scope == null) {
+                                    context.push('/orders/$id');
+                                    return;
+                                  }
+                                  scope.openPage(
+                                    'order',
+                                    OrderDetailScreen(
+                                      api: widget.api,
+                                      session: widget.session,
+                                      orderId: id,
+                                      onEdit: () => scope.openPage('order-edit', OrderFormScreen(api: widget.api, session: widget.session, orderId: id), stack: true),
+                                    ),
+                                    stack: true,
+                                  );
+                                },
                               ),
                           ]),
                   ),

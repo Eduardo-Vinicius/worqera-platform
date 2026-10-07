@@ -2,6 +2,31 @@ import 'package:flutter/material.dart';
 
 import '../brand/theme.dart';
 
+/// Campos que morrem junto com a folha, depois do TextField sair da árvore.
+class WqSheetFields extends StatefulWidget {
+  const WqSheetFields({super.key, required this.create, required this.builder});
+  final List<TextEditingController> Function() create;
+  final Widget Function(BuildContext context, List<TextEditingController> fields) builder;
+
+  @override
+  State<WqSheetFields> createState() => _WqSheetFieldsState();
+}
+
+class _WqSheetFieldsState extends State<WqSheetFields> {
+  late final List<TextEditingController> fields = widget.create();
+
+  @override
+  void dispose() {
+    for (final field in fields) {
+      field.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, fields);
+}
+
 /// Folha que sobe de baixo. Use para cadastrar ou editar uma coisa curta.
 Future<T?> showWqSheet<T>(
   BuildContext context, {

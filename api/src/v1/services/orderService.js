@@ -363,6 +363,7 @@ async function createOrder(shopId, userId, data) {
   if (deposit < 0) deposit = 0;
   if (deposit > total) deposit = total;
   const remaining = money(Math.max(0, total - deposit));
+  const photoNotify = pendingPhotoNotify(data.photoCounts, itemsWithSectors.length);
 
   const order = await Order.create({
     shopId,
@@ -409,35 +410,15 @@ async function createOrder(shopId, userId, data) {
     notes: data.notes || data.observacoes || null,
     assigneeEmployeeId: data.assigneeEmployeeId || data.employeeId || null,
     createdByUserId: userId,
+    ...(photoNotify ? { photoNotify } : {}),
   });
 
-  let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
-  try {
-    const Shop = require('../models/Shop');
-    const shop = await Shop.findById(shopId).lean();
-    if (!shop) {
-      emailNotify = { ok: false, skipped: true, reason: 'no-shop' };
-    } else if (!clientEmail) {
-      emailNotify = { ok: false, skipped: true, reason: 'no-email' };
-      console.info('[orderCreate] email skip', { code: order.code, reason: 'no-email' });
-    } else {
-      const { enqueueNotifyOrderStatus } = require('./orderNotify');
-      emailNotify = await enqueueNotifyOrderStatus(shop, order.toObject(), 'created', {
+  const awaitingPhotos = Boolean(order.photoNotify?.expected?.some((n) => Number(n) > 0));
+  const emailNotify = awaitingPhotos
+    ? { ok: true, queued: false, deferred: true, reason: 'awaiting-photos' }
+    : await queueCreatedNotify(shopId, order, {
         sectorName: rollupSector?.name || startSector?.name,
       });
-    }
-  } catch (err) {
-    emailNotify = { ok: false, error: err?.message || String(err) };
-    console.warn('[orderCreate] email failed', err?.message || err);
-  }
-
-  // Always persist laudo PDF (email may attach a fresh copy on notify)
-  try {
-    const { generateOrderPdfSafe } = require('./pdfService');
-    generateOrderPdfSafe(shopId, order._id);
-  } catch (_err) {
-    // ignore
-  }
 
   const doc = order.toObject();
   doc.emailNotify = emailNotify;
@@ -1485,6 +1466,129 @@ async function storeItemPhotoFiles(shopId, orderId, files, itemIndex, startIndex
   return photos;
 }
 
+function pendingPhotoNotify(raw, itemCount) {
+  if (!Array.isArray(raw) || !itemCount) return null;
+  const counts = [];
+  for (let i = 0; i < itemCount; i += 1) {
+    const n = Number(raw[i]);
+    counts.push(Number.isFinite(n) && n > 0 ? Math.min(MAX_PHOTOS_PER_ITEM, Math.floor(n)) : 0);
+  }
+  if (!counts.some((n) => n > 0)) return null;
+  return { expected: counts, got: counts.map(() => 0), sent: false };
+}
+
+async function queueCreatedNotify(shopId, order, { sectorName } = {}) {
+  let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
+  const clientEmail = order.clientEmail;
+  try {
+    const Shop = require('../models/Shop');
+    const shop = await Shop.findById(shopId).lean();
+    if (!shop) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-shop' };
+    } else if (!clientEmail) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-email' };
+      console.info('[orderCreate] email skip', { code: order.code, reason: 'no-email' });
+    } else {
+      const { enqueueNotifyOrderStatus } = require('./orderNotify');
+      const plain = order.toObject ? order.toObject() : order;
+      emailNotify = await enqueueNotifyOrderStatus(shop, plain, 'created', { sectorName });
+    }
+  } catch (err) {
+    emailNotify = { ok: false, error: err?.message || String(err) };
+    console.warn('[orderCreate] email failed', err?.message || err);
+  }
+  try {
+    const { generateOrderPdfSafe } = require('./pdfService');
+    generateOrderPdfSafe(shopId, order._id);
+  } catch (_err) {
+    // ignore
+  }
+  return emailNotify;
+}
+
+function itemPhotosReady(order) {
+  const expected = order?.photoNotify?.expected || [];
+  if (!expected.length) return false;
+  const items = Array.isArray(order.items) ? order.items : [];
+  return expected.every((n, i) => {
+    const need = Number(n) || 0;
+    if (need < 1) return true;
+    const photos = items[i]?.photos;
+    return Array.isArray(photos) && photos.length >= need;
+  });
+}
+
+async function releaseCreatedEmail(shopId, orderId) {
+  const current = await Order.findOne({ _id: orderId, shopId });
+  if (!current) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  if (!current.photoNotify) return { ok: true, already: true };
+  if (current.photoNotify.sent) return { ok: true, already: true };
+  if (!itemPhotosReady(current)) return { ok: true, waiting: true };
+
+  const claimed = await Order.findOneAndUpdate(
+    { _id: orderId, shopId, 'photoNotify.sent': false },
+    { $set: { 'photoNotify.sent': true } },
+    { new: true }
+  );
+  if (!claimed) return { ok: true, already: true };
+  try {
+    const { generateOrderPdf } = require('./pdfService');
+    const pdf = await generateOrderPdf(shopId, orderId);
+    const Shop = require('../models/Shop');
+    const shop = await Shop.findById(shopId).lean();
+    let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
+    if (!shop) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-shop' };
+    } else if (!claimed.clientEmail) {
+      emailNotify = { ok: false, skipped: true, reason: 'no-email' };
+    } else {
+      const { notifyOrderStatus } = require('./orderNotify');
+      const plain = claimed.toObject ? claimed.toObject() : claimed;
+      emailNotify = await notifyOrderStatus(shop, plain, 'created', {
+        pdfAttachment: {
+          filename: pdf.filename,
+          content: pdf.buffer,
+          contentType: 'application/pdf',
+        },
+        requirePdf: true,
+      });
+    }
+    if (claimed.clientEmail && emailNotify?.ok === false && !emailNotify?.skipped) {
+      await Order.updateOne(
+        { _id: orderId, shopId },
+        { $set: { 'photoNotify.sent': false } }
+      );
+    }
+    return { ok: emailNotify?.ok !== false || Boolean(emailNotify?.skipped), emailNotify };
+  } catch (err) {
+    await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.sent': false } });
+    console.warn('[orderCreate] laudo com fotos falhou', err?.message || err);
+    return { ok: false, waiting: true, error: err?.message || String(err) };
+  }
+}
+
+async function notePhotoUpload(shopId, orderId, itemIndex, addedCount) {
+  const added = Number(addedCount) || 0;
+  if (added < 1) return;
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId, shopId, 'photoNotify.sent': false },
+    { $inc: { [`photoNotify.got.${itemIndex}`]: added } },
+    { new: true }
+  );
+  if (!updated?.photoNotify || updated.photoNotify.sent) return;
+  const expected = updated.photoNotify.expected || [];
+  const got = updated.photoNotify.got || [];
+  const done =
+    expected.length > 0 && expected.every((n, i) => (Number(got[i]) || 0) >= Number(n));
+  if (!done) return;
+  await releaseCreatedEmail(shopId, orderId);
+}
+
 async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
@@ -1508,12 +1612,20 @@ async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
   assertPhotoFiles(files, existing.length);
 
   const added = await storeItemPhotoFiles(shopId, orderId, files, idx, existing.length);
-  order.items[idx].photos = existing.concat(added);
-  syncOrderPhotosFromItems(order);
-  order.markModified('items');
-  order.markModified('photos');
-  await order.save();
-  return order.toObject();
+  // Push only this item. A full save() here races with the other items' uploads
+  // and can wipe their photos before the laudo is built.
+  await Order.updateOne(
+    { _id: orderId, shopId },
+    { $push: { [`items.${idx}.photos`]: { $each: added } } }
+  );
+  const fresh = await Order.findOne({ _id: orderId, shopId });
+  if (fresh) {
+    syncOrderPhotosFromItems(fresh);
+    await Order.updateOne({ _id: orderId, shopId }, { $set: { photos: fresh.photos || [] } });
+  }
+  await notePhotoUpload(shopId, orderId, idx, added.length);
+  const saved = await Order.findOne({ _id: orderId, shopId }).lean();
+  return saved;
 }
 
 async function deleteItemPhoto(shopId, orderId, itemIndex, photoIndex) {
@@ -1894,6 +2006,7 @@ module.exports = {
   purgeOrder,
   replaceOrderPhotos,
   uploadItemPhotos,
+  releaseCreatedEmail,
   deleteItemPhoto,
   getPublicOrderByCode,
   getPublicOrderByToken,

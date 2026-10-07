@@ -12,6 +12,7 @@ const membershipSchema = new mongoose.Schema(
     sectorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Sector' }],
     active: { type: Boolean, default: true },
     inboxSeen: {
+      at: { type: Date, default: null },
       readyIds: { type: [String], default: [] },
       reopenedIds: { type: [String], default: [] },
       feedbackIds: { type: [String], default: [] },

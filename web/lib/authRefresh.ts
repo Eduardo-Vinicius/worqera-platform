@@ -3,10 +3,19 @@ const API_V1 = `${API_BASE}/api/v1`
 
 let refreshInflight: Promise<boolean> | null = null
 let refreshBlocked = false
+let refreshDenied = false
 
 /** Login succeeds and may try refresh again. A failed refresh stays blocked for this tab. */
 export function clearRefreshBlock() {
   refreshBlocked = false
+  refreshDenied = false
+}
+
+/** True once when the server refused the refresh token. A network miss does not count. */
+export function consumeRefreshDenied() {
+  const denied = refreshDenied
+  refreshDenied = false
+  return denied
 }
 
 function persistAccessToken(token: string) {
@@ -19,7 +28,10 @@ function persistAccessToken(token: string) {
 /** Exchange refreshToken (cookie HttpOnly and/or localStorage) for a new access token. */
 export async function tryRefreshSession(): Promise<boolean> {
   if (typeof window === "undefined") return false
-  if (refreshBlocked) return false
+  if (refreshBlocked) {
+    refreshDenied = true
+    return false
+  }
   if (refreshInflight) return refreshInflight
 
   refreshInflight = (async () => {
@@ -31,10 +43,12 @@ export async function tryRefreshSession(): Promise<boolean> {
         credentials: "include",
         body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       })
-      if (!res.ok) {
+      if (res.status === 401) {
         refreshBlocked = true
+        refreshDenied = true
         return false
       }
+      if (!res.ok) return false
       const data = await res.json().catch(() => ({}))
       const token = data.token || data.accessToken
       if (!token) {

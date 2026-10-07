@@ -558,6 +558,19 @@ export async function uploadPedidoItemFotosService(
   return parseUploadedPhotoUrls(resolveApiPayload(result));
 }
 
+export async function notifyCreatedPedidoService(pedidoId: string) {
+  const token = localStorage.getItem("token");
+  await fetch(`${API_BASE_URL}/orders/${pedidoId}/notify-created`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({}),
+    cache: "no-store",
+  }).catch(() => null);
+}
+
 export async function deletePedidoItemFotoService(
   pedidoId: string,
   itemIndex: number,

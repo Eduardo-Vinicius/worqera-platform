@@ -97,6 +97,18 @@ async function loadPhotoForPdf(photo) {
   }
 }
 
+function photosStillPending(order) {
+  const expected = order?.photoNotify?.expected || [];
+  if (!expected.some((n) => Number(n) > 0)) return false;
+  const items = effectiveItems(order);
+  return !expected.every((n, i) => {
+    const need = Number(n) || 0;
+    if (need < 1) return true;
+    const photos = items[i]?.photos;
+    return Array.isArray(photos) && photos.length >= need;
+  });
+}
+
 function photosForPair(item, order, itemCount) {
   const own = Array.isArray(item?.photos) ? item.photos : [];
   if (own.length) return own.slice(0, MAX_FOTOS_PER_PAIR);
@@ -236,11 +248,20 @@ async function generateOrderPdf(shopId, orderId) {
       : null,
   ]);
 
+  if (photosStillPending(order)) {
+    const err = new Error('Fotos ainda não chegaram para o laudo');
+    err.status = 409;
+    err.code = 'PHOTOS_PENDING';
+    throw err;
+  }
+
   const brand = shop?.branding?.displayName || shop?.name || 'Loja';
   const primary = hexToRgb(shop?.branding?.primaryColor) || BRAND_RGB;
   const accent = hexToRgb(shop?.branding?.accentColor) || primary;
   const itemLabel = shop?.branding?.itemLabel || 'par';
   const items = effectiveItems(order);
+  let photosExpected = 0;
+  let photosDrawn = 0;
   const pairWord = String(itemLabel).charAt(0).toUpperCase() + String(itemLabel).slice(1);
   const shopPhone = String(shop?.branding?.phone || '').trim();
   const shopAddress = String(shop?.branding?.address || '').trim();
@@ -424,6 +445,7 @@ async function generateOrderPdf(shopId, orderId) {
       const thumbH = 48;
       let col = 0;
       for (let p = 0; p < photos.length; p += 1) {
+        photosExpected += 1;
         const loaded = await loadPhotoForPdf(photos[p]);
         if (!loaded) continue;
         try {
@@ -434,6 +456,7 @@ async function generateOrderPdf(shopId, orderId) {
           const height = props.height * scale;
           const x = 25 + col * (thumbW + 5);
           doc.addImage(loaded.dataUrl, loaded.formato, x, y, width, height);
+          photosDrawn += 1;
           col += 1;
           if (col >= 2) {
             col = 0;
@@ -593,6 +616,13 @@ async function generateOrderPdf(shopId, orderId) {
     doc.setTextColor(...MUTED_RGB);
     doc.text('Emitido via Worqera', 16, pageHeight - 8);
     doc.text(`Pág. ${p}/${pageCount}`, pageWidth - 16, pageHeight - 8, { align: 'right' });
+  }
+
+  if (photosExpected !== photosDrawn) {
+    const err = new Error('Laudo não inclui todas as fotos');
+    err.status = 409;
+    err.code = 'PHOTOS_MISSING';
+    throw err;
   }
 
   const pdfBuffer = Buffer.from(doc.output('arraybuffer'));

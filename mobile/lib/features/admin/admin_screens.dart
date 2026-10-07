@@ -19,6 +19,8 @@ class _ShopsScreenState extends State<ShopsScreen> {
   ];
 
   List<Map<String, dynamic>> rows = [];
+  String query = '';
+  String shopFilter = 'todas';
   String? openId;
   String? busyId;
   String? error;
@@ -83,7 +85,27 @@ class _ShopsScreenState extends State<ShopsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
-          for (final row in rows) ...[
+          TextField(
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Nome ou slug'),
+            onChanged: (value) => setState(() => query = value.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, children: [
+            for (final item in [('todas', 'Todas'), ('trial', 'Trial'), ('pagas', 'Pagas'), ('suspensas', 'Suspensas'), ('fim', 'Trial ≤ 7 dias')])
+              ChoiceChip(label: Text(item.$2), selected: shopFilter == item.$1, onSelected: (_) => setState(() => shopFilter = item.$1)),
+          ]),
+          const SizedBox(height: 12),
+          for (final row in rows.where((row) {
+            final name = '${row['name'] ?? ''} ${row['slug'] ?? ''}'.toLowerCase();
+            if (query.isNotEmpty && !name.contains(query)) return false;
+            final sub = row['subscription'] is Map ? row['subscription'] as Map : const {};
+            final trial = int.tryParse('${row['trialDaysLeft'] ?? ''}');
+            if (shopFilter == 'suspensas') return row['status'] == 'suspended';
+            if (shopFilter == 'trial') return '${sub['status']}' == 'trialing';
+            if (shopFilter == 'pagas') return '${sub['status']}' == 'active' && row['status'] != 'suspended';
+            if (shopFilter == 'fim') return trial != null && trial <= 7;
+            return true;
+          })) ...[
             Builder(builder: (context) {
               final id = shopId(row);
               final open = openId == id;
@@ -94,7 +116,18 @@ class _ShopsScreenState extends State<ShopsScreen> {
                 onTap: () => setState(() => openId = open ? null : id),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text('${row['slug'] ?? ''} · ${planLabel(planCode(row))} · ${row['status'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                  Text(
+                    [
+                      '${row['slug'] ?? ''}',
+                      planLabel(planCode(row)),
+                      '${row['status'] ?? ''}',
+                      '${row['openCount'] ?? 0} abertos',
+                      '${row['memberCount'] ?? 0} pessoas',
+                      if (row['trialDaysLeft'] != null) 'trial ${row['trialDaysLeft']}d',
+                      if ('${row['lastOrderAt'] ?? ''}'.isNotEmpty) 'último ${dayLabel(row['lastOrderAt'])}',
+                    ].where((part) => part.trim().isNotEmpty).join(' · '),
+                    style: const TextStyle(color: Wq.muted, fontSize: 13),
+                  ),
                   if (open) ...[
                     const SizedBox(height: 8),
                     Text('Assinatura ${sub?['status'] ?? '—'} · trial ${sub?['trialEndsAt'] ?? row['trialDaysLeft'] ?? '—'}', style: const TextStyle(fontSize: 12)),
@@ -130,7 +163,8 @@ class _ShopsScreenState extends State<ShopsScreen> {
                       ),
                       OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'extendTrialDays': 7}, 'Trial estendido'), child: const Text('+7 dias')),
                       OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'subscriptionStatus': 'canceled'}, 'Assinatura revogada'), child: const Text('Revogar')),
-                      OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'seal': 'verificado'}, 'Selo verificado'), child: const Text('Selo')),
+                      for (final seal in [('verificado', 'Verificado'), ('destaque', 'Destaque'), ('parceiro', 'Parceiro'), ('', 'Sem selo')])
+                        OutlinedButton(onPressed: busyId == id ? null : () => patch(id, {'seal': seal.$1}, seal.$2), child: Text(seal.$2)),
                     ]),
                   ],
                 ]),
@@ -153,55 +187,169 @@ class PortalScreen extends StatefulWidget {
 
 class _PortalScreenState extends State<PortalScreen> {
   Map? data;
+  List<Map<String, dynamic>> shops = [];
   String? error;
+  bool loading = true;
+
   @override
   void initState() {
     super.initState();
-    widget.api.dio.get('/platform/ops').then((res) {
-      if (mounted) setState(() => data = Map<String, dynamic>.from(res.data as Map));
-    }).catchError((e) {
+    load();
+  }
+
+  Future<void> load() async {
+    setState(() => loading = true);
+    try {
+      final results = await Future.wait([
+        widget.api.dio.get('/platform/ops'),
+        widget.api.dio.get('/platform/shops', queryParameters: {'limit': 200}),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        data = Map<String, dynamic>.from(results[0].data as Map);
+        shops = asMaps(results[1].data);
+        error = null;
+      });
+    } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
-    });
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final shops = data?['shops'] as Map? ?? {};
-    final calls = data?['calls'] as Map? ?? data?['windows'] as Map? ?? {};
-    final errors = asMaps({'data': data?['errors'] ?? data?['recentErrors']});
+    final totals = data?['shops'] as Map? ?? {};
+    final windows = data?['windows'] is Map ? data!['windows'] as Map : const {};
+    final day = windows['24h'] is Map ? windows['24h'] as Map : const {};
+    final endpoints = asMaps({'data': day['endpoints'] ?? data?['endpoints']});
+    final noisy = [...endpoints]..sort((a, b) {
+        final ae = (int.tryParse('${a['errors'] ?? 0}') ?? 0) + (int.tryParse('${a['clientErrors'] ?? 0}') ?? 0);
+        final be = (int.tryParse('${b['errors'] ?? 0}') ?? 0) + (int.tryParse('${b['clientErrors'] ?? 0}') ?? 0);
+        if (be != ae) return be.compareTo(ae);
+        return (int.tryParse('${b['count'] ?? 0}') ?? 0).compareTo(int.tryParse('${a['count'] ?? 0}') ?? 0);
+      });
+    final problems = noisy.where((row) {
+      final bad = (int.tryParse('${row['errors'] ?? 0}') ?? 0) + (int.tryParse('${row['clientErrors'] ?? 0}') ?? 0);
+      return bad > 0;
+    }).take(8);
+    final shownEndpoints = problems.isEmpty ? noisy.take(6) : problems;
+    final errors = asMaps({'data': data?['errors']}).where((row) => (int.tryParse('${row['status'] ?? 0}') ?? 0) >= 500).take(8);
+    final disabled = asMaps({'data': data?['disabled']});
+    final attention = shops.where((row) {
+      final suspended = row['status'] == 'suspended';
+      final sub = row['subscription'] is Map ? row['subscription'] as Map : const {};
+      final trial = int.tryParse('${row['trialDaysLeft'] ?? ''}');
+      final status = '${sub['status'] ?? ''}';
+      return suspended || status == 'past_due' || status == 'canceled' || (trial != null && trial <= 3);
+    }).take(8);
     return WqPage(
       title: 'Portal',
-      subtitle: 'Pulso da plataforma',
-      child: data == null
+      subtitle: 'Oficinas, plano e o que a API está fazendo',
+      actions: [
+        IconButton(tooltip: 'Atualizar', onPressed: loading ? null : load, icon: const Icon(Icons.refresh)),
+      ],
+      child: loading && data == null
           ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _kpi('Oficinas', '${shops['total'] ?? shops['count'] ?? '—'}'),
-                _kpi('Em trial', '${shops['trialing'] ?? '—'}'),
-                _kpi('Chamadas 24h', '${calls['h24'] ?? calls['day'] ?? data?['requests24h'] ?? '—'}'),
-                const WqSectionTitle('Endpoints'),
-                for (final row in asMaps({'data': data?['endpoints']}).take(12))
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('${row['method'] ?? ''} ${row['route'] ?? ''}', style: const TextStyle(fontSize: 13)),
-                    trailing: Text('${row['clientErrorRate'] ?? 0}% 4xx', style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+                if (data?['redis'] == 'down')
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text('Redis fora. Oficinas e erros continuam. Chamadas e usuários ativos ficam zerados.', style: TextStyle(color: Wq.warn, fontWeight: FontWeight.w600)),
                   ),
-                const WqSectionTitle('Erros recentes'),
-                for (final row in errors.take(12))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: WqCard(child: Text('${row['message'] ?? row['detail'] ?? row['path'] ?? row}', style: const TextStyle(fontSize: 13))),
-                  ),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  _kpi('Oficinas', '${totals['total'] ?? shops.length}'),
+                  _kpi('Trial', '${totals['trialing'] ?? '—'}'),
+                  _kpi('Pagas', '${totals['active'] ?? '—'}'),
+                  _kpi('Suspensas', '${totals['suspended'] ?? '—'}'),
+                  _kpi('Pedidos abertos', '${totals['openOrders'] ?? '—'}'),
+                  _kpi('Usuários 30 min', '${data?['activeUsers'] ?? 0}'),
+                  _kpi('Chamadas 24h', '${day['calls'] ?? '—'}'),
+                  _kpi('5xx 24h', '${day['errors'] ?? 0}'),
+                ]),
+                const SizedBox(height: 16),
+                const WqSectionTitle('Precisa de olho'),
+                if (attention.isEmpty)
+                  const Text('Nenhuma oficina suspensa, vencida ou no fim do trial.', style: TextStyle(color: Wq.muted))
+                else
+                  for (final row in attention)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: WqCard(
+                        onTap: () => ShellScope.maybeOf(context)?.openPage('oficinas', ShopsScreen(api: widget.api), stack: true),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(_shopLine(row), style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                        ]),
+                      ),
+                    ),
+                const SizedBox(height: 8),
+                const WqSectionTitle('Endpoints em 24h'),
+                if (shownEndpoints.isEmpty)
+                  const Text('Sem chamadas nessa janela. O Redis guarda esse número.', style: TextStyle(color: Wq.muted))
+                else
+                  for (final row in shownEndpoints)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: WqCard(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${row['method'] ?? ''} ${row['route'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text(
+                            '${row['count'] ?? 0} chamadas · ${row['avgMs'] ?? 0} ms · 4xx ${row['clientErrors'] ?? 0} · 5xx ${row['errors'] ?? 0}',
+                            style: const TextStyle(color: Wq.muted, fontSize: 12),
+                          ),
+                        ]),
+                      ),
+                    ),
+                const SizedBox(height: 8),
+                const WqSectionTitle('Falhas do servidor'),
+                if (errors.isEmpty)
+                  const Text('Nenhum 5xx recente. Login recusado não entra aqui.', style: TextStyle(color: Wq.muted))
+                else
+                  for (final row in errors)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: WqCard(
+                        child: Text(
+                          '${row['status'] ?? ''} ${row['method'] ?? ''} ${row['route'] ?? ''}\n${row['message'] ?? ''} · ${row['count'] ?? 1}× ${row['shopName'] ?? ''}'.trim(),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                if (disabled.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const WqSectionTitle('Módulos desligados'),
+                  Text(disabled.map((row) => '${row['label'] ?? row['key']}').join(' · '), style: const TextStyle(color: Wq.muted)),
+                ],
               ],
             ),
     );
   }
 
+  String _shopLine(Map row) {
+    final sub = row['subscription'] is Map ? row['subscription'] as Map : const {};
+    final bits = <String>[
+      if (row['status'] == 'suspended') 'Suspensa',
+      '${sub['status'] ?? 'sem plano'}',
+      if (row['trialDaysLeft'] != null) 'trial ${row['trialDaysLeft']}d',
+      '${row['openCount'] ?? 0} abertos',
+    ];
+    return bits.join(' · ');
+  }
+
   Widget _kpi(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: WqCard(child: Row(children: [Expanded(child: Text(label, style: const TextStyle(color: Wq.muted))), Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))])),
+    return SizedBox(
+      width: 148,
+      child: WqCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: Wq.muted, fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+        ]),
+      ),
     );
   }
 }
@@ -276,6 +424,7 @@ class NoticesScreen extends StatefulWidget {
 class _NoticesScreenState extends State<NoticesScreen> {
   final title = TextEditingController();
   final body = TextEditingController();
+  String platform = 'all';
   List<Map<String, dynamic>> rows = [];
 
   @override
@@ -291,7 +440,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
 
   Future<void> add() async {
     if (title.text.trim().isEmpty) return;
-    await widget.api.dio.post('/platform/notices', data: {'title': title.text.trim(), 'body': body.text.trim()});
+    await widget.api.dio.post('/platform/notices', data: {'title': title.text.trim(), 'body': body.text.trim(), 'platform': platform});
     title.clear();
     body.clear();
     await load();
@@ -309,6 +458,17 @@ class _NoticesScreenState extends State<NoticesScreen> {
             child: Column(children: [
               TextField(controller: title, decoration: const InputDecoration(labelText: 'Título')),
               TextField(controller: body, maxLines: 3, decoration: const InputDecoration(labelText: 'Texto')),
+              DropdownButtonFormField<String>(
+                initialValue: platform,
+                decoration: const InputDecoration(labelText: 'Onde aparece'),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('Todos')),
+                  DropdownMenuItem(value: 'web', child: Text('Site')),
+                  DropdownMenuItem(value: 'ios', child: Text('iPhone')),
+                  DropdownMenuItem(value: 'android', child: Text('Android')),
+                ],
+                onChanged: (value) => setState(() => platform = value ?? 'all'),
+              ),
               Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: add, child: const Text('Publicar'))),
             ]),
           ),
@@ -318,8 +478,18 @@ class _NoticesScreenState extends State<NoticesScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: WqCard(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${row['title'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Row(children: [
+                    Expanded(child: Text('${row['title'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    IconButton(
+                      onPressed: () async {
+                        await widget.api.dio.delete('/platform/notices/${row['id'] ?? row['_id']}');
+                        await load();
+                      },
+                      icon: const Icon(Icons.delete_outline, color: Wq.danger),
+                    ),
+                  ]),
                   Text('${row['body'] ?? ''}', style: const TextStyle(color: Wq.muted)),
+                  Text('${row['platform'] ?? 'all'}', style: const TextStyle(color: Wq.muted, fontSize: 12)),
                 ]),
               ),
             ),

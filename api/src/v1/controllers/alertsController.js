@@ -17,12 +17,12 @@ exports.sendWeeklyDigest = wrap(async (req, res) => {
 });
 
 exports.inbox = wrap(async (req, res) => {
-  const data = await alertsService.getOwnerInbox(req.shopId, req.auth?.userId);
+  const data = await alertsService.getOwnerInbox(req.shopId, req.membership);
   res.status(200).json(data);
 });
 
 exports.markInboxRead = wrap(async (req, res) => {
-  const data = await alertsService.markInboxRead(req.shopId, req.auth?.userId);
+  const data = await alertsService.markInboxRead(req.membership?._id);
   res.status(200).json(data);
 });
 

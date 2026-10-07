@@ -42,9 +42,10 @@ async function v1Fetch<T = unknown>(path: string, init: RequestInit = {}, retrie
 
   if (!res.ok) {
     if (res.status === 401 && !retried && path !== "/auth/refresh" && path !== "/auth/login") {
-      const { tryRefreshSession } = await import("./authRefresh")
+      const { tryRefreshSession, consumeRefreshDenied } = await import("./authRefresh")
       const ok = await tryRefreshSession()
       if (ok) return v1Fetch<T>(path, init, true)
+      if (consumeRefreshDenied()) endSession()
     }
     const msg = data?.detail || data?.title || data?.error || res.statusText
     const code = data?.code
@@ -726,9 +727,10 @@ async function v1FetchBlob(path: string, init: RequestInit = {}, retried = false
   const res = await fetch(`${API_V1}${path}`, { ...init, headers, credentials: "include" })
   if (!res.ok) {
     if (res.status === 401 && !retried && path !== "/auth/refresh" && path !== "/auth/login") {
-      const { tryRefreshSession } = await import("./authRefresh")
+      const { tryRefreshSession, consumeRefreshDenied } = await import("./authRefresh")
       const ok = await tryRefreshSession()
       if (ok) return v1FetchBlob(path, init, true)
+      if (consumeRefreshDenied()) endSession()
     }
     const text = await res.text()
     let data: any = null
@@ -934,6 +936,17 @@ export async function patchBrandV1(id: string, body: Partial<{ name: string; act
 
 export async function deleteBrandV1(id: string) {
   return v1Fetch(`/brands/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export function endSession(message = "Sua sessão acabou. Entre de novo.") {
+  if (typeof window === "undefined") return
+  try {
+    sessionStorage.setItem("wq-auth-notice", message)
+  } catch {}
+  clearSession()
+  if (!window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login"
+  }
 }
 
 export function clearSession() {

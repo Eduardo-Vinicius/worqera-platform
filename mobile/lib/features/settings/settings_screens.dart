@@ -166,37 +166,19 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
     final preview = _hexOk(primary.text) ? _hex(primary.text) : Wq.brand;
     return WqPage(
       title: 'Empresa',
-      subtitle: 'Marca da operação, item e contato',
+      subtitle: 'Marca da operação — logo, tipo e link público',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
           if (info != null) Text(info!, style: const TextStyle(color: Wq.success)),
+          const _SectionLabel('Identidade'),
           WqCard(
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: preview, borderRadius: BorderRadius.circular(10)),
-                child: Row(children: [
-                  if (logoUrl.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(fileUrl(logoUrl), width: 36, height: 36, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox(width: 36, height: 36)),
-                    )
-                  else
-                    const Text('W', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(display.text.isEmpty ? 'Sua oficina' : display.text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-                ]),
-              ),
-              const SizedBox(height: 8),
-              Text('Prévia da consulta pública. O endereço do cliente é /p/o/ e um código, sem o nome da empresa.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
-              TextField(controller: display, decoration: const InputDecoration(labelText: 'Nome de exibição')),
-              TextField(controller: emailFrom, decoration: const InputDecoration(labelText: 'Nome no e-mail')),
-              TextField(controller: slug, decoration: const InputDecoration(labelText: 'Identificador interno', helperText: 'Não entra no link do cliente.')),
-              TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
-              TextField(controller: address, decoration: const InputDecoration(labelText: 'Endereço')),
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome da empresa')),
+              TextField(controller: display, decoration: const InputDecoration(labelText: 'Nome de exibição', helperText: 'Consulta pública, e-mails e TVs')),
+              TextField(controller: slug, decoration: const InputDecoration(labelText: 'Slug interno', helperText: 'Não aparece no link do cliente.')),
+              TextField(controller: emailFrom, decoration: const InputDecoration(labelText: 'Remetente dos e-mails', helperText: 'Sua Empresa via Worqera')),
               DropdownButtonFormField<String>(
                 key: ValueKey('vertical-$vertical'),
                 initialValue: vertical,
@@ -214,17 +196,75 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
                   });
                 },
               ),
-              TextField(
-                controller: singular,
-                decoration: const InputDecoration(labelText: 'Nome do item (singular)'),
-                onChanged: (_) => setState(() => vertical = 'custom'),
-              ),
-              TextField(
-                controller: plural,
-                decoration: const InputDecoration(labelText: 'Nome do item (plural)'),
-                onChanged: (_) => setState(() => vertical = 'custom'),
-              ),
-              if (logoUrl.isNotEmpty) Align(alignment: Alignment.centerLeft, child: Image.network(fileUrl(logoUrl), height: 64)),
+              Text('Define como o pedido chama o item. Os setores continuam livres.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              TextField(controller: singular, decoration: const InputDecoration(labelText: 'Nome do item (singular)'), onChanged: (_) => setState(() => vertical = 'custom')),
+              TextField(controller: plural, decoration: const InputDecoration(labelText: 'Nome do item (plural)'), onChanged: (_) => setState(() => vertical = 'custom')),
+              const SizedBox(height: 8),
+              const Text('Kit inicial', style: TextStyle(fontWeight: FontWeight.w800)),
+              Text('Aplica setores e serviços sugeridos. Os setores atuais são desativados.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final kit in const [('general', 'Geral'), ('footwear', 'Calçados'), ('laundry', 'Lavanderia'), ('repair', 'Assistência')])
+                  OutlinedButton(onPressed: () => applyKit(kit.$1, kit.$2), child: Text(kit.$2)),
+              ]),
+              const SizedBox(height: 8),
+              Text('Link do cliente: /p/o/ e um código por pedido.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
+              TextField(controller: address, decoration: const InputDecoration(labelText: 'Endereço')),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          const _SectionLabel('Marca visual'),
+          WqCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Wq.line),
+                    boxShadow: [BoxShadow(color: preview.withValues(alpha: 0.35), blurRadius: 0, spreadRadius: 3)],
+                  ),
+                  child: logoUrl.isEmpty
+                      ? Text((display.text.isEmpty ? 'W' : display.text).substring(0, 1).toUpperCase(), style: TextStyle(color: preview, fontSize: 32, fontWeight: FontWeight.w800))
+                      : Image.network(fileUrl(logoUrl), width: 96, height: 96, fit: BoxFit.cover, errorBuilder: (_, _, _) => Text('W', style: TextStyle(color: preview, fontSize: 32, fontWeight: FontWeight.w800))),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(display.text.isEmpty ? 'Sua oficina' : display.text, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text('Prévia da consulta pública.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 28,
+                      decoration: BoxDecoration(color: preview, borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final preset in const [
+                  ('Worqera', '#7D26DE', '#0D9488'),
+                  ('Azul', '#2563EB', '#0EA5E9'),
+                  ('Verde', '#15803D', '#0D9488'),
+                  ('Laranja', '#C2410C', '#EA580C'),
+                  ('Ink', '#0F172A', '#334155'),
+                  ('Rosa', '#BE185D', '#DB2777'),
+                ])
+                  ActionChip(
+                    label: Text(preset.$1),
+                    onPressed: () => setState(() {
+                      primary.text = preset.$2;
+                      accent.text = preset.$3;
+                    }),
+                  ),
+              ]),
               OutlinedButton(onPressed: _pickLogo, child: const Text('Enviar logo')),
               if (logoUrl.isNotEmpty)
                 TextButton(
@@ -237,6 +277,12 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
                 ),
               TextField(controller: primary, decoration: const InputDecoration(labelText: 'Cor principal (#RRGGBB)')),
               TextField(controller: accent, decoration: const InputDecoration(labelText: 'Cor de ação (#RRGGBB)')),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          const _SectionLabel('Avisos'),
+          WqCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SwitchListTile(contentPadding: EdgeInsets.zero, value: emailOn, onChanged: (v) => setState(() => emailOn = v), title: const Text('E-mail do laudo')),
               Text('Criado: PDF e link. Pronto: aviso de retirada. Precisa de e-mail no cliente.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
               SwitchListTile(contentPadding: EdgeInsets.zero, value: waOn, onChanged: (v) => setState(() => waOn = v), title: const Text('WhatsApp da empresa')),
@@ -247,8 +293,6 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
                 TextField(controller: tplReady, decoration: const InputDecoration(labelText: 'Mensagem de pronto'), maxLines: 2),
                 TextField(controller: tplLink, decoration: const InputDecoration(labelText: 'Mensagem do link'), maxLines: 2),
               ],
-              const SizedBox(height: 8),
-              FilledButton(onPressed: save, child: const Text('Salvar')),
             ]),
           ),
           const SizedBox(height: 12),
@@ -272,9 +316,39 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
               ),
             ]),
           ),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: save, child: const Text('Salvar empresa')),
         ],
       ),
     );
+  }
+
+  Future<void> applyKit(String kit, String label) async {
+    final go = await showWqSheet<bool>(
+      context,
+      title: 'Kit $label',
+      hint: 'Os setores atuais são desativados. Serviços que faltam entram.',
+      child: (sheet) => FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Aplicar kit')),
+    );
+    if (go != true) return;
+    try {
+      final res = await widget.api.dio.post('/shops/current/apply-starter-kit', data: {'kit': kit});
+      final body = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : <String, dynamic>{};
+      if (!mounted) return;
+      wqToast(context, 'Kit $label: ${body['sectorsCreated'] ?? 0} setores · +${body['servicesAdded'] ?? 0} serviços');
+      final shop = await widget.api.dio.get('/shops/current');
+      final doc = shop.data is Map ? Map<String, dynamic>.from(shop.data as Map) : <String, dynamic>{};
+      final inner = doc['shop'] is Map ? Map<String, dynamic>.from(doc['shop'] as Map) : doc;
+      final branding = inner['branding'] is Map ? Map<String, dynamic>.from(inner['branding'] as Map) : {};
+      setState(() {
+        vertical = '${inner['vertical'] ?? kit}';
+        singular.text = '${branding['itemLabel'] ?? singular.text}';
+        plural.text = '${branding['itemLabelPlural'] ?? plural.text}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      wqToast(context, widget.api.message(e));
+    }
   }
 
   Future<void> _pickLogo() async {
@@ -297,6 +371,18 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
     final text = '$raw'.replaceAll('#', '');
     if (text.length != 6) return Wq.brand;
     return Color(int.parse('FF$text', radix: 16));
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      child: Text(text.toUpperCase(), style: const TextStyle(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: Wq.muted)),
+    );
   }
 }
 
@@ -333,7 +419,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   Future<void> load() async {
     try {
-      final res = await widget.api.dio.get(widget.path);
+      final res = await widget.api.dio.get(widget.path, queryParameters: widget.sector ? {'includeInactive': 'true'} : null);
       setState(() {
         rows = asMaps(res.data);
         error = null;
@@ -344,51 +430,72 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   Future<void> openEditor({Map<String, dynamic>? row}) async {
-    final nameCtrl = TextEditingController(text: '${row?['name'] ?? ''}');
-    final extraCtrl = TextEditingController(
-      text: widget.price
-          ? '${row?['price'] ?? ''}'
-          : widget.sector
-              ? '${row?['color'] ?? '#7D26DE'}'
-              : '${row?['phone'] ?? ''}',
-    );
-    final terminal = <bool>[row?['isTerminal'] == true];
-    final saved = await showWqSheet<bool>(
+    final initialName = '${row?['name'] ?? ''}';
+    final initialExtra = widget.price
+        ? '${row?['defaultPrice'] ?? row?['price'] ?? ''}'
+        : widget.sector
+            ? '${row?['color'] ?? '#7D26DE'}'
+            : '${row?['phone'] ?? ''}';
+    final saved = await showWqSheet<Map<String, dynamic>>(
       context,
       title: row == null ? 'Novo' : 'Editar',
       hint: widget.title,
-      child: (sheet) => StatefulBuilder(
-        builder: (ctx, setLocal) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
-            if (widget.price) TextField(controller: extraCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Preço (R\$)')),
-            if (widget.sector) TextField(controller: extraCtrl, decoration: const InputDecoration(labelText: 'Cor (#RRGGBB)')),
-            if (widget.path.endsWith('employees')) TextField(controller: extraCtrl, decoration: const InputDecoration(labelText: 'Telefone')),
-            if (widget.sector)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: terminal[0],
-                onChanged: (value) => setLocal(() => terminal[0] = value),
-                title: const Text('Coluna final'),
-              ),
-            const SizedBox(height: 8),
-            FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
-          ],
-        ),
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController(text: initialName), TextEditingController(text: initialExtra)],
+        builder: (_, fields) {
+          final terminal = <bool>[row?['isTerminal'] == true];
+          final active = <bool>[row?['active'] != false];
+          final onPublic = <bool>[row?['showOnPublic'] != false];
+          final mail = <bool>[row?['notifyEmailOnEnter'] == true];
+          return StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+                if (widget.price) TextField(controller: fields[1], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Preço (R\$)')),
+                if (widget.sector) TextField(controller: fields[1], decoration: const InputDecoration(labelText: 'Cor (#RRGGBB)')),
+                if (widget.path.endsWith('employees')) TextField(controller: fields[1], decoration: const InputDecoration(labelText: 'Telefone')),
+                if (widget.sector) ...[
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: terminal[0], onChanged: (value) => setLocal(() => terminal[0] = value), title: const Text('Coluna final')),
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: onPublic[0], onChanged: (value) => setLocal(() => onPublic[0] = value), title: const Text('Aparece no QR do cliente')),
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: mail[0], onChanged: (value) => setLocal(() => mail[0] = value), title: const Text('E-mail ao entrar')),
+                ],
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: active[0], onChanged: (value) => setLocal(() => active[0] = value), title: const Text('Ativo no cadastro')),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheet, {
+                    'name': fields[0].text.trim(),
+                    'extra': fields[1].text.trim(),
+                    'terminal': terminal[0],
+                    'active': active[0],
+                    'public': onPublic[0],
+                    'mail': mail[0],
+                  }),
+                  child: const Text('Salvar'),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
-    final label = nameCtrl.text.trim();
-    final extra = extraCtrl.text.trim();
-    nameCtrl.dispose();
-    extraCtrl.dispose();
-    if (saved != true || label.isEmpty) return;
+    if (saved == null) return;
+    final label = '${saved['name'] ?? ''}'.trim();
+    final extra = '${saved['extra'] ?? ''}'.trim();
+    if (label.isEmpty) return;
     try {
     final body = <String, dynamic>{'name': label};
-    if (widget.price) body['price'] = double.tryParse(extra.replaceAll(',', '.')) ?? 0;
+    if (widget.price) {
+      final amount = double.tryParse(extra.replaceAll(',', '.')) ?? 0;
+      body['price'] = amount;
+      body['defaultPrice'] = amount;
+    }
+    body['active'] = saved['active'] == true;
     if (widget.sector) {
       body['color'] = extra.isEmpty ? '#7D26DE' : extra;
-      body['isTerminal'] = terminal[0];
+      body['isTerminal'] = saved['terminal'] == true;
+      body['showOnPublic'] = saved['public'] == true;
+      body['notifyEmailOnEnter'] = saved['mail'] == true;
       if (row == null) body['order'] = rows.length + 1;
     }
     if (widget.path.endsWith('employees') && extra.isNotEmpty) body['phone'] = extra;
@@ -401,6 +508,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
     }
+  }
+
+  Future<void> moveSector(int index, int delta) async {
+    final next = index + delta;
+    if (next < 0 || next >= rows.length) return;
+    final items = [
+      for (var i = 0; i < rows.length; i++)
+        {
+          'id': '${rows[i]['id'] ?? rows[i]['_id']}',
+          'order': i == index ? next + 1 : i == next ? index + 1 : i + 1,
+        },
+    ];
+    await widget.api.dio.post('${widget.path}/reorder', data: items);
+    await load();
   }
 
   Future<void> remove(Map row) async {
@@ -420,22 +541,27 @@ class _CatalogScreenState extends State<CatalogScreen> {
           if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
           FilledButton(onPressed: () => openEditor(), child: const Text('Adicionar')),
           const SizedBox(height: 12),
-          for (final row in rows) ...[
+          for (var index = 0; index < rows.length; index++) ...[
             WqCard(
               child: Row(children: [
                 if (widget.sector)
-                  Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(color: _hex(row['color']), shape: BoxShape.circle)),
+                  Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 8), decoration: BoxDecoration(color: _hex(rows[index]['color']), shape: BoxShape.circle)),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    if (widget.price) Text(brl(row['price']), style: const TextStyle(color: Wq.muted)),
-                    if (row['phone'] != null) Text('${row['phone']}', style: const TextStyle(color: Wq.muted)),
-                    if (row['isTerminal'] == true) const Text('Final', style: TextStyle(color: Wq.success, fontSize: 12)),
-                    if (row['active'] == false) const Text('Oculta', style: TextStyle(color: Wq.muted, fontSize: 12)),
+                    Text('${rows[index]['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    if (widget.price) Text(brl(rows[index]['defaultPrice'] ?? rows[index]['price']), style: const TextStyle(color: Wq.muted)),
+                    if (rows[index]['phone'] != null) Text('${rows[index]['phone']}', style: const TextStyle(color: Wq.muted)),
+                    if (rows[index]['isTerminal'] == true) const Text('Final', style: TextStyle(color: Wq.success, fontSize: 12)),
+                    if (rows[index]['showOnPublic'] == false) const Text('Sem QR', style: TextStyle(color: Wq.muted, fontSize: 12)),
+                    if (rows[index]['active'] == false) const Text('Oculta', style: TextStyle(color: Wq.muted, fontSize: 12)),
                   ]),
                 ),
-                IconButton(onPressed: () => openEditor(row: row), icon: const Icon(Icons.edit_outlined)),
-                IconButton(onPressed: () => remove(row), icon: const Icon(Icons.delete_outline, color: Wq.danger)),
+                if (widget.sector) ...[
+                  IconButton(onPressed: index == 0 ? null : () => moveSector(index, -1), icon: const Icon(Icons.arrow_upward, size: 18)),
+                  IconButton(onPressed: index == rows.length - 1 ? null : () => moveSector(index, 1), icon: const Icon(Icons.arrow_downward, size: 18)),
+                ],
+                IconButton(onPressed: () => openEditor(row: rows[index]), icon: const Icon(Icons.edit_outlined)),
+                IconButton(onPressed: () => remove(rows[index]), icon: const Icon(Icons.delete_outline, color: Wq.danger)),
               ]),
             ),
             const SizedBox(height: 8),
@@ -461,6 +587,7 @@ class TeamScreen extends StatefulWidget {
 
 class _TeamScreenState extends State<TeamScreen> {
   List<Map<String, dynamic>> rows = [];
+  List<Map<String, dynamic>> sectors = [];
   String? info;
 
   @override
@@ -470,69 +597,265 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   Future<void> load() async {
-    final res = await widget.api.dio.get('/shops/current/members');
-    setState(() => rows = asMaps(res.data));
+    final results = await Future.wait([widget.api.dio.get('/shops/current/members'), widget.api.dio.get('/sectors')]);
+    setState(() {
+      rows = asMaps(results[0].data);
+      sectors = asMaps(results[1].data).where((row) => row['active'] != false).toList();
+    });
   }
 
   Future<void> add() async {
-    final name = TextEditingController();
-    final email = TextEditingController();
-    final password = TextEditingController();
-    final role = <String>['atendimento'];
-    final ok = await showWqSheet<bool>(
+    final payload = await showWqSheet<Map<String, dynamic>>(
       context,
       title: 'Nova pessoa',
       hint: 'Login da empresa',
-      child: (sheet) => StatefulBuilder(
-        builder: (ctx, setLocal) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(controller: name, decoration: const InputDecoration(labelText: 'Nome')),
-            TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
-            TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
-            DropdownButtonFormField<String>(
-              initialValue: role[0],
-              decoration: const InputDecoration(labelText: 'Papel'),
-              items: const [
-                DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                DropdownMenuItem(value: 'atendimento', child: Text('Atendimento')),
-                DropdownMenuItem(value: 'sector', child: Text('Setor')),
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController(), TextEditingController(), TextEditingController()],
+        builder: (_, fields) {
+          final role = <String>['atendimento'];
+          final picked = <String>[];
+          return StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome')),
+                TextField(controller: fields[1], keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
+                TextField(controller: fields[2], obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
+                DropdownButtonFormField<String>(
+                  initialValue: role[0],
+                  decoration: const InputDecoration(labelText: 'Papel'),
+                  items: const [
+                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(value: 'atendimento', child: Text('Atendimento')),
+                    DropdownMenuItem(value: 'sector', child: Text('Setor')),
+                  ],
+                  onChanged: (value) => setLocal(() => role[0] = value ?? role[0]),
+                ),
+                if (role[0] == 'sector') ...[
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final item in sectors)
+                      FilterChip(
+                        label: Text('${item['name']}'),
+                        selected: picked.contains('${item['id'] ?? item['_id']}'),
+                        onSelected: (on) => setLocal(() {
+                          final id = '${item['id'] ?? item['_id']}';
+                          if (on) {
+                            picked.add(id);
+                          } else {
+                            picked.remove(id);
+                          }
+                        }),
+                      ),
+                  ]),
+                ],
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheet, {
+                    'name': fields[0].text.trim(),
+                    'email': fields[1].text.trim(),
+                    'password': fields[2].text,
+                    'role': role[0],
+                    'sectorIds': List<String>.from(picked),
+                  }),
+                  child: const Text('Adicionar'),
+                ),
               ],
-              onChanged: (value) => setLocal(() => role[0] = value ?? role[0]),
             ),
-            const SizedBox(height: 8),
-            FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Adicionar')),
-          ],
-        ),
+          );
+        },
       ),
     );
-    final payload = {'name': name.text.trim(), 'email': email.text.trim(), 'password': password.text, 'role': role[0]};
-    name.dispose();
-    email.dispose();
-    password.dispose();
-    if (ok != true || payload['email']!.isEmpty) return;
+    if (payload == null || payload['email']!.isEmpty || !mounted) return;
     await widget.api.dio.post('/shops/current/members', data: payload);
     setState(() => info = 'Pessoa adicionada.');
     await load();
   }
 
-  Future<void> resetPassword(Map row) async {
-    final password = TextEditingController();
-    final ok = await showWqSheet<bool>(
+  Future<void> invite() async {
+    final payload = await showWqSheet<Map<String, dynamic>>(
       context,
-      title: 'Nova senha',
-      child: (sheet) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: () => Navigator.pop(sheet, true), child: const Text('Salvar')),
-        ],
+      title: 'Convite',
+      hint: 'Setor vê só a fila. Atendimento cuida dos pedidos. Admin configura a empresa.',
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController()],
+        builder: (_, fields) {
+          final role = <String>['atendimento'];
+          final picked = <String>[];
+          return StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(controller: fields[0], keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail'), autofocus: true),
+                DropdownButtonFormField<String>(
+                  initialValue: role[0],
+                  decoration: const InputDecoration(labelText: 'Papel'),
+                  items: const [
+                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(value: 'atendimento', child: Text('Atendimento')),
+                    DropdownMenuItem(value: 'sector', child: Text('Setor')),
+                  ],
+                  onChanged: (value) => setLocal(() => role[0] = value ?? role[0]),
+                ),
+                if (role[0] == 'sector') ...[
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final item in sectors)
+                      FilterChip(
+                        label: Text('${item['name']}'),
+                        selected: picked.contains('${item['id'] ?? item['_id']}'),
+                        onSelected: (on) => setLocal(() {
+                          final id = '${item['id'] ?? item['_id']}';
+                          if (on) {
+                            picked.add(id);
+                          } else {
+                            picked.remove(id);
+                          }
+                        }),
+                      ),
+                  ]),
+                ],
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheet, {
+                    'email': fields[0].text.trim(),
+                    'role': role[0],
+                    'sectorIds': List<String>.from(picked),
+                  }),
+                  child: const Text('Enviar convite'),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
-    final next = password.text;
-    password.dispose();
-    if (ok != true || next.isEmpty) return;
+    if (payload == null || '${payload['email']}'.isEmpty || !mounted) return;
+    if (payload['role'] == 'sector' && (payload['sectorIds'] as List).isEmpty) {
+      wqToast(context, 'Escolha ao menos um setor.');
+      return;
+    }
+    try {
+      await widget.api.dio.post('/shops/current/invites', data: payload);
+      setState(() => info = 'Convite enviado.');
+    } catch (e) {
+      if (!mounted) return;
+      wqToast(context, widget.api.message(e));
+    }
+  }
+
+  Future<void> editMember(Map row) async {
+    final current = '${row['role'] ?? 'atendimento'}';
+    final saved = await showWqSheet<Map<String, dynamic>>(
+      context,
+      title: 'Papel',
+      child: (sheet) {
+        final role = <String>[current == 'owner' ? 'admin' : current];
+        final picked = <String>[
+          if (row['sectorIds'] is List) ...row['sectorIds'].map((id) => '$id'),
+        ];
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: role[0],
+                decoration: const InputDecoration(labelText: 'Papel'),
+                items: const [
+                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                  DropdownMenuItem(value: 'atendimento', child: Text('Atendimento')),
+                  DropdownMenuItem(value: 'sector', child: Text('Setor')),
+                ],
+                onChanged: (value) => setLocal(() => role[0] = value ?? role[0]),
+              ),
+              if (role[0] == 'sector') ...[
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final item in sectors)
+                    FilterChip(
+                      label: Text('${item['name']}'),
+                      selected: picked.contains('${item['id'] ?? item['_id']}'),
+                      onSelected: (on) => setLocal(() {
+                        final id = '${item['id'] ?? item['_id']}';
+                        if (on) {
+                          picked.add(id);
+                        } else {
+                          picked.remove(id);
+                        }
+                      }),
+                    ),
+                ]),
+              ],
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: () => Navigator.pop(sheet, {'role': role[0], 'sectorIds': List<String>.from(picked)}),
+                child: const Text('Salvar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (saved == null || !mounted) return;
+    if (saved['role'] == 'sector' && (saved['sectorIds'] as List).isEmpty) {
+      wqToast(context, 'Escolha ao menos um setor.');
+      return;
+    }
+    await widget.api.dio.patch('/shops/current/members/${row['id'] ?? row['_id']}', data: {
+      'role': saved['role'],
+      'sectorIds': saved['role'] == 'sector' ? saved['sectorIds'] : <String>[],
+    });
+    await load();
+  }
+
+  Future<void> setActive(Map row, bool active) async {
+    await widget.api.dio.patch('/shops/current/members/${row['id'] ?? row['_id']}', data: {'active': active});
+    await load();
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'owner':
+        return 'Dono';
+      case 'admin':
+        return 'Admin';
+      case 'atendimento':
+        return 'Atendimento';
+      case 'sector':
+        return 'Setor';
+      default:
+        return role;
+    }
+  }
+
+  String _sectorNames(Map row) {
+    final ids = row['sectorIds'];
+    if (ids is! List || ids.isEmpty) return '';
+    return ids.map((id) {
+      final key = '$id';
+      final match = sectors.where((item) => '${item['id'] ?? item['_id']}' == key);
+      if (match.isEmpty) return '';
+      return '${match.first['name'] ?? ''}';
+    }).where((name) => name.isNotEmpty).join(', ');
+  }
+
+  Future<void> resetPassword(Map row) async {
+    final next = await showWqSheet<String>(
+      context,
+      title: 'Nova senha',
+      child: (sheet) => WqSheetFields(
+        create: () => [TextEditingController()],
+        builder: (_, fields) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(controller: fields[0], obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: () => Navigator.pop(sheet, fields[0].text), child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    if (next == null || next.isEmpty || !mounted) return;
     await widget.api.dio.post('/shops/current/members/${row['id'] ?? row['_id']}/reset-password', data: {'password': next});
     setState(() => info = 'Senha atualizada.');
   }
@@ -547,18 +870,197 @@ class _TeamScreenState extends State<TeamScreen> {
         children: [
           if (info != null) Text(info!, style: const TextStyle(color: Wq.success)),
           FilledButton(onPressed: add, child: const Text('Adicionar')),
+          const SizedBox(height: 8),
+          OutlinedButton(onPressed: invite, child: const Text('Convidar por e-mail')),
           const SizedBox(height: 12),
           for (final row in rows)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: WqCard(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${row['name'] ?? row['user']?['name'] ?? row['email'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text('${row['email'] ?? row['user']?['email'] ?? ''} · ${row['role'] ?? ''}', style: const TextStyle(color: Wq.muted)),
-                  TextButton(onPressed: () => resetPassword(row), child: const Text('Redefinir senha')),
+                  Row(children: [
+                    Expanded(child: Text('${row['name'] ?? row['user']?['name'] ?? row['email'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), border: Border.all(color: Wq.line)),
+                      child: Text(_roleLabel('${row['role'] ?? ''}'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                  ]),
+                  Text('${row['email'] ?? row['user']?['email'] ?? ''}', style: const TextStyle(color: Wq.muted)),
+                  if (_sectorNames(row).isNotEmpty) Text('Setores: ${_sectorNames(row)}', style: const TextStyle(color: Wq.muted, fontSize: 12)),
+                  Text(row['active'] == false ? 'Inativo' : 'Ativo', style: const TextStyle(color: Wq.muted, fontSize: 12)),
+                  if ('${row['role']}' != 'owner')
+                    Wrap(spacing: 4, children: [
+                      TextButton(onPressed: () => editMember(row), child: const Text('Editar')),
+                      TextButton(onPressed: () => resetPassword(row), child: const Text('Senha')),
+                      TextButton(onPressed: () => setActive(row, row['active'] == false), child: Text(row['active'] == false ? 'Reativar' : 'Desativar')),
+                    ]),
                 ]),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class EmployeesScreen extends StatefulWidget {
+  const EmployeesScreen({super.key, required this.api});
+  final WorqeraApi api;
+  @override
+  State<EmployeesScreen> createState() => _EmployeesScreenState();
+}
+
+class _EmployeesScreenState extends State<EmployeesScreen> {
+  List<Map<String, dynamic>> rows = [];
+  List<Map<String, dynamic>> sectors = [];
+  String filterSector = 'all';
+  String filterActive = 'todos';
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final results = await Future.wait([widget.api.dio.get('/employees'), widget.api.dio.get('/sectors')]);
+      setState(() {
+        rows = asMaps(results[0].data);
+        sectors = asMaps(results[1].data).where((row) => row['active'] != false).toList();
+        error = null;
+      });
+    } catch (e) {
+      setState(() => error = widget.api.message(e));
+    }
+  }
+
+  String sectorName(dynamic id) {
+    final key = '$id';
+    final match = sectors.where((row) => '${row['id'] ?? row['_id']}' == key);
+    if (match.isEmpty) return '';
+    return '${match.first['name'] ?? ''}';
+  }
+
+  Future<void> edit({Map<String, dynamic>? row}) async {
+    final saved = await showWqSheet<Map<String, dynamic>>(
+      context,
+      title: row == null ? 'Novo funcionário' : 'Editar funcionário',
+      hint: 'Quem executa, sem login',
+      child: (sheet) => WqSheetFields(
+        create: () => [
+          TextEditingController(text: '${row?['name'] ?? ''}'),
+          TextEditingController(text: '${row?['phone'] ?? ''}'),
+          TextEditingController(text: '${row?['email'] ?? ''}'),
+        ],
+        builder: (_, fields) {
+          final sector = <String>['${row?['sectorId'] ?? ''}'];
+          final active = <bool>[row?['active'] != false];
+          return StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(controller: fields[0], decoration: const InputDecoration(labelText: 'Nome'), autofocus: true),
+                TextField(controller: fields[1], decoration: const InputDecoration(labelText: 'Telefone')),
+                TextField(controller: fields[2], decoration: const InputDecoration(labelText: 'E-mail')),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final item in sectors)
+                    FilterChip(
+                      label: Text('${item['name']}'),
+                      selected: sector[0] == '${item['id'] ?? item['_id']}',
+                      onSelected: (_) => setLocal(() => sector[0] = '${item['id'] ?? item['_id']}'),
+                    ),
+                ]),
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: active[0], onChanged: (value) => setLocal(() => active[0] = value), title: const Text('Ativo')),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () => Navigator.pop(sheet, {
+                    'name': fields[0].text.trim(),
+                    'phone': fields[1].text.trim(),
+                    'email': fields[2].text.trim(),
+                    'sectorId': sector[0],
+                    'active': active[0],
+                  }),
+                  child: const Text('Salvar'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    if (saved == null || '${saved['name']}'.trim().isEmpty) return;
+    final body = {
+      'name': saved['name'],
+      'phone': saved['phone'],
+      'email': saved['email'],
+      'sectorId': '${saved['sectorId']}'.isEmpty ? null : saved['sectorId'],
+      'active': saved['active'] == true,
+    };
+    if (row == null) {
+      await widget.api.dio.post('/employees', data: body);
+    } else {
+      await widget.api.dio.patch('/employees/${row['id'] ?? row['_id']}', data: body);
+    }
+    await load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WqPage(
+      title: 'Funcionários',
+      subtitle: 'Quem executa, sem login',
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+          FilledButton(onPressed: () => edit(), child: const Text('Adicionar')),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ChoiceChip(label: const Text('Todos'), selected: filterActive == 'todos', onSelected: (_) => setState(() => filterActive = 'todos')),
+            ChoiceChip(label: const Text('Ativos'), selected: filterActive == 'ativos', onSelected: (_) => setState(() => filterActive = 'ativos')),
+            ChoiceChip(label: const Text('Inativos'), selected: filterActive == 'inativos', onSelected: (_) => setState(() => filterActive = 'inativos')),
+            ChoiceChip(label: const Text('Qualquer setor'), selected: filterSector == 'all', onSelected: (_) => setState(() => filterSector = 'all')),
+            for (final item in sectors)
+              ChoiceChip(
+                label: Text('${item['name']}'),
+                selected: filterSector == '${item['id'] ?? item['_id']}',
+                onSelected: (_) => setState(() => filterSector = '${item['id'] ?? item['_id']}'),
+              ),
+          ]),
+          const SizedBox(height: 12),
+          for (final row in rows.where((row) {
+            final sectorOk = filterSector == 'all' || '${row['sectorId']}' == filterSector;
+            final activeOk = filterActive == 'todos' || (filterActive == 'ativos' ? row['active'] != false : row['active'] == false);
+            return sectorOk && activeOk;
+          })) ...[
+            WqCard(
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(
+                      [sectorName(row['sectorId']), '${row['phone'] ?? ''}', '${row['email'] ?? ''}'].where((part) => part.isNotEmpty && part != 'null').join(' · '),
+                      style: const TextStyle(color: Wq.muted),
+                    ),
+                    if (row['active'] == false) const Text('Inativo', style: TextStyle(color: Wq.muted, fontSize: 12)),
+                  ]),
+                ),
+                IconButton(onPressed: () => edit(row: row), icon: const Icon(Icons.edit_outlined)),
+                IconButton(
+                  onPressed: () async {
+                    await widget.api.dio.delete('/employees/${row['id'] ?? row['_id']}');
+                    await load();
+                  },
+                  icon: const Icon(Icons.delete_outline, color: Wq.danger),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 8),
+          ],
         ],
       ),
     );
@@ -581,13 +1083,13 @@ class TvScreen extends StatelessWidget {
           if (client == null)
             const Text('Abra as TVs pelo menu da empresa.', style: TextStyle(color: Wq.muted))
           else ...[
-            _tile(context, 'TV Cliente', 'Códigos na fila', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TvClientScreen(api: client)))),
+            _tile(context, 'TV Cliente', 'Códigos na fila', () => ShellScope.maybeOf(context)?.openPage('tv-cliente', TvClientScreen(api: client), stack: true)),
             const SizedBox(height: 8),
-            _tile(context, 'TV Oficina', 'Contagem por setor', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TvFloorScreen(api: client)))),
+            _tile(context, 'TV Oficina', 'Contagem por setor', () => ShellScope.maybeOf(context)?.openPage('tv-oficina', TvFloorScreen(api: client), stack: true)),
             const SizedBox(height: 8),
-            _tile(context, 'TV Financeiro', 'Recebido, previsto e pendente', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TvFinanceBoard(api: client)))),
+            _tile(context, 'TV Financeiro', 'Recebido, previsto e pendente', () => ShellScope.maybeOf(context)?.openPage('tv-fin', TvFinanceBoard(api: client), stack: true)),
             const SizedBox(height: 8),
-            _tile(context, 'Ajustes das TVs', 'Título, páginas e atraso', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TvSettingsScreen(api: client)))),
+            _tile(context, 'Ajustes das TVs', 'Título, páginas e atraso', () => ShellScope.maybeOf(context)?.openPage('tv-ajustes', TvSettingsScreen(api: client), stack: true)),
           ],
         ],
       ),

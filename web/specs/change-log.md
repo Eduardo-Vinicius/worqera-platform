@@ -1,5 +1,12 @@
 # Worqera Web — Change log
 
+## 2026-10-06
+
+- **Kanban:** um campo discreto de data filtra os cartões pelo dia em que o pedido entrou.
+- **Novo pedido:** o pedido é criado e a tela segue. As fotos de cada item sobem juntas, sem travar o sucesso. O e-mail do laudo espera essas fotos.
+- **Sino:** abrir marca a leitura e o número zera. A lista que estava aberta continua visível; a próxima busca não traz o mesmo aviso.
+- **Portal:** atualiza a cada 60s, e só com a aba visível.
+
 ## 2026-10-05
 
 - **Sessão:** sair envia o refresh guardado, para a API invalidar a conta mesmo com o acesso vencido.

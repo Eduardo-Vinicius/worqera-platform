@@ -11,11 +11,11 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Área | Endpoint |
 |------|----------|
 | Health | `GET /health` |
-| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`; logout revoga via refresh mesmo com access vencido) |
+| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`; logout só limpa o cliente atual; troca de senha invalida os tokens) |
 | Shop / members | `/shops/current` (+ vertical, itemLabel, starter kit) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
 | Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |
-| Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready |
+| Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready. Com `photoCounts`, o e-mail espera o upload de cada item |
 | Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary) |
 | Services / clients / employees | CRUD |
 | Billing | `/billing/*` + webhook HMAC |

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { loginV1 } from "@/lib/apiV1"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    try {
+      const notice = sessionStorage.getItem("wq-auth-notice")
+      if (!notice) return
+      sessionStorage.removeItem("wq-auth-notice")
+      setError(notice)
+    } catch {}
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
