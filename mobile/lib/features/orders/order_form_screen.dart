@@ -127,6 +127,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   List<Map<String, dynamic>> clients = [];
   List<Map<String, dynamic>>? remoteClients;
   String remoteTerm = '';
+  bool searchingClients = false;
   Timer? clientSearchTimer;
   List<Map<String, dynamic>> brands = [];
   List<Map<String, dynamic>> services = [];
@@ -221,9 +222,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       setState(() {
         remoteClients = null;
         remoteTerm = '';
+        searchingClients = false;
       });
       return;
     }
+    setState(() => searchingClients = true);
     clientSearchTimer = Timer(const Duration(milliseconds: 280), () async {
       try {
         final res = await widget.api.dio.get('/clients', queryParameters: {'q': term, 'limit': 40});
@@ -231,24 +234,16 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         setState(() {
           remoteTerm = term.toLowerCase();
           remoteClients = _maps(res.data, const ['clients', 'data', 'items']).map(_client).toList();
+          searchingClients = false;
         });
       } catch (_) {
         if (!mounted || clientQuery.text.trim() != term) return;
-        setState(() => remoteClients = null);
+        setState(() {
+          remoteClients = null;
+          searchingClients = false;
+        });
       }
     });
-  }
-
-  bool _clientHit(Map<String, dynamic> row, String query, String digits) {
-    final name = '${row['name']}'.toLowerCase();
-    final phone = '${row['phone']}';
-    final cpf = '${row['cpf']}';
-    final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
-    final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
-    return name.contains(query) ||
-        phone.toLowerCase().contains(query) ||
-        cpf.toLowerCase().contains(query) ||
-        (digits.isNotEmpty && (phoneDigits.contains(digits) || cpfDigits.contains(digits)));
   }
 
   Map<String, dynamic> _client(Map raw) {
@@ -918,12 +913,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   Widget build(BuildContext context) {
     final item = current;
     final query = clientQuery.text.trim().toLowerCase();
-    final digits = clientQuery.text.replaceAll(RegExp(r'\D'), '');
     final matches = query.isEmpty
         ? const <Map<String, dynamic>>[]
         : (remoteClients != null && remoteTerm == query
                 ? remoteClients!
-                : clients.where((row) => _clientHit(row, query, digits)).toList())
+                : clients.where((row) => clientMatches(row, query)).toList())
             .take(8)
             .toList();
     final openSectors = sectors.where((row) => row['isTerminal'] != true).toList();
@@ -987,7 +981,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                       searchClients(value);
                     },
                   ),
-                  if (query.isNotEmpty && matches.isEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Nenhum cliente encontrado', style: TextStyle(color: context.wqMuted))),
+                  if (searchingClients) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Buscando na lista inteira…', style: TextStyle(color: context.wqMuted, fontSize: 12))),
+                  if (query.isNotEmpty && matches.isEmpty && !searchingClients) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Nenhum cliente encontrado', style: TextStyle(color: context.wqMuted))),
                   for (final row in matches)
                     ListTile(
                       contentPadding: EdgeInsets.zero,

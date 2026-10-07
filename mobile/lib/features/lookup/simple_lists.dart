@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../api/worqera_api.dart';
@@ -21,8 +23,13 @@ class ClientsScreen extends StatefulWidget {
 
 class _ClientsScreenState extends State<ClientsScreen> {
   final q = TextEditingController();
-  List<Map<String, dynamic>> rows = [];
+  List<Map<String, dynamic>> all = [];
+  List<Map<String, dynamic>>? found;
+  String foundTerm = '';
   String? error;
+  bool loading = true;
+  bool searching = false;
+  Timer? searchTimer;
 
   @override
   void initState() {
@@ -30,16 +37,68 @@ class _ClientsScreenState extends State<ClientsScreen> {
     load();
   }
 
+  @override
+  void dispose() {
+    searchTimer?.cancel();
+    q.dispose();
+    super.dispose();
+  }
+
   Future<void> load() async {
     try {
-      final res = await widget.api.dio.get('/clients', queryParameters: {'q': q.text.trim()});
+      final res = await widget.api.dio.get('/clients', queryParameters: {'limit': 200});
+      if (!mounted) return;
       setState(() {
-        rows = asMaps(res.data);
+        all = asMaps(res.data);
         error = null;
+        loading = false;
       });
     } catch (e) {
-      setState(() => error = widget.api.message(e));
+      if (!mounted) return;
+      setState(() {
+        error = widget.api.message(e);
+        loading = false;
+      });
     }
+  }
+
+  void onQuery(String raw) {
+    searchTimer?.cancel();
+    final term = raw.trim();
+    if (term.length < 2) {
+      setState(() {
+        found = null;
+        foundTerm = '';
+        searching = false;
+      });
+      return;
+    }
+    setState(() => searching = true);
+    searchTimer = Timer(const Duration(milliseconds: 280), () async {
+      try {
+        final res = await widget.api.dio.get('/clients', queryParameters: {'q': term, 'limit': 40});
+        if (!mounted || q.text.trim() != term) return;
+        setState(() {
+          foundTerm = term.toLowerCase();
+          found = asMaps(res.data);
+          searching = false;
+          error = null;
+        });
+      } catch (e) {
+        if (!mounted || q.text.trim() != term) return;
+        setState(() {
+          searching = false;
+          error = widget.api.message(e);
+        });
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> get visible {
+    final term = q.text.trim().toLowerCase();
+    if (found != null && foundTerm == term) return found!;
+    if (term.isEmpty) return all;
+    return all.where((row) => clientMatches(row, term)).toList();
   }
 
   Future<void> create() async {
@@ -100,6 +159,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
     if (payload == null || payload['name']!.isEmpty || !mounted) return;
     await widget.api.dio.post('/clients', data: payload);
+    q.clear();
     await load();
   }
 
@@ -111,16 +171,25 @@ class _ClientsScreenState extends State<ClientsScreen> {
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: TextField(controller: q, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Nome ou telefone'), onSubmitted: (_) => load()),
+          child: TextField(
+            controller: q,
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar por nome, telefone, CPF ou e-mail'),
+            onChanged: onQuery,
+          ),
         ),
         Expanded(
-          child: ListView(
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
               if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+              if (searching) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Buscando na lista inteira…', style: TextStyle(color: context.wqMuted, fontSize: 12))),
               FilledButton(onPressed: create, child: const Text('Novo cliente')),
               const SizedBox(height: 12),
-              for (final row in rows) ...[
+              Text('${visible.length} ${visible.length == 1 ? 'cliente' : 'clientes'}', style: TextStyle(color: context.wqMuted, fontSize: 13)),
+              const SizedBox(height: 8),
+              for (final row in visible) ...[
                 WqCard(
                   onTap: () {
                     final id = '${row['id'] ?? row['_id']}';
@@ -144,7 +213,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 ),
                 const SizedBox(height: 8),
               ],
-              if (rows.isEmpty) const Text('Nenhum cliente.', style: TextStyle(color: Wq.muted)),
+              if (visible.isEmpty)
+                Text(
+                  all.isEmpty ? 'Nenhum cliente cadastrado.' : 'Nenhum cliente encontrado.',
+                  style: const TextStyle(color: Wq.muted),
+                ),
             ],
           ),
         ),
@@ -305,6 +378,25 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
   List<Map<String, dynamic>> rows = [];
   String? error;
   bool loading = false;
+  bool hasSearched = false;
+  Timer? searchTimer;
+
+  @override
+  void dispose() {
+    searchTimer?.cancel();
+    q.dispose();
+    super.dispose();
+  }
+
+  void onQuery(String raw) {
+    searchTimer?.cancel();
+    if (mode != 'clientes') return;
+    final term = raw.trim();
+    if (term.length < 2) return;
+    searchTimer = Timer(const Duration(milliseconds: 320), () {
+      if (q.text.trim() == term) find();
+    });
+  }
 
   Future<void> find() async {
     setState(() {
@@ -313,7 +405,11 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
     });
     try {
       if (mode == 'clientes') {
-        final res = await widget.api.dio.get('/clients', queryParameters: {'q': q.text.trim()});
+        final term = q.text.trim();
+        final res = await widget.api.dio.get('/clients', queryParameters: {
+          if (term.isNotEmpty) 'q': term,
+          'limit': term.isEmpty ? 40 : 40,
+        });
         rows = asMaps(res.data);
       } else {
         final res = await widget.api.dio.get('/orders', queryParameters: {
@@ -326,7 +422,12 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
     } catch (e) {
       error = widget.api.message(e);
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() {
+          loading = false;
+          hasSearched = true;
+        });
+      }
     }
   }
 
@@ -361,6 +462,7 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
           child: TextField(
             controller: q,
             decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: mode == 'clientes' ? 'Nome, CPF, telefone ou e-mail' : 'Código, cliente ou modelo'),
+            onChanged: onQuery,
             onSubmitted: (_) => find(),
           ),
         ),
@@ -408,7 +510,15 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
                           ]),
                         ),
                       ),
-                    if (rows.isEmpty) const Text('Busque para ver a lista.', style: TextStyle(color: Wq.muted)),
+                    if (rows.isEmpty)
+                      Text(
+                        !hasSearched
+                            ? 'Digite pelo menos 2 caracteres.'
+                            : mode == 'clientes'
+                                ? 'Nenhum cliente encontrado.'
+                                : 'Nenhum pedido encontrado.',
+                        style: const TextStyle(color: Wq.muted),
+                      ),
                   ],
                 ),
         ),

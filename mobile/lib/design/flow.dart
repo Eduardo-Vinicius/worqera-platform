@@ -30,6 +30,35 @@ String maskCpf(String raw) {
   return 'CPF •••${digits.substring(digits.length - 2)}';
 }
 
+String foldText(String raw) {
+  const from = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
+  const to = 'aaaaaeeeeiiiiooooouuuucn';
+  final buffer = StringBuffer();
+  for (final rune in raw.toLowerCase().runes) {
+    final char = String.fromCharCode(rune);
+    final index = from.indexOf(char);
+    buffer.write(index >= 0 ? to[index] : char);
+  }
+  return buffer.toString();
+}
+
+bool clientMatches(Map row, String query) {
+  final term = query.trim().toLowerCase();
+  if (term.isEmpty) return true;
+  final name = foldText('${row['nomeCompleto'] ?? row['name'] ?? ''}');
+  final email = '${row['email'] ?? ''}'.toLowerCase();
+  final phone = '${row['telefone'] ?? row['phone'] ?? ''}';
+  final cpf = '${row['cpf'] ?? ''}';
+  final digits = term.replaceAll(RegExp(r'\D'), '');
+  final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+  final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
+  return name.contains(foldText(term)) ||
+      email.contains(term) ||
+      phone.toLowerCase().contains(term) ||
+      cpf.toLowerCase().contains(term) ||
+      (digits.isNotEmpty && (phoneDigits.contains(digits) || cpfDigits.contains(digits)));
+}
+
 String maskPhone(String raw) {
   final digits = raw.replaceAll(RegExp(r'\D'), '');
   if (digits.length <= 2) return digits;

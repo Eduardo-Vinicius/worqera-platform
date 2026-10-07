@@ -2,7 +2,7 @@
 
 ## 2026-10-06
 
-- **Novo pedido:** a busca de cliente consulta a lista inteira. Telefone e CPF batem com ou sem pontuação.
+- **Cliente:** no pedido, em Clientes e em Consultas, a busca vai na lista inteira enquanto se digita. Nome, telefone, CPF e e-mail batem com ou sem acento e pontuação.
 - **Kanban:** o chip Data filtra a fila pelo dia em que o pedido entrou. Tocar de novo limpa.
 - **Novo pedido:** o pedido é criado e a tela de sucesso abre na hora. As fotos de cada item sobem juntas. O e-mail do laudo sai depois, já com elas.
 - **Setores:** ordem, QR público, e-mail ao entrar e ocultar. Serviços gravam o preço que a API espera. Marcas e acessórios podem ficar inativos.
