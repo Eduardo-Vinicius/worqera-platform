@@ -1,17 +1,50 @@
 const Client = require('../models/Client');
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function accentPattern(term) {
+  const classes = {
+    a: '[aáàâãäAÁÀÂÃÄ]',
+    e: '[eéèêëEÉÈÊË]',
+    i: '[iíìîïIÍÌÎÏ]',
+    o: '[oóòôõöOÓÒÔÕÖ]',
+    u: '[uúùûüUÚÙÛÜ]',
+    c: '[cçCÇ]',
+    n: '[nñNÑ]',
+  };
+  return Array.from(String(term))
+    .map((ch) => {
+      const base = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      return classes[base] || escapeRegex(ch);
+    })
+    .join('');
+}
+
+function digitsFlexPattern(term) {
+  const digits = String(term).replace(/\D/g, '');
+  if (digits.length < 3) return null;
+  return digits.split('').map((digit) => escapeRegex(digit)).join('\\D*');
+}
+
 async function listClients(shopId, { q, limit, cursor } = {}) {
   const filter = { shopId };
   if (q) {
     const term = String(q).trim();
     if (term) {
-      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filter.$or = [
-        { name: new RegExp(escaped, 'i') },
-        { cpf: new RegExp(escaped, 'i') },
-        { phone: new RegExp(escaped, 'i') },
-        { email: new RegExp(escaped, 'i') },
+      const or = [
+        { name: new RegExp(accentPattern(term), 'i') },
+        { email: new RegExp(escapeRegex(term), 'i') },
       ];
+      const flex = digitsFlexPattern(term);
+      if (flex) {
+        or.push({ phone: new RegExp(flex) }, { cpf: new RegExp(flex) });
+      } else {
+        const plain = new RegExp(escapeRegex(term), 'i');
+        or.push({ phone: plain }, { cpf: plain });
+      }
+      filter.$or = or;
     }
   }
 

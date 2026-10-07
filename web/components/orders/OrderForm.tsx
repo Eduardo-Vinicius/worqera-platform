@@ -140,6 +140,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [warrantyPrice, setWarrantyPrice] = useState(0) // Preço padrão da garantia
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([])
   const [clientSearch, setClientSearch] = useState("")
+  const [foundClients, setFoundClients] = useState<{ term: string; rows: any[] } | null>(null)
+  const [searchingClients, setSearchingClients] = useState(false)
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [availableServices, setAvailableServices] = useState(FALLBACK_SERVICES);
@@ -307,6 +309,33 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     }
     fetchdata();
   }, []);
+
+  useEffect(() => {
+    const term = clientSearch.trim()
+    if (term.length < 2) {
+      setFoundClients(null)
+      setSearchingClients(false)
+      return
+    }
+    let cancelled = false
+    setSearchingClients(true)
+    const handle = setTimeout(() => {
+      getClientesService({ q: term, limit: 40, forceRefresh: true })
+        .then((res) => {
+          if (!cancelled) setFoundClients({ term: term.toLowerCase(), rows: res.data || [] })
+        })
+        .catch(() => {
+          if (!cancelled) setFoundClients(null)
+        })
+        .finally(() => {
+          if (!cancelled) setSearchingClients(false)
+        })
+    }, 280)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
+  }, [clientSearch])
 
   // Fotos do tênis (armazenamos também a preview para poder revogar URLs e evitar leaks)
   const MAX_PHOTOS = parseInt(process.env.NEXT_PUBLIC_MAX_PHOTOS || "10", 10) || 10;
@@ -529,20 +558,26 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
   const searchQuery = clientSearch.trim().toLowerCase()
   const searchDigits = clientSearch.replace(/\D/g, "")
-  const filteredClients = clients.filter((client: any) => {
+  const localMatches = clients.filter((client: any) => {
     if (!searchQuery) return false
-    const nome = String(client.nomeCompleto || client.name || "").toLowerCase()
+    const nome = String(client.nomeCompleto || client.name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+    const foldedQuery = searchQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     const phone = String(client.telefone || client.phone || "")
     const cpf = String(client.cpf || "")
     const phoneDigits = phone.replace(/\D/g, "")
     const cpfDigits = cpf.replace(/\D/g, "")
     return (
-      nome.includes(searchQuery) ||
+      nome.includes(foldedQuery) ||
       phone.toLowerCase().includes(searchQuery) ||
       cpf.toLowerCase().includes(searchQuery) ||
       (searchDigits.length > 0 && (phoneDigits.includes(searchDigits) || cpfDigits.includes(searchDigits)))
     )
   })
+  const filteredClients =
+    foundClients && foundClients.term === searchQuery ? foundClients.rows : localMatches
 
   const selectedClient =
     clients.find((client: any) => String(client.id) === String(formData.clientId)) ||
@@ -575,6 +610,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const selectClient = (client: any) => {
     const id = String(client.id || client._id || "")
     if (!id) return
+    setClients((prev: any[]) =>
+      prev.some((row) => String(row.id || row._id) === id) ? prev : [{ ...client, id }, ...prev]
+    )
     handleSelectChange("clientId", id)
     setClientSearch("")
   }
@@ -1213,6 +1251,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     </div>
                     {loadingClients && (
                       <p className="text-xs text-[var(--wq-text-muted)]">Carregando clientes…</p>
+                    )}
+                    {searchingClients && clientSearch.trim().length >= 2 && (
+                      <p className="text-xs text-[var(--wq-text-muted)]">Buscando na lista inteira…</p>
                     )}
                     {clientSearch && (
                       <div className="max-h-56 overflow-y-auto rounded-xl border border-[var(--wq-border)]">

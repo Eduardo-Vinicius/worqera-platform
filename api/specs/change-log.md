@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- **Clientes:** a busca acha o nome com ou sem acento, e o telefone ou CPF mesmo com pontuação no meio.
 - **Pedido com foto:** o laudo não é gravado nem enviado enquanto faltar foto. Se uma imagem não entrar no PDF, o arquivo não é salvo e o e-mail não sai. Sem foto no pedido, o e-mail continua saindo na criação.
 - **Sessão:** um token válido não recebe mais "Session revoked". Sair não derruba os outros aparelhos. Se o login realmente acabar, o app e o site voltam para a tela de entrar e avisam.
 - **Sino:** abrir grava a hora na membership. O inbox seguinte ignora pronto, reaberto e avaliação anteriores a essa hora.

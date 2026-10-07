@@ -33,6 +33,7 @@ function pedidosHref(client: { cpf?: string; nomeCompleto?: string; name?: strin
 
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [found, setFound] = useState<{ term: string; rows: any[] } | null>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,28 @@ export default function ClientsPage() {
     }
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    const term = searchTerm.trim();
+    if (term.length < 2) {
+      setFound(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      getClientesService({ q: term, limit: 40, forceRefresh: true })
+        .then((res) => {
+          if (!cancelled) setFound({ term: term.toLowerCase(), rows: res.data || [] });
+        })
+        .catch(() => {
+          if (!cancelled) setFound(null);
+        });
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [searchTerm]);
 
   const openEditModal = (client: any) => {
     setEditingClient(client);
@@ -94,16 +117,25 @@ export default function ClientsPage() {
     }
   };
 
-  const filteredClients = clients.filter((client) => {
-    const term = searchTerm.toLowerCase()
-    const name = (client.nomeCompleto || client.name || "").toLowerCase()
+  const term = searchTerm.trim().toLowerCase()
+  const digits = searchTerm.replace(/\D/g, "")
+  const localMatches = clients.filter((client) => {
+    const name = (client.nomeCompleto || client.name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+    const folded = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    const phoneDigits = String(client.telefone || client.phone || "").replace(/\D/g, "")
+    const cpfDigits = String(client.cpf || "").replace(/\D/g, "")
     return (
-      name.includes(term) ||
-      client.cpf?.includes(searchTerm) ||
-      (client.telefone || client.phone || "").includes(searchTerm) ||
-      (client.email || "").toLowerCase().includes(term)
+      name.includes(folded) ||
+      client.cpf?.toLowerCase().includes(term) ||
+      (client.telefone || client.phone || "").toLowerCase().includes(term) ||
+      (client.email || "").toLowerCase().includes(term) ||
+      (digits.length > 0 && (phoneDigits.includes(digits) || cpfDigits.includes(digits)))
     )
   })
+  const filteredClients = found && found.term === term ? found.rows : localMatches
 
   const countLabel = `${filteredClients.length} ${filteredClients.length === 1 ? "cliente" : "clientes"}`
 

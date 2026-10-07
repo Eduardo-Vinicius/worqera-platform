@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- **Cliente no pedido:** a busca consulta a lista inteira da empresa, não só os 200 mais recentes. Telefone e CPF batem com ou sem pontuação.
 - **Site:** a página inicial mostra fila, avisos e o histórico do cliente, com o quadro e o aviso em movimento.
 - **Kanban:** um campo discreto de data filtra os cartões pelo dia em que o pedido entrou.
 - **Novo pedido:** o pedido é criado e a tela segue. As fotos de cada item sobem juntas, sem travar o sucesso. O e-mail do laudo espera essas fotos.
