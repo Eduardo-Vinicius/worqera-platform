@@ -414,10 +414,9 @@ async function createOrder(shopId, userId, data) {
   });
 
   const awaitingPhotos = Boolean(order.photoNotify?.expected?.some((n) => Number(n) > 0));
-  const awaitingPrice = pricePending(order);
-  const emailNotify = awaitingPrice
+  const emailNotify = holdLaudo(order)
     ? { ok: true, queued: false, deferred: true, reason: 'awaiting-price' }
-    : awaitingPhotos
+    : awaitingPhotos && !orderHasPhotos(order)
       ? { ok: true, queued: false, deferred: true, reason: 'awaiting-photos' }
       : await queueCreatedNotify(shopId, order, {
           sectorName: rollupSector?.name || startSector?.name,
@@ -1548,6 +1547,17 @@ function pricePending(order) {
   return (Number(order?.pricing?.total) || 0) <= 0.009;
 }
 
+function orderHasPhotos(order) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (items.some((item) => Array.isArray(item?.photos) && item.photos.length > 0)) return true;
+  return Array.isArray(order?.photos) && order.photos.length > 0;
+}
+
+/** Laudo fica parado só quando não há preço e também não há foto. */
+function holdLaudo(order) {
+  return pricePending(order) && !orderHasPhotos(order);
+}
+
 function pendingPhotoNotify(raw, itemCount) {
   if (!Array.isArray(raw) || !itemCount) return null;
   const counts = [];
@@ -1560,7 +1570,7 @@ function pendingPhotoNotify(raw, itemCount) {
 }
 
 async function queueCreatedNotify(shopId, order, { sectorName } = {}) {
-  if (pricePending(order)) {
+  if (holdLaudo(order)) {
     return { ok: true, queued: false, deferred: true, reason: 'awaiting-price' };
   }
   let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
@@ -1614,8 +1624,7 @@ async function releaseCreatedEmail(shopId, orderId) {
   }
   if (!current.photoNotify) return { ok: true, already: true };
   if (current.photoNotify.sent) return { ok: true, already: true };
-  if (!itemPhotosReady(current)) return { ok: true, waiting: true };
-  if (pricePending(current)) return { ok: true, waiting: true, reason: 'awaiting-price' };
+  if (holdLaudo(current)) return { ok: true, waiting: true, reason: 'awaiting-price' };
   if (current.photoNotify.approved === false) return { ok: true, skipped: true, reason: 'declined' };
 
   const claimed = await Order.findOneAndUpdate(
@@ -1671,20 +1680,13 @@ async function sendLaudoNow(shopId, orderId) {
     code: order.code || '',
     to: order.clientEmail || '',
   };
-  if (pricePending(order)) {
+  if (holdLaudo(order)) {
     const waiting = { ok: false, waiting: true, skipped: true, reason: 'awaiting-price' };
     await recordMailLog({ ...logBase, ...waiting });
     return waiting;
   }
-  const expected = order.photoNotify?.expected || [];
-  const needsPhotos = expected.some((n) => Number(n) > 0);
   if (order.photoNotify) {
     await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.approved': true } });
-  }
-  if (needsPhotos && !itemPhotosReady(order)) {
-    const waiting = { ok: true, waiting: true, skipped: true, reason: 'awaiting-photos' };
-    await recordMailLog({ ...logBase, ...waiting, ok: false });
-    return waiting;
   }
 
   const Shop = require('../models/Shop');
@@ -1746,6 +1748,7 @@ async function notePhotoUpload(shopId, orderId, itemIndex, addedCount) {
   await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.got': got } });
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order?.photoNotify || order.photoNotify.sent) return;
+  if (holdLaudo(order)) return;
   if (!itemPhotosReady(order)) return;
   await releaseCreatedEmail(shopId, orderId);
 }
@@ -2171,6 +2174,7 @@ module.exports = {
   replaceOrderPhotos,
   uploadItemPhotos,
   releaseCreatedEmail,
+  sendLaudoNow,
   repairPhotoNotify,
   deleteItemPhoto,
   getPublicOrderByCode,

@@ -237,6 +237,11 @@ exports.resendEmail = wrap(async (req, res) => {
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
+  if (kind === 'created') {
+    const emailNotify = await orderService.sendLaudoNow(req.shopId, req.params.id);
+    res.status(200).json({ ok: Boolean(emailNotify?.ok), emailNotify });
+    return;
+  }
   const { enqueueNotifyOrderStatus } = require('../services/orderNotify');
   const emailNotify = await enqueueNotifyOrderStatus(shop, order, kind, {
     sectorName: undefined,
