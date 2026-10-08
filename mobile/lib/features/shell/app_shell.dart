@@ -225,6 +225,8 @@ class _AppShellState extends State<AppShell> {
                       final reopened = int.tryParse('${body['reopenedCount'] ?? 0}') ?? 0;
                       final readyRows = body['ready'] is List ? body['ready'] as List : const [];
                       final feedback = body['feedback'] is List ? body['feedback'] as List : const [];
+                      final history = body['history'] is List ? body['history'] as List : const [];
+                      final readHistory = history.where((row) => row is Map && row['read'] == true).toList();
                       try {
                         await widget.api.dio.post('/alerts/inbox/read');
                         if (mounted) setState(() => readyCount = 0);
@@ -240,6 +242,9 @@ class _AppShellState extends State<AppShell> {
                         isScrollControlled: true,
                         builder: (ctx) => Padding(
                           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.7),
+                            child: SingleChildScrollView(
                           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                             const Text('Avisos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                             const SizedBox(height: 4),
@@ -260,7 +265,28 @@ class _AppShellState extends State<AppShell> {
                                   padding: const EdgeInsets.only(top: 10),
                                   child: Text('${row['code'] ?? ''} · ${row['score'] ?? ''}/5 ${row['comment'] ?? ''}'.trim()),
                                 ),
+                            if (readHistory.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              const Text('Histórico', style: TextStyle(fontWeight: FontWeight.w800)),
+                              for (final row in readHistory.take(24))
+                                if (row is Map)
+                                  InkWell(
+                                    onTap: () {
+                                      Navigator.pop(ctx);
+                                      jumpTo('${row['code'] ?? ''}');
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        '${row['code'] ?? ''} · ${row['kind'] == 'ready' ? 'Pronto' : row['kind'] == 'reopened' ? 'Reaberto' : '${row['score'] ?? ''}/5'} · ${row['clientName'] ?? ''}'.trim(),
+                                        style: const TextStyle(color: Wq.muted, height: 1.4),
+                                      ),
+                                    ),
+                                  ),
+                            ],
                           ]),
+                            ),
+                          ),
                         ),
                       );
                     },

@@ -2,6 +2,7 @@
 
 ## 2026-10-07
 
+- **Sino:** a folha de avisos mostra o histórico do que já foi lido. Tocar na linha abre o pedido.
 - **Novo pedido:** dá para criar sem valor. O total mostra "A definir" e o laudo fica em espera até alguém colocar o preço.
 
 ## 2026-10-06

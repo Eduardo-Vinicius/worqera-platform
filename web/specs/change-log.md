@@ -2,6 +2,7 @@
 
 ## 2026-10-07
 
+- **Sino:** abaixo dos avisos novos fica o histórico do que já foi lido. Cada linha abre o pedido.
 - **Novo pedido:** o preço pode ficar em zero. O total aparece como "A definir" e a tela avisa que o laudo espera o valor.
 
 ## 2026-10-06

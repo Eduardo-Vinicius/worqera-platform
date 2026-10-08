@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Bell } from "lucide-react"
-import { getAlertsInboxV1, markAlertsInboxReadV1 } from "@/lib/apiV1"
+import { getAlertsInboxV1, markAlertsInboxReadV1, type InboxHistoryItem } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
+
+function historyLabel(item: InboxHistoryItem) {
+  if (item.kind === "ready") return "Pronto"
+  if (item.kind === "reopened") return "Reaberto"
+  return item.score ? `${item.score}/5` : "Avaliação"
+}
 
 function canSee() {
   if (typeof window === "undefined") return false
@@ -25,6 +31,7 @@ export function FeedbackBell({ className }: { className?: string }) {
       comment?: string
       tags?: string[]
     }>
+    history: InboxHistoryItem[]
   } | null>(null)
   const marked = useRef(Promise.resolve())
   const [allowed, setAllowed] = useState(false)
@@ -41,6 +48,7 @@ export function FeedbackBell({ className }: { className?: string }) {
       tags?: string[]
     }>
   >([])
+  const [history, setHistory] = useState<InboxHistoryItem[]>([])
 
   useEffect(() => {
     setAllowed(canSee())
@@ -61,6 +69,7 @@ export function FeedbackBell({ className }: { className?: string }) {
         setReadyCount(Number(res?.readyCount) || 0)
         setReopenedCount(Number(res?.reopenedCount) || 0)
         setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
+        setHistory(Array.isArray(res?.history) ? res.history : [])
       } catch (err: any) {
         if (cancelled) return
         if (err?.status === 401 || err?.status === 403) {
@@ -101,6 +110,7 @@ export function FeedbackBell({ className }: { className?: string }) {
   const shownReady = pinned?.ready ?? readyCount
   const shownReopened = pinned?.reopened ?? reopenedCount
   const shownFeedback = pinned?.feedback ?? feedback
+  const shownHistory = (pinned?.history ?? history).filter((item) => item.read)
 
   const loadInbox = async () => {
     try {
@@ -108,6 +118,7 @@ export function FeedbackBell({ className }: { className?: string }) {
       setReadyCount(Number(res?.readyCount) || 0)
       setReopenedCount(Number(res?.reopenedCount) || 0)
       setFeedback(Array.isArray(res?.feedback) ? res.feedback : [])
+      setHistory(Array.isArray(res?.history) ? res.history : [])
     } catch {
       /* o próximo ciclo tenta de novo */
     }
@@ -123,7 +134,7 @@ export function FeedbackBell({ className }: { className?: string }) {
       close()
       return
     }
-    setPinned({ ready: readyCount, reopened: reopenedCount, feedback })
+    setPinned({ ready: readyCount, reopened: reopenedCount, feedback, history })
     setReadyCount(0)
     setReopenedCount(0)
     setFeedback([])
@@ -201,7 +212,7 @@ export function FeedbackBell({ className }: { className?: string }) {
                 </Link>
               ) : null}
 
-              {!loadError && shownFeedback.length === 0 && shownReady === 0 && shownReopened === 0 ? (
+              {!loadError && shownFeedback.length === 0 && shownReady === 0 && shownReopened === 0 && shownHistory.length === 0 ? (
                 <p className="px-2 py-6 text-center text-xs text-[var(--wq-text-muted)]">
                   Sem feedback recente nem pedidos prontos
                 </p>
@@ -233,6 +244,32 @@ export function FeedbackBell({ className }: { className?: string }) {
                       “{f.comment}”
                     </p>
                   ) : null}
+                </Link>
+              ))}
+
+              {shownHistory.length > 0 ? (
+                <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                  Histórico
+                </p>
+              ) : null}
+
+              {shownHistory.map((item) => (
+                <Link
+                  key={`${item.kind}-${item.id}`}
+                  href={`/pedidos?q=${encodeURIComponent(item.code)}`}
+                  onClick={close}
+                  className="block rounded-xl px-3 py-2 hover:bg-[var(--wq-paper)]"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-sm font-semibold text-[var(--wq-text-muted)]">{item.code}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                      {historyLabel(item)}
+                    </span>
+                  </div>
+                  <p className="truncate text-xs text-[var(--wq-text-muted)]">
+                    {item.clientName || "Cliente"}
+                    {item.comment ? ` · “${item.comment}”` : ""}
+                  </p>
                 </Link>
               ))}
             </div>

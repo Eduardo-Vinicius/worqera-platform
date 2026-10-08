@@ -344,7 +344,19 @@ export async function getAlertsInboxV1() {
       tags?: string[]
       createdAt?: string | null
     }>
+    history?: InboxHistoryItem[]
   }>("/alerts/inbox")
+
+export type InboxHistoryItem = {
+  kind: "ready" | "reopened" | "feedback"
+  id: string
+  code: string
+  clientName: string
+  at?: string | null
+  read?: boolean
+  score?: number
+  comment?: string
+}
 }
 
 export async function listFeedbackV1(opts?: {

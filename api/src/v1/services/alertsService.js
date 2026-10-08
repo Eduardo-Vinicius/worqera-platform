@@ -273,7 +273,7 @@ async function loadInboxSnapshot(shopId) {
       deletedAt: null,
       status: { $nin: ['delivered', 'cancelled'] },
     })
-      .select('_id code reopenedAt updatedAt')
+      .select('_id code clientName reopenedAt updatedAt')
       .sort({ reopenedAt: -1 })
       .limit(40)
       .lean(),
@@ -292,11 +292,43 @@ async function getOwnerInbox(shopId, membership) {
   const unreadReopened = reopenedOrders.filter((row) => isAfter(row.reopenedAt || row.updatedAt, seenAt));
   const unreadFeedback = feedbackItems.filter((row) => isAfter(row.feedback?.createdAt, seenAt));
 
+  const history = [
+    ...readyOrders.map((row) => ({
+      kind: 'ready',
+      id: String(row._id),
+      code: row.code,
+      clientName: row.clientName || '',
+      at: row.updatedAt || null,
+      read: !isAfter(row.updatedAt, seenAt),
+    })),
+    ...reopenedOrders.map((row) => ({
+      kind: 'reopened',
+      id: String(row._id),
+      code: row.code,
+      clientName: row.clientName || '',
+      at: row.reopenedAt || row.updatedAt || null,
+      read: !isAfter(row.reopenedAt || row.updatedAt, seenAt),
+    })),
+    ...feedbackItems.map((row) => ({
+      kind: 'feedback',
+      id: String(row._id),
+      code: row.code,
+      clientName: row.clientName || '',
+      score: row.feedback?.score,
+      comment: row.feedback?.comment || '',
+      at: row.feedback?.createdAt || null,
+      read: !isAfter(row.feedback?.createdAt, seenAt),
+    })),
+  ]
+    .sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime())
+    .slice(0, 24);
+
   return {
     readAt: seenAt,
     readyCount: unreadReady.length,
     reopenedCount: unreadReopened.length,
     feedbackCount: unreadFeedback.length,
+    history,
     ready: unreadReady.slice(0, 8).map((row) => ({
       id: String(row._id),
       code: row.code,

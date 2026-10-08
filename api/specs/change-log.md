@@ -2,6 +2,7 @@
 
 ## 2026-10-07
 
+- **Sino:** a resposta do inbox traz o histórico recente (pronto, reaberto e avaliação), inclusive o que já foi lido. O número do sino continua só com o que chegou depois da última abertura.
 - **Pedido antigo:** a contagem das fotos que tinha virado objeto volta a ser lista de números antes de mover, alterar ou excluir. O laudo não sai enquanto o total for zero; ao gravar o preço, o e-mail sai uma vez.
 - **Consulta do pedido:** duas leituras ao mesmo tempo não derrubam a tela com erro de versão.
 
