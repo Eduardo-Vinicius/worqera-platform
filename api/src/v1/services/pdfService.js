@@ -364,12 +364,21 @@ async function generateOrderPdf(shopId, orderId) {
   if (address) y = kvLine(doc, 'Endereço', address, y, pageWidth);
   y += 6;
 
+  const orderTotalEarly = order.pricing?.total != null ? Number(order.pricing.total) : null;
   let grandServices = 0;
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
     const services = Array.isArray(it.services) ? it.services : [];
     const pairTotal = services.reduce((s, x) => s + (Number(x.price) || 0), 0);
-    grandServices += pairTotal;
+    const onlyPiece = items.length === 1;
+    const servicesUnpriced = services.every((s) => (Number(s.price) || 0) <= 0.009);
+    const displayPair =
+      pairTotal > 0.009
+        ? pairTotal
+        : onlyPiece && servicesUnpriced && orderTotalEarly > 0.009
+          ? orderTotalEarly
+          : 0;
+    grandServices += displayPair > 0.009 ? displayPair : pairTotal;
 
     y = ensureSpace(doc, y, 36, pageHeight, pageCtx);
     y = sectionTitle(doc, `${pairWord} ${i + 1}`, y, pageWidth, accent);
@@ -389,7 +398,13 @@ async function generateOrderPdf(shopId, orderId) {
         doc.setFontSize(9);
         doc.setTextColor(...BRAND_RGB);
         const name = s.name || s.nome || 'Serviço';
-        const price = Number(s.price) > 0.009 ? formatCurrency(s.price) : 'A definir';
+        const ownPrice = Number(s.price) || 0;
+        const price =
+          ownPrice > 0.009
+            ? formatCurrency(ownPrice)
+            : services.length === 1 && displayPair > 0.009
+              ? formatCurrency(displayPair)
+              : 'A definir';
         doc.text(`• ${name}`, 28, y);
         doc.text(price, pageWidth - 20, y, { align: 'right' });
         y += 5.2;
@@ -408,7 +423,12 @@ async function generateOrderPdf(shopId, orderId) {
       doc.setFontSize(9);
       doc.setTextColor(...BRAND_RGB);
       doc.text(`Subtotal ${pairWord.toLowerCase()} ${i + 1}`, 28, y);
-      doc.text(formatCurrency(pairTotal), pageWidth - 20, y, { align: 'right' });
+      doc.text(
+        displayPair > 0.009 ? formatCurrency(displayPair) : 'A definir',
+        pageWidth - 20,
+        y,
+        { align: 'right' }
+      );
       y += 7;
     } else {
       doc.setFont('helvetica', 'normal');
@@ -488,9 +508,6 @@ async function generateOrderPdf(shopId, orderId) {
     discount = Math.round((storedSubtotal - total) * 100) / 100;
   }
   const subtotal = storedSubtotal != null ? storedSubtotal : total + discount;
-  const deposit = Number(pricing.deposit) || 0;
-  const remaining =
-    pricing.remaining != null ? Number(pricing.remaining) : Math.max(0, total - deposit);
   if (discount > 0.009) {
     y = kvLine(doc, 'Subtotal', formatCurrency(subtotal), y, pageWidth);
     y = kvLine(doc, 'Desconto', `- ${formatCurrency(discount)}`, y, pageWidth);
@@ -501,22 +518,6 @@ async function generateOrderPdf(shopId, orderId) {
   doc.text('Total', 25, y + 2);
   doc.text(total > 0.009 ? formatCurrency(total) : 'A definir', pageWidth - 20, y + 2, { align: 'right' });
   y += 10;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED_RGB);
-  if (deposit > 0) {
-    y = kvLine(doc, 'Sinal pago', formatCurrency(deposit), y, pageWidth);
-  }
-  if (remaining > 0.009) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...BRAND_RGB);
-    doc.text('Falta pagar', 25, y + 2);
-    doc.text(formatCurrency(remaining), pageWidth - 20, y + 2, { align: 'right' });
-    y += 12;
-  } else if (total > 0) {
-    y = kvLine(doc, 'Pagamento', 'Pago', y, pageWidth);
-  }
 
   const accessories = Array.isArray(order.accessories) ? order.accessories.filter(Boolean) : [];
   if (accessories.length) {
