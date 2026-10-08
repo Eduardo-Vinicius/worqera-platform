@@ -239,13 +239,13 @@ export function hydrateDraftsFromOrder(order: {
     id?: string
     shoeModel?: string
     brand?: string
-    services?: Array<{ id?: string; name?: string; price?: number }>
+    services?: Array<{ id?: string; name?: string; price?: number; note?: string; description?: string }>
     photos?: unknown[]
     notes?: string | null
     plannedSectorIds?: unknown[]
   }>
   shoeModel?: string
-  services?: Array<{ id?: string; name?: string; price?: number }>
+  services?: Array<{ id?: string; name?: string; price?: number; note?: string; description?: string }>
   photos?: unknown[]
   notes?: string | null
   plannedSectorIds?: unknown[]
