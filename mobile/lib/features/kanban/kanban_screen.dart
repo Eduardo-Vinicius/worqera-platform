@@ -4,7 +4,6 @@ import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
-import '../../design/ui.dart';
 
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key, required this.api, required this.session, required this.openOrder});
@@ -157,9 +156,9 @@ class _KanbanScreenState extends State<KanbanScreen> {
     final total = cards.fold<num>(0, (sum, card) => sum + (num.tryParse('${card['lineValue'] ?? 0}') ?? 0));
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(onPressed: () => ShellScope.maybeOf(context)?.openMenu(), icon: const Icon(Icons.menu)),
+        automaticallyImplyLeading: false,
         title: const Text('Kanban'),
-        actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))],
+        actions: [IconButton(onPressed: load, tooltip: 'Atualizar', icon: const Icon(Icons.refresh))],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -169,29 +168,31 @@ class _KanbanScreenState extends State<KanbanScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-                      child: Row(children: [
-                        Expanded(child: TextField(controller: query, onChanged: (_) => setState(() {}), decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search), hintText: 'Cliente, código ou modelo'))),
-                        const SizedBox(width: 8),
-                        FilterChip(
-                          label: Text(entryDay == null ? 'Data' : '${entryDay!.day.toString().padLeft(2, '0')}/${entryDay!.month.toString().padLeft(2, '0')}'),
-                          selected: entryDay != null,
-                          onSelected: (_) async {
-                            if (entryDay != null) {
-                              setState(() => entryDay = null);
-                              return;
-                            }
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now().add(const Duration(days: 1)),
-                              helpText: 'Data de entrada',
-                            );
-                            if (picked != null) setState(() => entryDay = picked);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        FilterChip(label: const Text('Atrasados'), selected: lateOnly, onSelected: (v) => setState(() => lateOnly = v)),
+                      child: Column(children: [
+                        TextField(controller: query, onChanged: (_) => setState(() {}), decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search), hintText: 'Cliente, código ou modelo')),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          FilterChip(
+                            label: Text(entryDay == null ? 'Data de entrada' : '${entryDay!.day.toString().padLeft(2, '0')}/${entryDay!.month.toString().padLeft(2, '0')}'),
+                            selected: entryDay != null,
+                            onSelected: (_) async {
+                              if (entryDay != null) {
+                                setState(() => entryDay = null);
+                                return;
+                              }
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(const Duration(days: 1)),
+                                helpText: 'Data de entrada',
+                              );
+                              if (picked != null) setState(() => entryDay = picked);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(label: const Text('Atrasados'), selected: lateOnly, onSelected: (v) => setState(() => lateOnly = v)),
+                        ]),
                       ]),
                     ),
                     SizedBox(

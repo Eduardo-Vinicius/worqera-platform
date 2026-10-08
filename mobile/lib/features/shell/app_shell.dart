@@ -368,7 +368,7 @@ class _Drawer extends StatelessWidget {
             if (flags.on('kanban')) _item(context, Icons.view_kanban_outlined, 'Kanban', () => _go(context, '/kanban')),
             if (!session.isSector && flags.on('orders')) _item(context, Icons.receipt_long_outlined, 'Pedidos', () => _go(context, '/orders')),
             if (!session.isSector && flags.on('clients')) _item(context, Icons.people_outline, 'Clientes', () => _open('clients', ClientsScreen(api: api, session: session, openClient: (id) => onStack('client', ClientDetailScreen(api: api, clientId: id, session: session))))),
-            if (flags.on('consultas')) _item(context, Icons.search, 'Consultas', () => _open('consultas', ConsultasScreen(api: api, session: session, openOrder: (_) {}))),
+            if (flags.on('consultas')) _item(context, Icons.search, 'Consultas', () => _open('consultas', ConsultasScreen(api: api, session: session, openOrder: (id) => onStack('order', OrderDetailScreen(api: api, session: session, orderId: id, onEdit: () => onStack('order-edit', OrderFormScreen(api: api, session: session, orderId: id))))))),
             if (!session.isSector && flags.on('reviews')) _item(context, Icons.star_outline, 'Avaliações', () => _open('reviews', ReviewsScreen(api: api))),
             _item(context, Icons.qr_code_scanner, 'Ler QR', () => _go(context, '/qr')),
             ],

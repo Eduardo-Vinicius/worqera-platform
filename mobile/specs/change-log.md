@@ -1,7 +1,13 @@
 # App celular
 
+## 2026-10-07
+
+- **Novo pedido:** dá para criar sem valor. O total mostra "A definir" e o laudo fica em espera até alguém colocar o preço.
+
 ## 2026-10-06
 
+- **Início:** a visão geral segue a do site: o que fazer agora, atalhos, fila recente e carga por setor. Novo pedido, kanban, consultas e clientes abrem de verdade.
+- **Kanban:** some o segundo menu. A busca fica numa linha e a data de entrada na de baixo.
 - **Cliente:** no pedido, em Clientes e em Consultas, a busca vai na lista inteira enquanto se digita. Nome, telefone, CPF e e-mail batem com ou sem acento e pontuação.
 - **Kanban:** o chip Data filtra a fila pelo dia em que o pedido entrou. Tocar de novo limpa.
 - **Novo pedido:** o pedido é criado e a tela de sucesso abre na hora. As fotos de cada item sobem juntas. O e-mail do laudo sai depois, já com elas.

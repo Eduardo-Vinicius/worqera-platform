@@ -334,6 +334,9 @@ export default function PedidoSucessoPage() {
     if (!clientEmail) return "Cliente sem e-mail — não há envio automático."
     if (!emailNotify) return "Status do envio ainda não chegou — use Reenviar e-mail se precisar."
     if (emailNotify.deferred) {
+      if (emailNotify.reason === "awaiting-price") {
+        return "Sem valor definido. O laudo fica em espera e sai quando alguém colocar o preço."
+      }
       return "As fotos sobem agora. O e-mail com o PDF sai quando elas terminarem."
     }
     if (emailNotify.queued) {

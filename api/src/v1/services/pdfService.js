@@ -499,7 +499,7 @@ async function generateOrderPdf(shopId, orderId) {
   doc.setFontSize(12);
   doc.setTextColor(...BRAND_RGB);
   doc.text('Total', 25, y + 2);
-  doc.text(formatCurrency(total), pageWidth - 20, y + 2, { align: 'right' });
+  doc.text(total > 0.009 ? formatCurrency(total) : 'A definir', pageWidth - 20, y + 2, { align: 'right' });
   y += 10;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);

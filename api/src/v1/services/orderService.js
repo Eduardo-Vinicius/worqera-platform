@@ -414,11 +414,14 @@ async function createOrder(shopId, userId, data) {
   });
 
   const awaitingPhotos = Boolean(order.photoNotify?.expected?.some((n) => Number(n) > 0));
-  const emailNotify = awaitingPhotos
-    ? { ok: true, queued: false, deferred: true, reason: 'awaiting-photos' }
-    : await queueCreatedNotify(shopId, order, {
-        sectorName: rollupSector?.name || startSector?.name,
-      });
+  const awaitingPrice = pricePending(order);
+  const emailNotify = awaitingPrice
+    ? { ok: true, queued: false, deferred: true, reason: 'awaiting-price' }
+    : awaitingPhotos
+      ? { ok: true, queued: false, deferred: true, reason: 'awaiting-photos' }
+      : await queueCreatedNotify(shopId, order, {
+          sectorName: rollupSector?.name || startSector?.name,
+        });
 
   const doc = order.toObject();
   doc.emailNotify = emailNotify;
@@ -713,6 +716,7 @@ async function repairOrderItemSnapshots(order) {
 }
 
 async function getOrder(shopId, id) {
+  await repairPhotoNotify(shopId, id);
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -724,7 +728,13 @@ async function getOrder(shopId, id) {
   if (await repairOrderItemSnapshots(order)) {
     order.markModified('items');
     order.markModified('photos');
-    await order.save();
+    try {
+      await order.save();
+    } catch (err) {
+      if (err?.name !== 'VersionError') throw err;
+      const fresh = await Order.findOne({ _id: id, shopId }).lean();
+      if (fresh) return fresh;
+    }
   }
   return order.toObject();
 }
@@ -862,6 +872,7 @@ function applyPricingFromUpdates(order, updates, recomputeFromItems) {
 
 async function patchOrder(shopId, id, userId, updates) {
   updates = updates || {};
+  await repairPhotoNotify(shopId, id);
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -870,6 +881,7 @@ async function patchOrder(shopId, id, userId, updates) {
     throw err;
   }
   assertNotDeleted(order);
+  const priceBefore = Number(order.pricing?.total) || 0;
 
   const fields = [
     'clientName',
@@ -983,6 +995,9 @@ async function patchOrder(shopId, id, userId, updates) {
     order.reopenedAt = null;
   }
   await order.save();
+  if (priceBefore <= 0.009 && !pricePending(order)) {
+    await releaseHeldLaudo(shopId, order._id);
+  }
   return order.toObject();
 }
 
@@ -1034,6 +1049,7 @@ async function applyItemPatchInPlace(order, shopId, patch, allSectorsCached) {
 
 async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   body = body || {};
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1043,6 +1059,7 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   }
   assertNotDeleted(order);
   assertNotDeliveredStructural(order);
+  const priceBefore = Number(order.pricing?.total) || 0;
   hydrateItemsIfEmpty(order);
   const idx = assertItemIndex(itemIndex, order.items.length);
   const allSectors = await loadActiveSectors(shopId);
@@ -1059,6 +1076,9 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   }
   order.updatedByUserId = userId;
   await order.save();
+  if (priceBefore <= 0.009 && !pricePending(order)) {
+    await releaseHeldLaudo(shopId, order._id);
+  }
   return order.toObject();
 }
 
@@ -1121,6 +1141,7 @@ async function addOrderItem(shopId, orderId, userId, body) {
 }
 
 async function deleteOrderItem(shopId, orderId, itemIndex, userId) {
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1319,6 +1340,7 @@ async function submitPublicFeedback(code, { shopSlug, token, score, comment, tag
 }
 
 async function deleteOrder(shopId, id, userId) {
+  await repairPhotoNotify(shopId, id);
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1466,6 +1488,60 @@ async function storeItemPhotoFiles(shopId, orderId, files, itemIndex, startIndex
   return photos;
 }
 
+function asNumberList(value) {
+  if (Array.isArray(value)) {
+    return value.map((n) => {
+      const num = Number(n);
+      return Number.isFinite(num) ? num : 0;
+    });
+  }
+  if (value && typeof value === 'object') {
+    const indexes = Object.keys(value)
+      .map((key) => Number(key))
+      .filter((n) => Number.isInteger(n) && n >= 0);
+    const size = indexes.length ? Math.max(...indexes) + 1 : 0;
+    const list = Array(size).fill(0);
+    for (const index of indexes) {
+      const num = Number(value[index]);
+      list[index] = Number.isFinite(num) ? num : 0;
+    }
+    return list;
+  }
+  return [];
+}
+
+function numberListIsClean(value) {
+  return Array.isArray(value) && value.every((n) => typeof n === 'number' && Number.isFinite(n));
+}
+
+function photoNotifyNeedsRepair(photoNotify) {
+  if (!photoNotify || typeof photoNotify !== 'object') return false;
+  return !numberListIsClean(photoNotify.got) || !numberListIsClean(photoNotify.expected);
+}
+
+/** `$inc` on a missing list stored `{ "0": 1 }` instead of `[1]`. Any later save then fails. */
+async function repairPhotoNotify(shopId, orderId) {
+  if (!shopId || !orderId) return;
+  const raw = await Order.collection.findOne(
+    { _id: orderId, shopId },
+    { projection: { photoNotify: 1 } }
+  );
+  if (!photoNotifyNeedsRepair(raw?.photoNotify)) return;
+  await Order.collection.updateOne(
+    { _id: orderId, shopId },
+    {
+      $set: {
+        'photoNotify.expected': asNumberList(raw.photoNotify.expected),
+        'photoNotify.got': asNumberList(raw.photoNotify.got),
+      },
+    }
+  );
+}
+
+function pricePending(order) {
+  return (Number(order?.pricing?.total) || 0) <= 0.009;
+}
+
 function pendingPhotoNotify(raw, itemCount) {
   if (!Array.isArray(raw) || !itemCount) return null;
   const counts = [];
@@ -1478,6 +1554,9 @@ function pendingPhotoNotify(raw, itemCount) {
 }
 
 async function queueCreatedNotify(shopId, order, { sectorName } = {}) {
+  if (pricePending(order)) {
+    return { ok: true, queued: false, deferred: true, reason: 'awaiting-price' };
+  }
   let emailNotify = { ok: false, skipped: true, reason: 'not-attempted' };
   const clientEmail = order.clientEmail;
   try {
@@ -1519,6 +1598,7 @@ function itemPhotosReady(order) {
 }
 
 async function releaseCreatedEmail(shopId, orderId) {
+  await repairPhotoNotify(shopId, orderId);
   const current = await Order.findOne({ _id: orderId, shopId });
   if (!current) {
     const err = new Error('Order not found');
@@ -1529,6 +1609,7 @@ async function releaseCreatedEmail(shopId, orderId) {
   if (!current.photoNotify) return { ok: true, already: true };
   if (current.photoNotify.sent) return { ok: true, already: true };
   if (!itemPhotosReady(current)) return { ok: true, waiting: true };
+  if (pricePending(current)) return { ok: true, waiting: true, reason: 'awaiting-price' };
 
   const claimed = await Order.findOneAndUpdate(
     { _id: orderId, shopId, 'photoNotify.sent': false },
@@ -1572,24 +1653,39 @@ async function releaseCreatedEmail(shopId, orderId) {
   }
 }
 
+async function releaseHeldLaudo(shopId, orderId) {
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order || pricePending(order)) return { ok: true, waiting: true, reason: 'awaiting-price' };
+  const expected = order.photoNotify?.expected || [];
+  const waitingPhotos = expected.some((n) => Number(n) > 0);
+  if (waitingPhotos) {
+    if (!itemPhotosReady(order)) return { ok: true, waiting: true, reason: 'awaiting-photos' };
+    return releaseCreatedEmail(shopId, orderId);
+  }
+  return queueCreatedNotify(shopId, order);
+}
+
 async function notePhotoUpload(shopId, orderId, itemIndex, addedCount) {
   const added = Number(addedCount) || 0;
   if (added < 1) return;
-  const updated = await Order.findOneAndUpdate(
-    { _id: orderId, shopId, 'photoNotify.sent': false },
-    { $inc: { [`photoNotify.got.${itemIndex}`]: added } },
-    { new: true }
+  await repairPhotoNotify(shopId, orderId);
+  const raw = await Order.collection.findOne(
+    { _id: orderId, shopId, 'photoNotify.sent': { $ne: true } },
+    { projection: { photoNotify: 1 } }
   );
-  if (!updated?.photoNotify || updated.photoNotify.sent) return;
-  const expected = updated.photoNotify.expected || [];
-  const got = updated.photoNotify.got || [];
-  const done =
-    expected.length > 0 && expected.every((n, i) => (Number(got[i]) || 0) >= Number(n));
-  if (!done) return;
+  if (!raw?.photoNotify) return;
+  const got = asNumberList(raw.photoNotify.got);
+  while (got.length <= itemIndex) got.push(0);
+  got[itemIndex] += added;
+  await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.got': got } });
+  const order = await Order.findOne({ _id: orderId, shopId });
+  if (!order?.photoNotify || order.photoNotify.sent) return;
+  if (!itemPhotosReady(order)) return;
   await releaseCreatedEmail(shopId, orderId);
 }
 
 async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -2007,6 +2103,7 @@ module.exports = {
   replaceOrderPhotos,
   uploadItemPhotos,
   releaseCreatedEmail,
+  repairPhotoNotify,
   deleteItemPhoto,
   getPublicOrderByCode,
   getPublicOrderByToken,

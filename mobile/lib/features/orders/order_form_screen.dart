@@ -403,7 +403,6 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     final touched = items.where((item) => item.touched).toList();
     if (touched.isEmpty || filledItems.isEmpty) return 'Informe ao menos um item com modelo e serviços';
     if (touched.any((item) => !item.filled)) return 'Cada item preenchido deve ter modelo e ao menos um serviço';
-    if (touched.any((item) => item.services.any((service) => service.price <= 0))) return 'Todos os serviços devem ter preços válidos';
     if (items.any((item) => item.photos.length > _maxPhotos)) return 'Máximo de $_maxPhotos fotos por item';
     if (deposit < 0 || deposit > total + 0.001) return 'O sinal precisa ficar entre zero e o total';
     return null;
@@ -923,6 +922,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     final openSectors = sectors.where((row) => row['isTerminal'] != true).toList();
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(editing ? 'Editar pedido' : 'Novo pedido'),
           Text(editing ? 'Cliente, itens e pagamento' : '1 Cliente · 2 Item · 3 Pagamento', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
@@ -938,7 +938,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('Total ${brl(total)} · Sinal ${brl(deposit)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text('Total ${total <= 0 ? 'A definir' : brl(total)} · Sinal ${brl(deposit)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+              if (total <= 0) Text('Sem valor, o laudo fica em espera.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
               Text('Falta ${brl(remaining)} · ${filledItems.isEmpty ? items.length : filledItems.length} ${filledItems.length == 1 ? 'item' : 'itens'}', style: TextStyle(color: context.wqMuted, fontSize: 12)),
               const SizedBox(height: 8),
               FilledButton(

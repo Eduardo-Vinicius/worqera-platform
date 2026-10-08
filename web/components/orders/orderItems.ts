@@ -126,13 +126,6 @@ export function validateOrderItems(items: OrderItemDraft[]): Record<string, stri
     errors.items = "Cada item preenchido deve ter modelo e ao menos um serviço"
   }
 
-  const hasInvalidService = touched.some((item) =>
-    item.selectedServices.some((service) => service.price <= 0 || Number.isNaN(service.price))
-  )
-  if (hasInvalidService) {
-    errors.services = "Todos os serviços devem ter preços válidos"
-  }
-
   return errors
 }
 

@@ -1707,7 +1707,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         <p>Subtotal: R$ {suggestedTotal(items, hasWarranty, warrantyPrice).toFixed(2)}</p>
                         {discount > 0 ? <p>Desconto: − R$ {clampDiscount(suggestedTotal(items, hasWarranty, warrantyPrice), discount).toFixed(2)}</p> : null}
                         <p className="font-semibold text-[var(--wq-text)]">
-                          Total: R$ {totalPrice.toFixed(2)}
+                          Total: {totalPrice > 0 ? `R$ ${totalPrice.toFixed(2)}` : "A definir"}
+                          {totalPrice <= 0 ? <span className="block font-normal">O laudo fica em espera até ter valor.</span> : null}
                         </p>
                       </div>
                     </div>

@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+## 2026-10-07
+
+- **Novo pedido:** o preço pode ficar em zero. O total aparece como "A definir" e a tela avisa que o laudo espera o valor.
+
 ## 2026-10-06
 
 - **Celular:** busca, data e lixeira cabem na tela. Marca, serviço e acessório usam olho para ocultar e lixeira para apagar. Marca também tem lápis para editar o nome.

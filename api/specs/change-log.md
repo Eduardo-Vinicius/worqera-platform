@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-10-07
+
+- **Pedido antigo:** a contagem das fotos que tinha virado objeto volta a ser lista de números antes de mover, alterar ou excluir. O laudo não sai enquanto o total for zero; ao gravar o preço, o e-mail sai uma vez.
+- **Consulta do pedido:** duas leituras ao mesmo tempo não derrubam a tela com erro de versão.
+
 ## 2026-10-06
 
 - **Clientes:** a busca acha o nome com ou sem acento, e o telefone ou CPF mesmo com pontuação no meio.

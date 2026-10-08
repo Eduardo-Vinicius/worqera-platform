@@ -260,6 +260,8 @@ async function resolveMover(userId) {
 }
 
 async function moveOrderItem(shopId, orderId, itemId, membership, userId, body) {
+  const { repairPhotoNotify } = require('./orderService');
+  await repairPhotoNotify(shopId, orderId);
   const { toSectorId, note, employeeId, employeeName } = body || {};
   if (!toSectorId || !mongoose.Types.ObjectId.isValid(toSectorId)) {
     const err = new Error('toSectorId required');
@@ -443,6 +445,8 @@ async function moveOrderItem(shopId, orderId, itemId, membership, userId, body) 
  * Legacy move: single-item orders only. Multi-item requires itemId endpoint.
  */
 async function moveOrder(shopId, orderId, membership, userId, body) {
+  const { repairPhotoNotify } = require('./orderService');
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
