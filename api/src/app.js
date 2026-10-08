@@ -4,14 +4,25 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { correlationId } = require('./v1/middleware/correlation');
 const { requestLog } = require('./v1/middleware/requestLog');
-const { errorHandler } = require('./v1/middleware/errors');
+const { errorHandler, sendError } = require('./v1/middleware/errors');
+const { probeGuard } = require('./v1/middleware/probeGuard');
+const { securityHeaders } = require('./v1/middleware/securityHeaders');
+const { originAllowed } = require('./v1/lib/corsOrigins');
 
 function createExpressApp() {
   const app = express();
+  app.disable('x-powered-by');
+  // One hop: nginx. Per-visitor IP for rate limits, without trusting a spoofed left-most header.
+  app.set('trust proxy', 1);
+
+  app.use(securityHeaders);
+  app.use(probeGuard);
 
   app.use(
     cors({
-      origin: true,
+      origin(origin, callback) {
+        callback(null, originAllowed(origin));
+      },
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       credentials: true,
     })
@@ -82,6 +93,14 @@ function createExpressApp() {
   });
 
   app.use('/api/v1', require('./v1'));
+
+  app.use((req, res) => {
+    sendError(res, 404, {
+      title: 'Not Found',
+      detail: 'Not found',
+      code: 'NOT_FOUND',
+    });
+  });
 
   app.use(errorHandler);
 

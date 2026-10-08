@@ -1,13 +1,17 @@
+const GENERIC_500 = 'Erro interno. Tente de novo em instantes.';
+
 function sendError(res, status, { title, detail, code, type = 'about:blank', extras = {} }) {
+  const statusNum = Number(status) || 500;
   const correlationId = res.req?.correlationId || null;
-  const resolvedCode = code || defaultCode(status);
-  const resolvedDetail = detail || title || statusTitle(status);
-  res.locals.apiError = `${resolvedCode}: ${resolvedDetail}`.slice(0, 500);
-  return res.status(status).json({
+  const resolvedCode = code || defaultCode(statusNum);
+  const internalDetail = detail || title || statusTitle(statusNum);
+  const publicDetail = statusNum >= 500 ? GENERIC_500 : internalDetail;
+  res.locals.apiError = `${resolvedCode}: ${internalDetail}`.slice(0, 500);
+  return res.status(statusNum).json({
     type,
-    title: title || statusTitle(status),
-    status,
-    detail: detail || title || statusTitle(status),
+    title: statusNum >= 500 ? 'Internal Server Error' : title || statusTitle(statusNum),
+    status: statusNum,
+    detail: publicDetail,
     code: resolvedCode,
     correlationId,
     ...extras,
@@ -51,4 +55,4 @@ function errorHandler(err, req, res, next) {
   });
 }
 
-module.exports = { sendError, errorHandler };
+module.exports = { sendError, errorHandler, GENERIC_500 };

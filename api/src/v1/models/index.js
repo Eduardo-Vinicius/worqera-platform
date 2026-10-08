@@ -13,6 +13,7 @@ module.exports = {
   BrandCatalog: require('./BrandCatalog'),
   OrderCounter: require('./OrderCounter'),
   PlatformError: require('./PlatformError'),
+  PlatformMailLog: require('./PlatformMailLog'),
   PlatformConfig: require('./PlatformConfig'),
   PlatformNotice: require('./PlatformNotice'),
 };

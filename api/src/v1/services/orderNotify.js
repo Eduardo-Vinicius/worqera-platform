@@ -115,10 +115,76 @@ function buildHtml({ kind, title, body, link, trackLink, code, primary, pdfAttac
   return parts.join('\n');
 }
 
+const MAIL_LOG_CAP = 200;
+
+async function recordMailLog(entry) {
+  try {
+    const PlatformMailLog = require('../models/PlatformMailLog');
+    await PlatformMailLog.create({
+      at: new Date(),
+      shopId: entry.shopId ? String(entry.shopId) : null,
+      kind: String(entry.kind || ''),
+      code: String(entry.code || ''),
+      to: String(entry.to || '').slice(0, 200),
+      ok: entry.ok === true,
+      skipped: Boolean(entry.skipped),
+      reason: String(entry.reason || '').slice(0, 80),
+      error: String(entry.error || '').slice(0, 300),
+      provider: String(entry.provider || '').slice(0, 40),
+    });
+    const count = await PlatformMailLog.countDocuments();
+    if (count > MAIL_LOG_CAP) {
+      const old = await PlatformMailLog.find()
+        .sort({ at: 1, _id: 1 })
+        .limit(count - MAIL_LOG_CAP)
+        .select('_id')
+        .lean();
+      if (old.length) {
+        await PlatformMailLog.deleteMany({ _id: { $in: old.map((row) => row._id) } });
+      }
+    }
+  } catch (err) {
+    console.warn('[mail] log', err?.message || err);
+  }
+}
+
+async function listRecentMailLogs(limit = 40) {
+  const PlatformMailLog = require('../models/PlatformMailLog');
+  const rows = await PlatformMailLog.find()
+    .sort({ at: -1 })
+    .limit(Math.min(Math.max(Number(limit) || 40, 1), 80))
+    .lean();
+  return rows.map((row) => ({
+    id: String(row._id),
+    at: row.at,
+    shopId: row.shopId || null,
+    kind: row.kind || '',
+    code: row.code || '',
+    to: row.to || '',
+    ok: row.ok === true,
+    skipped: row.skipped === true,
+    reason: row.reason || '',
+    error: row.error || '',
+    provider: row.provider || '',
+  }));
+}
+
+function mailContext(shop, order, kind) {
+  return {
+    shopId: shop?._id || shop?.id || order?.shopId || null,
+    kind,
+    code: order?.code || '',
+    to: String(order?.clientEmail || '').trim(),
+  };
+}
+
 async function notifyGate(shop, order, kind) {
+  const base = mailContext(shop, order, kind);
   if (!shop || !order) {
     console.info('[orderNotify] skip', { kind, reason: 'missing' });
-    return { ok: false, skipped: true, reason: 'missing' };
+    const result = { ok: false, skipped: true, reason: 'missing' };
+    await recordMailLog({ ...base, ...result });
+    return result;
   }
   if (!emailEnabled(shop)) {
     console.info('[orderNotify] skip', {
@@ -126,12 +192,16 @@ async function notifyGate(shop, order, kind) {
       code: order.code,
       reason: 'email-disabled',
     });
-    return { ok: false, skipped: true, reason: 'email-disabled' };
+    const result = { ok: false, skipped: true, reason: 'email-disabled' };
+    await recordMailLog({ ...base, ...result });
+    return result;
   }
   const { moduleEnabled } = require('./platformConsoleService');
   const shopId = shop._id || shop.id || order.shopId;
   if (!(await moduleEnabled(shopId, 'emailNotify'))) {
-    return { ok: false, skipped: true, reason: 'email-disabled' };
+    const result = { ok: false, skipped: true, reason: 'email-disabled' };
+    await recordMailLog({ ...base, ...result });
+    return result;
   }
   const to = String(order.clientEmail || '').trim();
   if (!to) {
@@ -140,7 +210,9 @@ async function notifyGate(shop, order, kind) {
       code: order.code,
       reason: 'no-email',
     });
-    return { ok: false, skipped: true, reason: 'no-email' };
+    const result = { ok: false, skipped: true, reason: 'no-email' };
+    await recordMailLog({ ...base, ...result });
+    return result;
   }
   return null;
 }
@@ -172,7 +244,9 @@ async function notifyOrderStatus(shop, order, kind, { sectorName, pdfAttachment,
         if (pdf) attachments.push(pdf);
       }
       if (requirePdf && !attachments.length) {
-        return { ok: false, error: 'laudo sem fotos', reason: 'photos-missing' };
+        const missing = { ok: false, error: 'laudo sem fotos', reason: 'photos-missing' };
+        await recordMailLog({ ...mailContext(shop, order, kind), to, ...missing });
+        return missing;
       }
     }
 
@@ -214,6 +288,15 @@ async function notifyOrderStatus(shop, order, kind, { sectorName, pdfAttachment,
       reason: result?.reason,
       attachments: attachments.length,
     });
+    await recordMailLog({
+      ...mailContext(shop, order, kind),
+      to,
+      ok: result?.ok === true && result?.provider !== 'console',
+      skipped: Boolean(result?.skipped) || result?.provider === 'console',
+      reason: result?.provider === 'console' ? 'smtp-off' : result?.reason || '',
+      error: result?.error || '',
+      provider: result?.provider || '',
+    });
     return result;
   } catch (err) {
     console.warn('[orderNotify] failed', {
@@ -221,7 +304,13 @@ async function notifyOrderStatus(shop, order, kind, { sectorName, pdfAttachment,
       code: order?.code,
       error: err?.message || String(err),
     });
-    return { ok: false, error: err?.message || String(err) };
+    const result = { ok: false, error: err?.message || String(err) };
+    await recordMailLog({
+      ...mailContext(shop, order, kind),
+      ...result,
+      reason: 'failed',
+    });
+    return result;
   }
 }
 
@@ -246,4 +335,6 @@ module.exports = {
   enqueueNotifyOrderStatus,
   emailEnabled,
   publicOrderUrl,
+  recordMailLog,
+  listRecentMailLogs,
 };

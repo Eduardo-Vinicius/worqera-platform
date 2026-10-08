@@ -1,6 +1,7 @@
 const platformService = require('../services/platformService');
 const platformConsole = require('../services/platformConsoleService');
 const { readOpsSnapshot } = require('../middleware/apiMetrics');
+const { listRecentMailLogs } = require('../services/orderNotify');
 const { wrap } = require('./helpers');
 
 exports.listShops = wrap(async (req, res) => {
@@ -30,11 +31,12 @@ function noticeIsLive(notice, now = new Date()) {
 }
 
 exports.ops = wrap(async (_req, res) => {
-  const [ops, config, notices, shops] = await Promise.all([
+  const [ops, config, notices, shops, mail] = await Promise.all([
     readOpsSnapshot(),
     platformConsole.getConfig(),
     platformConsole.listNotices(),
     platformService.listShops({ limit: 200 }),
+    listRecentMailLogs(40),
   ]);
   const shopName = Object.fromEntries(shops.map((s) => [String(s.id), s.name]));
   const disabled = [
@@ -50,6 +52,10 @@ exports.ops = wrap(async (_req, res) => {
     errors: (ops.errors || []).map((e) => ({
       ...e,
       shopName: e.shopId ? shopName[String(e.shopId)] || '' : '',
+    })),
+    mail: (mail || []).map((row) => ({
+      ...row,
+      shopName: row.shopId ? shopName[String(row.shopId)] || '' : '',
     })),
     shops: {
       total: shops.length,

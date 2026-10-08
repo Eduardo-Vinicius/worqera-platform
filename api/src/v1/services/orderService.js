@@ -1083,6 +1083,7 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
 
 async function addOrderItem(shopId, orderId, userId, body) {
   body = body || {};
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1181,6 +1182,7 @@ async function deleteOrderItem(shopId, orderId, itemIndex, userId) {
 
 async function reopenOrder(shopId, id, userId, body = {}) {
   const User = require('../models/User');
+  await repairPhotoNotify(shopId, id);
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1301,6 +1303,11 @@ async function submitPublicFeedback(code, { shopSlug, token, score, comment, tag
     throw err;
   }
 
+  const stub = await Order.collection.findOne(
+    { code: normalizedCode, shopId: shop._id, publicToken: normalizedToken },
+    { projection: { _id: 1 } }
+  );
+  if (stub?._id) await repairPhotoNotify(shop._id, stub._id);
   const order = await Order.findOne({
     code: normalizedCode,
     shopId: shop._id,
@@ -1657,19 +1664,71 @@ async function sendLaudoNow(shopId, orderId) {
   await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) return { ok: false, skipped: true, reason: 'missing' };
-  if (pricePending(order)) return { ok: true, waiting: true, reason: 'awaiting-price' };
+  const { recordMailLog } = require('./orderNotify');
+  const logBase = {
+    shopId,
+    kind: 'created',
+    code: order.code || '',
+    to: order.clientEmail || '',
+  };
+  if (pricePending(order)) {
+    const waiting = { ok: false, waiting: true, skipped: true, reason: 'awaiting-price' };
+    await recordMailLog({ ...logBase, ...waiting });
+    return waiting;
+  }
   const expected = order.photoNotify?.expected || [];
   const needsPhotos = expected.some((n) => Number(n) > 0);
   if (order.photoNotify) {
     await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.approved': true } });
   }
   if (needsPhotos && !itemPhotosReady(order)) {
-    return { ok: true, waiting: true, reason: 'awaiting-photos' };
+    const waiting = { ok: true, waiting: true, skipped: true, reason: 'awaiting-photos' };
+    await recordMailLog({ ...logBase, ...waiting, ok: false });
+    return waiting;
   }
-  if (needsPhotos && order.photoNotify && !order.photoNotify.sent) {
-    return releaseCreatedEmail(shopId, orderId);
+
+  const Shop = require('../models/Shop');
+  const shop = await Shop.findById(shopId).lean();
+  if (!shop) {
+    const missing = { ok: false, skipped: true, reason: 'no-shop' };
+    await recordMailLog({ ...logBase, ...missing });
+    return missing;
   }
-  return queueCreatedNotify(shopId, order);
+
+  let pdfAttachment = null;
+  try {
+    const { generateOrderPdf } = require('./pdfService');
+    const pdf = await generateOrderPdf(shopId, orderId);
+    if (pdf?.buffer) {
+      pdfAttachment = {
+        filename: pdf.filename,
+        content: pdf.buffer,
+        contentType: 'application/pdf',
+      };
+    }
+  } catch (err) {
+    if (err?.code === 'PHOTOS_PENDING' || err?.code === 'PHOTOS_MISSING') {
+      const waiting = { ok: true, waiting: true, skipped: true, reason: 'awaiting-photos' };
+      await recordMailLog({ ...logBase, ...waiting, ok: false, error: err?.message || '' });
+      return waiting;
+    }
+    const failed = { ok: false, reason: 'pdf-failed', error: err?.message || String(err) };
+    await recordMailLog({ ...logBase, ...failed });
+    return failed;
+  }
+
+  const { notifyOrderStatus } = require('./orderNotify');
+  const plain = order.toObject ? order.toObject() : order;
+  const emailNotify = await notifyOrderStatus(shop, plain, 'created', {
+    pdfAttachment,
+    requirePdf: true,
+  });
+  const delivered =
+    emailNotify?.ok === true && !emailNotify?.skipped && emailNotify?.provider !== 'console';
+  if (delivered && order.photoNotify) {
+    await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.sent': true } });
+  }
+  return emailNotify;
 }
 
 async function notePhotoUpload(shopId, orderId, itemIndex, addedCount) {
@@ -1732,6 +1791,7 @@ async function uploadItemPhotos(shopId, orderId, itemIndex, files) {
 }
 
 async function deleteItemPhoto(shopId, orderId, itemIndex, photoIndex) {
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');
@@ -1997,6 +2057,7 @@ async function addOrderComment(shopId, orderId, userId, { text, authorName } = {
     throw err;
   }
 
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
   if (!order) {
     const err = new Error('Order not found');

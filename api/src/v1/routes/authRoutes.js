@@ -28,9 +28,15 @@ const forgotLimit = rateLimit({
   keyFn: (req) => `forgot:${req.ip || 'ip'}`,
 });
 
+const refreshLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.REFRESH_RATE_LIMIT_MAX || 60),
+  keyFn: (req) => `refresh:${req.ip || 'ip'}`,
+});
+
 router.post('/signup', signupLimit, authController.signup);
 router.post('/login', loginLimit, authController.login);
-router.post('/refresh', authController.refresh);
+router.post('/refresh', refreshLimit, authController.refresh);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', forgotLimit, authController.forgotPassword);
 router.post('/reset-password', forgotLimit, authController.resetPassword);

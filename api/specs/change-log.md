@@ -2,6 +2,8 @@
 
 ## 2026-10-08
 
+- **Laudo ao mudar o preço:** o envio espera o SMTP e a resposta diz se saiu, se ficou nas fotos ou se falhou. O portal lista cada tentativa, inclusive as que não saíram.
+- **Borda:** pedido fora de `/api/v1` e `/health` (`.env`, `.git`, phpinfo) responde 404 e não entra no painel. O navegador do site em worqera.com continua autorizado; outro site não lê a resposta. Erro 500 volta uma frase genérica; o painel guarda o texto real. Login e refresh contam por visitante, atrás do nginx.
 - **Pares:** cada item guarda os próprios serviços. A observação do serviço e a observação do par vão junto. O cartão do kanban mostra o serviço e a observação daquele par, não só do primeiro.
 - **Pedido sem valor:** o kanban marca "Pendente valor". O laudo só sai se, ao gravar um preço, pedirem para enviar. Dizer não deixa o e-mail parado, mesmo quando as fotos terminam.
 

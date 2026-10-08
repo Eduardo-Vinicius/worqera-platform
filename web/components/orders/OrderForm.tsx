@@ -52,6 +52,7 @@ import {
   type PhotoItem,
   type SelectedService,
 } from "./orderItems"
+import { laudoSaveMessage } from "./laudoNotice"
 import { MoneyField } from "./MoneyField"
 import { AccessoryPicker } from "./AccessoryPicker"
 import { BrandField } from "./BrandField"
@@ -969,11 +970,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       pricing,
       ...(sendLaudo === true ? { sendLaudo: true } : sendLaudo === false ? { sendLaudo: false } : {}),
     })
-    const notify = (saved as { emailNotify?: { reason?: string } }).emailNotify
-    if (sendLaudo === true && notify?.reason === "awaiting-photos") {
-      toast.success("Valor salvo. O laudo sai quando as fotos terminarem.")
-    } else if (sendLaudo === true) {
-      toast.success("Pedido atualizado. Laudo enviado ao cliente.")
+    const notify = (saved as { emailNotify?: { ok?: boolean; waiting?: boolean; skipped?: boolean; reason?: string; error?: string; provider?: string; queued?: boolean } }).emailNotify
+    if (sendLaudo === true) {
+      const note = laudoSaveMessage("Pedido atualizado.", notify)
+      if (note.tone === "ok") toast.success(note.text)
+      else if (note.tone === "wait") toast.message(note.text)
+      else toast.error(note.text)
     } else if (sendLaudo === false) {
       toast.success("Pedido atualizado. Laudo não enviado.")
     } else {

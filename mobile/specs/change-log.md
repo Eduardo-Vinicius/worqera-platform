@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- **Kanban:** o nome e o detalhe de cada serviço ficam logo abaixo do cliente, em texto normal.
 - **Pedido:** a observação do serviço grava no serviço, e a do par grava no par. O kanban e a ficha mostram as duas.
 - **Kanban:** pedido sem valor mostra "Pendente valor".
 - **Editar pedido:** campo Valor do pedido. Se o preço mudar, pergunta se envia o laudo.

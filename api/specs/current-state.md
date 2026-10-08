@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-05 (logout revoga pelo refresh; produção recusa segredo padrão)
+**Atualizado:** 2026-10-08 (borda: varredura 404, CORS do site, 500 genérico, limite por visitante)
 
 ## Em uma frase
 
@@ -11,7 +11,7 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Área | Endpoint |
 |------|----------|
 | Health | `GET /health` |
-| Auth SaaS | `/api/v1/auth/*` (+ rate limit; `me.platformAdmin`; logout só limpa o cliente atual; troca de senha invalida os tokens) |
+| Auth SaaS | `/api/v1/auth/*` (+ rate limit por visitante, inclusive refresh; `me.platformAdmin`; logout só limpa o cliente atual; troca de senha invalida os tokens). Fora de `/api/v1` e `/health` a resposta é 404 e não entra no painel. Erro 500 na resposta é genérico; o painel guarda o texto real. |
 | Shop / members | `/shops/current` (+ vertical, itemLabel, starter kit) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
 | Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |

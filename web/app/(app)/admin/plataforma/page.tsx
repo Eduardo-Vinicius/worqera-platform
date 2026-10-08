@@ -24,6 +24,24 @@ function formatWhen(value?: string | null) {
   return d.toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
 }
 
+function mailKind(kind?: string) {
+  if (kind === "created") return "Laudo"
+  if (kind === "ready") return "Pronto"
+  if (kind === "moved") return "Andamento"
+  return kind || "E-mail"
+}
+
+function mailStatus(row: NonNullable<Ops["mail"]>[number]) {
+  if (row.ok && row.provider && row.provider !== "console") return "Enviado"
+  if (row.reason === "awaiting-photos") return "Esperando fotos"
+  if (row.reason === "awaiting-price") return "Sem valor"
+  if (row.reason === "no-email") return "Cliente sem e-mail"
+  if (row.reason === "email-disabled") return "E-mail desligado"
+  if (row.reason === "smtp-off" || row.provider === "console") return "SMTP desligado"
+  if (row.error) return `Falhou: ${row.error}`
+  return "Não enviado"
+}
+
 function sortEndpoints(rows: OpsEndpoint[], sort: SortId) {
   const list = [...rows]
   if (sort === "slow") list.sort((a, b) => b.avgMs - a.avgMs || b.count - a.count)
@@ -102,7 +120,7 @@ export default function PlatformPortalPage() {
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Portal"
-        subtitle="Oficinas, chamadas e erros. O tempo é só o do servidor."
+        subtitle="Oficinas, chamadas, e-mails e erros. O tempo é só o do servidor."
         actions={
           <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={() => void load()}>
             Atualizar
@@ -216,6 +234,35 @@ export default function PlatformPortalPage() {
                   </tbody>
                 </table>
               </div>
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+              <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">E-mails</h2>
+              <ul className="max-h-[420px] divide-y divide-[var(--wq-border)] overflow-y-auto">
+                {(ops?.mail || []).length === 0 ? (
+                  <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">
+                    Nenhum envio registrado ainda. Laudo, pronto e andamento passam a aparecer aqui, inclusive quando não saem.
+                  </li>
+                ) : (
+                  ops?.mail?.map((row) => (
+                    <li key={row.id} className="px-4 py-2.5 text-sm">
+                      <p className="font-medium">
+                        {mailKind(row.kind)}
+                        {row.code ? ` · #${row.code}` : ""}
+                        {" · "}
+                        {mailStatus(row)}
+                      </p>
+                      <p className="text-xs text-[var(--wq-text-muted)]">
+                        {row.to || "sem destinatário"}
+                        {row.shopName ? ` · ${row.shopName}` : ""}
+                        {row.provider && row.provider !== "console" ? ` · ${row.provider}` : ""}
+                        {" · "}
+                        {formatWhen(row.at)}
+                      </p>
+                    </li>
+                  ))
+                )}
+              </ul>
             </section>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">

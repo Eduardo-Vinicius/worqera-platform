@@ -497,6 +497,20 @@ export async function getPlatformOpsV1() {
       count?: number
       at: string
     }>
+    mail?: Array<{
+      id: string
+      at?: string
+      shopId?: string | null
+      shopName?: string
+      kind?: string
+      code?: string
+      to?: string
+      ok?: boolean
+      skipped?: boolean
+      reason?: string
+      error?: string
+      provider?: string
+    }>
     shops: { total: number; suspended: number; trialing: number; active: number; openOrders: number }
     notices: PlatformNotice[]
     disabled: Array<{ kind: "feature" | "service"; key: string; label: string }>

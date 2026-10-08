@@ -63,6 +63,7 @@ import QRCode from "qrcode"
 import { formatBRL, moneyVisibility, readOrderPricing, roundMoney } from "@/lib/orderMoney"
 import { MoneyField } from "@/components/orders/MoneyField"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
+import { laudoSaveMessage, type LaudoNotice } from "@/components/orders/laudoNotice"
 
 type OrderCard = {
   _id?: string
@@ -615,27 +616,28 @@ function KanbanCardBody({
           )}
         </div>
         <p className="mt-1 truncate text-sm text-[var(--wq-text)]">{order.clientName || "Cliente"}</p>
+        {order.services?.length ? (
+          <ul className="mt-1.5 space-y-1">
+            {order.services.map((service, index) => (
+              <li key={`${service.name || "servico"}-${index}`}>
+                <p className="text-[13px] font-medium leading-snug text-[var(--wq-text)]">
+                  {service.name || "Serviço"}
+                </p>
+                {service.note ? (
+                  <p className="line-clamp-2 text-[13px] leading-snug text-[var(--wq-text)]">{service.note}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {order.itemNotes ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-snug text-[var(--wq-text-muted)]">{order.itemNotes}</p>
+        ) : null}
         {(order.brand || order.shoeModel || order.modeloTenis) && (
-          <p className="truncate text-xs text-[var(--wq-text-muted)]">
+          <p className="mt-1 truncate text-xs text-[var(--wq-text-muted)]">
             {[order.brand, order.shoeModel || order.modeloTenis].filter(Boolean).join(" · ")}
           </p>
         )}
-        {order.services?.length ? (
-          <p className="mt-1 text-xs text-[var(--wq-text)]">
-            {order.services.map((service) => service.name).filter(Boolean).join(" · ")}
-          </p>
-        ) : null}
-        {order.services?.some((service) => service.note) ? (
-          <p className="truncate text-xs text-[var(--wq-text-muted)]">
-            {order.services
-              .filter((service) => service.note)
-              .map((service) => service.note)
-              .join(" · ")}
-          </p>
-        ) : null}
-        {order.itemNotes ? (
-          <p className="truncate text-xs text-[var(--wq-text-muted)]">Obs.: {order.itemNotes}</p>
-        ) : null}
         {!cue.offFlow && cue.nextLabel && (
           <p
             className={cn(
@@ -1220,11 +1222,12 @@ export default function KanbanPage() {
       })
       setDetail(updated as DetailOrder)
       setDetailPrice(readOrderPricing(updated).total)
-      const notify = (updated as { emailNotify?: { waiting?: boolean; reason?: string; skipped?: boolean } }).emailNotify
-      if (sendLaudo === true && notify?.reason === "awaiting-photos") {
-        toast.success("Valor salvo. O laudo sai quando as fotos terminarem.")
-      } else if (sendLaudo === true) {
-        toast.success("Valor salvo. Laudo enviado ao cliente.")
+      const notify = (updated as { emailNotify?: LaudoNotice }).emailNotify
+      if (sendLaudo === true) {
+        const note = laudoSaveMessage("Valor salvo.", notify)
+        if (note.tone === "ok") toast.success(note.text)
+        else if (note.tone === "wait") toast.message(note.text)
+        else toast.error(note.text)
       } else if (next <= 0.009) {
         toast.success("Valor em aberto. O laudo continua em espera.")
       } else {
@@ -1241,7 +1244,7 @@ export default function KanbanPage() {
   const saveServicePrice = async (itemIndex: number, serviceIndex: number, price: number) => {
     if (!detail?.id || !detail.items?.[itemIndex]) return
     const item = detail.items[itemIndex]
-    const wasPending = readOrderPricing(detail).total <= 0.009
+    const previousTotal = readOrderPricing(detail).total
     const key = `${itemIndex}:${serviceIndex}`
     setSavingServiceKey(key)
     try {
@@ -1258,7 +1261,8 @@ export default function KanbanPage() {
       setDetail(updated as DetailOrder)
       const nextTotal = readOrderPricing(updated).total
       setDetailPrice(nextTotal)
-      if (wasPending && nextTotal > 0.009) setPriceAskOpen(true)
+      if (Math.abs(nextTotal - previousTotal) > 0.009 && nextTotal > 0.009) setPriceAskOpen(true)
+      else if (nextTotal <= 0.009) toast.success("Preço salvo. Sem valor, o laudo continua em espera.")
       else toast.success("Preço do serviço salvo")
       await load()
     } catch (err: any) {
@@ -1865,7 +1869,7 @@ export default function KanbanPage() {
                               className={cn(
                                 "rounded-xl border px-3 py-2",
                                 focused
-                                  ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)]/50"
+                                  ? "border-[var(--wq-border)] border-l-[3px] border-l-[var(--wq-text)] bg-[var(--wq-paper)]"
                                   : "border-[var(--wq-border)] bg-[var(--wq-paper)]"
                               )}
                             >
@@ -1902,7 +1906,7 @@ export default function KanbanPage() {
                                           ) : null}
                                         </div>
                                         {service.note ? (
-                                          <p className="text-xs text-[var(--wq-text-muted)]">{service.note}</p>
+                                          <p className="mt-0.5 text-sm leading-snug text-[var(--wq-text)]">{service.note}</p>
                                         ) : null}
                                         {moneyTone !== "hidden" && pending ? (
                                           <ServicePriceField

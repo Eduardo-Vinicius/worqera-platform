@@ -307,20 +307,22 @@ class _KanbanScreenState extends State<KanbanScreen> {
               if (card['pricePending'] == true) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Pendente valor', style: TextStyle(color: Wq.warn, fontSize: 12, fontWeight: FontWeight.w700))),
             ]),
             Text('${card['clientName'] ?? ''}', style: TextStyle(color: context.wqInk)),
-            if (card['services'] is List && (card['services'] as List).isNotEmpty)
-              Text(
-                (card['services'] as List).whereType<Map>().map((service) => '${service['name'] ?? ''}').where((name) => name.isNotEmpty).join(' · '),
-                style: const TextStyle(fontSize: 12),
-              ),
-            if (card['services'] is List && (card['services'] as List).whereType<Map>().any((service) => '${service['note'] ?? ''}'.isNotEmpty))
-              Text(
-                (card['services'] as List).whereType<Map>().map((service) => '${service['note'] ?? ''}').where((note) => note.isNotEmpty).join(' · '),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.wqMuted, fontSize: 12),
-              ),
+            if (card['services'] is List)
+              for (final service in (card['services'] as List).whereType<Map>())
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if ('${service['name'] ?? ''}'.isNotEmpty)
+                      Text('${service['name']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    if ('${service['note'] ?? ''}'.isNotEmpty)
+                      Text('${service['note']}', maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.3)),
+                  ]),
+                ),
             if ('${card['itemNotes'] ?? ''}'.isNotEmpty)
-              Text('Obs.: ${card['itemNotes']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${card['itemNotes']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              ),
             if ('${card['brand'] ?? card['shoeModel'] ?? ''}'.isNotEmpty)
               Text('${card['brand'] ?? ''} · ${card['shoeModel'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
             if (widget.session.seesColumnMoney && pending > 0.009)
