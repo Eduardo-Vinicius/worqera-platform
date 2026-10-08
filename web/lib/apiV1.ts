@@ -346,6 +346,7 @@ export async function getAlertsInboxV1() {
     }>
     history?: InboxHistoryItem[]
   }>("/alerts/inbox")
+}
 
 export type InboxHistoryItem = {
   kind: "ready" | "reopened" | "feedback"
@@ -356,7 +357,6 @@ export type InboxHistoryItem = {
   read?: boolean
   score?: number
   comment?: string
-}
 }
 
 export async function listFeedbackV1(opts?: {
