@@ -1739,6 +1739,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                       </p>
                     </div>
                     {(itemsServicesTotal > 0 || hasWarranty) && (
+                    <>
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="discount">Desconto (R$)</Label>
@@ -1835,6 +1836,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         </div>
                       </div>
                     </div>
+                    </>
                     )}
                 </div>
                 {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
@@ -1989,8 +1991,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             </div>
           </div>
         </form>
-        {!isEdit ? (
-          <Dialog open={laudoAsk} onOpenChange={setLaudoAsk}>
+        <Dialog open={laudoAsk} onOpenChange={setLaudoAsk}>
             <DialogContent className="max-w-sm">
               <DialogHeader>
                 <DialogTitle>Enviar o laudo?</DialogTitle>
@@ -2024,6 +2025,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               </div>
             </DialogContent>
           </Dialog>
+        {!isEdit ? (
           <Dialog
             open={confirmOpen}
             onOpenChange={(open) => {
