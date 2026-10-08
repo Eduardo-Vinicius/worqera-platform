@@ -1069,6 +1069,8 @@ export async function updateOrderService(
   if (orderData.servicos != null && typeof orderData.servicos !== "string") {
     body.servicos = orderData.servicos;
   }
+  if (orderData.sendLaudo === true) body.sendLaudo = true;
+  else if (orderData.sendLaudo === false) body.sendLaudo = false;
 
   const total =
     orderData.pricing?.total ??

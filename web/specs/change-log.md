@@ -2,7 +2,7 @@
 
 ## 2026-10-08
 
-- **Kanban:** o detalhe de cada serviço fica logo abaixo do cliente, em texto normal, sem faixa roxa. Mudar o preço de um serviço que já tinha valor também pergunta se envia o laudo. O aviso só diz "enviado" quando o servidor confirma.
+- **Kanban:** o detalhe de cada serviço fica logo abaixo do cliente, em texto normal, sem faixa roxa. Mudar o preço de um serviço que já tinha valor também pergunta se envia o laudo. O aviso só diz "enviado" quando o servidor confirma. Salvar o valor passa a pedir o envio do laudo de fato. Com saldo em aberto, o cartão mostra "A pagar" e "Marcar pago". Na entrega, se ainda falta receber, pergunta se já foi pago. "Pendente valor" fica só quando o pedido ainda não tem preço.
 - **Portal:** a lista E-mails mostra laudo, pronto e andamento, com o motivo quando não sai.
 - **Kanban:** cada par mostra os serviços, a observação do serviço e a observação do par. Serviço sem preço fica como "Pendente valor" e o preço se grava ali.
 - **Kanban:** pedido sem valor mostra "Pendente valor". No card, o preço se altera ali e pergunta se envia o laudo. O detalhe fica por cima do menu de baixo, então Excluir pedido não fica coberto.

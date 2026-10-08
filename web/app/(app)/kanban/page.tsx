@@ -288,6 +288,11 @@ function orderCode(o: OrderCard) {
   return o.code || o.codigo || "—"
 }
 
+function amountDue(order: OrderCard) {
+  if (order.paymentRemaining != null) return Number(order.paymentRemaining) || 0
+  return Number(order.linePending) || 0
+}
+
 function isOffPath(order: OrderCard | DetailOrder | null, toSectorId: string) {
   const planned = (order?.plannedSectorIds || []).map(String)
   if (!planned.length) return false
@@ -510,6 +515,7 @@ function KanbanCardBody({
   isTerminalColumn,
   onMarkDelivered,
   onNotifyReady,
+  onMarkPaid,
   showPayment = false,
 }: {
   order: OrderCard
@@ -523,6 +529,7 @@ function KanbanCardBody({
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  onMarkPaid?: (order: OrderCard) => void
   showPayment?: boolean
 }) {
   const late = order.dueAt && new Date(order.dueAt).getTime() < Date.now()
@@ -582,18 +589,18 @@ function KanbanCardBody({
               Sem foto
             </Badge>
           )}
-          {(order.pricePending ||
-            (order.paymentTotal != null && Number(order.paymentTotal) <= 0.009) ||
-            order.services?.some((service) => service.pricePending)) && (
+          {(order.pricePending === true ||
+            (order.paymentTotal != null && Number(order.paymentTotal) <= 0.009)) &&
+          !(order.paymentTotal != null && Number(order.paymentTotal) > 0.009) ? (
             <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-950">
               Pendente valor
             </Badge>
-          )}
-          {showPayment && Number(order.linePending) > 0.009 && (
+          ) : null}
+          {amountDue(order) > 0.009 ? (
             <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
-              A pagar
+              A pagar {formatBRL(amountDue(order))}
             </Badge>
-          )}
+          ) : null}
           {cue.offFlow && (
             <Badge className="border-0 bg-[var(--wq-warn)]/20 text-[10px] font-semibold text-[var(--wq-warn)]">
               Fora do fluxo
@@ -656,6 +663,19 @@ function KanbanCardBody({
           </p>
         )}
       </button>
+      {amountDue(order) > 0.009 && onMarkPaid ? (
+        <button
+          type="button"
+          className="mt-2 flex w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-950"
+          onClick={(e) => {
+            e.stopPropagation()
+            onMarkPaid(order)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          Marcar pago
+        </button>
+      ) : null}
       {showNotify || showDeliver ? (
         <div className="mt-2 flex flex-col gap-1.5">
           {showNotify ? (
@@ -702,6 +722,7 @@ function DraggableCard({
   isTerminalColumn,
   onMarkDelivered,
   onNotifyReady,
+  onMarkPaid,
   dragEnabled = true,
   showPayment = false,
 }: {
@@ -714,6 +735,7 @@ function DraggableCard({
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  onMarkPaid?: (order: OrderCard) => void
   dragEnabled?: boolean
   showPayment?: boolean
 }) {
@@ -738,6 +760,7 @@ function DraggableCard({
         isTerminalColumn={isTerminalColumn}
         onMarkDelivered={onMarkDelivered}
         onNotifyReady={onNotifyReady}
+        onMarkPaid={onMarkPaid}
         showPayment={showPayment}
       />
     </div>
@@ -754,6 +777,7 @@ function DroppableColumn({
   compact,
   onMarkDelivered,
   onNotifyReady,
+  onMarkPaid,
   query = "",
   onDate = "",
   dragEnabled = true,
@@ -768,6 +792,7 @@ function DroppableColumn({
   compact?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  onMarkPaid?: (order: OrderCard) => void
   query?: string
   onDate?: string
   dragEnabled?: boolean
@@ -837,6 +862,7 @@ function DroppableColumn({
             isTerminalColumn={isTerminal}
             onMarkDelivered={onMarkDelivered}
             onNotifyReady={onNotifyReady}
+            onMarkPaid={onMarkPaid}
             dragEnabled={dragEnabled}
             showPayment={showPending}
           />
@@ -1055,9 +1081,27 @@ export default function KanbanPage() {
     }
   }
 
+  const markCardPaid = async (order: OrderCard) => {
+    const id = orderId(order)
+    if (!id) return
+    const total = Number(order.paymentTotal) || 0
+    if (total <= 0.009) {
+      toast.message("Esse pedido ainda não tem valor")
+      return
+    }
+    try {
+      await updateOrderService(id, {
+        pricing: { total, deposit: total, remaining: 0 },
+      })
+      toast.success(`${orderCode(order)} marcado como pago`)
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao marcar como pago")
+    }
+  }
+
   const requestDeliver = (order: OrderCard) => {
-    const due = Number(order.paymentRemaining)
-    if (Number.isFinite(due) && due > 0.009) {
+    if (amountDue(order) > 0.009) {
       setDeliverPrompt(order)
       return
     }
@@ -1202,6 +1246,33 @@ export default function KanbanPage() {
       setDetailOpen(false)
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  const markSettlement = async (paid: boolean) => {
+    if (!detail?.id) return
+    const current = readOrderPricing(detail)
+    if (current.total <= 0.009) {
+      toast.message("Defina o valor do pedido antes de marcar como pago")
+      return
+    }
+    setSavingPrice(true)
+    try {
+      const updated = await updateOrderService(String(detail.id), {
+        pricing: {
+          total: current.total,
+          deposit: paid ? current.total : 0,
+          remaining: paid ? 0 : current.total,
+        },
+      })
+      setDetail(updated as DetailOrder)
+      setDetailPrice(readOrderPricing(updated).total)
+      toast.success(paid ? "Marcado como pago" : "Continua em aberto")
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao atualizar o pagamento")
+    } finally {
+      setSavingPrice(false)
     }
   }
 
@@ -1696,6 +1767,7 @@ export default function KanbanPage() {
                   showPending={showColumnMoney}
                   onMarkDelivered={requestDeliver}
                   onNotifyReady={notifyReady}
+                  onMarkPaid={markCardPaid}
                 />
               )}
               {focusedCardId && (
@@ -1759,6 +1831,7 @@ export default function KanbanPage() {
                   showPending={showColumnMoney}
                   onMarkDelivered={requestDeliver}
                   onNotifyReady={notifyReady}
+                  onMarkPaid={markCardPaid}
                 />
               ))}
             </div>
@@ -1838,6 +1911,30 @@ export default function KanbanPage() {
                           <p className="text-xs text-[var(--wq-text-muted)]">
                             Sem valor, o laudo não sai. Ao mudar o preço, dá para escolher se envia o laudo.
                           </p>
+                          {readOrderPricing(detail).total > 0.009 ? (
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={readOrderPricing(detail).remaining <= 0.009 ? "default" : "outline"}
+                                disabled={savingPrice}
+                                className="rounded-[10px]"
+                                onClick={() => void markSettlement(true)}
+                              >
+                                Pago
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={readOrderPricing(detail).remaining > 0.009 ? "default" : "outline"}
+                                disabled={savingPrice}
+                                className="rounded-[10px]"
+                                onClick={() => void markSettlement(false)}
+                              >
+                                Em aberto
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
@@ -1889,7 +1986,8 @@ export default function KanbanPage() {
                                   <li className="text-xs text-[var(--wq-text-muted)]">Nenhum serviço neste par</li>
                                 ) : (
                                   (item.services || []).map((service, serviceIndex) => {
-                                    const pending = (Number(service.price) || 0) <= 0.009
+                                    const orderHasPrice = readOrderPricing(detail).total > 0.009
+                                    const pending = !orderHasPrice && (Number(service.price) || 0) <= 0.009
                                     return (
                                       <li key={`${service.id || service.name}-${serviceIndex}`}>
                                         <div className="flex flex-wrap items-center gap-2">
@@ -2554,7 +2652,7 @@ export default function KanbanPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Ainda falta pagar</DialogTitle>
+            <DialogTitle>Já foi pago?</DialogTitle>
             <DialogDescription>
               {deliverPrompt ? orderCode(deliverPrompt) : "Este pedido"} ainda tem valor em aberto.
               {Number(deliverPrompt?.itemCount) > 1
@@ -2563,7 +2661,7 @@ export default function KanbanPage() {
             </DialogDescription>
           </DialogHeader>
           <p className="text-center text-4xl font-semibold tabular-nums tracking-tight text-amber-800">
-            {formatBRL(Number(deliverPrompt?.paymentRemaining) || 0)}
+            {formatBRL(deliverPrompt ? amountDue(deliverPrompt) : 0)}
           </p>
           <p className="text-center text-sm text-[var(--wq-text-muted)]">
             Falta receber neste pedido.
