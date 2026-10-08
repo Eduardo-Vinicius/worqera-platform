@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- **Menu lateral:** fica na altura da janela. O miolo da tela é que rola; o menu não some no fim da página.
 - **Kanban:** o cartão só leva a tag "Pendente valor" ou "A pagar", sem botão. Abrir o pedido mostra se ainda falta receber. A pergunta "Já foi pago?" aparece ao marcar entregue na fila final.
 - **Portal:** a lista E-mails mostra laudo, pronto e andamento, com o motivo quando não sai.
 - **Kanban:** cada par mostra os serviços, a observação do serviço e a observação do par. Serviço sem preço fica como "Pendente valor" e o preço se grava ali.

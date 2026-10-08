@@ -244,8 +244,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showMobileDock = !platformConsole
 
   return (
-    <div className="flex min-h-[100dvh] bg-[var(--wq-paper)] text-[var(--wq-text)]">
-      <div className="hidden h-[100dvh] shrink-0 md:sticky md:top-0 md:flex">
+    <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-[var(--wq-paper)] text-[var(--wq-text)]">
+      <div className="hidden h-full shrink-0 md:flex">
         <AppSidebar />
       </div>
 
@@ -271,7 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="sticky top-0 z-30 md:static">
           <div className="flex items-center gap-3 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:px-4 md:hidden">
             <button
@@ -291,12 +291,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           {platformConsole ? null : <PlatformNoticeBanner />}
           {platformConsole ? null : <DelayAlertsBanner />}
         </div>
-        <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <main
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-x-hidden",
+            fullBleed ? "overflow-hidden" : "overflow-y-auto"
+          )}
+        >
           <div
             className={cn(
               "w-full min-w-0 flex-1",
               fullBleed
-                ? "max-w-none px-0 py-0 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0"
+                ? "flex h-full min-h-0 max-w-none flex-col px-0 py-0 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0"
                 : "mx-auto max-w-[1600px] px-2.5 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 md:px-6 md:py-6 md:pb-6 lg:px-8"
             )}
           >

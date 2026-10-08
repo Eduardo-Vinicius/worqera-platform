@@ -82,8 +82,8 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex h-[100dvh] w-[246px] shrink-0 flex-col bg-[var(--wq-ink)] text-[var(--wq-on-ink)]",
-        mobile && "h-full w-full max-w-none"
+        "flex h-full w-[246px] shrink-0 flex-col bg-[var(--wq-ink)] text-[var(--wq-on-ink)]",
+        mobile && "w-full max-w-none"
       )}
     >
       <div className="shrink-0 border-b border-white/10 px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">

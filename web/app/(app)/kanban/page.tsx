@@ -1563,7 +1563,7 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="relative flex h-[calc(100dvh-3.5rem-5.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[280px] max-h-[100dvh] max-w-[100vw] flex-col overflow-hidden md:h-[calc(100vh-0px)] md:min-h-[640px] md:max-h-none">
+      <div className="relative flex h-[calc(100dvh-3.5rem-5.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[280px] max-h-[100dvh] max-w-[100vw] flex-col overflow-hidden md:h-full md:max-h-full md:min-h-0 md:flex-1">
         <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-2 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
