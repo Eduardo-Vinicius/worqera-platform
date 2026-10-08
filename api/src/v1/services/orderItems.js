@@ -3,6 +3,7 @@ function mapService(s) {
     id: s.id || null,
     name: s.name || s.nome || '',
     price: Number(s.price != null ? s.price : s.preco) || 0,
+    note: String(s.note || s.description || s.observacao || s.obs || '').trim(),
   };
 }
 

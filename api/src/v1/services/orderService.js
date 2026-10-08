@@ -881,7 +881,6 @@ async function patchOrder(shopId, id, userId, updates) {
     throw err;
   }
   assertNotDeleted(order);
-  const priceBefore = Number(order.pricing?.total) || 0;
 
   const fields = [
     'clientName',
@@ -995,10 +994,14 @@ async function patchOrder(shopId, id, userId, updates) {
     order.reopenedAt = null;
   }
   await order.save();
-  if (priceBefore <= 0.009 && !pricePending(order)) {
-    await releaseHeldLaudo(shopId, order._id);
+  const plain = order.toObject();
+  if (updates.sendLaudo === true) {
+    plain.emailNotify = await sendLaudoNow(shopId, order._id);
+  } else if (updates.sendLaudo === false && order.photoNotify) {
+    await Order.updateOne({ _id: order._id, shopId }, { $set: { 'photoNotify.approved': false } });
+    plain.emailNotify = { ok: true, skipped: true, reason: 'declined' };
   }
-  return order.toObject();
+  return plain;
 }
 
 async function applyItemPatchInPlace(order, shopId, patch, allSectorsCached) {
@@ -1059,7 +1062,6 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   }
   assertNotDeleted(order);
   assertNotDeliveredStructural(order);
-  const priceBefore = Number(order.pricing?.total) || 0;
   hydrateItemsIfEmpty(order);
   const idx = assertItemIndex(itemIndex, order.items.length);
   const allSectors = await loadActiveSectors(shopId);
@@ -1076,9 +1078,6 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   }
   order.updatedByUserId = userId;
   await order.save();
-  if (priceBefore <= 0.009 && !pricePending(order)) {
-    await releaseHeldLaudo(shopId, order._id);
-  }
   return order.toObject();
 }
 
@@ -1610,6 +1609,7 @@ async function releaseCreatedEmail(shopId, orderId) {
   if (current.photoNotify.sent) return { ok: true, already: true };
   if (!itemPhotosReady(current)) return { ok: true, waiting: true };
   if (pricePending(current)) return { ok: true, waiting: true, reason: 'awaiting-price' };
+  if (current.photoNotify.approved === false) return { ok: true, skipped: true, reason: 'declined' };
 
   const claimed = await Order.findOneAndUpdate(
     { _id: orderId, shopId, 'photoNotify.sent': false },
@@ -1653,13 +1653,20 @@ async function releaseCreatedEmail(shopId, orderId) {
   }
 }
 
-async function releaseHeldLaudo(shopId, orderId) {
+async function sendLaudoNow(shopId, orderId) {
+  await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
-  if (!order || pricePending(order)) return { ok: true, waiting: true, reason: 'awaiting-price' };
+  if (!order) return { ok: false, skipped: true, reason: 'missing' };
+  if (pricePending(order)) return { ok: true, waiting: true, reason: 'awaiting-price' };
   const expected = order.photoNotify?.expected || [];
-  const waitingPhotos = expected.some((n) => Number(n) > 0);
-  if (waitingPhotos) {
-    if (!itemPhotosReady(order)) return { ok: true, waiting: true, reason: 'awaiting-photos' };
+  const needsPhotos = expected.some((n) => Number(n) > 0);
+  if (order.photoNotify) {
+    await Order.updateOne({ _id: orderId, shopId }, { $set: { 'photoNotify.approved': true } });
+  }
+  if (needsPhotos && !itemPhotosReady(order)) {
+    return { ok: true, waiting: true, reason: 'awaiting-photos' };
+  }
+  if (needsPhotos && order.photoNotify && !order.photoNotify.sent) {
     return releaseCreatedEmail(shopId, orderId);
   }
   return queueCreatedNotify(shopId, order);

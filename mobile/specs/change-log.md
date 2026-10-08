@@ -1,5 +1,11 @@
 # App celular
 
+## 2026-10-08
+
+- **Pedido:** a observação do serviço grava no serviço, e a do par grava no par. O kanban e a ficha mostram as duas.
+- **Kanban:** pedido sem valor mostra "Pendente valor".
+- **Editar pedido:** campo Valor do pedido. Se o preço mudar, pergunta se envia o laudo.
+
 ## 2026-10-07
 
 - **Sino:** a folha de avisos mostra o histórico do que já foi lido. Tocar na linha abre o pedido.

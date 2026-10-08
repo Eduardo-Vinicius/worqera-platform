@@ -389,11 +389,11 @@ async function generateOrderPdf(shopId, orderId) {
         doc.setFontSize(9);
         doc.setTextColor(...BRAND_RGB);
         const name = s.name || s.nome || 'Serviço';
-        const price = formatCurrency(s.price);
+        const price = Number(s.price) > 0.009 ? formatCurrency(s.price) : 'A definir';
         doc.text(`• ${name}`, 28, y);
         doc.text(price, pageWidth - 20, y, { align: 'right' });
         y += 5.2;
-        const desc = String(s.description || s.descricao || '').trim();
+        const desc = String(s.note || s.description || s.descricao || '').trim();
         if (desc) {
           y = ensureSpace(doc, y, 8, pageHeight, pageCtx);
           doc.setFont('helvetica', 'normal');

@@ -5,6 +5,7 @@ const serviceItemSchema = new mongoose.Schema(
     id: String,
     name: String,
     price: { type: Number, default: 0 },
+    note: { type: String, default: '' },
   },
   { _id: false }
 );
@@ -135,6 +136,8 @@ const orderSchema = new mongoose.Schema(
       expected: { type: [Number], default: undefined },
       got: { type: [Number], default: undefined },
       sent: { type: Boolean, default: false },
+      /** false = someone saved a price and chose not to email the laudo. */
+      approved: { type: Boolean },
     },
     notes: { type: String, default: null },
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

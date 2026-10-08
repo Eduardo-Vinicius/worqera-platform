@@ -80,6 +80,7 @@ exports.patch = wrap(async (req, res) => {
     delete body.total;
     delete body.deposit;
     delete body.remaining;
+    delete body.sendLaudo;
   }
   const order = await orderService.patchOrder(
     req.shopId,
@@ -87,7 +88,10 @@ exports.patch = wrap(async (req, res) => {
     req.auth.userId,
     body
   );
-  res.status(200).json(presentOrder(req, order));
+  const emailNotify = order.emailNotify || null;
+  const payload = presentOrder(req, order);
+  if (emailNotify) payload.emailNotify = emailNotify;
+  res.status(200).json(payload);
 });
 
 exports.patchItem = wrap(async (req, res) => {

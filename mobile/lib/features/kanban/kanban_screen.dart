@@ -304,8 +304,23 @@ class _KanbanScreenState extends State<KanbanScreen> {
                 Padding(padding: const EdgeInsets.only(left: 8), child: Text('${pairCount(card)} pares', style: const TextStyle(color: Wq.brand, fontSize: 12, fontWeight: FontWeight.w700))),
               if (late) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Atrasado', style: TextStyle(color: Wq.danger, fontSize: 12))),
               if (card['hasPhotos'] != true) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Sem foto', style: TextStyle(color: Wq.warn, fontSize: 12))),
+              if (card['pricePending'] == true) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Pendente valor', style: TextStyle(color: Wq.warn, fontSize: 12, fontWeight: FontWeight.w700))),
             ]),
             Text('${card['clientName'] ?? ''}', style: TextStyle(color: context.wqInk)),
+            if (card['services'] is List && (card['services'] as List).isNotEmpty)
+              Text(
+                (card['services'] as List).whereType<Map>().map((service) => '${service['name'] ?? ''}').where((name) => name.isNotEmpty).join(' · '),
+                style: const TextStyle(fontSize: 12),
+              ),
+            if (card['services'] is List && (card['services'] as List).whereType<Map>().any((service) => '${service['note'] ?? ''}'.isNotEmpty))
+              Text(
+                (card['services'] as List).whereType<Map>().map((service) => '${service['note'] ?? ''}').where((note) => note.isNotEmpty).join(' · '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.wqMuted, fontSize: 12),
+              ),
+            if ('${card['itemNotes'] ?? ''}'.isNotEmpty)
+              Text('Obs.: ${card['itemNotes']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.wqMuted, fontSize: 12)),
             if ('${card['brand'] ?? card['shoeModel'] ?? ''}'.isNotEmpty)
               Text('${card['brand'] ?? ''} · ${card['shoeModel'] ?? ''}', style: const TextStyle(color: Wq.muted, fontSize: 13)),
             if (widget.session.seesColumnMoney && pending > 0.009)

@@ -109,6 +109,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final newEmail = TextEditingController();
   final observations = TextEditingController();
   final discountField = TextEditingController(text: '0');
+  final valueField = TextEditingController();
   final warrantyField = TextEditingController(text: '0');
   final signalField = TextEditingController(text: '0');
   final accessoryDraft = TextEditingController();
@@ -137,6 +138,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final items = <_ItemDraft>[_ItemDraft()];
   int itemIndex = 0;
   int serverItemCount = 0;
+  double openedTotal = 0;
 
   bool get editing => widget.orderId != null && widget.orderId!.isNotEmpty;
   _ItemDraft get current => items[itemIndex.clamp(0, items.length - 1)];
@@ -157,6 +159,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     newEmail.dispose();
     observations.dispose();
     discountField.dispose();
+    valueField.dispose();
     warrantyField.dispose();
     signalField.dispose();
     accessoryDraft.dispose();
@@ -316,6 +319,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       signalKind = 'custom';
       signalField.text = deposit.toStringAsFixed(2);
     }
+    openedTotal = total;
+    if (total > 0.009) valueField.text = total.toStringAsFixed(2);
     final rawAccessories = order['accessories'] ?? order['acessorios'];
     accessories
       ..clear()
@@ -340,11 +345,13 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           if (draft.flow.isEmpty) draft.flow.add('atendimento');
           for (final service in (raw['services'] as List? ?? const [])) {
             final row = Map<String, dynamic>.from(service as Map);
-            draft.services.add(_ServicePick(
+            final pick = _ServicePick(
               id: '${row['id'] ?? row['name']}',
               name: '${row['name'] ?? ''}',
               price: double.tryParse('${row['price'] ?? 0}') ?? 0,
-            ));
+            );
+            pick.noteField.text = '${row['note'] ?? ''}';
+            draft.services.add(pick);
           }
           for (var photoIndex = 0; photoIndex < (raw['photos'] as List? ?? const []).length; photoIndex++) {
             final photo = (raw['photos'] as List)[photoIndex];
@@ -380,7 +387,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     return raw > subtotal ? subtotal : raw;
   }
 
-  double get total => (subtotal - discount).clamp(0, double.infinity);
+  double get total {
+    final typed = double.tryParse(valueField.text.trim().replaceAll(',', '.'));
+    if (valueField.text.trim().isNotEmpty && typed != null) return typed < 0 ? 0 : typed;
+    return (subtotal - discount).clamp(0, double.infinity);
+  }
 
   double get deposit {
     if (signalKind == '100') return total;
@@ -691,7 +702,13 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       'shoeModel': item.model.text.trim(),
       'brand': item.brand.text.trim(),
       'services': [
-        for (final service in item.services) {'id': service.id, 'name': service.name, 'price': service.price},
+        for (final service in item.services)
+          {
+            'id': service.id,
+            'name': service.name,
+            'price': service.price,
+            'note': service.noteField.text.trim(),
+          },
       ],
       'notes': _notesFor(item),
       'flowOptionIds': item.flow,
@@ -710,18 +727,10 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   String _notesFor(_ItemDraft item) {
-    final base = item.notes.text.trim();
-    final extras = [
-      for (final service in item.services)
-        if (service.noteField.text.trim().isNotEmpty) '${service.name}: ${service.noteField.text.trim()}',
-    ];
-    if (extras.isEmpty) return base;
-    final block = extras.join(' · ');
-    if (base.contains(block)) return base;
-    return [base, block].where((part) => part.isNotEmpty).join('\n');
+    return item.notes.text.trim();
   }
 
-  Future<void> _saveEdit(String id) async {
+  Future<void> _saveEdit(String id, {bool? sendLaudo}) async {
     await widget.api.dio.patch('/orders/$id', data: _header());
     final filled = filledItems;
     final known = filled.map((item) => item.serverIndex).whereType<int>().toSet();
@@ -746,6 +755,9 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       }
       if (item.photos.any((photo) => photo.file != null)) await _upload(id, index, item);
     }
+    final data = _header();
+    if (sendLaudo != null) data['sendLaudo'] = sendLaudo;
+    await widget.api.dio.patch('/orders/$id', data: data);
   }
 
   Future<void> save({bool confirmed = false}) async {
@@ -771,7 +783,26 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       late final String id;
       if (editing) {
         id = widget.orderId!;
-        await _saveEdit(id);
+        bool? sendLaudo;
+        if ((total - openedTotal).abs() > 0.009 && total > 0.009) {
+          final answer = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Enviar o laudo?'),
+              content: const Text('O valor mudou. Quer enviar o laudo para o cliente?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Só salvar')),
+                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Enviar laudo')),
+              ],
+            ),
+          );
+          if (answer == null || !mounted) {
+            if (mounted) setState(() => saving = false);
+            return;
+          }
+          sendLaudo = answer;
+        }
+        await _saveEdit(id, sendLaudo: sendLaudo);
       } else {
         final created = await widget.api.dio.post('/orders', data: {
           ..._header(),
@@ -1098,7 +1129,15 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                   OutlinedButton(onPressed: addAccessory, child: const Text('Adicionar')),
                 ]),
                 const SizedBox(height: 18),
-                _section(context, '3', 'Pagamento', 'Prazo, sinal e garantia. O total sai dos serviços.'),
+                _section(context, '3', 'Pagamento', 'Sem valor, o laudo fica em espera.'),
+                if (total <= 0.009) const Text('Pendente valor', style: TextStyle(color: Wq.warn, fontWeight: FontWeight.w800)),
+                TextField(
+                  controller: valueField,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor do pedido (R\$)'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: warranty,

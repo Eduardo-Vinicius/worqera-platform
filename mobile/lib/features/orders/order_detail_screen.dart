@@ -239,8 +239,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: WqCard(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${item['brand'] ?? ''} ${item['shoeModel'] ?? ''}'.trim(), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text(((item['services'] as List?) ?? const []).whereType<Map>().map((s) => s['name']).join(', '), style: const TextStyle(color: Wq.muted)),
-                  if ('${item['notes'] ?? ''}'.isNotEmpty) Text('${item['notes']}'),
+                  if ('${item['notes'] ?? ''}'.isNotEmpty) Text('Obs. do par: ${item['notes']}'),
+                  for (final service in ((item['services'] as List?) ?? const []).whereType<Map>())
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${service['name'] ?? 'Serviço'}${(num.tryParse('${service['price'] ?? 0}') ?? 0) <= 0.009 ? ' · Pendente valor' : ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        if ('${service['note'] ?? ''}'.isNotEmpty) Text('${service['note']}', style: const TextStyle(color: Wq.muted)),
+                      ]),
+                    ),
                   if (((item['photos'] as List?) ?? const []).isEmpty)
                     const Text('Sem foto', style: TextStyle(color: Wq.warn, fontSize: 12))
                   else

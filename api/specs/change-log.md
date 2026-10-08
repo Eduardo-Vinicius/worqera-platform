@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-10-08
+
+- **Pares:** cada item guarda os próprios serviços. A observação do serviço e a observação do par vão junto. O cartão do kanban mostra o serviço e a observação daquele par, não só do primeiro.
+- **Pedido sem valor:** o kanban marca "Pendente valor". O laudo só sai se, ao gravar um preço, pedirem para enviar. Dizer não deixa o e-mail parado, mesmo quando as fotos terminam.
+
 ## 2026-10-07
 
 - **Sino:** a resposta do inbox traz o histórico recente (pronto, reaberto e avaliação), inclusive o que já foi lido. O número do sino continua só com o que chegou depois da última abertura.

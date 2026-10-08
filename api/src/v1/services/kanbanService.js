@@ -228,6 +228,13 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
     orderSectorId: asId(order.currentSectorId),
     photoThumb: resolvePhotoUrl(cover) || null,
     hasPhotos: photos.length > 0,
+    itemNotes: item.notes || null,
+    services: (item.services || []).map((service) => ({
+      name: service.name || '',
+      note: String(service.note || '').trim(),
+      pricePending: (Number(service.price) || 0) <= 0.009,
+      ...(money ? { price: roundMoney(service.price) } : {}),
+    })),
     createdAt: order.createdAt || null,
     assigneeEmployeeId: order.assigneeEmployeeId,
     plannedSectorIds: Array.isArray(item.plannedSectorIds) && item.plannedSectorIds.length
@@ -236,6 +243,7 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
         ? order.plannedSectorIds.map((s) => String(s._id || s))
         : [],
     reopened: Boolean(order.reopenedAt),
+    pricePending: (Number(order?.pricing?.total) || 0) <= 0.009,
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
     ...(money

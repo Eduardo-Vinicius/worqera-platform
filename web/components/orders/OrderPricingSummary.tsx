@@ -13,7 +13,7 @@ export function OrderPricingSummary({
   if (tone === "quiet") {
     return (
       <p className="text-xs text-[var(--wq-text-muted)]">
-        {formatBRL(pricing.total)}
+        {pricing.total > 0.009 ? formatBRL(pricing.total) : "A definir"}
         {pricing.remaining > 0.009 ? ` · falta ${formatBRL(pricing.remaining)}` : paid ? " · pago" : ""}
       </p>
     )
@@ -35,7 +35,7 @@ export function OrderPricingSummary({
       ) : null}
       <div className="flex items-center justify-between gap-3 font-semibold text-[var(--wq-text)]">
         <span>Total</span>
-        <span className="font-mono">{formatBRL(pricing.total)}</span>
+        <span className="font-mono">{pricing.total > 0.009 ? formatBRL(pricing.total) : "A definir"}</span>
       </div>
       {pricing.deposit > 0 ? (
         <div className="flex items-center justify-between gap-3 text-[var(--wq-text)]">

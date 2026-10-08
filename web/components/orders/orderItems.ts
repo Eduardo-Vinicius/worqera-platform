@@ -28,7 +28,7 @@ export type OrderItemDraft = {
 export type CreatePedidoItemPayload = {
   shoeModel: string
   brand?: string
-  services: Array<{ id?: string; name: string; price: number }>
+  services: Array<{ id?: string; name: string; price: number; note?: string }>
   notes?: string
   flowOptionIds?: string[]
   departamentosSelecionados?: Array<{ id: string; nome: string }>
@@ -107,6 +107,7 @@ export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoIt
       id: service.id,
       name: service.name,
       price: service.price,
+      note: service.description.trim() || undefined,
     })),
     notes: item.notes.trim() || undefined,
     flowOptionIds: item.flowOptionIds?.length ? [...item.flowOptionIds] : ["atendimento"],
@@ -284,7 +285,7 @@ export function hydrateDraftsFromOrder(order: {
         id: String(s.id || s.name || ""),
         name: String(s.name || ""),
         price: Number(s.price) || 0,
-        description: "",
+        description: String(s.note || s.description || ""),
       })),
       photos,
       notes: String(it.notes || ""),

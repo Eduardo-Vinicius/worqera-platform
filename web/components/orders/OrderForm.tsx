@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -118,6 +118,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const DRAFT_KEY = "new-order-draft-v1";
   const [bootLoading, setBootLoading] = useState(isEdit);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [laudoAsk, setLaudoAsk] = useState(false);
+  const openedTotal = useRef(0);
+  const laudoAnswer = useRef<boolean | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>("open");
   const [formData, setFormData] = useState({
     clientId: "",
@@ -185,7 +188,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         const suggested = suggestedTotal(drafts, wActive, wPrice)
         setDiscount(storedDiscount)
         setSignalValue(deposit)
-        if (storedDiscount <= 0 && Math.abs(total - suggested) > 0.01) {
+        openedTotal.current = total
+        if (total <= 0.009 || (storedDiscount <= 0 && Math.abs(total - suggested) > 0.01)) {
           setLockedTotal(total)
           setTotalPrice(total)
         } else {
@@ -851,7 +855,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       })
       .filter(Boolean) as Array<{ id: string; nome: string }>
 
-  const handleSubmitEdit = async (filledItems: OrderItemDraft[]) => {
+  const handleSubmitEdit = async (filledItems: OrderItemDraft[], sendLaudo?: boolean) => {
     if (!orderId) return
     const garantiaData = normalizeWarranty({
       ativa: hasWarranty,
@@ -919,6 +923,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           id: s.id,
           name: s.name,
           price: s.price,
+          note: s.description.trim() || undefined,
         })),
         notes: draft.notes.trim() || undefined,
         flowOptionIds: draft.flowOptionIds,
@@ -960,7 +965,20 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     if (plannedChanged) {
       toast.message("Partida atualizada — posição atual dos itens no kanban foi mantida")
     }
-    toast.success("Pedido atualizado")
+    const saved = await updateOrderService(orderId, {
+      pricing,
+      ...(sendLaudo === true ? { sendLaudo: true } : sendLaudo === false ? { sendLaudo: false } : {}),
+    })
+    const notify = (saved as { emailNotify?: { reason?: string } }).emailNotify
+    if (sendLaudo === true && notify?.reason === "awaiting-photos") {
+      toast.success("Valor salvo. O laudo sai quando as fotos terminarem.")
+    } else if (sendLaudo === true) {
+      toast.success("Pedido atualizado. Laudo enviado ao cliente.")
+    } else if (sendLaudo === false) {
+      toast.success("Pedido atualizado. Laudo não enviado.")
+    } else {
+      toast.success("Pedido atualizado")
+    }
     items.forEach((item) => {
       item.photos.forEach((p) => {
         if (p.preview?.startsWith("blob:")) URL.revokeObjectURL(p.preview)
@@ -1000,7 +1018,16 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
     try {
       if (isEdit) {
-        await handleSubmitEdit(filledItems)
+        const pricingNow = buildPricing()
+        const priceChanged = Math.abs(pricingNow.total - openedTotal.current) > 0.009
+        if (priceChanged && pricingNow.total > 0.009 && laudoAnswer.current == null) {
+          setIsLoading(false)
+          setLaudoAsk(true)
+          return
+        }
+        const sendLaudo = laudoAnswer.current == null ? undefined : laudoAnswer.current
+        laudoAnswer.current = null
+        await handleSubmitEdit(filledItems, sendLaudo)
         setIsLoading(false)
         return
       }
@@ -1688,8 +1715,30 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   )}
                 </div>
 
-                {(itemsServicesTotal > 0 || hasWarranty) && (
-                  <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
+                <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
+                    {totalPrice <= 0.009 ? (
+                      <p className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
+                        Pendente valor
+                      </p>
+                    ) : null}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="order-total">Valor do pedido</Label>
+                      <MoneyField
+                        id="order-total"
+                        value={totalPrice}
+                        onValue={(next) => {
+                          const rounded = roundMoney(next)
+                          setLockedTotal(rounded)
+                          setTotalPrice(rounded)
+                        }}
+                        placeholder="0"
+                        className="w-40 text-lg font-semibold"
+                      />
+                      <p className="text-xs text-[var(--wq-text-muted)]">
+                        Sem valor, o laudo não sai. Ao alterar e salvar, pergunta se envia o laudo.
+                      </p>
+                    </div>
+                    {(itemsServicesTotal > 0 || hasWarranty) && (
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="discount">Desconto (R$)</Label>
@@ -1786,8 +1835,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                    )}
+                </div>
                 {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
                 {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
 
@@ -1903,7 +1952,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-[var(--wq-text-muted)]">Total</span>
-                    <span className="font-semibold">R$ {getTotalPrice().toFixed(2)}</span>
+                    <span className="font-semibold">{totalPrice > 0.009 ? `R$ ${getTotalPrice().toFixed(2)}` : "A definir"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[var(--wq-text-muted)]">Sinal</span>
@@ -1941,6 +1990,40 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           </div>
         </form>
         {!isEdit ? (
+          <Dialog open={laudoAsk} onOpenChange={setLaudoAsk}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Enviar o laudo?</DialogTitle>
+                <DialogDescription>
+                  O valor mudou. Quer enviar o laudo para o cliente?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    laudoAnswer.current = false
+                    setLaudoAsk(false)
+                    void handleSubmit()
+                  }}
+                >
+                  Só salvar
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[var(--wq-action)] text-white"
+                  onClick={() => {
+                    laudoAnswer.current = true
+                    setLaudoAsk(false)
+                    void handleSubmit()
+                  }}
+                >
+                  Enviar laudo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog
             open={confirmOpen}
             onOpenChange={(open) => {

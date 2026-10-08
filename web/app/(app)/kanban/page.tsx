@@ -51,6 +51,7 @@ import {
   downloadBlobAsFile,
   updateOrderService,
   deletePedidoItemFotoService,
+  patchPedidoItemService,
 } from "@/lib/apiService"
 import { shouldIgnoreKanbanShortcut } from "@/lib/kanbanShortcuts"
 import { toast } from "sonner"
@@ -59,7 +60,8 @@ import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import QRCode from "qrcode"
-import { formatBRL, moneyVisibility } from "@/lib/orderMoney"
+import { formatBRL, moneyVisibility, readOrderPricing, roundMoney } from "@/lib/orderMoney"
+import { MoneyField } from "@/components/orders/MoneyField"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 
 type OrderCard = {
@@ -96,6 +98,9 @@ type OrderCard = {
   linePending?: number
   paymentTotal?: number
   paymentRemaining?: number
+  pricePending?: boolean
+  itemNotes?: string | null
+  services?: Array<{ name?: string; note?: string; price?: number; pricePending?: boolean }>
 }
 
 type Column = {
@@ -123,7 +128,9 @@ type DetailOrder = {
     id?: string
     _id?: string
     shoeModel?: string
-    services?: Array<{ name?: string; price?: number }>
+    brand?: string
+    notes?: string | null
+    services?: Array<{ id?: string; name?: string; price?: number; note?: string }>
     photos?: Array<string | { url?: string }>
     currentSectorId?: string | null
     plannedSectorIds?: string[]
@@ -470,6 +477,26 @@ function KanbanPairQrs({
   )
 }
 
+function ServicePriceField({
+  price,
+  busy,
+  onSave,
+}: {
+  price: number
+  busy?: boolean
+  onSave: (next: number) => void
+}) {
+  const [value, setValue] = useState(price)
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <MoneyField value={value} onValue={setValue} className="h-8 w-28 text-sm" />
+      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onSave(roundMoney(value))}>
+        {busy ? "…" : "Salvar"}
+      </Button>
+    </div>
+  )
+}
+
 function KanbanCardBody({
   order,
   focused,
@@ -554,6 +581,13 @@ function KanbanCardBody({
               Sem foto
             </Badge>
           )}
+          {(order.pricePending ||
+            (order.paymentTotal != null && Number(order.paymentTotal) <= 0.009) ||
+            order.services?.some((service) => service.pricePending)) && (
+            <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-950">
+              Pendente valor
+            </Badge>
+          )}
           {showPayment && Number(order.linePending) > 0.009 && (
             <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
               A pagar
@@ -586,6 +620,22 @@ function KanbanCardBody({
             {[order.brand, order.shoeModel || order.modeloTenis].filter(Boolean).join(" · ")}
           </p>
         )}
+        {order.services?.length ? (
+          <p className="mt-1 text-xs text-[var(--wq-text)]">
+            {order.services.map((service) => service.name).filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
+        {order.services?.some((service) => service.note) ? (
+          <p className="truncate text-xs text-[var(--wq-text-muted)]">
+            {order.services
+              .filter((service) => service.note)
+              .map((service) => service.note)
+              .join(" · ")}
+          </p>
+        ) : null}
+        {order.itemNotes ? (
+          <p className="truncate text-xs text-[var(--wq-text-muted)]">Obs.: {order.itemNotes}</p>
+        ) : null}
         {!cue.offFlow && cue.nextLabel && (
           <p
             className={cn(
@@ -840,6 +890,10 @@ export default function KanbanPage() {
   const [resendingEmail, setResendingEmail] = useState(false)
   const [detailPriority, setDetailPriority] = useState("2")
   const [detailDueAt, setDetailDueAt] = useState("")
+  const [detailPrice, setDetailPrice] = useState(0)
+  const [savingPrice, setSavingPrice] = useState(false)
+  const [savingServiceKey, setSavingServiceKey] = useState("")
+  const [priceAskOpen, setPriceAskOpen] = useState(false)
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
 
   const dragEnabled = useDesktopKanbanDrag()
@@ -1139,12 +1193,94 @@ export default function KanbanPage() {
       setDetailPriority(String(data?.priority ?? data?.prioridade ?? 2))
       const due = data?.dueAt || data?.dataPrevistaEntrega
       setDetailDueAt(due ? String(due).slice(0, 10) : "")
+      setDetailPrice(readOrderPricing(data).total)
+      setPriceAskOpen(false)
     } catch (err: any) {
       toast.error(err?.message || "Erro ao abrir detalhe")
       setDetailOpen(false)
     } finally {
       setDetailLoading(false)
     }
+  }
+
+  const commitDetailPrice = async (sendLaudo?: boolean) => {
+    if (!detail?.id) return
+    const next = roundMoney(detailPrice)
+    const current = readOrderPricing(detail)
+    setSavingPrice(true)
+    setPriceAskOpen(false)
+    try {
+      const updated = await updateOrderService(String(detail.id), {
+        pricing: {
+          total: next,
+          deposit: Math.min(current.deposit, next),
+          remaining: roundMoney(Math.max(0, next - Math.min(current.deposit, next))),
+        },
+        ...(sendLaudo === true ? { sendLaudo: true } : sendLaudo === false ? { sendLaudo: false } : {}),
+      })
+      setDetail(updated as DetailOrder)
+      setDetailPrice(readOrderPricing(updated).total)
+      const notify = (updated as { emailNotify?: { waiting?: boolean; reason?: string; skipped?: boolean } }).emailNotify
+      if (sendLaudo === true && notify?.reason === "awaiting-photos") {
+        toast.success("Valor salvo. O laudo sai quando as fotos terminarem.")
+      } else if (sendLaudo === true) {
+        toast.success("Valor salvo. Laudo enviado ao cliente.")
+      } else if (next <= 0.009) {
+        toast.success("Valor em aberto. O laudo continua em espera.")
+      } else {
+        toast.success("Valor salvo. Laudo não enviado.")
+      }
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao salvar o valor")
+    } finally {
+      setSavingPrice(false)
+    }
+  }
+
+  const saveServicePrice = async (itemIndex: number, serviceIndex: number, price: number) => {
+    if (!detail?.id || !detail.items?.[itemIndex]) return
+    const item = detail.items[itemIndex]
+    const wasPending = readOrderPricing(detail).total <= 0.009
+    const key = `${itemIndex}:${serviceIndex}`
+    setSavingServiceKey(key)
+    try {
+      const services = (item.services || []).map((service, index) => ({
+        id: service.id,
+        name: service.name,
+        note: service.note || "",
+        price: index === serviceIndex ? price : Number(service.price) || 0,
+      }))
+      const updated = await patchPedidoItemService(String(detail.id), itemIndex, {
+        services,
+        notes: item.notes || "",
+      })
+      setDetail(updated as DetailOrder)
+      const nextTotal = readOrderPricing(updated).total
+      setDetailPrice(nextTotal)
+      if (wasPending && nextTotal > 0.009) setPriceAskOpen(true)
+      else toast.success("Preço do serviço salvo")
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao salvar o serviço")
+    } finally {
+      setSavingServiceKey("")
+    }
+  }
+
+  const requestDetailPrice = () => {
+    if (!detail?.id) return
+    const next = roundMoney(detailPrice)
+    const current = readOrderPricing(detail).total
+    if (Math.abs(next - current) <= 0.009) {
+      toast.message("O valor não mudou")
+      return
+    }
+    if (next <= 0.009) {
+      void commitDetailPrice()
+      return
+    }
+    setPriceAskOpen(true)
   }
 
   const saveNotes = async () => {
@@ -1641,7 +1777,7 @@ export default function KanbanPage() {
       </div>
 
       {detailOpen && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={() => setDetailOpen(false)}>
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setDetailOpen(false)}>
           <aside
             className="flex h-full w-full max-w-md flex-col bg-[var(--wq-surface)] shadow-xl text-[var(--wq-text)]"
             onClick={(e) => e.stopPropagation()}
@@ -1656,7 +1792,7 @@ export default function KanbanPage() {
               </button>
             </div>
 
-            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4">
+            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               {detailLoading || !detail ? (
                 <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
               ) : (
@@ -1667,10 +1803,38 @@ export default function KanbanPage() {
                     </p>
                     {moneyTone !== "hidden" ? (
                       <div className={moneyTone === "quiet" ? "mt-1" : "mt-3"}>
+                        {readOrderPricing(detail).total <= 0.009 ? (
+                          <p className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
+                            Pendente valor
+                          </p>
+                        ) : null}
                         <OrderPricingSummary
                           order={detail}
                           tone={moneyTone === "quiet" ? "quiet" : "explicit"}
                         />
+                        <div className="mt-3 space-y-2">
+                          <Label htmlFor="detail-price">Valor do pedido</Label>
+                          <div className="flex items-center gap-2">
+                            <MoneyField
+                              id="detail-price"
+                              value={detailPrice}
+                              onValue={setDetailPrice}
+                              className="rounded-[10px] text-base font-semibold"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={savingPrice}
+                              className="shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white"
+                              onClick={requestDetailPrice}
+                            >
+                              {savingPrice ? "Salvando…" : "Salvar valor"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            Sem valor, o laudo não sai. Ao mudar o preço, dá para escolher se envia o laudo.
+                          </p>
+                        </div>
                       </div>
                     ) : null}
                     {detail.dueAt && (
@@ -1686,6 +1850,77 @@ export default function KanbanPage() {
                         {new Date(detail.dueAt).getTime() < Date.now() ? " · atrasado" : ""}
                       </p>
                     )}
+                    {(detail.items || []).length > 0 ? (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
+                          Pares, serviços e observações
+                        </p>
+                        {(detail.items || []).map((item, itemIndex) => {
+                          const focused =
+                            (detailItemIndex != null && detailItemIndex === itemIndex) ||
+                            (detailItemId != null && itemIdentity(item) === String(detailItemId))
+                          return (
+                            <div
+                              key={item.id || item._id || itemIndex}
+                              className={cn(
+                                "rounded-xl border px-3 py-2",
+                                focused
+                                  ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)]/50"
+                                  : "border-[var(--wq-border)] bg-[var(--wq-paper)]"
+                              )}
+                            >
+                              <p className="text-sm font-semibold text-[var(--wq-text)]">
+                                Par {itemIndex + 1}
+                                {[item.brand, item.shoeModel].filter(Boolean).length
+                                  ? ` · ${[item.brand, item.shoeModel].filter(Boolean).join(" ")}`
+                                  : ""}
+                              </p>
+                              {item.notes ? (
+                                <p className="mt-1 text-xs text-[var(--wq-text)]">Obs. do par: {item.notes}</p>
+                              ) : (
+                                <p className="mt-1 text-xs text-[var(--wq-text-muted)]">Sem observação neste par</p>
+                              )}
+                              <ul className="mt-2 space-y-2">
+                                {(item.services || []).length === 0 ? (
+                                  <li className="text-xs text-[var(--wq-text-muted)]">Nenhum serviço neste par</li>
+                                ) : (
+                                  (item.services || []).map((service, serviceIndex) => {
+                                    const pending = (Number(service.price) || 0) <= 0.009
+                                    return (
+                                      <li key={`${service.id || service.name}-${serviceIndex}`}>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="text-sm text-[var(--wq-text)]">{service.name || "Serviço"}</span>
+                                          {moneyTone !== "hidden" && pending ? (
+                                            <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-950">
+                                              Pendente valor
+                                            </Badge>
+                                          ) : null}
+                                          {moneyTone !== "hidden" && !pending ? (
+                                            <span className="font-mono text-xs text-[var(--wq-text-muted)]">
+                                              {formatBRL(Number(service.price) || 0)}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                        {service.note ? (
+                                          <p className="text-xs text-[var(--wq-text-muted)]">{service.note}</p>
+                                        ) : null}
+                                        {moneyTone !== "hidden" && pending ? (
+                                          <ServicePriceField
+                                            price={Number(service.price) || 0}
+                                            busy={savingServiceKey === `${itemIndex}:${serviceIndex}`}
+                                            onSave={(next) => void saveServicePrice(itemIndex, serviceIndex, next)}
+                                          />
+                                        ) : null}
+                                      </li>
+                                    )
+                                  })
+                                )}
+                              </ul>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : null}
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Button
                         type="button"
@@ -2227,6 +2462,30 @@ export default function KanbanPage() {
           </aside>
         </div>
       )}
+
+      <Dialog open={priceAskOpen} onOpenChange={setPriceAskOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enviar o laudo?</DialogTitle>
+            <DialogDescription>
+              O valor vai para {formatBRL(roundMoney(detailPrice))}. Quer enviar o laudo para o cliente?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" disabled={savingPrice} onClick={() => void commitDetailPrice(false)}>
+              Só salvar
+            </Button>
+            <Button
+              type="button"
+              disabled={savingPrice}
+              className="bg-[var(--wq-action)] text-white"
+              onClick={() => void commitDetailPrice(true)}
+            >
+              Enviar laudo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {pendingMove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

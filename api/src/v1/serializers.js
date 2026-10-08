@@ -46,6 +46,7 @@ function serializeOrderItem(it, { hidePrices = false } = {}) {
     services: (it.services || []).map((s) => ({
       id: s.id || null,
       name: s.name || '',
+      note: s.note || '',
       ...(hidePrices ? {} : { price: Number(s.price) || 0 }),
     })),
     photos: (it.photos || []).map((p) => resolvePhotoUrl(p)).filter(Boolean),
@@ -93,6 +94,7 @@ function serializeOrder(order, { hidePrices = false } = {}) {
   const services = (Array.isArray(order.services) ? order.services : []).map((s) => ({
     id: s.id || null,
     name: s.name || s.nome || '',
+    note: s.note || '',
     ...(hidePrices ? {} : { price: Number(s.price != null ? s.price : s.preco) || 0 }),
   }));
   const pricing = order.pricing || {};

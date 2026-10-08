@@ -1036,6 +1036,7 @@ export async function updateOrderService(
       remaining?: number;
       expenses?: number;
     };
+    sendLaudo?: boolean;
   }
 ) {
   const body: Record<string, unknown> = {};

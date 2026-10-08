@@ -1,5 +1,11 @@
 # Worqera Web — Change log
 
+## 2026-10-08
+
+- **Kanban:** cada par mostra os serviços, a observação do serviço e a observação do par. Serviço sem preço fica como "Pendente valor" e o preço se grava ali.
+- **Kanban:** pedido sem valor mostra "Pendente valor". No card, o preço se altera ali e pergunta se envia o laudo. O detalhe fica por cima do menu de baixo, então Excluir pedido não fica coberto.
+- **Editar pedido:** o valor do pedido fica num campo próprio. Se mudar e salvar, pergunta se envia o laudo.
+
 ## 2026-10-07
 
 - **Sino:** abaixo dos avisos novos fica o histórico do que já foi lido. Cada linha abre o pedido.
