@@ -499,6 +499,27 @@ export async function listPedidoPdfsService(pedidoId: string): Promise<PedidoPdf
     .filter(Boolean) as PedidoPdfAsset[];
 }
 
+async function fetchPhotoUpload(url: string, body: FormData) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 45000)
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: getAuthHeaders(""),
+      body,
+      cache: "no-store",
+      signal: ctrl.signal,
+    })
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error("A rede não completou o envio da foto. Tente de novo.")
+    }
+    throw new Error("Sem rede para enviar a foto. Tente de novo.")
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 function parseUploadedPhotoUrls(payload: any): string[] {
   const urls = payload?.urls || payload?.fotos || payload?.photos || [];
   if (Array.isArray(urls)) {
@@ -513,12 +534,7 @@ export async function uploadPedidoFotosService(pedidoId: string, files: File[]):
   const formData = new FormData();
   files.forEach((file) => formData.append("photos", file));
 
-  const response = await fetch(`${API_BASE_URL}/orders/${pedidoId}/photos`, {
-    method: "POST",
-    headers: getAuthHeaders(""),
-    body: formData,
-    cache: "no-store",
-  });
+  const response = await fetchPhotoUpload(`${API_BASE_URL}/orders/${pedidoId}/photos`, formData);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -538,14 +554,9 @@ export async function uploadPedidoItemFotosService(
   const formData = new FormData();
   files.forEach((file) => formData.append("photos", file));
 
-  const response = await fetch(
+  const response = await fetchPhotoUpload(
     `${API_BASE_URL}/orders/${pedidoId}/items/${itemIndex}/photos`,
-    {
-      method: "POST",
-      headers: getAuthHeaders(""),
-      body: formData,
-      cache: "no-store",
-    }
+    formData
   );
 
   if (!response.ok) {

@@ -346,6 +346,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const MAX_PHOTOS = parseInt(process.env.NEXT_PUBLIC_MAX_PHOTOS || "10", 10) || 10;
   const MAX_FILE_MB = 5; // limite por arquivo antes da compressão
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [photoInputEpoch, setPhotoInputEpoch] = useState(0)
 
   const syncPayable = (
     nextSubtotal: number,
@@ -461,30 +462,37 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
   // Manipuladores de upload/remover foto (compressão compartilhada)
   const handlePhotoUpload = async (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files);
-    const currentCount = items.find((item) => item.id === itemId)?.photos.length || 0;
+    const input = e.currentTarget
+    const picked = input.files ? Array.from(input.files) : []
+    input.value = ""
+    setPhotoInputEpoch((n) => n + 1)
+    if (!picked.length) return
+    const currentCount = items.find((item) => item.id === itemId)?.photos.length || 0
 
-    const slotsLeft = Math.max(0, MAX_PHOTOS - currentCount);
-    const toProcess = filesArray.slice(0, slotsLeft);
+    const slotsLeft = Math.max(0, MAX_PHOTOS - currentCount)
+    if (slotsLeft < 1) {
+      toast.message(`Máximo de ${MAX_PHOTOS} fotos por item`)
+      return
+    }
+    const toProcess = picked.slice(0, slotsLeft)
 
-    const processed: PhotoItem[] = [];
+    const processed: PhotoItem[] = []
 
     for (const f of toProcess) {
-      if (f.size > MAX_FILE_MB * 1024 * 1024 * 10) continue;
+      if (f.size > MAX_FILE_MB * 1024 * 1024 * 10) continue
       try {
-        const newFile = await compressImageFile(f);
-        const preview = URL.createObjectURL(newFile);
-        processed.push({ file: newFile, preview });
+        const newFile = await compressImageFile(f)
+        const preview = URL.createObjectURL(newFile)
+        processed.push({ file: newFile, preview })
       } catch {
-        const preview = URL.createObjectURL(f);
-        processed.push({ file: f, preview });
+        const preview = URL.createObjectURL(f)
+        processed.push({ file: f, preview })
       }
     }
 
     if (processed.length === 0) {
-      e.currentTarget.value = "";
-      return;
+      toast.message("Não deu para ler essa foto. Tente outra.")
+      return
     }
 
     setItems((prev) =>
@@ -496,9 +504,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         }
         return { ...item, photos: merged }
       })
-    );
-
-    e.currentTarget.value = "";
+    )
+    if (picked.length > slotsLeft) toast.message(`Máximo de ${MAX_PHOTOS} fotos por item`)
   };
 
   const removePhoto = async (itemIndex: number, index: number) => {
@@ -1609,18 +1616,18 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                             Só deste modelo · máx. {MAX_PHOTOS}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
+                        <div className="relative rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
                           <input
+                            key={`${item.id}-${photoInputEpoch}`}
                             type="file"
                             multiple
                             accept="image/*"
-                            capture="environment"
                             onChange={(e) => handlePhotoUpload(item.id, e)}
-                            className="hidden"
-                            id={`photo-upload-${itemIndex}`}
+                            className="absolute h-px w-px overflow-hidden opacity-0"
+                            id={`photo-upload-${item.id}`}
                           />
                           <label
-                            htmlFor={`photo-upload-${itemIndex}`}
+                            htmlFor={`photo-upload-${item.id}`}
                             className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 text-sm font-medium text-[var(--wq-brand-text)] hover:bg-[var(--wq-brand-soft)] sm:w-auto sm:border-0 sm:bg-transparent sm:hover:bg-transparent sm:hover:underline"
                           >
                             <Upload className="h-4 w-4" />

@@ -129,6 +129,7 @@ export function PedidoConsultaDetalhe({
   const [canPurge, setCanPurge] = useState(false)
   const [moneyTone, setMoneyTone] = useState<MoneyVisibility>("hidden")
   const fileRef = useRef<HTMLInputElement>(null)
+  const [photoInputEpoch, setPhotoInputEpoch] = useState(0)
 
   const [clientName, setClientName] = useState("")
   const [clientPhone, setClientPhone] = useState("")
@@ -351,10 +352,17 @@ export function PedidoConsultaDetalhe({
   }
 
   const onPickPhotos = async (files: FileList | null) => {
-    if (!orderId || !files?.length) return
+    const picked = files ? Array.from(files) : []
+    if (fileRef.current) fileRef.current.value = ""
+    setPhotoInputEpoch((n) => n + 1)
+    if (!orderId || !picked.length) return
+    if (uploading) {
+      toast.message("A foto anterior ainda está indo. Espere um instante e toque de novo.")
+      return
+    }
     setUploading(true)
     try {
-      const compressed = await compressImageFiles(Array.from(files))
+      const compressed = await compressImageFiles(picked)
       await uploadPedidoItemFotosService(orderId, uploadItemIndex, compressed)
       const fresh = await getPedidoService(orderId)
       syncForm(fresh)
@@ -364,7 +372,6 @@ export function PedidoConsultaDetalhe({
       toast.error(err?.message || "Falha no upload")
     } finally {
       setUploading(false)
-      if (fileRef.current) fileRef.current.value = ""
     }
   }
 
@@ -728,7 +735,7 @@ export function PedidoConsultaDetalhe({
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
                     Fotos {totalPhotos ? `(${totalPhotos})` : ""}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex flex-wrap items-center gap-2">
                     {groups.length > 1 ? (
                       <select
                         className="h-8 rounded-[8px] border border-[var(--wq-border)] bg-white px-2 text-xs"
@@ -748,8 +755,13 @@ export function PedidoConsultaDetalhe({
                       size="sm"
                       variant="outline"
                       className="rounded-[10px]"
-                      disabled={uploading}
-                      onClick={() => fileRef.current?.click()}
+                      onClick={() => {
+                        if (uploading) {
+                          toast.message("A foto anterior ainda está indo. Espere um instante e toque de novo.")
+                          return
+                        }
+                        fileRef.current?.click()
+                      }}
                     >
                       {uploading ? (
                         <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -759,12 +771,12 @@ export function PedidoConsultaDetalhe({
                       Adicionar
                     </Button>
                     <input
+                      key={photoInputEpoch}
                       ref={fileRef}
                       type="file"
                       accept="image/*"
                       multiple
-                      capture="environment"
-                      className="hidden"
+                      className="absolute h-px w-px overflow-hidden opacity-0"
                       onChange={(e) => onPickPhotos(e.target.files)}
                     />
                   </div>

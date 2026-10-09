@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- **Fotos:** o botão de adicionar não fica mudo depois da primeira. Se a rede cortar o envio, o aviso pede para tentar de novo em vez de travar o botão.
 - **Menu lateral:** fica na altura da janela. O miolo da tela é que rola; o menu não some no fim da página.
 - **Kanban:** o cartão só leva a tag "Pendente valor" ou "A pagar", sem botão. Abrir o pedido mostra se ainda falta receber. A pergunta "Já foi pago?" aparece ao marcar entregue na fila final.
 - **Portal:** a lista E-mails mostra laudo, pronto e andamento, com o motivo quando não sai.

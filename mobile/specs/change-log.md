@@ -2,6 +2,7 @@
 
 ## 2026-10-08
 
+- **Fotos:** se o botão for tocado de novo com a câmera ainda aberta, avisa em vez de ficar mudo.
 - **Kanban:** o nome e o detalhe de cada serviço ficam logo abaixo do cliente, em texto normal.
 - **Pedido:** a observação do serviço grava no serviço, e a do par grava no par. O kanban e a ficha mostram as duas.
 - **Kanban:** pedido sem valor mostra "Pendente valor".

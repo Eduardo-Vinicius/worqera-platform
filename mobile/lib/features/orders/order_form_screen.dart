@@ -117,6 +117,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   bool boot = true;
   bool saving = false;
   bool savingClient = false;
+  bool pickingPhoto = false;
   String? error;
   String orderStatus = 'open';
   String priority = '2';
@@ -630,21 +631,34 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Future<void> addPhotos(_ItemDraft item, ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = source == ImageSource.camera ? [await picker.pickImage(source: source)].whereType<XFile>() : await picker.pickMultiImage();
-    if (picked.isEmpty) return;
-    final room = _maxPhotos - item.photos.length;
-    if (room <= 0) {
-      if (mounted) wqToast(context, 'Máximo de $_maxPhotos fotos por item');
+    if (pickingPhoto) {
+      if (mounted) wqToast(context, 'A câmera ainda está aberta');
       return;
     }
-    setState(() {
-      for (final file in picked.take(room)) {
-        item.photos.add(_PhotoPick.file(file));
+    pickingPhoto = true;
+    try {
+      final picker = ImagePicker();
+      final picked = source == ImageSource.camera
+          ? [await picker.pickImage(source: source)].whereType<XFile>()
+          : await picker.pickMultiImage();
+      if (picked.isEmpty) return;
+      final room = _maxPhotos - item.photos.length;
+      if (room <= 0) {
+        if (mounted) wqToast(context, 'Máximo de $_maxPhotos fotos por item');
+        return;
       }
-      if (!item.photos.any((photo) => photo.cover) && item.photos.isNotEmpty) item.photos.first.cover = true;
-    });
-    if (picked.length > room && mounted) wqToast(context, 'Máximo de $_maxPhotos fotos por item');
+      setState(() {
+        for (final file in picked.take(room)) {
+          item.photos.add(_PhotoPick.file(file));
+        }
+        if (!item.photos.any((photo) => photo.cover) && item.photos.isNotEmpty) item.photos.first.cover = true;
+      });
+      if (picked.length > room && mounted) wqToast(context, 'Máximo de $_maxPhotos fotos por item');
+    } catch (_) {
+      if (mounted) wqToast(context, 'Não abriu a foto. Tente de novo.');
+    } finally {
+      pickingPhoto = false;
+    }
   }
 
   void addItem() {
