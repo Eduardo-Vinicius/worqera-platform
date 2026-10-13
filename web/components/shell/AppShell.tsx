@@ -11,7 +11,7 @@ import {
   Plus,
   X,
 } from "lucide-react"
-import { meV1, resendVerificationV1 } from "@/lib/apiV1"
+import { leavePlatformShop, meV1, resendVerificationV1 } from "@/lib/apiV1"
 import { AppSidebar } from "./AppSidebar"
 import { TrialBanner } from "./TrialBanner"
 import { DelayAlertsBanner } from "./DelayAlertsBanner"
@@ -19,6 +19,40 @@ import { PlatformNoticeBanner } from "./PlatformNoticeBanner"
 import { QuickOrderJump } from "./QuickOrderJump"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+
+function VisitShopBanner() {
+  const [name, setName] = useState("")
+
+  useEffect(() => {
+    const sync = () => {
+      const visiting = localStorage.getItem("wq-visit-shop") === "1"
+      setName(visiting ? localStorage.getItem("shopDisplayName") || localStorage.getItem("shopName") || "esta oficina" : "")
+    }
+    sync()
+    window.addEventListener("wq-session-updated", sync)
+    return () => window.removeEventListener("wq-session-updated", sync)
+  }, [])
+
+  if (!name) return null
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--wq-border)] bg-[var(--wq-brand-soft)] px-3 py-2 text-sm text-[var(--wq-text)] sm:px-4">
+      <p className="min-w-0">
+        Oficina aberta: <span className="font-semibold">{name}</span>. Produtos, estoque e pedidos são desta empresa.
+      </p>
+      <button
+        type="button"
+        className="shrink-0 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1 text-xs font-semibold"
+        onClick={() => {
+          leavePlatformShop()
+          window.location.href = "/admin/shops"
+        }}
+      >
+        Voltar às oficinas
+      </button>
+    </div>
+  )
+}
 
 function isFullBleed(pathname: string) {
   return pathname.startsWith("/kanban")
@@ -286,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {process.env.NEXT_PUBLIC_APP_NAME || "Worqera"}
             </span>
           </div>
+          <VisitShopBanner />
           {platformConsole ? null : <EmailUnverifiedBanner />}
           {platformConsole ? null : <TrialBanner />}
           {platformConsole ? null : <PlatformNoticeBanner />}

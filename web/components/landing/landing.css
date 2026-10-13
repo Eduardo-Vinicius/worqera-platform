@@ -190,6 +190,21 @@
   animation: lp-live-pulse 1.8s ease-out infinite;
 }
 
+@keyframes lp-day-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lp .lp-day-card {
+  animation: lp-day-in 0.45s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp .lp-animate-in,
   .lp .lp-animate-in-delay,
@@ -201,8 +216,10 @@
     animation: none;
   }
 
-  .lp .lp-film-card {
+  .lp .lp-film-card,
+  .lp .lp-day-card {
     transition: none;
+    animation: none;
   }
 
   .lp .lp-pillar:hover {

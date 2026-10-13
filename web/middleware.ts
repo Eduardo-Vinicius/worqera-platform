@@ -83,14 +83,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Pure platform admin (no shop membership): oficinas + portal
+  // Pure platform admin: console, or the shop they chose to open.
   if (platformAdmin && role === 'platform') {
-    const allowed =
+    const shopCookie = request.cookies.get('wq_shop')?.value || '';
+    const inShop = /^[a-f0-9]{24}$/i.test(shopCookie);
+    const consolePath =
       pathname.startsWith('/admin/shops') ||
       pathname.startsWith('/admin/plataforma') ||
       pathname.startsWith('/forbidden') ||
       pathname.startsWith('/login');
-    if (!allowed) {
+    if (!consolePath && !inShop) {
       return NextResponse.redirect(new URL('/admin/shops', request.url));
     }
     return NextResponse.next();

@@ -31,7 +31,7 @@ function clearRefreshCookie(res) {
 }
 
 exports.signup = wrap(async (req, res) => {
-  const { email, password, name, shopName, shopSlug, partnerCode, ref } = req.body || {};
+  const { email, password, name, shopName, shopSlug, partnerCode, ref, planCode } = req.body || {};
   if (!email || !password) {
     return sendError(res, 400, {
       title: 'Validation Error',
@@ -46,6 +46,7 @@ exports.signup = wrap(async (req, res) => {
     shopName,
     shopSlug,
     partnerCode,
+    planCode,
     ref: ref || req.query?.ref,
   });
   if (result.refreshToken) {

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Membership = require('../models/Membership');
 const Shop = require('../models/Shop');
 const { sendError } = require('./errors');
+const { isPlatformAdminEmail } = require('./platformAdmin');
 
 async function shopContext(req, res, next) {
   try {
@@ -18,7 +19,10 @@ async function shopContext(req, res, next) {
       active: true,
     }).lean();
 
-    if (!memberships.length) {
+    const platformAdmin =
+      Boolean(req.auth.platformAdmin) || isPlatformAdminEmail(req.auth.email);
+
+    if (!memberships.length && !platformAdmin) {
       return sendError(res, 403, {
         title: 'Forbidden',
         detail: 'No active shop membership',
@@ -39,6 +43,9 @@ async function shopContext(req, res, next) {
         });
       }
       membership = memberships.find((m) => String(m.shopId) === String(headerShop));
+      if (!membership && platformAdmin) {
+        return attachPlatformVisit(req, res, next, headerShop);
+      }
       if (!membership) {
         return sendError(res, 403, {
           title: 'Forbidden',
@@ -48,6 +55,12 @@ async function shopContext(req, res, next) {
       }
     } else if (memberships.length === 1) {
       membership = memberships[0];
+    } else if (!memberships.length) {
+      return sendError(res, 400, {
+        title: 'Shop Required',
+        detail: 'X-Worqera-Shop header required',
+        code: 'SHOP_REQUIRED',
+      });
     } else {
       return sendError(res, 400, {
         title: 'Shop Required',
@@ -77,6 +90,26 @@ async function shopContext(req, res, next) {
       code: 'INTERNAL_ERROR',
     });
   }
+}
+
+async function attachPlatformVisit(req, res, next, shopId) {
+  const shop = await Shop.findById(shopId).lean();
+  if (!shop || shop.status === 'suspended') {
+    return sendError(res, 403, {
+      title: 'Forbidden',
+      detail: 'Shop unavailable',
+      code: 'FORBIDDEN',
+    });
+  }
+  req.shop = shop;
+  req.shopId = shop._id;
+  req.membership = {
+    role: 'owner',
+    shopId: shop._id,
+    sectorIds: [],
+    platformVisit: true,
+  };
+  return next();
 }
 
 module.exports = { shopContext };

@@ -3,6 +3,8 @@
 ## 2026-10-13
 
 - **Planos:** Basic R$ 97, Pro R$ 197, Business R$ 499. No Basic, o 101º pedido do mês é recusado. Pro e Business não têm teto. A cobrança no AbacatePay continua no produto configurado lá.
+- **Oficinas:** o admin Worqera abre uma empresa pelo cabeçalho da loja e usa produtos, estoque e pedidos sem ser membro dela.
+- **Cadastro:** o plano escolhido no checkout (Basic ou Pro) é o do trial. Sem slug enviado, o endereço interno nasce do nome da empresa e ganha um número se já existir.
 - **Fotos:** pedido antigo com o contador de fotos gravado como texto volta a ser número. Mover no kanban e salvar o pedido deixam de falhar com esse erro.
 - **Produtos:** catálogo, saldo, reserva na abertura do pedido e baixa na entrega. Só o admin Worqera usa. Pedido do cliente e a oficina seguem iguais. O financeiro ganha vendido, reservado e valor em estoque sem mexer nos números que já existiam.
 

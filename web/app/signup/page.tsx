@@ -8,37 +8,73 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signupV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
-import { Loader2, CheckCircle2 } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
+import { cn } from "@/lib/utils"
+import "@/components/landing/landing.css"
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
+const WHATSAPP =
+  "https://wa.me/5511985591053?text=" +
+  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 499).")
 
-const FEATURES = [
-  "Kanban por setores configuráveis",
-  "Rastreio público por código",
-  "Gestão de clientes e pedidos",
-  "Painel financeiro (admin)",
-]
+type PlanId = "basic" | "pro"
+
+const PLANS: Record<
+  PlanId,
+  {
+    code: string
+    name: string
+    price: string
+    line: string
+    limit: string
+    items: string[]
+    aside: string
+  }
+> = {
+  basic: {
+    code: "WORQERA_BASIC",
+    name: "Basic",
+    price: "R$ 97",
+    line: "A fila no ar esta semana.",
+    limit: "Até 100 pedidos criados no mês. Passou disso, o próximo pede o Pro.",
+    items: ["Kanban por setores", "Cliente consulta sozinho", "TV da oficina"],
+    aside: "Sem caixa, sem métricas e sem estoque.",
+  },
+  pro: {
+    code: "WORQERA_PRO",
+    name: "Pro",
+    price: "R$ 197",
+    line: "A oficina inteira, sem teto.",
+    limit: "Pedidos sem limite neste plano.",
+    items: ["Financeiro e métricas", "TV financeiro", "Marca da empresa", "Produtos, estoque e vendas"],
+    aside: "Tudo o que a operação usa no dia a dia.",
+  },
+}
 
 export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [plan, setPlan] = useState<PlanId>("pro")
+  const [partnerCode, setPartnerCode] = useState("")
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     shopName: "",
-    shopSlug: "",
   })
-  const [partnerCode, setPartnerCode] = useState("")
 
   useEffect(() => {
     try {
       const q = new URLSearchParams(window.location.search)
+      const picked = (q.get("plan") || "").toLowerCase()
+      if (picked === "basic" || picked === "pro") setPlan(picked)
       const ref = q.get("ref") || q.get("partner") || ""
       if (ref) setPartnerCode(ref.toUpperCase())
     } catch {}
   }, [])
+
+  const chosen = PLANS[plan]
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +82,7 @@ export default function SignupPage() {
     try {
       const data = await signupV1({
         ...form,
-        shopSlug: form.shopSlug || undefined,
+        planCode: chosen.code,
         partnerCode: partnerCode || undefined,
         ref: partnerCode || undefined,
       })
@@ -70,187 +106,129 @@ export default function SignupPage() {
   const field = (key: keyof typeof form) => ({
     value: form[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value })),
+      setForm((current) => ({ ...current, [key]: e.target.value })),
   })
 
   return (
-    <div className="flex min-h-screen">
-      <div
-        className="relative hidden overflow-hidden lg:flex lg:w-[46%] xl:w-[42%] shrink-0 flex-col justify-between p-10 xl:p-14"
-        style={{ background: "#110f17" }}
-      >
-        <div
-          className="pointer-events-none absolute -left-20 top-1/4 h-72 w-72 rounded-full bg-[#7d26de]/30 blur-[100px]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-10 right-0 h-56 w-56 rounded-full bg-[#ae50fd]/20 blur-[90px]"
-          aria-hidden
-        />
+    <div className="lp min-h-screen bg-[#F6F4F0] text-[#121212]">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <Link href="/" className="flex items-center gap-2.5">
+          <WorqeraLogo className="h-8 w-8" />
+          <span className="text-lg font-semibold tracking-wide">{APP_NAME}</span>
+        </Link>
+        <Link href="/login" className="text-sm text-[#5c5852] hover:text-[#121212]">
+          Já tenho conta
+        </Link>
+      </header>
 
-        <div className="relative flex items-center gap-3">
-          <WorqeraLogo className="h-10 w-10" />
-          <span
-            className="text-xl font-semibold text-white"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {APP_NAME}
-          </span>
-        </div>
-
-        <div className="relative space-y-6">
-          <h2
-            className="text-4xl xl:text-5xl font-medium leading-tight text-white"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            7 dias grátis
-            <br />
-            <span style={{ color: "#ae50fd" }}>sem cartão.</span>
-          </h2>
-          <p className="max-w-xs text-base leading-relaxed text-[#9d9da1]">
-            Cadastre sua empresa e explore todas as funcionalidades durante o período de trial.
+      <main className="mx-auto grid max-w-6xl gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+        <section>
+          <p className="text-xs font-semibold tracking-[0.18em] text-[#5b21b6] uppercase">7 dias grátis · sem cartão</p>
+          <h1 className="mt-3 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">Comece no plano certo.</h1>
+          <p className="mt-3 max-w-xl text-base leading-relaxed text-[#5c5852]">
+            Nada é cobrado agora. Você escolhe Basic ou Pro, cria a empresa e entra. No fim dos 7 dias, continua nesse plano ou cancela.
           </p>
 
-          <ul className="space-y-2">
-            {FEATURES.map((feat) => (
-              <li key={feat} className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "#ae50fd" }} />
-                <span className="text-sm text-[#cfcfd4]">{feat}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative text-xs text-[#5c5670]">
-          © {new Date().getFullYear()} {APP_NAME}. Todos os direitos reservados.
-        </p>
-      </div>
-
-      <div
-        className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12"
-        style={{ background: "var(--wq-paper)" }}
-      >
-        <div className="mb-8 flex items-center gap-3 lg:hidden">
-          <WorqeraLogo className="h-9 w-9" />
-          <span
-            className="text-xl font-semibold"
-            style={{ color: "var(--wq-ink)", fontFamily: "var(--font-display)" }}
-          >
-            {APP_NAME}
-          </span>
-        </div>
-
-        <div className="w-full max-w-[400px] space-y-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold" style={{ color: "var(--wq-text)" }}>
-              Criar conta
-            </h1>
-            <p style={{ color: "var(--wq-text-muted)" }} className="text-sm">
-              7 dias grátis para testar o kanban e a gestão da sua empresa.
-            </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {(Object.keys(PLANS) as PlanId[]).map((id) => {
+              const item = PLANS[id]
+              const active = id === plan
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPlan(id)}
+                  className={cn(
+                    "rounded-2xl border bg-white p-4 text-left transition-colors",
+                    active ? "border-[#121212]" : "border-[#e4e0d8] hover:border-[#121212]/40"
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-lg font-semibold">{item.name}</span>
+                    {id === "pro" ? (
+                      <span className="text-[10px] font-semibold tracking-[0.14em] text-[#5b21b6] uppercase">Recomendado</span>
+                    ) : (
+                      <span className="text-[10px] font-semibold tracking-[0.14em] text-[#5c5852] uppercase">Começar</span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-2xl font-semibold">{item.price}<span className="text-sm font-normal text-[#5c5852]">/mês depois</span></p>
+                  <p className="mt-1 text-sm text-[#5c5852]">{item.line}</p>
+                </button>
+              )
+            })}
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <article key={plan} className="lp-day-card mt-4 rounded-2xl border border-[#e4e0d8] bg-white p-5">
+            <p className="text-sm font-medium">{chosen.limit}</p>
+            <ul className="mt-4 space-y-2">
+              {chosen.items.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-sm text-[#5c5852]">{chosen.aside}</p>
+          </article>
+
+          <ul className="mt-6 grid gap-2 text-sm text-[#5c5852] sm:grid-cols-3">
+            <li>Sem cartão agora</li>
+            <li>Cancele quando quiser</li>
+            <li>A empresa é sua</li>
+          </ul>
+
+          <p className="mt-6 text-sm text-[#5c5852]">
+            Quer a Worqera no dia a dia, com análise, acompanhamento e treinamento?{" "}
+            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="font-medium text-[#121212] underline underline-offset-4">
+              Business é conversa.
+            </a>
+          </p>
+        </section>
+
+        <section className="rounded-3xl border border-[#e4e0d8] bg-white p-5 sm:p-7">
+          <h2 className="text-xl font-semibold">Seus dados</h2>
+          <p className="mt-1 text-sm text-[#5c5852]">Nome, empresa e o acesso. O endereço interno a gente cria.</p>
+
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Seu nome</Label>
+              <Input id="name" required autoComplete="name" placeholder="Ana Souza" className="h-11 bg-[#F6F4F0]" {...field("name")} />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="shopName">Nome da empresa</Label>
-              <Input
-                id="shopName"
-                required
-                placeholder="Ex.: Empresa Alfa"
-                className="bg-white"
-                {...field("shopName")}
-              />
+              <Input id="shopName" required placeholder="Oficina da Ana" className="h-11 bg-[#F6F4F0]" {...field("shopName")} />
             </div>
-
             <div className="space-y-1.5">
-              <Label htmlFor="shopSlug">Slug (sua frase na URL)</Label>
-              <Input
-                id="shopSlug"
-                placeholder="ex.: empresa-alfa"
-                className="bg-white"
-                {...field("shopSlug")}
-              />
-              <p className="text-xs text-[var(--wq-text-muted)]">
-                Consulta pública: /p/{form.shopSlug || "seu-slug"}/CODIGO
-              </p>
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" required autoComplete="email" placeholder="ana@oficina.com" className="h-11 bg-[#F6F4F0]" {...field("email")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Senha</Label>
+              <Input id="password" type="password" required minLength={6} autoComplete="new-password" placeholder="Mínimo 6 caracteres" className="h-11 bg-[#F6F4F0]" {...field("password")} />
             </div>
 
             {partnerCode ? (
-              <p className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-2 text-xs text-[var(--wq-text-muted)]">
-                Código de parceiro: <span className="font-mono font-semibold text-[var(--wq-text)]">{partnerCode}</span>
+              <p className="rounded-xl bg-[#F6F4F0] px-3 py-2 text-xs text-[#5c5852]">
+                Indicação <span className="font-mono font-semibold text-[#121212]">{partnerCode}</span>
               </p>
             ) : null}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Seu nome</Label>
-              <Input
-                id="name"
-                required
-                placeholder="Nome completo"
-                className="bg-white"
-                {...field("name")}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                placeholder="voce@email.com"
-                className="bg-white"
-                {...field("email")}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                placeholder="Mínimo 6 caracteres"
-                className="bg-white"
-                {...field("password")}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full text-white"
-              disabled={loading}
-              style={{ background: "var(--wq-brand)" }}
-            >
+            <Button type="submit" disabled={loading} className="h-12 w-full bg-[#5b21b6] text-base text-white hover:bg-[#4c1d95]">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando conta…
+                  Abrindo sua empresa…
                 </>
               ) : (
-                "Começar trial de 7 dias"
+                `Começar 7 dias no ${chosen.name}`
               )}
             </Button>
+            <p className="text-center text-xs leading-relaxed text-[#5c5852]">
+              Plano {chosen.name} · {chosen.price}/mês depois do trial. Você não paga nada para entrar.
+            </p>
           </form>
-
-          <p className="text-sm text-center" style={{ color: "var(--wq-text-muted)" }}>
-            Já tem conta?{" "}
-            <Link
-              href="/login"
-              className="font-medium hover:underline"
-              style={{ color: "var(--wq-brand)" }}
-            >
-              Entrar
-            </Link>
-          </p>
-          <p className="text-center text-xs" style={{ color: "var(--wq-text-muted)" }}>
-            <Link href="/" className="hover:underline">
-              ← Voltar para a página inicial
-            </Link>
-          </p>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }

@@ -67,7 +67,23 @@ function signRefreshToken(user) {
   );
 }
 
-async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref }) {
+function signupPlanCode(planCode) {
+  const code = String(planCode || '').trim().toUpperCase();
+  if (code === 'WORQERA_BASIC' || code === 'BASIC') return 'WORQERA_BASIC';
+  return 'WORQERA_PRO';
+}
+
+async function allocateSlug(base) {
+  const root = slugify(base).slice(0, 48) || 'oficina';
+  for (let n = 0; n < 8; n += 1) {
+    const slug = n === 0 ? root : `${root}-${n + 1}`;
+    const taken = await Shop.findOne({ slug }).select('_id').lean();
+    if (!taken) return slug;
+  }
+  return `${root}-${crypto.randomBytes(2).toString('hex')}`;
+}
+
+async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref, planCode }) {
   const { generatePartnerCode } = require('./shopService');
   const normalizedEmail = String(email).toLowerCase().trim();
   const existing = await User.findOne({ email: normalizedEmail });
@@ -80,7 +96,9 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     throw err;
   }
 
-  const slug = slugify(shopSlug || shopName || name);
+  const slug = shopSlug
+    ? slugify(shopSlug)
+    : await allocateSlug(shopName || name);
   if (!slug) {
     const err = new Error('Invalid shop slug');
     err.status = 400;
@@ -88,13 +106,15 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     throw err;
   }
 
-  const slugTaken = await Shop.findOne({ slug });
-  if (slugTaken) {
-    const err = new Error('Shop slug taken');
-    err.status = 409;
-    err.code = 'CONFLICT';
-    err.detail = 'Shop slug already in use';
-    throw err;
+  if (shopSlug) {
+    const slugTaken = await Shop.findOne({ slug }).select('_id').lean();
+    if (slugTaken) {
+      const err = new Error('Shop slug taken');
+      err.status = 409;
+      err.code = 'CONFLICT';
+      err.detail = 'Shop slug already in use';
+      throw err;
+    }
   }
 
   const verifyRaw = crypto.randomBytes(32).toString('hex');
@@ -139,7 +159,7 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
   const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const subscription = await Subscription.create({
     shopId: shop._id,
-    planCode: 'WORQERA_PRO',
+    planCode: signupPlanCode(planCode),
     status: 'trialing',
     provider: 'Manual',
     trialEndsAt,

@@ -39,6 +39,7 @@ export function AppSidebar({
   const [logoBroken, setLogoBroken] = useState(false)
   const [userName, setUserName] = useState("Usuário")
   const [platformAdmin, setPlatformAdmin] = useState(false)
+  const [shopId, setShopId] = useState("")
   const [seal, setSeal] = useState("")
   const [, setRuntimeTick] = useState(0)
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
@@ -58,6 +59,7 @@ export function AppSidebar({
         localStorage.getItem("userName") || localStorage.getItem("email") || "Usuário"
       )
       setPlatformAdmin(localStorage.getItem("platformAdmin") === "1")
+      setShopId(localStorage.getItem("shopId") || "")
     }
     sync()
     window.addEventListener("wq-session-updated", sync)
@@ -74,9 +76,10 @@ export function AppSidebar({
   }, [])
 
   const isOwner = role === "owner"
-  const isOwnerAdmin = role === "admin" || role === "owner"
+  const visitingShop = platformAdmin && role === "platform" && Boolean(shopId)
+  const isOwnerAdmin = role === "admin" || role === "owner" || visitingShop
   const isSector = role === "sector"
-  const isPlatformOnly = platformAdmin && (role === "platform" || !role)
+  const isPlatformOnly = platformAdmin && (role === "platform" || !role) && !shopId
   const logoSrc = !isPlatformOnly && logoUrl && !logoBroken ? resolveLogoSrc(logoUrl) : ""
 
   return (
@@ -117,7 +120,7 @@ export function AppSidebar({
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3">
         {NAV_SECTIONS.map((section, sectionIndex) => {
           const items = section.items.filter((item) => {
-            if (isPlatformOnly) return Boolean(item.platformOnly)
+            if (isPlatformOnly) return Boolean(item.platformOnly) && !item.needsShop
             if (item.platformOnly) return platformAdmin
             if (item.ownerOnly && !isOwner) return false
             if (item.ownerAdminOnly && !isOwnerAdmin) return false

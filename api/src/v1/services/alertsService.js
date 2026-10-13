@@ -349,10 +349,7 @@ async function getOwnerInbox(shopId, membership) {
 
 async function markInboxRead(membershipId) {
   if (!membershipId) {
-    const err = new Error('Sessão sem oficina');
-    err.status = 400;
-    err.code = 'VALIDATION_ERROR';
-    throw err;
+    return { ok: true, readyCount: 0, reopenedCount: 0, feedbackCount: 0, ready: [], feedback: [] };
   }
   const updated = await Membership.updateOne(
     { _id: membershipId },

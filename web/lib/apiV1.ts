@@ -92,7 +92,7 @@ function persistSession(data: {
   if (role) localStorage.setItem("role", String(role))
   if (data.platformAdmin === true) localStorage.setItem("platformAdmin", "1")
   else if (data.platformAdmin === false) localStorage.removeItem("platformAdmin")
-  if (data.platformAdmin === true && !shopId) {
+  if (data.platformAdmin === true && !shopId && localStorage.getItem("wq-visit-shop") !== "1") {
     localStorage.setItem("shopName", "Worqera Platform")
     localStorage.setItem("shopDisplayName", "Worqera Platform")
     localStorage.setItem("role", "platform")
@@ -118,6 +118,7 @@ export async function signupV1(input: {
   name: string
   shopName: string
   shopSlug?: string
+  planCode?: string
   partnerCode?: string
   ref?: string
 }) {
@@ -193,12 +194,40 @@ export async function meV1() {
       accentColor: shop.branding.accentColor || "",
     })
   }
-  if (data?.platformAdmin === true && !shop?.id) {
+  if (
+    data?.platformAdmin === true &&
+    !shop?.id &&
+    localStorage.getItem("wq-visit-shop") !== "1"
+  ) {
     localStorage.setItem("shopName", "Worqera Platform")
     localStorage.setItem("shopDisplayName", "Worqera Platform")
     if (!localStorage.getItem("role")) localStorage.setItem("role", "platform")
   }
   return data
+}
+
+export function enterPlatformShop(shop: { id: string; name: string; slug?: string }) {
+  localStorage.setItem("shopId", shop.id)
+  localStorage.setItem("shopName", shop.name)
+  localStorage.setItem("shopDisplayName", shop.name)
+  if (shop.slug) localStorage.setItem("shopSlug", shop.slug)
+  localStorage.setItem("role", "platform")
+  localStorage.setItem("wq-visit-shop", "1")
+  const secure = window.location.protocol === "https:" ? "; secure" : ""
+  document.cookie = `wq_shop=${encodeURIComponent(shop.id)}; path=/; max-age=604800; samesite=lax${secure}`
+  window.dispatchEvent(new Event("wq-session-updated"))
+}
+
+export function leavePlatformShop() {
+  localStorage.removeItem("shopId")
+  localStorage.removeItem("shopSlug")
+  localStorage.removeItem("shopLogoUrl")
+  localStorage.setItem("shopName", "Worqera Platform")
+  localStorage.setItem("shopDisplayName", "Worqera Platform")
+  localStorage.setItem("role", "platform")
+  localStorage.removeItem("wq-visit-shop")
+  document.cookie = "wq_shop=; path=/; max-age=0; samesite=lax"
+  window.dispatchEvent(new Event("wq-session-updated"))
 }
 
 export async function forgotPasswordV1(email: string) {
@@ -991,8 +1020,10 @@ export function clearSession() {
     localStorage.removeItem("platformAdmin")
     localStorage.removeItem("wq-email-unverified")
     localStorage.removeItem("wq-email-unverified-dismissed")
+    localStorage.removeItem("wq-visit-shop")
   } catch {}
   document.cookie = "token=; path=/; max-age=0; samesite=lax"
+  document.cookie = "wq_shop=; path=/; max-age=0; samesite=lax"
 }
 
 export async function listProductsV1() {

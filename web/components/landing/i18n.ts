@@ -34,6 +34,42 @@ const pt = {
     stockBefore: "18",
     stockAfter: "17",
   },
+  day: {
+    title: "Um dia, sem telefonema.",
+    subtitle: "O pedido entra de manhã, anda na fila e o cliente já sabe quando buscar.",
+    scenes: [
+      {
+        time: "08:12",
+        title: "O pedido entra",
+        line: "Ana deixa o par. O código nasce na fila, com prazo.",
+        gain: "Ninguém anota no papel.",
+      },
+      {
+        time: "10:40",
+        title: "A produção puxa",
+        line: "O cartão sai de Recebido e entra em Produção.",
+        gain: "A equipe vê a própria etapa.",
+      },
+      {
+        time: "14:05",
+        title: "A venda entra junto",
+        line: "A palmilha sai da prateleira e o estoque fica reservado.",
+        gain: "Serviço e produto no mesmo pedido.",
+      },
+      {
+        time: "16:20",
+        title: "O cliente é avisado",
+        line: "O e-mail diz que está pronto. A consulta mostra o mesmo.",
+        gain: "Menos ligação perguntando.",
+      },
+      {
+        time: "18:02",
+        title: "Saiu entregue",
+        line: "O estoque baixa e o dia fecha com o que foi feito.",
+        gain: "O dono vê o movimento.",
+      },
+    ],
+  },
   system: {
     eyebrow: "Mais do que uma fila",
     title: "Pedido, produto, estoque e venda.",
@@ -148,7 +184,7 @@ const pt = {
           "Kanban por setores",
           "Cliente consulta sozinho",
           "TV da oficina",
-          "Até 100 pedidos no mês",
+          "Pedidos limitados",
           "Sem caixa, sem métricas, sem estoque",
         ],
         cta: "Testar 7 dias",
@@ -256,6 +292,42 @@ const en: typeof pt = {
     stockItem: "Insole",
     stockBefore: "18",
     stockAfter: "17",
+  },
+  day: {
+    title: "A day, without the phone ringing.",
+    subtitle: "The order arrives in the morning, moves on the queue and the customer already knows when to pick it up.",
+    scenes: [
+      {
+        time: "08:12",
+        title: "The order arrives",
+        line: "Ana drops the pair off. The code is born on the queue, with a due date.",
+        gain: "Nobody writes it on paper.",
+      },
+      {
+        time: "10:40",
+        title: "Production pulls it",
+        line: "The card leaves Received and enters Production.",
+        gain: "The team sees its own step.",
+      },
+      {
+        time: "14:05",
+        title: "The sale joins in",
+        line: "The insole leaves the shelf and stock stays reserved.",
+        gain: "Service and product on the same order.",
+      },
+      {
+        time: "16:20",
+        title: "The customer is told",
+        line: "The email says it is ready. The public page says the same.",
+        gain: "Fewer calls asking.",
+      },
+      {
+        time: "18:02",
+        title: "It left delivered",
+        line: "Stock drops and the day closes on what was done.",
+        gain: "The owner sees the movement.",
+      },
+    ],
   },
   system: {
     eyebrow: "More than a queue",
@@ -371,7 +443,7 @@ const en: typeof pt = {
           "Sector kanban",
           "Customer tracks alone",
           "Shop TV",
-          "Up to 100 orders a month",
+          "Limited orders",
           "No cash desk, no metrics, no stock",
         ],
         cta: "Try 7 days",

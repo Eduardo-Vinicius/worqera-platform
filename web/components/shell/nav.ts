@@ -36,6 +36,8 @@ export type NavItem = {
   hideForSector?: boolean
   /** Platform Worqera super-admin only */
   platformOnly?: boolean
+  /** Hidden on the platform console until a shop is open */
+  needsShop?: boolean
   /** Remote feature flag. Hidden when the platform turns it off. */
   featureKey?: string
   /** Remote service module. Hidden when the platform turns it off. */
@@ -100,7 +102,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/admin/plataforma", label: "Portal", icon: Activity, platformOnly: true },
       { href: "/admin/plataforma/parametros", label: "Parâmetros", icon: SlidersHorizontal, platformOnly: true },
       { href: "/admin/plataforma/noticias", label: "Notícias", icon: Megaphone, platformOnly: true },
-      { href: "/admin/produtos", label: "Produtos", icon: Package, platformOnly: true },
+      { href: "/admin/produtos", label: "Produtos", icon: Package, platformOnly: true, needsShop: true },
     ],
   },
 ]

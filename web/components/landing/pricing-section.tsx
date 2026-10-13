@@ -26,7 +26,9 @@ export function PricingSection() {
         <div className="mt-12 grid gap-4 md:grid-cols-3 lg:gap-5">
           {t.pricing.plans.map((plan) => {
             const isBusiness = plan.name === "Business"
-            const href = isBusiness ? WHATSAPP : "/signup"
+            const href = isBusiness
+              ? WHATSAPP
+              : `/signup?plan=${plan.name === "Basic" ? "basic" : "pro"}`
             return (
               <div
                 key={plan.name}

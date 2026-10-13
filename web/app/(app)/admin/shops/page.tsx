@@ -5,7 +5,7 @@ import Link from "next/link"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { listPlatformShopsV1, meV1, patchPlatformShopV1 } from "@/lib/apiV1"
+import { enterPlatformShop, listPlatformShopsV1, meV1, patchPlatformShopV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -255,7 +255,7 @@ export default function PlatformShopsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Oficinas"
-        subtitle="Quem está no ar, em trial ou suspensa"
+        subtitle="Entre numa oficina para ver produtos, estoque e o fluxo do pedido"
       />
 
       <div className="mx-auto max-w-[860px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
@@ -323,11 +323,12 @@ export default function PlatformShopsPage() {
                     : s.subscription?.status || "Sem plano"
             return (
               <li key={s.id} className={cn(urgent && "bg-amber-50/70")}>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                  onClick={() => setOpenId(open ? null : s.id)}
-                >
+                <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    onClick={() => setOpenId(open ? null : s.id)}
+                  >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{s.name}</p>
                     <p className="truncate text-xs text-[var(--wq-text-muted)]">{s.slug}</p>
@@ -344,7 +345,19 @@ export default function PlatformShopsPage() {
                   <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--wq-text-muted)]">
                     {s.openCount ?? 0}/{s.orderCount ?? 0}
                   </span>
-                </button>
+                  </button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                    onClick={() => {
+                      enterPlatformShop({ id: s.id, name: s.name, slug: s.slug })
+                      window.location.href = "/dashboard"
+                    }}
+                  >
+                    Entrar
+                  </Button>
+                </div>
                 {open ? (
                   <div className="space-y-3 border-t border-[var(--wq-border)] px-4 py-3">
                     <p className="text-xs text-[var(--wq-text-muted)]">
