@@ -1,6 +1,6 @@
 # Worqera API — Roadmap
 
-**Atualizado:** 2026-09-16 (metrics owner-only + plano ops)
+**Atualizado:** 2026-10-13 (Basic 97 com teto de 100 pedidos · Pro 197 · Business 499)
 
 Plano: [`../../docs/superpowers/plans/2026-09-16-worqera-next-session.md`](../../docs/superpowers/plans/2026-09-16-worqera-next-session.md)
 
@@ -15,6 +15,8 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 ## Ops UX (ondas A–C)
 
 - [x] Onda C — `Order.items[]` + espelho flat + fotos por item + `itemCount` no kanban
+- [x] Produtos — `/products` só admin Worqera; item `origin=stock` reserva e baixa na entrega (2026-10-13)
+- [x] Planos — Basic R$ 97 com teto de 100 pedidos no mês; Pro R$ 197 e Business R$ 499 sem teto (2026-10-13)
 - [x] Kanban labels — `nextOrderCode` shop-wide (`0001`), `plannedSectorIds`, move off-path exige `note`
 - Ondas A/B (shell, TVs, kanban polish): ver `web/specs/roadmap.md`
 

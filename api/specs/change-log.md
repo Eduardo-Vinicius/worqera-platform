@@ -1,5 +1,11 @@
 # Worqera API — Change log
 
+## 2026-10-13
+
+- **Planos:** Basic R$ 97, Pro R$ 197, Business R$ 499. No Basic, o 101º pedido do mês é recusado. Pro e Business não têm teto. A cobrança no AbacatePay continua no produto configurado lá.
+- **Fotos:** pedido antigo com o contador de fotos gravado como texto volta a ser número. Mover no kanban e salvar o pedido deixam de falhar com esse erro.
+- **Produtos:** catálogo, saldo, reserva na abertura do pedido e baixa na entrega. Só o admin Worqera usa. Pedido do cliente e a oficina seguem iguais. O financeiro ganha vendido, reservado e valor em estoque sem mexer nos números que já existiam.
+
 ## 2026-10-08
 
 - **Laudo:** sem foto, o e-mail sai do mesmo jeito. Sem preço e sem foto, não sai. Com foto e sem preço, sai e o total do PDF fica "A definir".

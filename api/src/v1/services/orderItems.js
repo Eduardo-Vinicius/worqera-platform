@@ -16,6 +16,11 @@ function normalizeItemsFromPayload(data) {
       services: (it.services || it.servicos || []).map(mapService),
       photos: it.photos || it.fotos || [],
       notes: it.notes || it.observacoes || null,
+      origin: it.origin === 'stock' ? 'stock' : 'brought',
+      productId: it.productId || null,
+      variantId: it.variantId || null,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
       plannedSectorIds: Array.isArray(it.plannedSectorIds) ? it.plannedSectorIds : undefined,
       departamentosSelecionados:
         it.departamentosSelecionados ||

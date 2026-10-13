@@ -19,6 +19,7 @@ import {
   type MetricsFinanceiro,
   type MetricsPeriodo,
 } from "@/lib/apiService"
+import { productSummaryV1 } from "@/lib/apiV1"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -75,6 +76,7 @@ export default function AdminFinanceiroPage() {
   const [sectors, setSectors] = useState<MetricsDepartamento[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [stock, setStock] = useState<Awaited<ReturnType<typeof productSummaryV1>>["summary"] | null>(null)
 
   const loadData = async (selectedPeriodo: MetricsPeriodo) => {
     try {
@@ -98,6 +100,13 @@ export default function AdminFinanceiroPage() {
   useEffect(() => {
     loadData(periodo)
   }, [periodo])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || localStorage.getItem("platformAdmin") !== "1") return
+    productSummaryV1()
+      .then((res) => setStock(res.summary))
+      .catch(() => setStock(null))
+  }, [])
 
   const resumo = data?.resumo
   const caixa = data?.caixaHoje
@@ -176,6 +185,34 @@ export default function AdminFinanceiroPage() {
       />
 
       <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2.5 pb-8 sm:space-y-5 sm:px-5 md:px-6 lg:px-8">
+        {stock ? (
+          <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+              Produtos · admin Worqera
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-[var(--wq-text-muted)]">Vendido</p>
+                <p className="font-mono text-lg">{formatCurrencyFull(stock.salesTotal)}</p>
+                <p className="text-xs text-[var(--wq-text-muted)]">{stock.salesUnits} un. entregues</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--wq-text-muted)]">Reservado</p>
+                <p className="font-mono text-lg">{formatCurrencyFull(stock.reservedValue)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--wq-text-muted)]">Estoque</p>
+                <p className="font-mono text-lg">{formatCurrencyFull(stock.stockValue)}</p>
+                <p className="text-xs text-[var(--wq-text-muted)]">{stock.availableUnits} un. disponíveis</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--wq-text-muted)]">Catálogo</p>
+                <p className="font-mono text-lg">{stock.productCount}</p>
+                <p className="text-xs text-[var(--wq-text-muted)]">{stock.low.length} no mínimo</p>
+              </div>
+            </div>
+          </section>
+        ) : null}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
           {PERIOD_OPTIONS.map((option) => {
             const active = periodo === option.value

@@ -148,8 +148,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 }
 
 class FinanceScreen extends StatefulWidget {
-  const FinanceScreen({super.key, required this.api});
+  const FinanceScreen({super.key, required this.api, this.stock = false});
   final WorqeraApi api;
+  final bool stock;
   @override
   State<FinanceScreen> createState() => _FinanceScreenState();
 }
@@ -157,6 +158,7 @@ class FinanceScreen extends StatefulWidget {
 class _FinanceScreenState extends State<FinanceScreen> {
   Map? data;
   List<Map<String, dynamic>> sectors = [];
+  Map<String, dynamic>? stock;
   String? error;
   String period = '30d';
 
@@ -182,6 +184,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
           data = inner;
           sectors = loaded;
         });
+      }
+      if (widget.stock) {
+        try {
+          final res = await widget.api.dio.get('/products/summary');
+          final body = res.data;
+          final summary = body is Map && body['summary'] is Map ? Map<String, dynamic>.from(body['summary'] as Map) : null;
+          if (mounted) setState(() => stock = summary);
+        } catch (_) {}
       }
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
@@ -214,6 +224,25 @@ class _FinanceScreenState extends State<FinanceScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (stock != null) ...[
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text('PRODUTOS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.muted, fontWeight: FontWeight.w800)),
+                  ),
+                  _money('Vendido', stock!['salesTotal']),
+                  _money('Reservado', stock!['reservedValue']),
+                  _money('Estoque', stock!['stockValue']),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: WqCard(
+                      child: Row(children: [
+                        const Expanded(child: Text('Unidades disponíveis', style: TextStyle(color: Wq.muted))),
+                        Text('${stock!['availableUnits'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Wrap(spacing: 8, children: [
                   for (final item in ['today', '7d', '15d', '30d', '90d', '1y'])
                     ChoiceChip(
@@ -426,6 +455,25 @@ class _BillingScreenState extends State<BillingScreen> {
     });
   }
 
+  String _planName() {
+    final code = '${sub?['planCode'] ?? ''}';
+    if (code == 'WORQERA_BASIC') return 'Worqera Basic · R\$ 97/mês';
+    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') return 'Worqera Business · R\$ 499/mês';
+    if (code == 'WORQERA_PRO') return 'Worqera Pro · R\$ 197/mês';
+    if (sub == null && error == null) return 'Carregando…';
+    return 'Sem assinatura';
+  }
+
+  String _planPitch() {
+    final code = '${sub?['planCode'] ?? ''}';
+    if (code == 'WORQERA_BASIC') return 'Até 100 pedidos no mês. Sem caixa, sem métricas, sem estoque.';
+    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') {
+      return 'Análises com IA, acompanhamento semanal, integração e treinamento.';
+    }
+    if (code == 'WORQERA_PRO') return 'Oficina inteira, sem teto: financeiro, métricas, marca e estoque.';
+    return '';
+  }
+
   String _planLine() {
     final status = '${sub?['status'] ?? '—'}';
     final end = DateTime.tryParse('${sub?['trialEndsAt'] ?? ''}');
@@ -447,7 +495,7 @@ class _BillingScreenState extends State<BillingScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Plano e assinatura',
-      subtitle: 'Basic R\$ 147 · Pro R\$ 297 · Business R\$ 499',
+      subtitle: 'Basic R\$ 97 · Pro R\$ 197 · Business R\$ 499',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -455,18 +503,28 @@ class _BillingScreenState extends State<BillingScreen> {
           WqCard(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('SEU PLANO', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
-              Text('${sub?['planCode'] ?? sub?['status'] ?? 'Sem assinatura'}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text(_planName(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               Text(_planLine(), style: const TextStyle(color: Wq.muted)),
+              if (_planPitch().isNotEmpty) Text(_planPitch(), style: const TextStyle(color: Wq.muted)),
             ]),
           ),
           const SizedBox(height: 12),
-          for (final plan in [('WORQERA_BASIC', 'Basic', 'R\$ 147'), ('WORQERA_PRO', 'Pro', 'R\$ 297'), ('WORQERA_BUSINESS', 'Business', 'R\$ 499')])
+          for (final plan in [
+            ('WORQERA_BASIC', 'Basic', 'R\$ 97', 'Até 100 pedidos'),
+            ('WORQERA_PRO', 'Pro', 'R\$ 197', 'Sem teto'),
+            ('WORQERA_BUSINESS', 'Business', 'R\$ 499', 'Com a Worqera'),
+          ])
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: WqCard(
                 onTap: () => checkout(plan.$1),
                 child: Row(children: [
-                  Expanded(child: Text(plan.$2, style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(plan.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(plan.$4, style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                    ]),
+                  ),
                   Text(plan.$3, style: const TextStyle(fontWeight: FontWeight.w800)),
                 ]),
               ),

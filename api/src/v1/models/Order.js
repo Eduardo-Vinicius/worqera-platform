@@ -1,4 +1,10 @@
 const mongoose = require('mongoose');
+const { asNumberList } = require('../lib/numberList');
+
+function setCountList(value) {
+  if (value == null || value === '') return undefined;
+  return asNumberList(value);
+}
 
 const serviceItemSchema = new mongoose.Schema(
   {
@@ -48,6 +54,19 @@ const orderItemSchema = new mongoose.Schema(
     services: { type: [serviceItemSchema], default: [] },
     photos: { type: [photoSchema], default: [] },
     notes: { type: String, default: null },
+    /** brought = peça do cliente. stock = produto da loja. Só o admin Worqera grava stock. */
+    origin: { type: String, enum: ['brought', 'stock'], default: 'brought' },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
+    variantId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    quantity: { type: Number, default: 1 },
+    unitPrice: { type: Number, default: null },
+    snapshot: {
+      name: { type: String, default: '' },
+      variantName: { type: String, default: '' },
+      sku: { type: String, default: '' },
+      unitPrice: { type: Number, default: 0 },
+    },
+    stockState: { type: String, default: null },
     /** Kanban column for this item (may differ from siblings). */
     currentSectorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sector', default: null },
     plannedSectorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Sector' }],
@@ -133,8 +152,8 @@ const orderSchema = new mongoose.Schema(
      * or until the client calls notify-created after the uploads finish.
      */
     photoNotify: {
-      expected: { type: [Number], default: undefined },
-      got: { type: [Number], default: undefined },
+      expected: { type: [Number], default: undefined, set: setCountList },
+      got: { type: [Number], default: undefined, set: setCountList },
       sent: { type: Boolean, default: false },
       /** false = someone saved a price and chose not to email the laudo. */
       approved: { type: Boolean },

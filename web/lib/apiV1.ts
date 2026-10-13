@@ -995,6 +995,59 @@ export function clearSession() {
   document.cookie = "token=; path=/; max-age=0; samesite=lax"
 }
 
+export async function listProductsV1() {
+  return v1Fetch<{ products: Array<{
+    id: string
+    name: string
+    sku?: string
+    description?: string
+    price: number
+    trackStock?: boolean
+    minQty?: number
+    active?: boolean
+    onHand?: number
+    reserved?: number
+    available?: number
+    low?: boolean
+    variants?: Array<{ id: string; name: string; sku?: string; price: number | null; onHand: number; reserved: number; available: number }>
+  }> }>("/products")
+}
+
+export async function createProductV1(body: Record<string, unknown>) {
+  return v1Fetch<{ product: { id: string } }>("/products", { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function patchProductV1(id: string, body: Record<string, unknown>) {
+  return v1Fetch(`/products/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
+export async function deleteProductV1(id: string) {
+  return v1Fetch(`/products/${id}`, { method: "DELETE" })
+}
+
+export async function adjustProductV1(id: string, body: { quantity: number; reason: string; variantId?: string }) {
+  return v1Fetch(`/products/${id}/adjust`, { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function productMovementsV1(id: string) {
+  return v1Fetch<{ movements: Array<{ id: string; type: string; quantity: number; reason: string; orderCode?: string; createdAt?: string; variantName?: string }> }>(
+    `/products/${id}/movements`
+  )
+}
+
+export async function productSummaryV1() {
+  return v1Fetch<{ summary: {
+    productCount: number
+    stockValue: number
+    availableUnits: number
+    salesTotal: number
+    salesUnits: number
+    reservedValue: number
+    low: Array<{ id: string; name: string; available: number }>
+    movements: Array<{ id: string; productName: string; variantName?: string; type: string; quantity: number; reason: string; orderCode?: string; createdAt?: string }>
+  } }>("/products/summary")
+}
+
 /** Clears refresh cookie on API then local session. */
 export async function logoutV1() {
   try {

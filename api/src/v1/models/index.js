@@ -16,4 +16,6 @@ module.exports = {
   PlatformMailLog: require('./PlatformMailLog'),
   PlatformConfig: require('./PlatformConfig'),
   PlatformNotice: require('./PlatformNotice'),
+  Product: require('./Product'),
+  StockMovement: require('./StockMovement'),
 };

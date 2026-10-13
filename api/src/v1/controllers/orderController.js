@@ -37,8 +37,16 @@ exports.list = wrap(async (req, res) => {
   });
 });
 
+const { isPlatformAdminEmail } = require('../middleware/platformAdmin');
+
+function allowStock(req) {
+  return isPlatformAdminEmail(req.auth?.email);
+}
+
 exports.create = wrap(async (req, res) => {
-  const order = await orderService.createOrder(req.shopId, req.auth.userId, req.body || {});
+  const order = await orderService.createOrder(req.shopId, req.auth.userId, req.body || {}, {
+    allowStock: allowStock(req),
+  });
   const { buildOrderWhatsAppSuggest } = require('../services/whatsappSuggest');
   const whatsappSuggest = await buildOrderWhatsAppSuggest(req.shopId, order, {
     templateKey: 'created',
@@ -100,7 +108,8 @@ exports.patchItem = wrap(async (req, res) => {
     req.params.id,
     req.params.itemIndex,
     req.auth.userId,
-    req.body || {}
+    req.body || {},
+    { allowStock: allowStock(req) }
   );
   res.status(200).json(presentOrder(req, order));
 });
@@ -110,7 +119,8 @@ exports.addItem = wrap(async (req, res) => {
     req.shopId,
     req.params.id,
     req.auth.userId,
-    req.body || {}
+    req.body || {},
+    { allowStock: allowStock(req) }
   );
   res.status(201).json(presentOrder(req, order));
 });

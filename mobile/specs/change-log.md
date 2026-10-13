@@ -1,5 +1,12 @@
 # App celular
 
+## 2026-10-13
+
+- **Plano:** Basic R$ 97 (até 100 pedidos), Pro R$ 197 (sem teto) e Business R$ 499 (análises com IA, acompanhamento, integração e treinamento).
+- **Plano:** a tela mostra Basic, Pro ou Business, o que estiver aplicado na empresa.
+- **Pedido:** a marca abre a lista da empresa. Dá para pesquisar e, se não existir, cadastrar ali.
+- **Produtos:** a mesma tela do site, só para o admin Worqera dentro da oficina. No pedido, "Da loja" escolhe o produto. O financeiro mostra vendido, reservado e estoque.
+
 ## 2026-10-08
 
 - **Fotos:** se o botão for tocado de novo com a câmera ainda aberta, avisa em vez de ficar mudo.

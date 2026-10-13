@@ -348,7 +348,12 @@ async function generateOrderPdf(shopId, orderId) {
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i] || {};
     const services = Array.isArray(it.services) ? it.services : [];
-    const pairTotal = services.reduce((s, x) => s + (Number(x.price) || 0), 0);
+    const serviceSum = services.reduce((s, x) => s + (Number(x.price) || 0), 0);
+    const stockLine =
+      it.origin === 'stock'
+        ? (Number(it.unitPrice ?? it.snapshot?.unitPrice) || 0) * Math.max(1, Number(it.quantity) || 1)
+        : 0;
+    const pairTotal = serviceSum + stockLine;
     const onlyPiece = items.length === 1;
     const servicesUnpriced = services.every((s) => (Number(s.price) || 0) <= 0.009);
     const displayPair =
@@ -362,15 +367,18 @@ async function generateOrderPdf(shopId, orderId) {
     y = ensureSpace(doc, y, 36, pageHeight, pageCtx);
     y = sectionTitle(doc, `${pairWord} ${i + 1}`, y, pageWidth, accent);
 
-    if (it.shoeModel) y = kvLine(doc, 'Modelo', it.shoeModel, y, pageWidth);
+    if (it.origin === 'stock' && it.snapshot?.name) {
+      const productLabel = [it.snapshot.name, it.snapshot.variantName].filter(Boolean).join(' · ');
+      y = kvLine(doc, 'Produto', productLabel, y, pageWidth);
+      y = kvLine(doc, 'Quantidade', String(Math.max(1, Number(it.quantity) || 1)), y, pageWidth);
+    } else if (it.shoeModel) y = kvLine(doc, 'Modelo', it.shoeModel, y, pageWidth);
 
+    if (services.length) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...MUTED_RGB);
     doc.text('Serviços', 25, y);
     y += 5;
-
-    if (services.length) {
       for (const s of services) {
         y = ensureSpace(doc, y, 8, pageHeight, pageCtx);
         doc.setFont('helvetica', 'normal');
@@ -381,7 +389,7 @@ async function generateOrderPdf(shopId, orderId) {
         const price =
           ownPrice > 0.009
             ? formatCurrency(ownPrice)
-            : services.length === 1 && displayPair > 0.009
+            : services.length === 1 && stockLine <= 0.009 && displayPair > 0.009
               ? formatCurrency(displayPair)
               : 'A definir';
         doc.text(`• ${name}`, 28, y);
@@ -408,6 +416,13 @@ async function generateOrderPdf(shopId, orderId) {
         y,
         { align: 'right' }
       );
+      y += 7;
+    } else if (stockLine > 0.009) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...BRAND_RGB);
+      doc.text('Produto', 28, y);
+      doc.text(formatCurrency(stockLine), pageWidth - 20, y, { align: 'right' });
       y += 7;
     } else {
       doc.setFont('helvetica', 'normal');

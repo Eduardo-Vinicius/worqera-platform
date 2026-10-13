@@ -1,10 +1,14 @@
 const path = require('path');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const OrderCounter = require('../models/OrderCounter');
 const Client = require('../models/Client');
 const Sector = require('../models/Sector');
 const ServiceCatalog = require('../models/ServiceCatalog');
 const storageService = require('./storageService');
+const { asNumberList, numberListIsClean } = require('../lib/numberList');
+const { BASIC_ORDER_CAP, isBasicPlan, saoPauloMonthStart } = require('../lib/planCap');
+const Subscription = require('../models/Subscription');
 const {
   normalizeItemsFromPayload,
   sumServices,
@@ -48,7 +52,8 @@ function pricingIsManaged(order) {
 
 function assignServiceSumPricing(order) {
   if (pricingIsManaged(order)) return;
-  const total = sumServices(order.items);
+  const { stockValue } = require('./productService');
+  const total = sumServices(order.items) + stockValue(order.items);
   const deposit = Number(order.pricing?.deposit) || 0;
   order.pricing.total = total;
   order.pricing.remaining = Math.max(0, total - deposit);
@@ -175,7 +180,25 @@ async function listOrders(shopId, query = {}) {
   };
 }
 
-async function createOrder(shopId, userId, data) {
+async function assertBasicOrderCap(shopId) {
+  const sub = await Subscription.findOne({ shopId }).select('planCode').lean();
+  if (!isBasicPlan(sub?.planCode)) return;
+  const used = await Order.countDocuments({
+    shopId,
+    createdAt: { $gte: saoPauloMonthStart() },
+  });
+  if (used < BASIC_ORDER_CAP) return;
+  const err = new Error(
+    'O plano Basic chega a 100 pedidos neste mês. Suba para o Pro para continuar.'
+  );
+  err.status = 402;
+  err.code = 'BASIC_ORDER_CAP';
+  err.title = 'Payment Required';
+  throw err;
+}
+
+async function createOrder(shopId, userId, data, options = {}) {
+  await assertBasicOrderCap(shopId);
   data = data || {};
   let clientName = data.clientName || data.clienteNome || '';
   let clientPhone = data.clientPhone || data.telefone || null;
@@ -196,8 +219,10 @@ async function createOrder(shopId, userId, data) {
 
   const code = data.code || (await nextOrderCode(shopId));
   const normalized = normalizeItemsFromPayload(data || {});
+  const { prepareStockItems, stockValue } = require('./productService');
+  await prepareStockItems(shopId, normalized.items, Boolean(options.allowStock));
   const services = normalized.services;
-  const computedServices = sumServices(normalized.items);
+  const computedServices = sumServices(normalized.items) + stockValue(normalized.items);
 
   const STATUS_ENUM = new Set(['open', 'in_progress', 'ready', 'delivered', 'cancelled']);
   const rawStatus = String(data.status || '').trim().toLowerCase();
@@ -282,6 +307,13 @@ async function createOrder(shopId, userId, data) {
       services: it.services,
       photos: it.photos || [],
       notes: it.notes || null,
+      origin: it.origin === 'stock' ? 'stock' : 'brought',
+      productId: it.productId || null,
+      variantId: it.variantId || null,
+      quantity: it.quantity || 1,
+      unitPrice: it.unitPrice != null ? it.unitPrice : null,
+      snapshot: it.snapshot || undefined,
+      stockState: it.stockState || null,
       currentSectorId: itemStart,
       plannedSectorIds: itemPlanned,
       sectorHistory: itemStart
@@ -412,6 +444,16 @@ async function createOrder(shopId, userId, data) {
     createdByUserId: userId,
     ...(photoNotify ? { photoNotify } : {}),
   });
+
+  try {
+    const { reserveOrder } = require('./productService');
+    await reserveOrder(shopId, order, userId);
+    if (typeof order.markModified === 'function') order.markModified('items');
+    await order.save();
+  } catch (err) {
+    await Order.deleteOne({ _id: order._id, shopId });
+    throw err;
+  }
 
   const awaitingPhotos = Boolean(order.photoNotify?.expected?.some((n) => Number(n) > 0));
   const emailNotify = holdLaudo(order)
@@ -988,9 +1030,18 @@ async function patchOrder(shopId, id, userId, updates) {
   }
 
   order.updatedByUserId = userId;
-  if (updates.status === 'delivered' && !order.deliveredAt) {
+  const becomingDelivered = updates.status === 'delivered' && !order.deliveredAt;
+  if (becomingDelivered) {
     order.deliveredAt = updates.deliveredAt ? new Date(updates.deliveredAt) : new Date();
     order.reopenedAt = null;
+    const { commitOrder } = require('./productService');
+    await commitOrder(shopId, order, userId);
+    order.markModified('items');
+  }
+  if (updates.status === 'cancelled') {
+    const { releaseOrder } = require('./productService');
+    await releaseOrder(shopId, order, userId);
+    order.markModified('items');
   }
   await order.save();
   const plain = order.toObject();
@@ -1049,7 +1100,7 @@ async function applyItemPatchInPlace(order, shopId, patch, allSectorsCached) {
   // never overwrite id, photos, currentSectorId, sectorHistory here
 }
 
-async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
+async function patchOrderItem(shopId, orderId, itemIndex, userId, body, options = {}) {
   body = body || {};
   await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
@@ -1070,6 +1121,10 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
     { ...body, itemIndex: idx },
     allSectors
   );
+  if (options.allowStock && (body.origin === 'stock' || body.origin === 'brought')) {
+    const { syncItemStock } = require('./productService');
+    await syncItemStock(shopId, order, order.items[idx], body, userId);
+  }
   mirrorFlatFromFirstItem(order);
   recomputeOrderPlanAndRollup(order, allSectors);
   if (!body.pricing && body.precoTotal == null) {
@@ -1080,7 +1135,7 @@ async function patchOrderItem(shopId, orderId, itemIndex, userId, body) {
   return order.toObject();
 }
 
-async function addOrderItem(shopId, orderId, userId, body) {
+async function addOrderItem(shopId, orderId, userId, body, options = {}) {
   body = body || {};
   await repairPhotoNotify(shopId, orderId);
   const order = await Order.findOne({ _id: orderId, shopId });
@@ -1094,8 +1149,18 @@ async function addOrderItem(shopId, orderId, userId, body) {
   assertNotDeliveredStructural(order);
   hydrateItemsIfEmpty(order);
 
-  const shoeModel = body.shoeModel || body.modeloTenis || '';
-  if (!String(shoeModel).trim()) {
+  const draft = {
+    shoeModel: body.shoeModel || body.modeloTenis || '',
+    brand: body.brand || body.marca || '',
+    origin: body.origin,
+    productId: body.productId,
+    variantId: body.variantId,
+    quantity: body.quantity,
+    unitPrice: body.unitPrice,
+  };
+  const { prepareStockItems, reserveOrder } = require('./productService');
+  await prepareStockItems(shopId, [draft], Boolean(options.allowStock));
+  if (!String(draft.shoeModel || '').trim()) {
     const err = new Error('shoeModel required');
     err.status = 400;
     err.code = 'VALIDATION_ERROR';
@@ -1108,11 +1173,18 @@ async function addOrderItem(shopId, orderId, userId, body) {
   );
   const itemStart = planned[0] || startSector?._id || order.currentSectorId || null;
   order.items.push({
-    shoeModel: String(shoeModel).trim(),
-    brand: String(body.brand || body.marca || '').trim(),
+    shoeModel: String(draft.shoeModel).trim(),
+    brand: String(draft.brand || '').trim(),
     services,
     photos: body.photos || body.fotos || [],
     notes: body.notes || body.observacoes || null,
+    origin: draft.origin === 'stock' ? 'stock' : 'brought',
+    productId: draft.productId || null,
+    variantId: draft.variantId || null,
+    quantity: draft.quantity || 1,
+    unitPrice: draft.unitPrice != null ? draft.unitPrice : null,
+    snapshot: draft.snapshot || undefined,
+    stockState: draft.stockState || null,
     currentSectorId: itemStart,
     plannedSectorIds: planned,
     sectorHistory: itemStart
@@ -1136,6 +1208,15 @@ async function addOrderItem(shopId, orderId, userId, body) {
   }
   order.updatedByUserId = userId;
   await order.save();
+  try {
+    await reserveOrder(shopId, order, userId);
+    order.markModified('items');
+    await order.save();
+  } catch (err) {
+    order.items.pop();
+    await order.save();
+    throw err;
+  }
   return order.toObject();
 }
 
@@ -1159,6 +1240,10 @@ async function deleteOrderItem(shopId, orderId, itemIndex, userId) {
   }
   const idx = assertItemIndex(itemIndex, order.items.length);
   const removed = order.items[idx];
+  if (removed?.origin === 'stock' && removed.stockState === 'reserved') {
+    const { releaseOrder } = require('./productService');
+    await releaseOrder(shopId, { _id: order._id, code: order.code, items: [removed] }, userId);
+  }
   // Best-effort delete storage objects for item photos
   for (const p of removed.photos || []) {
     if (p?.key) {
@@ -1214,6 +1299,7 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     throw err;
   }
 
+  const wasDelivered = order.status === 'delivered';
   const nextStatus = ['open', 'in_progress', 'ready'].includes(String(body.status || ''))
     ? String(body.status)
     : 'in_progress';
@@ -1265,6 +1351,12 @@ async function reopenOrder(shopId, id, userId, body = {}) {
     it.currentSectorId = sector._id;
   }
   order.markModified('items');
+
+  if (wasDelivered) {
+    const { reopenStock } = require('./productService');
+    await reopenStock(shopId, order, userId);
+    order.markModified('items');
+  }
 
   await order.save();
   return order.toObject();
@@ -1355,6 +1447,11 @@ async function deleteOrder(shopId, id, userId) {
   }
   if (order.deletedAt) {
     return order.toObject();
+  }
+  if (order.status !== 'delivered') {
+    const { releaseOrder } = require('./productService');
+    await releaseOrder(shopId, order, userId);
+    order.markModified('items');
   }
   order.deletedAt = new Date();
   order.deletedByUserId = userId || null;
@@ -1493,54 +1590,37 @@ async function storeItemPhotoFiles(shopId, orderId, files, itemIndex, startIndex
   return photos;
 }
 
-function asNumberList(value) {
-  if (Array.isArray(value)) {
-    return value.map((n) => {
-      const num = Number(n);
-      return Number.isFinite(num) ? num : 0;
-    });
-  }
-  if (value && typeof value === 'object') {
-    const indexes = Object.keys(value)
-      .map((key) => Number(key))
-      .filter((n) => Number.isInteger(n) && n >= 0);
-    const size = indexes.length ? Math.max(...indexes) + 1 : 0;
-    const list = Array(size).fill(0);
-    for (const index of indexes) {
-      const num = Number(value[index]);
-      list[index] = Number.isFinite(num) ? num : 0;
-    }
-    return list;
-  }
-  return [];
-}
-
-function numberListIsClean(value) {
-  return Array.isArray(value) && value.every((n) => typeof n === 'number' && Number.isFinite(n));
-}
-
 function photoNotifyNeedsRepair(photoNotify) {
   if (!photoNotify || typeof photoNotify !== 'object') return false;
   return !numberListIsClean(photoNotify.got) || !numberListIsClean(photoNotify.expected);
 }
 
-/** `$inc` on a missing list stored `{ "0": 1 }` instead of `[1]`. Any later save then fails. */
+function docId(value) {
+  if (value == null) return value;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  const text = String(value);
+  return mongoose.Types.ObjectId.isValid(text) ? new mongoose.Types.ObjectId(text) : value;
+}
+
+/** `$inc` on a missing list stored `{ "0": 1 }` or the text of that object. Any later save then fails. */
 async function repairPhotoNotify(shopId, orderId) {
   if (!shopId || !orderId) return;
+  const _id = docId(orderId);
+  const shop = docId(shopId);
   const raw = await Order.collection.findOne(
-    { _id: orderId, shopId },
+    { _id, shopId: shop },
     { projection: { photoNotify: 1 } }
   );
   if (!photoNotifyNeedsRepair(raw?.photoNotify)) return;
-  await Order.collection.updateOne(
-    { _id: orderId, shopId },
-    {
-      $set: {
-        'photoNotify.expected': asNumberList(raw.photoNotify.expected),
-        'photoNotify.got': asNumberList(raw.photoNotify.got),
-      },
-    }
-  );
+  const $set = {};
+  if (raw.photoNotify.got != null && !numberListIsClean(raw.photoNotify.got)) {
+    $set['photoNotify.got'] = asNumberList(raw.photoNotify.got);
+  }
+  if (raw.photoNotify.expected != null && !numberListIsClean(raw.photoNotify.expected)) {
+    $set['photoNotify.expected'] = asNumberList(raw.photoNotify.expected);
+  }
+  if (!Object.keys($set).length) return;
+  await Order.collection.updateOne({ _id, shopId: shop }, { $set });
 }
 
 function pricePending(order) {
@@ -1738,7 +1818,7 @@ async function notePhotoUpload(shopId, orderId, itemIndex, addedCount) {
   if (added < 1) return;
   await repairPhotoNotify(shopId, orderId);
   const raw = await Order.collection.findOne(
-    { _id: orderId, shopId, 'photoNotify.sent': { $ne: true } },
+    { _id: docId(orderId), shopId: docId(shopId), 'photoNotify.sent': { $ne: true } },
     { projection: { photoNotify: 1 } }
   );
   if (!raw?.photoNotify) return;

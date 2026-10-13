@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   completeCheckoutDevV1,
   createCheckoutSessionV1,
-  getBillingProductsV1,
   getSubscriptionV1,
 } from "@/lib/apiV1"
 import { toast } from "sonner"
@@ -16,16 +15,14 @@ import { Check, CreditCard } from "lucide-react"
 
 export default function BillingPage() {
   const [sub, setSub] = useState<any>(null)
-  const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [s, p] = await Promise.all([getSubscriptionV1(), getBillingProductsV1()])
+      const s = await getSubscriptionV1()
       setSub(s.subscription)
-      setProducts(p.products || [])
     } catch (err: any) {
       toast.error(err?.message || "Erro ao carregar billing")
     } finally {
@@ -73,6 +70,30 @@ export default function BillingPage() {
       ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / 86400000))
       : null
 
+  const planCode =
+    sub?.planCode === "WORQERA_PREMIUM" ? "WORQERA_BUSINESS" : sub?.planCode || ""
+  const catalog: Record<string, { name: string; price: string; description: string; short: string }> = {
+    WORQERA_BASIC: {
+      name: "Worqera Basic",
+      short: "Basic",
+      price: "Basic · R$ 97/mês",
+      description: "A fila no ar. Até 100 pedidos no mês, sem caixa, sem métricas e sem estoque.",
+    },
+    WORQERA_PRO: {
+      name: "Worqera Pro",
+      short: "Pro",
+      price: "Pro · R$ 197/mês",
+      description: "A oficina inteira, sem teto: financeiro, métricas, marca, produtos e estoque.",
+    },
+    WORQERA_BUSINESS: {
+      name: "Worqera Business",
+      short: "Business",
+      price: "Business · R$ 499/mês",
+      description: "Análises com IA, acompanhamento semanal, integração e treinamento. Tudo do Pro.",
+    },
+  }
+  const current = catalog[planCode] || (loading ? null : catalog.WORQERA_PRO)
+
   const includes = [
     "Kanban por setores ilimitado",
     "Pedidos, clientes e consultas",
@@ -85,7 +106,7 @@ export default function BillingPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Plano e assinatura"
-        subtitle="Basic R$ 147 · Pro R$ 297 · Business R$ 499"
+        subtitle="Basic R$ 97 · Pro R$ 197 · Business R$ 499"
         actions={
           !locked ? (
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -104,20 +125,34 @@ export default function BillingPage() {
 
         <div className="grid grid-cols-3 gap-2">
           {[
-            { name: "Basic", price: "R$ 147", tone: "border-sky-300 bg-sky-50 text-sky-900" },
-            { name: "Pro", price: "R$ 297", tone: "border-violet-300 bg-violet-50 text-violet-900" },
+            {
+              name: "Basic",
+              price: "R$ 97",
+              line: "Até 100 pedidos",
+              tone: "border-sky-300 bg-sky-50 text-sky-900",
+            },
+            {
+              name: "Pro",
+              price: "R$ 197",
+              line: "Sem teto",
+              tone: "border-violet-300 bg-violet-50 text-violet-900",
+            },
             {
               name: "Business",
               price: "R$ 499",
+              line: "Com a Worqera",
               tone: "border-amber-300 bg-amber-50 text-amber-950",
             },
           ].map((p) => (
             <div
               key={p.name}
-              className={`rounded-xl border px-2 py-2.5 text-center ${p.tone}`}
+              className={`rounded-xl border px-2 py-2.5 text-center ${p.tone} ${
+                current?.short === p.name ? "ring-2 ring-[var(--wq-text)] ring-offset-2" : ""
+              }`}
             >
               <p className="text-[11px] font-bold uppercase tracking-wide">{p.name}</p>
               <p className="font-mono text-sm font-semibold">{p.price}</p>
+              <p className="mt-0.5 text-[10px] leading-tight">{p.line}</p>
             </div>
           ))}
         </div>
@@ -144,13 +179,12 @@ export default function BillingPage() {
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-brand-text)]">
                 Seu plano
               </p>
-              <p className="font-semibold">{products[0]?.name || "Worqera Pro"}</p>
+              <p className="font-semibold">{current?.name || "Carregando…"}</p>
               <p className="text-sm text-[var(--wq-text-muted)]">
-                {products[0]?.description ||
-                  "Kanban, pedidos, clientes e indicadores para sua oficina."}
+                {current?.description || "O plano aplicado nesta empresa."}
               </p>
               <p className="mt-2 font-[family-name:var(--font-display)] text-lg">
-                {products[0]?.priceLabel || products[0]?.price || "Pro · R$ 297/mês"}
+                {current?.price || ""}
               </p>
             </div>
 
@@ -178,7 +212,7 @@ export default function BillingPage() {
             </Button>
 
             <p className="mt-2 text-sm text-[var(--wq-text-muted)]">
-              Basic R$ 147 · Pro R$ 297/mês · Business R$ 499. Cobrança via AbacatePay ou PIX.
+              Basic R$ 97 · Pro R$ 197/mês · Business R$ 499. Cobrança via AbacatePay ou PIX.
               Indique pelo link em Empresa (?ref=) — 1 mês grátis quando a oficina assinar.
             </p>
 

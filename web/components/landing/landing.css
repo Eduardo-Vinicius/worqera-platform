@@ -157,14 +157,52 @@
   text-decoration-thickness: 1.5px;
 }
 
+.lp .lp-film-card {
+  right: 1rem;
+  left: 1rem;
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1), width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lp .lp-film-card-jump {
+  transition: none;
+}
+
+@media (min-width: 640px) {
+  .lp .lp-film-card {
+    left: calc(var(--lp-col) * 25% + 0.75rem);
+    width: calc(25% - 1.5rem);
+    right: auto;
+  }
+}
+
+@keyframes lp-live-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.lp .lp-live-dot {
+  animation: lp-live-pulse 1.8s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp .lp-animate-in,
   .lp .lp-animate-in-delay,
   .lp .lp-board-card,
   .lp .lp-board-card-ready,
   .lp .lp-toast,
-  .lp .lp-pillar {
+  .lp .lp-pillar,
+  .lp .lp-live-dot {
     animation: none;
+  }
+
+  .lp .lp-film-card {
+    transition: none;
   }
 
   .lp .lp-pillar:hover {

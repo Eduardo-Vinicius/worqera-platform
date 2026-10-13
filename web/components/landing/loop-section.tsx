@@ -15,7 +15,7 @@ export function LoopSection() {
           <p className="mt-3 text-base text-[var(--muted-foreground)] sm:text-lg">{t.loop.subtitle}</p>
         </div>
 
-        <ol className="mt-12 grid gap-10 sm:mt-14 md:grid-cols-3 md:gap-8">
+        <ol className="mt-12 grid gap-10 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
           {t.loop.steps.map((step) => (
             <li key={step.n} className="border-t border-[var(--ink)] pt-5">
               <p className="lp-mono text-xs text-[var(--muted-foreground)]">{step.n}</p>

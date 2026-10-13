@@ -18,7 +18,7 @@ export function SystemSection() {
           <p className="mt-3 text-base text-[var(--muted-foreground)] sm:text-lg">{t.system.subtitle}</p>
         </div>
 
-        <ol className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-3">
+        <ol className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2">
           {t.system.pillars.map((pillar, index) => (
             <li
               key={pillar.title}

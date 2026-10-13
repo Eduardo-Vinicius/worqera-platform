@@ -42,3 +42,4 @@
 | TOP-08 | Garantia lifecycle | done (mínimo) |
 | TOP-09 | Atalhos teclado kanban | done |
 | TOP-10 | TV configurável | done |
+| TOP-11 | Produtos e estoque (admin Worqera) | done (API+web+app; loja não vê) |

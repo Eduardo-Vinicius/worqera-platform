@@ -39,9 +39,9 @@ export function PricingSection() {
                 <div className="mb-5">
                   <div className="flex items-baseline justify-between gap-2">
                     <h3 className="lp-display text-lg font-semibold text-[var(--ink)]">{plan.name}</h3>
-                    {plan.popular ? (
+                    {plan.seal ? (
                       <span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--primary)] uppercase">
-                        {pt ? "Recomendado" : "Recommended"}
+                        {plan.seal}
                       </span>
                     ) : null}
                   </div>
@@ -55,9 +55,11 @@ export function PricingSection() {
                   {plan.priceNote ? (
                     <p className="mt-1 text-xs text-[var(--muted-foreground)]">{plan.priceNote}</p>
                   ) : null}
-                  <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                    {pt ? "7 dias grátis no signup" : "7 days free on signup"}
-                  </p>
+                  {isBusiness ? null : (
+                    <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                      {pt ? "7 dias grátis no signup" : "7 days free on signup"}
+                    </p>
+                  )}
                 </div>
 
                 <ul className="mb-6 flex-1 space-y-2.5">

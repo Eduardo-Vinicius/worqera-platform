@@ -23,6 +23,11 @@ export type OrderItemDraft = {
   notes: string
   /** Sector slug/id path for this pair (partida independente) */
   flowOptionIds: string[]
+  origin?: "brought" | "stock"
+  productId?: string
+  variantId?: string
+  quantity?: number
+  unitPrice?: number
 }
 
 export type CreatePedidoItemPayload = {
@@ -32,6 +37,11 @@ export type CreatePedidoItemPayload = {
   notes?: string
   flowOptionIds?: string[]
   departamentosSelecionados?: Array<{ id: string; nome: string }>
+  origin?: "brought" | "stock"
+  productId?: string
+  variantId?: string
+  quantity?: number
+  unitPrice?: number
 }
 
 export type OrderItemPatch = {
@@ -41,6 +51,11 @@ export type OrderItemPatch = {
   photos?: PhotoItem[]
   notes?: string
   flowOptionIds?: string[]
+  origin?: "brought" | "stock"
+  productId?: string
+  variantId?: string
+  quantity?: number
+  unitPrice?: number
 }
 
 let draftIdCounter = 0
@@ -71,11 +86,13 @@ export function isItemTouched(item: OrderItemDraft): boolean {
     Boolean(item.brand.trim()) ||
     item.selectedServices.length > 0 ||
     item.photos.length > 0 ||
-    Boolean(item.notes.trim())
+    Boolean(item.notes.trim()) ||
+    Boolean(item.productId)
   )
 }
 
 export function isItemFilled(item: OrderItemDraft): boolean {
+  if (item.origin === "stock" && item.productId) return true
   return Boolean(item.sneaker.trim()) && item.selectedServices.length > 0
 }
 
@@ -96,7 +113,11 @@ export function suggestedTotal(
   hasWarranty: boolean,
   warrantyPrice: number
 ): number {
-  return servicesSum(items) + (hasWarranty ? Number(warrantyPrice) || 0 : 0)
+  const stock = items.reduce((acc, item) => {
+    if (item.origin !== "stock" || !item.productId) return acc
+    return acc + (Number(item.unitPrice) || 0) * Math.max(1, Number(item.quantity) || 1)
+  }, 0)
+  return servicesSum(items) + stock + (hasWarranty ? Number(warrantyPrice) || 0 : 0)
 }
 
 export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoItemPayload[] {
@@ -111,6 +132,17 @@ export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoIt
     })),
     notes: item.notes.trim() || undefined,
     flowOptionIds: item.flowOptionIds?.length ? [...item.flowOptionIds] : ["atendimento"],
+    ...(item.origin === "stock" && item.productId
+      ? {
+          origin: "stock" as const,
+          productId: item.productId,
+          variantId: item.variantId || undefined,
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          unitPrice: Number(item.unitPrice) || 0,
+        }
+      : item.origin === "brought"
+        ? { origin: "brought" as const }
+        : {}),
   }))
 }
 
@@ -243,6 +275,11 @@ export function hydrateDraftsFromOrder(order: {
     photos?: unknown[]
     notes?: string | null
     plannedSectorIds?: unknown[]
+    origin?: string
+    productId?: string
+    variantId?: string
+    quantity?: number
+    unitPrice?: number
   }>
   shoeModel?: string
   services?: Array<{ id?: string; name?: string; price?: number; note?: string; description?: string }>
@@ -290,6 +327,11 @@ export function hydrateDraftsFromOrder(order: {
       photos,
       notes: String(it.notes || ""),
       flowOptionIds: flowOptionIds.length ? flowOptionIds : ["atendimento"],
+      origin: it.origin === "stock" ? "stock" : "brought",
+      productId: it.productId ? String(it.productId) : "",
+      variantId: it.variantId ? String(it.variantId) : "",
+      quantity: Math.max(1, Number(it.quantity) || 1),
+      unitPrice: Number(it.unitPrice) || 0,
     }
   })
 }

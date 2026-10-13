@@ -1,10 +1,10 @@
 # Worqera Landing — premium multi-ramo (2026-09-22)
 
-**Atualizado:** 2026-10-04. A face pública fala de empresas com fila, vários itens e prova. Logo, papel, ink e fontes não mudam. O app logado continua dizendo oficina.
+**Atualizado:** 2026-10-13. A face pública fala de pedidos, produtos, estoque e vendas para várias áreas. O quadro do topo anima o pedido. Logo, papel, ink e fontes não mudam. O app logado continua dizendo oficina.
 
 ## Em uma frase
 
-Landing minimal/premium que vende o **loop operacional** (fila + código/QR + consulta) para **empresas de vários ramos** — não “software de tênis”.
+Landing minimal/premium que vende a **operação inteira** (pedido + produto + estoque + venda + aviso) para **empresas de vários ramos** — não “software de tênis”.
 
 ## Posicionamento
 
@@ -17,7 +17,7 @@ Landing minimal/premium que vende o **loop operacional** (fila + código/QR + co
 ## Estrutura
 
 1. Header (Produto / Ramos / Preço) — sem theme toggle
-2. Hero — marca + headline de empresa + CTA + kanban com itens mistos
+2. Hero — marca + operação inteira + CTA + filme do pedido (entra, anda, e-mail, entrega, baixa estoque)
 3. Prova — 1.000+ pedidos, R$ 200 mil+, vários ramos
 4. Parceiros
 5. Ramos — ramo + o item daquele ramo

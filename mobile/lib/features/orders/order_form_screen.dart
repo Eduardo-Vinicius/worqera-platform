@@ -70,21 +70,42 @@ class _ItemDraft {
   final brand = TextEditingController();
   final model = TextEditingController();
   final notes = TextEditingController();
+  final qtyField = TextEditingController(text: '1');
+  final priceField = TextEditingController(text: '0');
   final services = <_ServicePick>[];
   final flow = <String>[];
   final photos = <_PhotoPick>[];
   final removedPhotos = <int>[];
   int? serverIndex;
+  bool fromStock = false;
+  String productId = '';
+  String variantId = '';
 
   bool get touched =>
-      brand.text.trim().isNotEmpty || model.text.trim().isNotEmpty || notes.text.trim().isNotEmpty || services.isNotEmpty || photos.isNotEmpty;
+      brand.text.trim().isNotEmpty ||
+      model.text.trim().isNotEmpty ||
+      notes.text.trim().isNotEmpty ||
+      services.isNotEmpty ||
+      photos.isNotEmpty ||
+      productId.isNotEmpty;
 
-  bool get filled => model.text.trim().isNotEmpty && services.isNotEmpty;
+  bool get filled => fromStock && productId.isNotEmpty
+      ? true
+      : model.text.trim().isNotEmpty && services.isNotEmpty;
+
+  int get quantity {
+    final value = int.tryParse(qtyField.text.trim()) ?? 1;
+    return value < 1 ? 1 : value;
+  }
+
+  double get unitPrice => _money(priceField.text);
 
   void dispose() {
     brand.dispose();
     model.dispose();
     notes.dispose();
+    qtyField.dispose();
+    priceField.dispose();
     for (final service in services) {
       service.dispose();
     }
@@ -135,8 +156,10 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   List<Map<String, dynamic>> services = [];
   List<Map<String, dynamic>> sectors = [];
   List<String> accessoryCatalog = [];
+  List<Map<String, dynamic>> catalog = [];
   final accessories = <String>[];
   final items = <_ItemDraft>[_ItemDraft()];
+  bool brandMenu = false;
   int itemIndex = 0;
   int serverItemCount = 0;
   double openedTotal = 0;
@@ -211,6 +234,12 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         ];
       }
       _applyDefaultFlow();
+      if (widget.session.platformAdmin && widget.session.shopId.isNotEmpty) {
+        try {
+          final products = await widget.api.dio.get('/products');
+          catalog = _maps(products.data, const ['products', 'data']);
+        } catch (_) {}
+      }
       if (editing) await _loadOrder();
     } catch (e) {
       error = widget.api.message(e);
@@ -339,7 +368,12 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             ..serverIndex = entry.key
             ..brand.text = '${raw['brand'] ?? ''}'
             ..model.text = '${raw['shoeModel'] ?? ''}'
-            ..notes.text = '${raw['notes'] ?? ''}';
+            ..notes.text = '${raw['notes'] ?? ''}'
+            ..fromStock = raw['origin'] == 'stock'
+            ..productId = '${raw['productId'] ?? ''}'
+            ..variantId = '${raw['variantId'] ?? ''}';
+          draft.qtyField.text = '${raw['quantity'] ?? 1}';
+          draft.priceField.text = '${raw['unitPrice'] ?? 0}';
           draft.flow
             ..clear()
             ..addAll(((raw['flowOptionIds'] as List?) ?? const []).map((id) => '$id'));
@@ -373,6 +407,9 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     for (final item in items) {
       for (final service in item.services) {
         sum += service.price;
+      }
+      if (item.fromStock && item.productId.isNotEmpty) {
+        sum += item.quantity * item.unitPrice;
       }
     }
     return sum;
@@ -414,7 +451,9 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     if (!editing && '${client!['id'] ?? ''}'.isEmpty) return 'Cliente é obrigatório';
     final touched = items.where((item) => item.touched).toList();
     if (touched.isEmpty || filledItems.isEmpty) return 'Informe ao menos um item com modelo e serviços';
-    if (touched.any((item) => !item.filled)) return 'Cada item preenchido deve ter modelo e ao menos um serviço';
+    if (touched.any((item) => !item.filled)) {
+      return 'Cada item preenchido deve ter modelo e serviço, ou um produto da loja';
+    }
     if (items.any((item) => item.photos.length > _maxPhotos)) return 'Máximo de $_maxPhotos fotos por item';
     if (deposit < 0 || deposit > total + 0.001) return 'O sinal precisa ficar entre zero e o total';
     return null;
@@ -524,6 +563,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     );
     if (next == null || next.isEmpty || !mounted) return;
     item.brand.text = next;
+    brandMenu = false;
     await commitBrand(item);
   }
 
@@ -712,7 +752,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Map<String, dynamic> _itemPayload(_ItemDraft item) {
-    return {
+    final payload = <String, dynamic>{
       'shoeModel': item.model.text.trim(),
       'brand': item.brand.text.trim(),
       'services': [
@@ -727,6 +767,19 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       'notes': _notesFor(item),
       'flowOptionIds': item.flow,
     };
+    if (!widget.session.platformAdmin) return payload;
+    if (item.fromStock && item.productId.isNotEmpty) {
+      payload.addAll({
+        'origin': 'stock',
+        'productId': item.productId,
+        'variantId': item.variantId,
+        'quantity': item.quantity,
+        'unitPrice': item.unitPrice,
+      });
+    } else {
+      payload['origin'] = 'brought';
+    }
+    return payload;
   }
 
   Future<void> _upload(String id, int index, _ItemDraft item) async {
@@ -1065,16 +1118,131 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     Expanded(child: Text('Item ${itemIndex + 1}${_itemTitle(item)}', style: const TextStyle(fontWeight: FontWeight.w800))),
                     if (items.length > 1) TextButton(onPressed: () => removeItem(itemIndex), child: const Text('Remover', style: TextStyle(color: Wq.danger))),
                   ]),
+                  if (widget.session.platformAdmin) ...[
+                    const SizedBox(height: 8),
+                    const Text('ORIGEM DO ITEM', style: TextStyle(fontSize: 11, letterSpacing: 1.1, color: Wq.muted, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      ChoiceChip(
+                        label: const Text('Do cliente'),
+                        selected: !item.fromStock,
+                        onSelected: (_) => setState(() {
+                          item.fromStock = false;
+                          item.productId = '';
+                          item.variantId = '';
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Da loja'),
+                        selected: item.fromStock,
+                        onSelected: (_) => setState(() => item.fromStock = true),
+                      ),
+                    ]),
+                    if (item.fromStock) ...[
+                      const SizedBox(height: 8),
+                      if (catalog.isEmpty)
+                        const Text('Nenhum produto nesta oficina. Cadastre em Produtos.')
+                      else
+                        DropdownButtonFormField<String>(
+                        key: ValueKey('product-$itemIndex-${item.productId}'),
+                        initialValue: catalog.any((row) => '${row['id']}' == item.productId) ? item.productId : null,
+                        decoration: const InputDecoration(labelText: 'Produto'),
+                        items: [
+                          for (final row in catalog)
+                            DropdownMenuItem(
+                              value: '${row['id']}',
+                              child: Text(
+                                '${row['name']}${row['trackStock'] == false ? ' · sob encomenda' : ' · ${row['available'] ?? 0} disp.'}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: (id) {
+                          Map<String, dynamic>? product;
+                          for (final row in catalog) {
+                            if ('${row['id']}' == id) product = row;
+                          }
+                          if (product == null) return;
+                          final chosen = Map<String, dynamic>.from(product);
+                          final variants = chosen['variants'] is List ? chosen['variants'] as List : const [];
+                          final first = variants.isNotEmpty && variants.first is Map
+                              ? Map<String, dynamic>.from(variants.first as Map)
+                              : null;
+                          setState(() {
+                            item.productId = '${chosen['id']}';
+                            item.variantId = first == null ? '' : '${first['id'] ?? ''}';
+                            final price = first != null && first['price'] != null ? first['price'] : chosen['price'];
+                            item.priceField.text = '$price';
+                            if (item.model.text.trim().isEmpty) item.model.text = '${chosen['name']}';
+                          });
+                        },
+                      ),
+                      if (_variantsOf(item).isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('variant-$itemIndex-${item.variantId}'),
+                          initialValue: _variantsOf(item).any((row) => '${row['id']}' == item.variantId) ? item.variantId : null,
+                          decoration: const InputDecoration(labelText: 'Variação'),
+                          items: [
+                            for (final row in _variantsOf(item))
+                              DropdownMenuItem(
+                                value: '${row['id']}',
+                                child: Text('${row['name']} · ${row['available'] ?? 0} disp.'),
+                              ),
+                          ],
+                          onChanged: (id) {
+                            Map<String, dynamic>? row;
+                            for (final variant in _variantsOf(item)) {
+                              if ('${variant['id']}' == id) row = variant;
+                            }
+                            if (row == null) return;
+                            final chosen = Map<String, dynamic>.from(row);
+                            setState(() {
+                              item.variantId = '${chosen['id']}';
+                              if (chosen['price'] != null) item.priceField.text = '${chosen['price']}';
+                            });
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      TextField(
+                        key: ValueKey('qty-$itemIndex'),
+                        controller: item.qtyField,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Quantidade'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        key: ValueKey('price-$itemIndex'),
+                        controller: item.priceField,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Preço unitário'),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 8),
                   TextField(
                     key: ValueKey('brand-$itemIndex'),
                     controller: item.brand,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Marca'),
-                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Marca',
+                      helperText: brands.isEmpty
+                          ? 'Nenhuma marca ainda. Digite o nome e cadastre.'
+                          : 'Pesquise na lista. Se não achar, cadastre.',
+                      helperMaxLines: 2,
+                      suffixIcon: IconButton(
+                        tooltip: brandMenu ? 'Fechar marcas' : 'Ver marcas',
+                        onPressed: () => setState(() => brandMenu = !brandMenu),
+                        icon: Icon(brandMenu ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                      ),
+                    ),
+                    onTap: () => setState(() => brandMenu = true),
+                    onChanged: (_) => setState(() => brandMenu = true),
                     onSubmitted: (_) => commitBrand(item),
                   ),
-                  ..._brandSuggestions(item),
+                  if (brandMenu) _brandMenu(item),
                   const SizedBox(height: 8),
                   TextField(key: ValueKey('model-$itemIndex'), controller: item.model, decoration: const InputDecoration(labelText: 'Modelo *')),
                   const SizedBox(height: 8),
@@ -1228,6 +1396,19 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     return title.isEmpty ? '' : ' · $title';
   }
 
+  List<Map<String, dynamic>> _variantsOf(_ItemDraft item) {
+    for (final row in catalog) {
+      if ('${row['id']}' != item.productId) continue;
+      final raw = row['variants'];
+      if (raw is! List) return [];
+      return [
+        for (final variant in raw)
+          if (variant is Map) Map<String, dynamic>.from(variant),
+      ];
+    }
+    return [];
+  }
+
   bool _onFlow(_ItemDraft item, Map<String, dynamic> sector) {
     final key = '${sector['slug'] ?? ''}';
     final id = '${sector['id'] ?? ''}';
@@ -1244,25 +1425,59 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     return false;
   }
 
-  List<Widget> _brandSuggestions(_ItemDraft item) {
+  Widget _brandMenu(_ItemDraft item) {
     final query = item.brand.text.trim().toLowerCase();
-    if (query.isEmpty) return const [];
-    final matches = brands.where((row) => '${row['name']}'.toLowerCase().contains(query)).take(6).toList();
-    final exact = brands.any((row) => '${row['name']}'.toLowerCase() == query);
-    return [
-      for (final row in matches)
-        ListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: Text('${row['name']}'),
-          onTap: () => setState(() => item.brand.text = '${row['name']}'),
-        ),
-      if (!exact)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(onPressed: () => openBrand(item), child: Text('Cadastrar “${item.brand.text.trim()}”')),
-        ),
-    ];
+    final matches = brands.where((row) {
+      final name = '${row['name']}'.toLowerCase();
+      return query.isEmpty || name.contains(query);
+    }).toList();
+    final exact = query.isNotEmpty && brands.any((row) => '${row['name']}'.toLowerCase() == query);
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      constraints: const BoxConstraints(maxHeight: 260),
+      decoration: BoxDecoration(
+        color: context.wqPaper,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.wqLine),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        children: [
+          if (matches.isEmpty)
+            const ListTile(
+              dense: true,
+              title: Text('Nenhuma marca com esse nome'),
+            ),
+          for (final row in matches)
+            ListTile(
+              dense: true,
+              title: Text('${row['name']}'),
+              onTap: () => setState(() {
+                item.brand.text = '${row['name']}';
+                brandMenu = false;
+              }),
+            ),
+          if (query.isNotEmpty && !exact)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Wq.brand),
+                onPressed: () => openBrand(item),
+                child: Text('Cadastrar “${item.brand.text.trim()}”'),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: Text(
+                'Não achou? Digite o nome e cadastre.',
+                style: TextStyle(color: context.wqMuted, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _serviceTile(_ItemDraft item, Map<String, dynamic> service) {

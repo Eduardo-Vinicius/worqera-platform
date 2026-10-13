@@ -793,7 +793,16 @@ export async function createPedidoService(pedido: {
     },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error("Erro ao criar pedido");
+  if (!response.ok) {
+    let detail = "Erro ao criar pedido";
+    try {
+      const errorData = await response.json();
+      detail = errorData.detail || errorData.error || detail;
+    } catch {
+      /* keep the fallback */
+    }
+    throw new Error(detail);
+  }
   const result = await response.json();
   invalidateCacheByPrefix(PEDIDOS_CACHE_PREFIXES);
   return result;

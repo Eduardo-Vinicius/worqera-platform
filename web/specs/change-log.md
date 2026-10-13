@@ -2,6 +2,11 @@
 
 ## 2026-10-13
 
+- **Planos:** site e aba Plano (dono e admin) mostram Basic R$ 97, Pro R$ 197 e Business R$ 499, com o teto de 100 pedidos no Basic e análises com IA no Business.
+- **Plano:** a tela da oficina mostra o plano aplicado no painel. Business deixa de aparecer como Pro.
+- **Pedido:** a marca abre a lista da empresa. Dá para pesquisar e, se não existir, cadastrar ali.
+- **Site:** a página pública passa a falar de pedidos, produtos, estoque e vendas para várias áreas. O quadro do topo anima o pedido entrando, andando, avisando por e-mail e saindo com baixa de estoque.
+- **Produtos:** tela só do admin Worqera, com cadastro, variação, ajuste e histórico. No pedido, "Da loja" vende o item e entra no kanban. O financeiro mostra vendido, reservado e estoque.
 - **Kanban:** no detalhe de um par, a observação que aparece é só a daquele par. Os outros pares continuam listados, sem a observação deles.
 
 ## 2026-10-08

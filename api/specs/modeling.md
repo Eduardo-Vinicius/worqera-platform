@@ -27,6 +27,31 @@ DB único compartilhado; isolamento por `shopId` (não DB-per-tenant).
 
 Índices: `slug` unique.
 
+### `products`
+
+Catálogo da oficina. Saldo no produto, ou nas variações quando existem. `available = onHand - reserved`.
+
+```json
+{
+  "shopId": "ObjectId",
+  "name": "string",
+  "sku": "string",
+  "price": 0,
+  "trackStock": true,
+  "minQty": 0,
+  "active": true,
+  "onHand": 0,
+  "reserved": 0,
+  "variants": [{ "name": "P", "sku": "", "price": null, "onHand": 0, "reserved": 0 }]
+}
+```
+
+### `stockmovements`
+
+`adjust | reserve | release | commit | reopen`, com `quantity`, `reason`, `orderId`, `orderCode`.
+
+Item do pedido ganha `origin` (`brought` padrão | `stock`), `productId`, `variantId`, `quantity`, `unitPrice`, `snapshot`, `stockState`. Pedido antigo permanece `brought`.
+
 ### `users`
 
 ```json
@@ -160,7 +185,7 @@ Campos alinhados ao legado útil (`pedidoModel` + runtime):
 
 Índices: `(shopId, code)` unique; `(shopId, currentSectorId)`; `(shopId, createdAt)`; `(shopId, dueAt)`; `(shopId, status)`.
 
-**Espelho flat:** `shoeModel` / `services` / `photos` no documento = `items[0]` (legado). Create/PATCH aceitam `items[]` **ou** payload flat; se `items` vier preenchido, o primeiro item é copiado para os campos flat. Docs antigos sem `items` (ou `items: []`) continuam válidos — leitura (`effectiveItems`) sintetiza um item a partir do flat. **Um pedido = um `code`**; no kanban **1 card por item** (`items[].currentSectorId`, label `code-N`). Pedido fica `ready` quando **todos** os itens estão no setor terminal; entrega só no pedido. Serialização sempre devolve `items` + `itemCount` (readers vazios ainda saem com 1 item sintetizado). `pricing.total` = soma dos serviços de **todos** os items, salvo total explícito no body.
+**Espelho flat:** `shoeModel` / `services` / `photos` no documento = `items[0]` (legado). Create/PATCH aceitam `items[]` **ou** payload flat; se `items` vier preenchido, o primeiro item é copiado para os campos flat. Docs antigos sem `items` (ou `items: []`) continuam válidos — leitura (`effectiveItems`) sintetiza um item a partir do flat. **Um pedido = um `code`**; no kanban **1 card por item** (`items[].currentSectorId`, label `code-N`). Pedido fica `ready` quando **todos** os itens estão no setor terminal; entrega só no pedido. Serialização sempre devolve `items` + `itemCount` (readers vazios ainda saem com 1 item sintetizado). `pricing.total` = soma dos serviços de **todos** os items, mais o valor de item `origin=stock`, salvo total explícito no body. Sem admin Worqera, `origin=stock` é gravado como `brought`.
 
 ### `service_catalog` (TOP-01)
 

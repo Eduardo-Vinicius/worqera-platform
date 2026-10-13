@@ -51,6 +51,19 @@ function serializeOrderItem(it, { hidePrices = false } = {}) {
     })),
     photos: (it.photos || []).map((p) => resolvePhotoUrl(p)).filter(Boolean),
     notes: it.notes || null,
+    origin: it.origin === 'stock' ? 'stock' : 'brought',
+    quantity: Number(it.quantity) || 1,
+    unitPrice: it.unitPrice != null ? Number(it.unitPrice) : null,
+    productId: it.productId ? String(it.productId) : null,
+    variantId: it.variantId ? String(it.variantId) : null,
+    snapshot: it.snapshot
+      ? {
+          name: it.snapshot.name || '',
+          variantName: it.snapshot.variantName || '',
+          sku: it.snapshot.sku || '',
+          unitPrice: Number(it.snapshot.unitPrice) || 0,
+        }
+      : null,
     currentSectorId: it.currentSectorId
       ? String(it.currentSectorId._id || it.currentSectorId)
       : null,
