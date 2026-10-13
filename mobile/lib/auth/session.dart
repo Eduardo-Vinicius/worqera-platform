@@ -21,12 +21,13 @@ class SessionStore extends ChangeNotifier {
   String userName = '';
   String email = '';
   bool platformAdmin = false;
+  bool visiting = false;
   bool ready = false;
   String? notice;
 
   bool get loggedIn => token != null && token!.isNotEmpty;
   bool get isSector => role == 'sector';
-  bool get isAdmin => role == 'owner' || role == 'admin';
+  bool get isAdmin => role == 'owner' || role == 'admin' || visiting;
   bool get seesShopSetup => isAdmin || role == 'atendimento';
   bool get seesMoney => role == 'owner' || role == 'admin' || role == 'atendimento';
   // Soma da coluna fica oculta por ora, inclusive para admin e dono.
@@ -47,6 +48,7 @@ class SessionStore extends ChangeNotifier {
         userName = '${data['userName'] ?? ''}';
         email = '${data['email'] ?? ''}';
         platformAdmin = data['platformAdmin'] == true;
+        visiting = data['visiting'] == true;
       }
     } catch (_) {}
     ready = true;
@@ -69,10 +71,42 @@ class SessionStore extends ChangeNotifier {
     userName = '${user?['name'] ?? keep?.userName ?? userName}';
     email = '${user?['email'] ?? keep?.email ?? email}';
     platformAdmin = data['platformAdmin'] == true || (keep?.platformAdmin ?? platformAdmin);
+    final incomingShop = '${shop?['id'] ?? membership?['shopId'] ?? first?['shopId'] ?? ''}';
+    if (incomingShop.isEmpty && (visiting || keep?.visiting == true)) {
+      visiting = true;
+      if (keep != null && keep.shopId.isNotEmpty) {
+        shopId = keep.shopId;
+        if (keep.shopName.isNotEmpty) shopName = keep.shopName;
+        if (keep.shopSlug.isNotEmpty) shopSlug = keep.shopSlug;
+      }
+    } else {
+      visiting = false;
+    }
     if (platformAdmin && shopId.isEmpty) {
       role = role.isEmpty ? 'platform' : role;
       shopName = shopName.isEmpty ? 'Worqera' : shopName;
     }
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> enterShop({required String id, required String name, String slug = ''}) async {
+    shopId = id;
+    shopName = name;
+    shopSlug = slug;
+    visiting = true;
+    if (role.isEmpty) role = 'platform';
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> leaveShop() async {
+    visiting = false;
+    shopId = '';
+    shopSlug = '';
+    logoUrl = '';
+    shopName = platformAdmin ? 'Worqera' : '';
+    if (platformAdmin) role = 'platform';
     await _persist();
     notifyListeners();
   }
@@ -89,6 +123,7 @@ class SessionStore extends ChangeNotifier {
     userName = '';
     email = '';
     platformAdmin = false;
+    visiting = false;
     await _box.delete(key: _key);
     notifyListeners();
   }
@@ -107,6 +142,7 @@ class SessionStore extends ChangeNotifier {
         'userName': userName,
         'email': email,
         'platformAdmin': platformAdmin,
+        'visiting': visiting,
       }),
     );
   }

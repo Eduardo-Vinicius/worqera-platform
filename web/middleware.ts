@@ -62,11 +62,14 @@ export function middleware(request: NextRequest) {
   const email = String(payload?.email ?? '').toLowerCase();
   const platformAdmin =
     Boolean(payload?.platformAdmin) || platformAdminEmails().includes(email);
+  const shopCookie = request.cookies.get('wq_shop')?.value || '';
+  const visitingShop = /^[a-f0-9]{24}$/i.test(shopCookie);
 
-  // Pure platform admin (no shop): land on Oficinas, skip shop dashboard
+  // Console only when no shop is open. A visit cookie keeps dashboard, kanban and products.
   if (
     platformAdmin &&
     !payload?.shopId &&
+    !visitingShop &&
     (pathname === '/dashboard' || pathname === '/')
   ) {
     return NextResponse.redirect(new URL('/admin/shops', request.url));
@@ -85,8 +88,7 @@ export function middleware(request: NextRequest) {
 
   // Pure platform admin: console, or the shop they chose to open.
   if (platformAdmin && role === 'platform') {
-    const shopCookie = request.cookies.get('wq_shop')?.value || '';
-    const inShop = /^[a-f0-9]{24}$/i.test(shopCookie);
+    const inShop = visitingShop;
     const consolePath =
       pathname.startsWith('/admin/shops') ||
       pathname.startsWith('/admin/plataforma') ||
@@ -103,7 +105,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/admin/metrics') ||
     pathname.startsWith('/tv-financeiro')
   ) {
-    if (role !== 'owner' && role !== 'admin') {
+    if (role !== 'owner' && role !== 'admin' && !(platformAdmin && visitingShop)) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
   } else if (pathname === ADMIN_PREFIX || pathname.startsWith(`${ADMIN_PREFIX}/`)) {

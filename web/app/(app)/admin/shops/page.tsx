@@ -323,33 +323,33 @@ export default function PlatformShopsPage() {
                     : s.subscription?.status || "Sem plano"
             return (
               <li key={s.id} className={cn(urgent && "bg-amber-50/70")}>
-                <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="min-w-0 flex-1 text-left"
                     onClick={() => setOpenId(open ? null : s.id)}
                   >
-                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{s.name}</p>
                     <p className="truncate text-xs text-[var(--wq-text-muted)]">{s.slug}</p>
-                  </div>
-                  <span
-                    className={cn(
-                      "hidden shrink-0 rounded-lg border px-2 py-0.5 text-xs font-medium sm:inline-flex",
-                      planBadgeClass(s.subscription?.planCode)
-                    )}
-                  >
-                    {planLabel(s.subscription?.planCode)}
-                  </span>
-                  <span className="shrink-0 text-xs text-[var(--wq-text-muted)]">{statusLabel}</span>
-                  <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--wq-text-muted)]">
-                    {s.openCount ?? 0}/{s.orderCount ?? 0}
-                  </span>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--wq-text-muted)]">
+                      <span
+                        className={cn(
+                          "rounded-lg border px-2 py-0.5 font-medium",
+                          planBadgeClass(s.subscription?.planCode)
+                        )}
+                      >
+                        {planLabel(s.subscription?.planCode)}
+                      </span>
+                      <span>{statusLabel}</span>
+                      <span className="font-mono tabular-nums">
+                        {s.openCount ?? 0}/{s.orderCount ?? 0}
+                      </span>
+                    </p>
                   </button>
                   <Button
                     type="button"
                     size="sm"
-                    className="shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                    className="w-full shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90 sm:w-auto"
                     onClick={() => {
                       enterPlatformShop({ id: s.id, name: s.name, slug: s.slug })
                       window.location.href = "/dashboard"

@@ -417,6 +417,11 @@ class _Drawer extends StatelessWidget {
               if (flags.on('finance')) _item(context, Icons.monitor, 'TV Financeiro', () => _open('tv-financeiro', TvFinanceBoard(api: api))),
               if (flags.on('metrics')) _item(context, Icons.bar_chart, 'Métricas', () => _open('metricas', MetricsScreen(api: api))),
             ],
+            if (session.visiting)
+              _item(context, Icons.arrow_back, 'Voltar às oficinas', () {
+                Navigator.pop(context);
+                session.leaveShop().then((_) => onGo('/more'));
+              }),
             if (session.platformAdmin) ...[
               const _Section('Plataforma'),
               _item(context, Icons.shield_outlined, 'Oficinas', () => _open('oficinas', ShopsScreen(api: api))),

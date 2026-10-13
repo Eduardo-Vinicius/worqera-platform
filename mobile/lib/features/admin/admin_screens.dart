@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
@@ -80,7 +81,7 @@ class _ShopsScreenState extends State<ShopsScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Oficinas',
-      subtitle: 'Contas da plataforma',
+      subtitle: 'Entre numa oficina para ver produtos, estoque e o fluxo',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -115,7 +116,20 @@ class _ShopsScreenState extends State<ShopsScreen> {
               return WqCard(
                 onTap: () => setState(() => openId = open ? null : id),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Row(children: [
+                    Expanded(child: Text('${row['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    FilledButton(
+                      onPressed: () async {
+                        await widget.api.session.enterShop(
+                          id: id,
+                          name: '${row['name'] ?? ''}',
+                          slug: '${row['slug'] ?? ''}',
+                        );
+                        if (context.mounted) context.go('/home');
+                      },
+                      child: const Text('Entrar'),
+                    ),
+                  ]),
                   Text(
                     [
                       '${row['slug'] ?? ''}',

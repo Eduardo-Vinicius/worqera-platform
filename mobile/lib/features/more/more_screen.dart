@@ -97,6 +97,12 @@ class _MoreScreenState extends State<MoreScreen> {
             if (flags.on('finance')) _row(context, 'TV Financeiro', Icons.monitor, () => open(TvFinanceBoard(api: api))),
             if (flags.on('metrics')) _row(context, 'Métricas', Icons.bar_chart, () => open(MetricsScreen(api: api))),
           ],
+          if (session.visiting)
+            _row(context, 'Voltar às oficinas', Icons.arrow_back, () {
+              session.leaveShop().then((_) {
+                if (context.mounted) context.go('/more');
+              });
+            }),
           if (session.platformAdmin) ...[
             const _Heading('Plataforma'),
             _row(context, 'Oficinas', Icons.shield_outlined, () => open(ShopsScreen(api: api))),

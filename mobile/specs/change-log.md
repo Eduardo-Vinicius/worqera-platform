@@ -2,6 +2,8 @@
 
 ## 2026-10-13
 
+- **Cadastro:** escolhe Basic ou Pro, vê o teto de 100 pedidos e os 7 dias. O nome da empresa aparece no botão. Sem slug.
+- **Oficinas:** o admin Worqera entra na empresa e vê produtos, estoque, kanban e pedidos. Dá para voltar às oficinas.
 - **Plano:** Basic R$ 97 (até 100 pedidos), Pro R$ 197 (sem teto) e Business R$ 499 (análises com IA, acompanhamento, integração e treinamento).
 - **Plano:** a tela mostra Basic, Pro ou Business, o que estiver aplicado na empresa.
 - **Pedido:** a marca abre a lista da empresa. Dá para pesquisar e, se não existir, cadastrar ali.
