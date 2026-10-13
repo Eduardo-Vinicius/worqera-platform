@@ -5,7 +5,7 @@
 - **Planos:** site e aba Plano (dono e admin) mostram Basic R$ 97, Pro R$ 197 e Business R$ 499, com o teto de 100 pedidos no Basic e análises com IA no Business.
 - **Oficinas:** o admin Worqera entra na empresa e vê produtos, estoque, kanban e pedidos. Produtos deixa de voltar para a lista de oficinas.
 - **Site:** o dia da operação anima de manhã até a entrega. O card Basic fala em pedidos limitados. O número 100 aparece no checkout.
-- **Checkout:** escolher Basic ou Pro, nome e empresa. O endereço interno nasce do nome da empresa. Sem campo de slug. A tela ficou mais curta, com o plano ao lado dos dados.
+- **Checkout:** a tela cumprimenta pelo nome, mostra a empresa no plano e os três momentos dos 7 dias. Sem cartão e sem slug.
 - **FAQ:** saiu a pergunta de WhatsApp automático.
 - **Site:** cores da Worqera (roxo e verde), modo escuro no canto do menu e WhatsApp flutuante.
 - **Plano:** a tela da oficina mostra o plano aplicado no painel. Business deixa de aparecer como Pro.

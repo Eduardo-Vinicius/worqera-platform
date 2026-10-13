@@ -92,6 +92,9 @@ export default function SignupPage() {
   }, [])
 
   const chosen = PLANS[plan]
+  const person = form.name.trim().split(/\s+/)[0]
+  const shop = form.shopName.trim()
+  const shopLabel = shop || "sua empresa"
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,25 +130,28 @@ export default function SignupPage() {
   })
 
   return (
-    <div className="lp min-h-screen bg-[#F6F4F0] text-[#121212]">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <WorqeraLogo className="h-7 w-7" />
-          <span className="text-sm font-semibold tracking-wide">{APP_NAME}</span>
+    <div className="lp lp-hero-wash min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5">
+          <WorqeraLogo className="h-8 w-8" />
+          <span className="lp-display text-base font-semibold tracking-wide">{APP_NAME}</span>
         </Link>
-        <Link href="/login" className="text-xs text-[#5c5852] hover:text-[#121212]">
+        <Link href="/login" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--ink)]">
           Já tenho conta
         </Link>
       </header>
 
-      <main className="mx-auto grid max-w-5xl items-start gap-5 px-4 pb-12 sm:px-6 lg:grid-cols-2 lg:gap-8">
-        <section>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-[#5b21b6] uppercase">7 dias grátis · sem cartão</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Comece no plano certo.</h1>
-          <p className="mt-2 text-sm text-[#5c5852]">Nada é cobrado agora. No fim dos 7 dias, continua nesse plano ou cancela.</p>
-          <p key={beat} className="lp-beat mt-1 text-xs text-[#121212]">{BEATS[beat]}</p>
+      <main className="mx-auto grid max-w-6xl items-start gap-8 px-5 pb-16 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12 lg:pb-20">
+        <section className="pt-2 lg:pt-6">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-[var(--primary)] uppercase">7 dias com a Worqera · sem cartão</p>
+          <h1 className="lp-display mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            {person ? `${person}, a sua operação entra hoje.` : "A sua operação entra hoje."}
+          </h1>
+          <p className="mt-3 max-w-lg text-base leading-relaxed text-[var(--muted-foreground)]">
+            Você escolhe o plano, abre a empresa e usa de verdade. No sétimo dia decide se continua. Nada é cobrado para entrar.
+          </p>
 
-          <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {(Object.keys(PLANS) as PlanId[]).map((id) => {
               const item = PLANS[id]
               const active = id === plan
@@ -155,91 +161,108 @@ export default function SignupPage() {
                   type="button"
                   onClick={() => setPlan(id)}
                   className={cn(
-                    "rounded-xl border bg-white px-3 py-3 text-left transition-colors",
-                    active ? "border-[#121212] shadow-[0_10px_30px_-24px_rgba(18,18,18,0.8)]" : "border-[#e4e0d8] hover:border-[#121212]/30"
+                    "rounded-2xl border bg-[var(--surface)] px-4 py-4 text-left transition-colors",
+                    active ? "border-[var(--ink)]" : "border-[var(--border)] hover:border-[var(--primary)]"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">{item.name}</span>
-                    <span className={cn("text-[10px] font-semibold tracking-[0.12em] uppercase", id === "pro" ? "text-[#5b21b6]" : "text-[#5c5852]")}>
+                    <span className="text-base font-semibold">{item.name}</span>
+                    <span className={cn("text-[10px] font-semibold tracking-[0.14em] uppercase", active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]")}>
                       {id === "pro" ? "Recomendado" : "Começar"}
                     </span>
                   </div>
-                  <p className="mt-1 text-lg font-semibold leading-none">
+                  <p className="lp-display mt-2 text-2xl font-semibold leading-none">
                     {item.price}
-                    <span className="ml-1 text-[11px] font-normal text-[#5c5852]">/mês depois</span>
+                    <span className="ml-1 text-xs font-normal text-[var(--muted-foreground)]">/mês depois</span>
                   </p>
-                  <p className="mt-1.5 text-xs leading-snug text-[#5c5852]">{item.line}</p>
+                  <p className="mt-2 text-sm leading-snug text-[var(--muted-foreground)]">{item.line}</p>
                 </button>
               )
             })}
           </div>
 
-          <article key={plan} className="lp-day-card mt-3 rounded-xl border border-[#e4e0d8] bg-white px-3.5 py-3">
-            <p className="text-[13px] font-medium leading-snug">{chosen.limit}</p>
-            <ul className="mt-2.5 space-y-1.5">
+          <article key={plan} className="lp-day-card mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+            <p className="text-sm text-[var(--muted-foreground)]">
+              {person ? `${person}, ` : ""}
+              <span className="font-medium text-[var(--ink)]">{shopLabel}</span> fica no {chosen.name}.
+            </p>
+            <p key={beat} className="lp-beat mt-2 text-sm text-[var(--ink)]">{BEATS[beat]}</p>
+            <p className="mt-4 text-sm font-medium leading-relaxed">{chosen.limit}</p>
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
               {chosen.items.map((item) => (
-                <li key={item} className="flex items-center gap-2 text-[13px]">
-                  <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                <li key={item} className="flex items-start gap-2 text-sm">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" strokeWidth={2} />
                   {item}
                 </li>
               ))}
             </ul>
-            <p className="mt-2.5 text-xs text-[#5c5852]">{chosen.aside}</p>
+            <p className="mt-4 text-sm text-[var(--muted-foreground)]">{chosen.aside}</p>
+
+            <ol className="mt-6 grid gap-3 border-t border-[var(--border)] pt-5 sm:grid-cols-3">
+              {[
+                ["Hoje", "A conta abre. Sem cartão."],
+                ["Na semana", "A fila, o pedido e o aviso ao cliente."],
+                ["No 7º dia", "Continua neste plano ou cancela."],
+              ].map(([when, what]) => (
+                <li key={when}>
+                  <p className="text-[11px] font-semibold tracking-[0.14em] text-[var(--primary)] uppercase">{when}</p>
+                  <p className="mt-1 text-sm leading-snug text-[var(--muted-foreground)]">{what}</p>
+                </li>
+              ))}
+            </ol>
           </article>
 
-          <p className="mt-3 text-xs text-[#5c5852]">Sem cartão agora · Cancele quando quiser · A empresa é sua</p>
-          <p className="mt-2 text-xs text-[#5c5852]">
-            Análise, acompanhamento e treinamento?{" "}
-            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="font-medium text-[#121212] underline underline-offset-2">
-              Business é conversa.
+          <p className="mt-4 text-sm text-[var(--muted-foreground)]">
+            Quer análise, acompanhamento e treinamento com a Worqera?{" "}
+            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ink)] underline underline-offset-4">
+              O Business fecha em conversa.
             </a>
           </p>
         </section>
 
-        <section className="rounded-2xl border border-[#e4e0d8] bg-white p-4 sm:p-5 lg:sticky lg:top-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-base font-semibold">Seus dados</h2>
-            <p className="text-xs text-[#5c5852]">{chosen.name} · {chosen.price}</p>
-          </div>
-          <p className="mt-0.5 text-xs text-[#5c5852]">Nome, empresa e acesso. O endereço interno a gente cria.</p>
+        <section className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)] sm:p-7 lg:sticky lg:top-6">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--primary)] uppercase">{chosen.name} · 7 dias</p>
+          <h2 className="lp-display mt-2 text-2xl font-semibold tracking-tight">{shop || "Sua empresa"}</h2>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            {chosen.price}/mês só se você continuar. O endereço da empresa a gente cria.
+          </p>
 
-          <form onSubmit={onSubmit} className="mt-4 space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="name" className="text-xs">Seu nome</Label>
-              <Input id="name" required autoComplete="name" placeholder="Ana Souza" className="h-10 bg-[#F6F4F0] text-sm" {...field("name")} />
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Seu nome</Label>
+              <Input id="name" required autoComplete="name" placeholder="Ana Souza" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("name")} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="shopName" className="text-xs">Nome da empresa</Label>
-              <Input id="shopName" required placeholder="Oficina da Ana" className="h-10 bg-[#F6F4F0] text-sm" {...field("shopName")} />
+            <div className="space-y-1.5">
+              <Label htmlFor="shopName">Nome da empresa</Label>
+              <Input id="shopName" required placeholder="Oficina da Ana" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("shopName")} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="email" className="text-xs">E-mail</Label>
-              <Input id="email" type="email" required autoComplete="email" placeholder="ana@oficina.com" className="h-10 bg-[#F6F4F0] text-sm" {...field("email")} />
+            <div className="space-y-1.5">
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" required autoComplete="email" placeholder="ana@oficina.com" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("email")} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="password" className="text-xs">Senha</Label>
-              <Input id="password" type="password" required minLength={6} autoComplete="new-password" placeholder="Mínimo 6 caracteres" className="h-10 bg-[#F6F4F0] text-sm" {...field("password")} />
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Senha</Label>
+              <Input id="password" type="password" required minLength={6} autoComplete="new-password" placeholder="Mínimo 6 caracteres" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("password")} />
             </div>
 
             {partnerCode ? (
-              <p className="rounded-lg bg-[#F6F4F0] px-3 py-2 text-xs text-[#5c5852]">
-                Indicação <span className="font-mono font-semibold text-[#121212]">{partnerCode}</span>
+              <p className="rounded-xl bg-[var(--paper)] px-3 py-2 text-sm text-[var(--muted-foreground)]">
+                Indicação <span className="font-mono font-semibold text-[var(--ink)]">{partnerCode}</span>
               </p>
             ) : null}
 
-            <Button type="submit" disabled={loading} className="h-11 w-full bg-[#5b21b6] text-sm text-white hover:bg-[#4c1d95]">
+            <Button type="submit" disabled={loading} className="lp-cta h-12 w-full text-base">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Abrindo sua empresa…
+                  Abrindo {shopLabel}…
                 </>
               ) : (
-                `Começar 7 dias no ${chosen.name}`
+                shop ? `Abrir ${shop} no ${chosen.name}` : `Abrir sua empresa no ${chosen.name}`
               )}
             </Button>
-            <p className="text-center text-[11px] leading-relaxed text-[#5c5852]">
-              {chosen.price}/mês só depois dos 7 dias. Entrar não cobra nada.
+            <p className="text-center text-xs leading-relaxed text-[var(--muted-foreground)]">
+              Sem cartão. Cancele quando quiser. Os dados ficam na sua empresa.
             </p>
           </form>
         </section>
