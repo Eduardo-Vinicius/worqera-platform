@@ -120,7 +120,7 @@ export function AppSidebar({
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3">
         {NAV_SECTIONS.map((section, sectionIndex) => {
           const items = section.items.filter((item) => {
-            if (isPlatformOnly) return Boolean(item.platformOnly) && !item.needsShop
+            if (isPlatformOnly) return Boolean(item.platformOnly)
             if (item.platformOnly) return platformAdmin
             if (item.ownerOnly && !isOwner) return false
             if (item.ownerAdminOnly && !isOwnerAdmin) return false

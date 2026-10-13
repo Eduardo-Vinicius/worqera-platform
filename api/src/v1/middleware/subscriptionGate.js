@@ -16,6 +16,11 @@ async function subscriptionGate(req, res, next) {
 
     const sub = await Subscription.findOne({ shopId }).lean();
 
+    if (req.membership?.platformVisit) {
+      req.subscription = sub || { status: 'active', planCode: 'visit', platformVisit: true };
+      return next();
+    }
+
     // Local and any non-production run stay open so the app can be tried
     // without a paid or trialing plan. Production still requires one.
     if (process.env.NODE_ENV !== 'production') {

@@ -3,7 +3,7 @@
 ## 2026-10-13
 
 - **Planos:** site e aba Plano (dono e admin) mostram Basic R$ 97, Pro R$ 197 e Business R$ 499, com o teto de 100 pedidos no Basic e análises com IA no Business.
-- **Oficinas:** Entrar abre a visão geral, o kanban, os pedidos e os produtos. O painel deixa de devolver o admin para a lista.
+- **Produtos:** o menu do admin Worqera mostra Produtos. A tela pede a oficina e abre catálogo, estoque, kanban e pedido para teste.
 - **Site:** o dia da operação anima de manhã até a entrega. O card Basic fala em pedidos limitados. O número 100 aparece no checkout.
 - **Checkout:** a tela cumprimenta pelo nome, mostra a empresa no plano e os três momentos dos 7 dias. Sem cartão e sem slug.
 - **FAQ:** saiu a pergunta de WhatsApp automático.

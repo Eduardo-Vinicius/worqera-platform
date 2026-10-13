@@ -92,6 +92,7 @@ export function middleware(request: NextRequest) {
     const consolePath =
       pathname.startsWith('/admin/shops') ||
       pathname.startsWith('/admin/plataforma') ||
+      pathname.startsWith('/admin/produtos') ||
       pathname.startsWith('/forbidden') ||
       pathname.startsWith('/login');
     if (!consolePath && !inShop) {

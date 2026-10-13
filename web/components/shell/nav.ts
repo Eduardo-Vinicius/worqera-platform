@@ -99,10 +99,10 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
+      { href: "/admin/produtos", label: "Produtos", icon: Package, platformOnly: true },
       { href: "/admin/plataforma", label: "Portal", icon: Activity, platformOnly: true },
       { href: "/admin/plataforma/parametros", label: "Parâmetros", icon: SlidersHorizontal, platformOnly: true },
       { href: "/admin/plataforma/noticias", label: "Notícias", icon: Megaphone, platformOnly: true },
-      { href: "/admin/produtos", label: "Produtos", icon: Package, platformOnly: true, needsShop: true },
     ],
   },
 ]

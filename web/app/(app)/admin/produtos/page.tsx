@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -12,6 +13,8 @@ import {
   adjustProductV1,
   createProductV1,
   deleteProductV1,
+  enterPlatformShop,
+  listPlatformShopsV1,
   listProductsV1,
   meV1,
   productMovementsV1,
@@ -47,6 +50,8 @@ const moveLabel: Record<string, string> = {
 export default function ProductsAdminPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [shopLabel, setShopLabel] = useState("")
+  const [shops, setShops] = useState<Array<{ id: string; name: string; slug: string }>>([])
   const [products, setProducts] = useState<Product[]>([])
   const [name, setName] = useState("")
   const [price, setPrice] = useState("0")
@@ -77,7 +82,21 @@ export default function ProductsAdminPage() {
           router.replace("/dashboard")
           return
         }
-        await load()
+        const current = localStorage.getItem("shopId") || ""
+        const currentName =
+          localStorage.getItem("shopDisplayName") || localStorage.getItem("shopName") || ""
+        if (current) {
+          enterPlatformShop({
+            id: current,
+            name: currentName || "Oficina",
+            slug: localStorage.getItem("shopSlug") || "",
+          })
+          if (!cancelled) setShopLabel(currentName || "Oficina")
+          await load()
+        } else {
+          const res = await listPlatformShopsV1()
+          if (!cancelled) setShops(res.shops || [])
+        }
         if (!cancelled) setReady(true)
       } catch (err: any) {
         toast.error(err?.message || "Não abriu o catálogo")
@@ -88,6 +107,17 @@ export default function ProductsAdminPage() {
       cancelled = true
     }
   }, [router])
+
+  const openShop = async (shop: { id: string; name: string; slug?: string }) => {
+    enterPlatformShop({ id: shop.id, name: shop.name, slug: shop.slug })
+    setShopLabel(shop.name)
+    setShops([])
+    try {
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Não abriu o catálogo")
+    }
+  }
 
   const create = async () => {
     if (!name.trim()) {
@@ -176,10 +206,62 @@ export default function ProductsAdminPage() {
   return (
     <div className="space-y-6">
       <AppHeader
-        title="Produtos"
-        subtitle="Só o admin Worqera vê esta tela. A loja continua no pedido de sempre."
+        title="Produtos e estoque"
+        subtitle="Só o admin Worqera vê esta tela, para testar antes de abrir para as oficinas."
       />
 
+      {!shopLabel ? (
+        <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+          <p className="text-sm font-semibold text-[var(--wq-text)]">Escolha a oficina</p>
+          <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
+            O catálogo, o saldo e a venda no pedido são desta empresa.
+          </p>
+          <ul className="mt-3 divide-y divide-[var(--wq-border)] overflow-hidden rounded-xl border border-[var(--wq-border)]">
+            {shops.length === 0 ? (
+              <li className="px-3 py-6 text-sm text-[var(--wq-text-muted)]">Nenhuma oficina.</li>
+            ) : (
+              shops.map((shop) => (
+                <li key={shop.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left hover:bg-[var(--wq-paper)]"
+                    onClick={() => void openShop(shop)}
+                  >
+                    <span>
+                      <span className="block font-medium">{shop.name}</span>
+                      <span className="block text-xs text-[var(--wq-text-muted)]">{shop.slug}</span>
+                    </span>
+                    <span className="shrink-0 rounded-[10px] bg-[var(--wq-action)] px-3 py-1.5 text-xs font-semibold text-white">
+                      Testar
+                    </span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      ) : null}
+
+      {shopLabel ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-brand-soft)] px-4 py-3 text-sm">
+          <p>
+            Testando <span className="font-semibold">{shopLabel}</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/kanban" className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1 text-xs font-semibold">
+              Kanban
+            </Link>
+            <Link href="/pedidos" className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1 text-xs font-semibold">
+              Pedidos
+            </Link>
+            <Link href="/pedidos/novo" className="rounded-lg bg-[var(--wq-action)] px-2.5 py-1 text-xs font-semibold text-white">
+              Novo pedido
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {shopLabel ? (
       <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
         <p className="text-sm font-semibold text-[var(--wq-text)]">Novo produto</p>
         <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
@@ -231,7 +313,9 @@ export default function ProductsAdminPage() {
           Cadastrar
         </Button>
       </section>
+      ) : null}
 
+      {shopLabel ? (
       <section className="space-y-3">
         {products.length === 0 ? (
           <p className="text-sm text-[var(--wq-text-muted)]">
@@ -313,6 +397,7 @@ export default function ProductsAdminPage() {
           ))
         )}
       </section>
+      ) : null}
     </div>
   )
 }
