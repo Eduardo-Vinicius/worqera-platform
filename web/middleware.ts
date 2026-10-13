@@ -101,6 +101,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith('/admin/produtos') && !platformAdmin) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
   if (
     pathname.startsWith('/admin/financeiro') ||
     pathname.startsWith('/admin/metrics') ||

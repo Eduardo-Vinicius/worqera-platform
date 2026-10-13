@@ -1513,6 +1513,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                               Da loja
                             </button>
                           </div>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            {item.origin === "stock"
+                              ? "Reserva ao criar o pedido. Na entrega, baixa. Se cancelar antes, devolve."
+                              : "O cliente trouxe. Este item não mexe no estoque."}
+                          </p>
                           {item.origin === "stock" ? (
                             <div className="grid gap-2 sm:grid-cols-2">
                               <select

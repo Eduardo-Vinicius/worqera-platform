@@ -39,6 +39,13 @@ type Product = {
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0)
 
+const FLOW = [
+  { n: "1", title: "Produto", text: "Cadastra e põe o saldo. Dez na prateleira ficam dez disponíveis." },
+  { n: "2", title: "Pedido", text: "No item, escolhe Da loja. Criar o pedido reserva: nove disponíveis, um reservado. O item entra no kanban." },
+  { n: "3", title: "Etapas", text: "O card anda como qualquer pedido. O reservado fica esperando." },
+  { n: "4", title: "Saída", text: "Entregue baixa o reservado. Cancelar antes devolve para disponível." },
+]
+
 const moveLabel: Record<string, string> = {
   adjust: "Ajuste",
   reserve: "Reserva",
@@ -209,6 +216,18 @@ export default function ProductsAdminPage() {
         title="Produtos e estoque"
         subtitle="Só o admin Worqera vê esta tela, para testar antes de abrir para as oficinas."
       />
+
+      <ol className="grid gap-3 sm:grid-cols-4">
+        {FLOW.map((step) => (
+          <li key={step.n} className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3">
+            <p className="text-xs font-semibold text-[var(--wq-brand-text)]">{step.n} · {step.title}</p>
+            <p className="mt-1 text-sm leading-snug text-[var(--wq-text)]">{step.text}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="text-sm text-[var(--wq-text-muted)]">
+        Do cliente não mexe no estoque. Só Da loja reserva, baixa na entrega e devolve se cancelar.
+      </p>
 
       {!shopLabel ? (
         <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
