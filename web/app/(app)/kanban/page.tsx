@@ -1930,9 +1930,11 @@ export default function KanbanPage() {
                           Pares, serviços e observações
                         </p>
                         {(detail.items || []).map((item, itemIndex) => {
+                          const viewingOne = detailItemId != null || detailItemIndex != null
                           const focused =
                             (detailItemIndex != null && detailItemIndex === itemIndex) ||
                             (detailItemId != null && itemIdentity(item) === String(detailItemId))
+                          const showPairNote = Boolean(item.notes) && (!viewingOne || focused)
                           return (
                             <div
                               key={item.id || item._id || itemIndex}
@@ -1949,11 +1951,9 @@ export default function KanbanPage() {
                                   ? ` · ${[item.brand, item.shoeModel].filter(Boolean).join(" ")}`
                                   : ""}
                               </p>
-                              {item.notes ? (
-                                <p className="mt-1 text-xs text-[var(--wq-text)]">Obs. do par: {item.notes}</p>
-                              ) : (
-                                <p className="mt-1 text-xs text-[var(--wq-text-muted)]">Sem observação neste par</p>
-                              )}
+                              {showPairNote ? (
+                                <p className="mt-1 text-xs text-[var(--wq-text)]">{item.notes}</p>
+                              ) : null}
                               <ul className="mt-2 space-y-2">
                                 {(item.services || []).length === 0 ? (
                                   <li className="text-xs text-[var(--wq-text-muted)]">Nenhum serviço neste par</li>

@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+## 2026-10-13
+
+- **Kanban:** no detalhe de um par, a observação que aparece é só a daquele par. Os outros pares continuam listados, sem a observação deles.
+
 ## 2026-10-08
 
 - **Fotos:** o botão de adicionar não fica mudo depois da primeira. Se a rede cortar o envio, o aviso pede para tentar de novo em vez de travar o botão.
