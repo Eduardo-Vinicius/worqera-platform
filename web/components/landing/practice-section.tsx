@@ -30,11 +30,11 @@ export function PracticeSection() {
             </p>
           </article>
 
-          <article className="flex flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--ink)] p-5 text-white sm:p-6">
+          <article className="flex flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--band)] p-5 text-[var(--on-band)] sm:p-6">
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-white/50 uppercase">{panel.saleLabel}</p>
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--action)] uppercase">{panel.saleLabel}</p>
               <p className="lp-mono mt-6 text-5xl font-medium tracking-tight">{panel.saleCode}</p>
-              <p className="mt-3 text-sm text-white/70">{panel.saleMeta}</p>
+              <p className="mt-3 text-sm text-[var(--on-band)]/70">{panel.saleMeta}</p>
             </div>
             <p className="lp-display mt-8 text-3xl font-semibold">{panel.salePrice}</p>
           </article>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import "./landing.css"
 import { LanguageProvider } from "@/components/landing/language-provider"
 import { Header } from "@/components/landing/header"
@@ -13,12 +14,26 @@ import { LoopSection } from "@/components/landing/loop-section"
 import { PracticeSection } from "@/components/landing/practice-section"
 import { PricingSection } from "@/components/landing/pricing-section"
 import { FaqSection } from "@/components/landing/faq-section"
-import { Footer } from "@/components/landing/footer"
+import { Footer, WhatsAppFab } from "@/components/landing/footer"
 
 function LandingInner() {
+  const [dark, setDark] = useState(false)
+
+  useEffect(() => {
+    setDark(localStorage.getItem("wq-lp-theme") === "dark")
+  }, [])
+
+  const toggleTheme = () => {
+    setDark((current) => {
+      const next = !current
+      localStorage.setItem("wq-lp-theme", next ? "dark" : "light")
+      return next
+    })
+  }
+
   return (
-    <div className="lp min-h-screen overflow-x-hidden antialiased">
-      <Header />
+    <div className={dark ? "lp lp-dark min-h-screen overflow-x-hidden antialiased" : "lp min-h-screen overflow-x-hidden antialiased"}>
+      <Header dark={dark} onToggleTheme={toggleTheme} />
       <main>
         <HeroSection />
         <SystemSection />
@@ -32,6 +47,7 @@ function LandingInner() {
         <FaqSection />
       </main>
       <Footer />
+      <WhatsAppFab />
     </div>
   )
 }

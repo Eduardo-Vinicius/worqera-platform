@@ -1,28 +1,56 @@
-/* Landing Worqera — premium multi-ramo (single look, no purple glow) */
+/* Landing Worqera — papel claro, roxo da marca, verde de ação. */
 
 .lp {
   --radius: 0.5rem;
-  --background: #f6f4f0;
-  --foreground: #121212;
+  --background: #f4f5f7;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #121212;
-  --muted: #ebe8e2;
-  --muted-foreground: #5c5a56;
-  --primary: #5b21b6;
+  --card-foreground: #0f172a;
+  --muted: #eef0f4;
+  --muted-foreground: #64748b;
+  --primary: #7d26de;
   --primary-foreground: #ffffff;
-  --secondary: #3b0764;
-  --border: #e0ddd6;
-  --ink: #121212;
-  --paper: #f6f4f0;
+  --secondary: #4f0fa6;
+  --brand-soft: rgba(125, 38, 222, 0.12);
+  --action: #0d9488;
+  --border: #e2e8f0;
+  --ink: #0f172a;
+  --paper: #f4f5f7;
   --surface: #ffffff;
-  --mock-bg: #eeece7;
+  --band: #0f172a;
+  --on-band: #f8fafc;
+  --mock-bg: #eef0f4;
   --mock-col: #ffffff;
-  --ready: #1a7a4c;
+  --ready: #0d9488;
 
   color: var(--foreground);
   background: var(--background);
   scroll-behavior: smooth;
   font-family: var(--font-lp-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.lp.lp-dark {
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #e5e7eb;
+  --card: #111827;
+  --card-foreground: #e5e7eb;
+  --muted: #1f2937;
+  --muted-foreground: #94a3b8;
+  --primary: #a78bfa;
+  --primary-foreground: #0b1220;
+  --secondary: #7d26de;
+  --brand-soft: rgba(167, 139, 250, 0.16);
+  --action: #2dd4bf;
+  --border: #1f2937;
+  --ink: #e5e7eb;
+  --paper: #0b1220;
+  --surface: #111827;
+  --band: #1a1033;
+  --on-band: #f8fafc;
+  --mock-bg: #0f172a;
+  --mock-col: #111827;
+  --ready: #2dd4bf;
 }
 
 .lp .lp-display {
@@ -43,6 +71,23 @@
 
 .lp .lp-cta:hover {
   background: var(--secondary);
+  color: #ffffff;
+}
+
+.lp .lp-hero-wash {
+  background:
+    radial-gradient(ellipse 42% 36% at 88% 0%, var(--brand-soft), transparent 72%),
+    radial-gradient(ellipse 28% 24% at 8% 18%, color-mix(in srgb, var(--action) 16%, transparent), transparent 70%);
+}
+
+.lp .lp-wa {
+  background: #25d366;
+  color: #073018;
+  box-shadow: 0 10px 28px -16px rgba(15, 23, 42, 0.7);
+}
+
+.lp .lp-wa:hover {
+  background: #1ebe5d;
 }
 
 @keyframes lp-fade-up {
@@ -205,6 +250,21 @@
   animation: lp-day-in 0.45s ease;
 }
 
+@keyframes lp-beat {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lp .lp-beat {
+  animation: lp-beat 0.4s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp .lp-animate-in,
   .lp .lp-animate-in-delay,
@@ -212,7 +272,8 @@
   .lp .lp-board-card-ready,
   .lp .lp-toast,
   .lp .lp-pillar,
-  .lp .lp-live-dot {
+  .lp .lp-live-dot,
+  .lp .lp-beat {
     animation: none;
   }
 

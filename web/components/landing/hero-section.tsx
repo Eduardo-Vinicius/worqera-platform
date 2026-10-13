@@ -10,7 +10,7 @@ export function HeroSection() {
   const { t } = useLanguage()
 
   return (
-    <section className="relative overflow-hidden pt-14 sm:pt-16">
+    <section className="lp-hero-wash relative overflow-hidden pt-14 sm:pt-16">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-16 lg:pt-20">
         <div className="lp-animate-in mx-auto max-w-3xl text-center">
           <p className="lp-display mb-3 text-sm font-semibold tracking-[0.28em] text-[var(--primary)] uppercase">

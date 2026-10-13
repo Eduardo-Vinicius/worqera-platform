@@ -4,10 +4,10 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { useLanguage } from "@/components/landing/language-provider"
-import { Menu, X } from "lucide-react"
+import { Menu, Moon, Sun, X } from "lucide-react"
 import { useState } from "react"
 
-export function Header() {
+export function Header({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => void }) {
   const { locale, setLocale, t } = useLanguage()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -39,6 +39,14 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)]"
+              aria-label={dark ? (locale === "pt" ? "Modo claro" : "Light mode") : locale === "pt" ? "Modo escuro" : "Dark mode"}
+            >
+              {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "pt" ? "en" : "pt")}

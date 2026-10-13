@@ -247,10 +247,6 @@ const pt = {
         q: "Dá para ter conta por setor?",
         a: "Sim. Quem administra vê tudo; contas de setor veem só a própria fila e encaminham o pedido.",
       },
-      {
-        q: "E WhatsApp automático?",
-        a: "Vem via API oficial depois. Hoje o foco é e-mail, etiqueta e consulta pública.",
-      },
     ],
   },
   footer: {
@@ -505,10 +501,6 @@ const en: typeof pt = {
       {
         q: "Can I have sector accounts?",
         a: "Yes. Admins see everything; sector accounts see their own queue and forward orders.",
-      },
-      {
-        q: "What about automatic WhatsApp?",
-        a: "Coming later via official API. Today we focus on email, labels and public lookup.",
       },
     ],
   },

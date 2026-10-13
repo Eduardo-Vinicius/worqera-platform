@@ -3,10 +3,27 @@
 import Link from "next/link"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { useLanguage } from "@/components/landing/language-provider"
+import { MessageCircle } from "lucide-react"
 
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
   encodeURIComponent("Olá! Gostaria de saber mais sobre a Worqera.")
+
+export function WhatsAppFab() {
+  const { locale } = useLanguage()
+  return (
+    <a
+      href={WHATSAPP}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="WhatsApp"
+      className="lp-wa fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex h-12 items-center gap-2 rounded-full px-3.5 text-sm font-semibold"
+    >
+      <MessageCircle className="h-5 w-5" strokeWidth={2} />
+      <span className="pr-0.5">{locale === "pt" ? "Falar" : "Chat"}</span>
+    </a>
+  )
+}
 
 export function Footer() {
   const { locale, t } = useLanguage()

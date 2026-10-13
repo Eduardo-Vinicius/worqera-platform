@@ -94,7 +94,7 @@ function DayStage({ index, pt }: { index: number; pt: boolean }) {
         <div className="rounded-xl border border-dashed border-[var(--border)] px-3 py-3 text-xs text-[var(--muted-foreground)]">
           {pt ? "Recebido" : "Received"}
         </div>
-        <div className="rounded-xl border border-[var(--ink)] bg-[var(--ink)] px-3 py-3 text-sm font-medium text-white">
+        <div className="rounded-xl border border-[var(--primary)] bg-[var(--primary)] px-3 py-3 text-sm font-medium text-[var(--primary-foreground)]">
           {pt ? "Produção · #0048" : "Production · #0048"}
         </div>
       </div>
@@ -120,7 +120,7 @@ function DayStage({ index, pt }: { index: number; pt: boolean }) {
     )
   }
   return (
-    <div className="mt-8 inline-flex items-center gap-3 rounded-xl bg-[var(--ink)] px-4 py-3 text-white">
+    <div className="mt-8 inline-flex items-center gap-3 rounded-xl bg-[var(--band)] px-4 py-3 text-[var(--on-band)]">
       <span className="lp-mono text-lg">#0048</span>
       <span className="text-sm">{pt ? "Entregue" : "Delivered"}</span>
     </div>

@@ -65,11 +65,11 @@ export function FlowFilm() {
         <div className="grid grid-cols-4 gap-1.5">
           {film.cols.map((name, index) => (
             <div key={name}>
-              <div className={cn("h-1 rounded-full", index <= column ? "bg-[var(--ink)]" : "bg-[var(--muted)]")} />
+              <div className={cn("h-1 rounded-full", index <= column ? "bg-[var(--primary)]" : "bg-[var(--muted)]")} />
               <p
                 className={cn(
                   "mt-2 truncate text-[10px] font-semibold tracking-[0.08em] uppercase",
-                  index === column ? "text-[var(--ink)]" : "text-[var(--muted-foreground)]"
+                  index === column ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]"
                 )}
               >
                 {name}
@@ -85,7 +85,7 @@ export function FlowFilm() {
             key={name}
             className={cn(
               "px-4 py-3 text-[11px] font-semibold tracking-[0.14em] uppercase",
-              index === column ? "text-[var(--ink)]" : "text-[var(--muted-foreground)]"
+              index === column ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]"
             )}
           >
             {name}
@@ -129,7 +129,7 @@ export function FlowFilm() {
             className={cn(
               "inline-flex items-center gap-1.5 overflow-hidden rounded-full border text-xs whitespace-nowrap transition-all duration-500",
               mailed
-                ? "max-w-56 border-[var(--ink)] bg-[var(--ink)] px-2.5 py-1 text-white opacity-100"
+                ? "max-w-56 border-[var(--primary)] bg-[var(--primary)] px-2.5 py-1 text-[var(--primary-foreground)] opacity-100"
                 : "max-w-0 border-transparent px-0 py-1 opacity-0"
             )}
             aria-hidden={!mailed}
