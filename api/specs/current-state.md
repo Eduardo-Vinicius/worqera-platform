@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-13 (planos Basic 97 · Pro 197 · Business 499; teto de 100 pedidos no Basic)
+**Atualizado:** 2026-10-23 (produtos e estoque da oficina; planos Basic 97 · Pro 197 · Business 499)
 
 ## Em uma frase
 
@@ -18,7 +18,7 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready. Com `photoCounts`, o e-mail espera o upload de cada item |
 | Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary) |
 | Services / clients / employees | CRUD |
-| Products | `/products` CRUD, ajuste e `/products/summary`. Só `requirePlatformAdmin`. Item `origin=stock` reserva, baixa na entrega e estorna no cancelamento |
+| Products | `/products` CRUD, ajuste e `/products/summary`. Dono e admin da oficina. Item `origin=stock` reserva, baixa na entrega e estorna no cancelamento |
 | Billing | `/billing/*` + webhook HMAC. Catálogo Basic 9700 · Pro 19700 · Business 49900 centavos. Criar pedido no `WORQERA_BASIC` recusa a partir do 101º do mês (America/Sao_Paulo) |
 | Public / files | `/public/track/:token` (URL `/p/o/{token}`); antigo `/public/shops/:slug/orders/:code?t=` segue; `/files/*` |
 

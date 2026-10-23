@@ -1,7 +1,12 @@
 # App celular
 
+## 2026-10-23
+
+- **Pedido:** continua o item do cliente. Catálogo de produtos fica no site, fora do menu.
+
 ## 2026-10-13
 
+- **Pedido:** o item do cliente continua igual. Produto da loja só entra pelo botão Da loja, no admin Worqera.
 - **Cadastro:** escolhe Basic ou Pro, vê o teto de 100 pedidos e os 7 dias. O nome da empresa aparece no botão. Sem slug.
 - **Oficinas:** o admin Worqera entra na empresa e vê produtos, estoque, kanban e pedidos. Dá para voltar às oficinas.
 - **Plano:** Basic R$ 97 (até 100 pedidos), Pro R$ 197 (sem teto) e Business R$ 499 (análises com IA, acompanhamento, integração e treinamento).

@@ -584,6 +584,102 @@ async function financeSnapshot(shopId) {
   };
 }
 
+function csvCell(value) {
+  const text = String(value ?? '');
+  if (/[;"\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function csvDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+const MOVE_LABEL = {
+  adjust: 'Ajuste',
+  reserve: 'Reserva',
+  release: 'Devolução',
+  commit: 'Saída',
+  reopen: 'Reabertura',
+};
+
+async function reportCsv(shopId) {
+  const products = await listProducts(shopId);
+  const movements = await StockMovement.find({ shopId }).sort({ createdAt: -1 }).limit(2000).lean();
+  const Order = require('../models/Order');
+  const orders = await Order.find({ shopId, deletedAt: null, 'items.origin': 'stock' })
+    .select('code status items createdAt deliveredAt')
+    .sort({ createdAt: -1 })
+    .lean();
+  const lines = ['Estoque'];
+  lines.push(['Produto', 'Variação', 'Código', 'Preço', 'Em mãos', 'Reservado', 'Disponível'].join(';'));
+  for (const product of products) {
+    const variants = product.variants || [];
+    if (variants.length) {
+      for (const variant of variants) {
+        lines.push([
+          product.name,
+          variant.name,
+          variant.sku || product.sku || '',
+          variant.price == null ? product.price : variant.price,
+          variant.onHand,
+          variant.reserved,
+          variant.available,
+        ].map(csvCell).join(';'));
+      }
+    } else {
+      lines.push([
+        product.name,
+        '',
+        product.sku || '',
+        product.price,
+        product.onHand,
+        product.reserved,
+        product.available,
+      ].map(csvCell).join(';'));
+    }
+  }
+  lines.push('');
+  lines.push('Saídas');
+  lines.push(['Data', 'Produto', 'Variação', 'Tipo', 'Quantidade', 'Pedido', 'Motivo'].join(';'));
+  for (const row of movements) {
+    lines.push([
+      csvDate(row.createdAt),
+      row.productName || '',
+      row.variantName || '',
+      MOVE_LABEL[row.type] || row.type,
+      row.quantity,
+      row.orderCode || '',
+      row.reason || '',
+    ].map(csvCell).join(';'));
+  }
+  lines.push('');
+  lines.push('Vendas');
+  lines.push(['Data', 'Pedido', 'Produto', 'Quantidade', 'Valor', 'Situação'].join(';'));
+  for (const order of orders) {
+    for (const item of order.items || []) {
+      if (item.origin !== 'stock') continue;
+      const quantity = qtyOf(item.quantity) || 1;
+      const unit = Number(item.unitPrice ?? item.snapshot?.unitPrice) || 0;
+      const name = item.snapshot?.name || item.shoeModel || '';
+      const situation = order.status === 'delivered'
+        ? 'Entregue'
+        : order.status === 'cancelled'
+          ? 'Cancelado'
+          : 'Em aberto';
+      lines.push([
+        csvDate(order.deliveredAt || order.createdAt),
+        order.code || '',
+        name,
+        quantity,
+        money(unit * quantity),
+        situation,
+      ].map(csvCell).join(';'));
+    }
+  }
+  return `\uFEFF${lines.join('\n')}\n`;
+}
+
 module.exports = {
   listProducts,
   getProduct,
@@ -601,4 +697,5 @@ module.exports = {
   stockValue,
   financeSnapshot,
   presentProduct,
+  reportCsv,
 };

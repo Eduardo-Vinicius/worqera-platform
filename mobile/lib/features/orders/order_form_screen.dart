@@ -234,12 +234,6 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         ];
       }
       _applyDefaultFlow();
-      if (widget.session.platformAdmin && widget.session.shopId.isNotEmpty) {
-        try {
-          final products = await widget.api.dio.get('/products');
-          catalog = _maps(products.data, const ['products', 'data']);
-        } catch (_) {}
-      }
       if (editing) await _loadOrder();
     } catch (e) {
       error = widget.api.message(e);
@@ -767,7 +761,6 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       'notes': _notesFor(item),
       'flowOptionIds': item.flow,
     };
-    if (!widget.session.platformAdmin) return payload;
     if (item.fromStock && item.productId.isNotEmpty) {
       payload.addAll({
         'origin': 'stock',
@@ -1118,109 +1111,6 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     Expanded(child: Text('Item ${itemIndex + 1}${_itemTitle(item)}', style: const TextStyle(fontWeight: FontWeight.w800))),
                     if (items.length > 1) TextButton(onPressed: () => removeItem(itemIndex), child: const Text('Remover', style: TextStyle(color: Wq.danger))),
                   ]),
-                  if (widget.session.platformAdmin) ...[
-                    const SizedBox(height: 8),
-                    const Text('ORIGEM DO ITEM', style: TextStyle(fontSize: 11, letterSpacing: 1.1, color: Wq.muted, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      ChoiceChip(
-                        label: const Text('Do cliente'),
-                        selected: !item.fromStock,
-                        onSelected: (_) => setState(() {
-                          item.fromStock = false;
-                          item.productId = '';
-                          item.variantId = '';
-                        }),
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('Da loja'),
-                        selected: item.fromStock,
-                        onSelected: (_) => setState(() => item.fromStock = true),
-                      ),
-                    ]),
-                    if (item.fromStock) ...[
-                      const SizedBox(height: 8),
-                      if (catalog.isEmpty)
-                        const Text('Nenhum produto nesta oficina. Cadastre em Produtos.')
-                      else
-                        DropdownButtonFormField<String>(
-                        key: ValueKey('product-$itemIndex-${item.productId}'),
-                        initialValue: catalog.any((row) => '${row['id']}' == item.productId) ? item.productId : null,
-                        decoration: const InputDecoration(labelText: 'Produto'),
-                        items: [
-                          for (final row in catalog)
-                            DropdownMenuItem(
-                              value: '${row['id']}',
-                              child: Text(
-                                '${row['name']}${row['trackStock'] == false ? ' · sob encomenda' : ' · ${row['available'] ?? 0} disp.'}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                        ],
-                        onChanged: (id) {
-                          Map<String, dynamic>? product;
-                          for (final row in catalog) {
-                            if ('${row['id']}' == id) product = row;
-                          }
-                          if (product == null) return;
-                          final chosen = Map<String, dynamic>.from(product);
-                          final variants = chosen['variants'] is List ? chosen['variants'] as List : const [];
-                          final first = variants.isNotEmpty && variants.first is Map
-                              ? Map<String, dynamic>.from(variants.first as Map)
-                              : null;
-                          setState(() {
-                            item.productId = '${chosen['id']}';
-                            item.variantId = first == null ? '' : '${first['id'] ?? ''}';
-                            final price = first != null && first['price'] != null ? first['price'] : chosen['price'];
-                            item.priceField.text = '$price';
-                            if (item.model.text.trim().isEmpty) item.model.text = '${chosen['name']}';
-                          });
-                        },
-                      ),
-                      if (_variantsOf(item).isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          key: ValueKey('variant-$itemIndex-${item.variantId}'),
-                          initialValue: _variantsOf(item).any((row) => '${row['id']}' == item.variantId) ? item.variantId : null,
-                          decoration: const InputDecoration(labelText: 'Variação'),
-                          items: [
-                            for (final row in _variantsOf(item))
-                              DropdownMenuItem(
-                                value: '${row['id']}',
-                                child: Text('${row['name']} · ${row['available'] ?? 0} disp.'),
-                              ),
-                          ],
-                          onChanged: (id) {
-                            Map<String, dynamic>? row;
-                            for (final variant in _variantsOf(item)) {
-                              if ('${variant['id']}' == id) row = variant;
-                            }
-                            if (row == null) return;
-                            final chosen = Map<String, dynamic>.from(row);
-                            setState(() {
-                              item.variantId = '${chosen['id']}';
-                              if (chosen['price'] != null) item.priceField.text = '${chosen['price']}';
-                            });
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      TextField(
-                        key: ValueKey('qty-$itemIndex'),
-                        controller: item.qtyField,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Quantidade'),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        key: ValueKey('price-$itemIndex'),
-                        controller: item.priceField,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Preço unitário'),
-                      ),
-                    ],
-                  ],
                   const SizedBox(height: 8),
                   TextField(
                     key: ValueKey('brand-$itemIndex'),

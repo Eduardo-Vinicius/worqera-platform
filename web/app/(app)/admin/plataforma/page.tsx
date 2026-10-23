@@ -4,12 +4,37 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
-import { getPlatformOpsV1, meV1, type OpsEndpoint } from "@/lib/apiV1"
+import {
+  enterPlatformShop,
+  getPlatformOpsV1,
+  listPlatformShopsV1,
+  meV1,
+  type OpsEndpoint,
+} from "@/lib/apiV1"
 import { toast } from "sonner"
 
 type Ops = Awaited<ReturnType<typeof getPlatformOpsV1>>
 type WindowId = "1h" | "24h" | "30d"
 type SortId = "calls" | "slow" | "errors"
+type ShopRow = {
+  id: string
+  name: string
+  slug: string
+  status: string
+  trialDaysLeft?: number | null
+  openCount?: number
+  orderCount?: number
+  lastOrderAt?: string | null
+  subscription?: { status?: string; planCode?: string } | null
+}
+
+function planLabel(code?: string | null) {
+  const c = String(code || "").toUpperCase()
+  if (c === "WORQERA_BASIC" || c === "WORQERA_EARLY") return "Basic"
+  if (c === "WORQERA_PRO") return "Pro"
+  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM") return "Business"
+  return "Sem plano"
+}
 
 const WINDOWS: Array<{ id: WindowId; label: string }> = [
   { id: "1h", label: "1 hora" },
@@ -58,15 +83,21 @@ function sortEndpoints(rows: OpsEndpoint[], sort: SortId) {
 export default function PlatformPortalPage() {
   const [allowed, setAllowed] = useState(false)
   const [ops, setOps] = useState<Ops | null>(null)
+  const [shopList, setShopList] = useState<ShopRow[]>([])
   const [loading, setLoading] = useState(true)
   const [windowId, setWindowId] = useState<WindowId>("24h")
   const [sort, setSort] = useState<SortId>("calls")
 
   const load = useCallback(async () => {
     try {
-      setOps(await getPlatformOpsV1())
+      const [nextOps, shopRes] = await Promise.all([
+        getPlatformOpsV1(),
+        listPlatformShopsV1().catch(() => ({ shops: [] as ShopRow[] })),
+      ])
+      setOps(nextOps)
+      setShopList(shopRes.shops || [])
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao carregar o portal")
+      toast.error(err?.message || "Falha ao carregar a visão geral")
     } finally {
       setLoading(false)
     }
@@ -89,7 +120,7 @@ export default function PlatformPortalPage() {
       } catch (err: any) {
         if (!cancelled) {
           setLoading(false)
-          toast.error(err?.message || "Falha ao carregar o portal")
+          toast.error(err?.message || "Falha ao carregar a visão geral")
         }
       }
     })()
@@ -115,12 +146,35 @@ export default function PlatformPortalPage() {
   const view = ops?.windows?.[windowId]
   const rows = useMemo(() => sortEndpoints(view?.endpoints || [], sort), [view, sort])
   const shops = ops?.shops
+  const view24h = ops?.windows?.["24h"]
+  const attention = useMemo(() => {
+    return shopList
+      .map((shop) => {
+        const suspended = shop.status === "suspended"
+        const trialDays = shop.trialDaysLeft
+        const trialSoon =
+          shop.subscription?.status === "trialing" && trialDays != null && trialDays <= 7
+        if (!suspended && !trialSoon) return null
+        return {
+          shop,
+          reason: suspended
+            ? "Suspensa"
+            : trialDays != null && trialDays <= 0
+              ? "Trial acaba hoje"
+              : `Trial ${trialDays}d`,
+          urgent: suspended || (trialDays != null && trialDays <= 3),
+        }
+      })
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      .sort((a, b) => Number(b.urgent) - Number(a.urgent))
+      .slice(0, 8)
+  }, [shopList])
 
   return (
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
-        title="Portal"
-        subtitle="Oficinas, chamadas, e-mails e erros. O tempo é só o do servidor."
+        title="Visão geral"
+        subtitle="Rede Worqera — oficinas, trial e saúde da API"
         actions={
           <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={() => void load()}>
             Atualizar
@@ -147,6 +201,86 @@ export default function PlatformPortalPage() {
               <Kpi label="Suspensas" value={shops?.suspended} hint="acesso bloqueado" href="/admin/shops" />
               <Kpi label="Pedidos abertos" value={shops?.openOrders} hint="soma das oficinas" />
             </section>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
+              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
+                  <h2 className="text-sm font-semibold">Precisa de atenção</h2>
+                  <Link href="/admin/shops" className="text-xs font-medium text-[var(--wq-brand-text)]">
+                    Todas as oficinas
+                  </Link>
+                </div>
+                {attention.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-[var(--wq-text-muted)]">
+                    Nenhuma oficina suspensa ou com trial nos próximos 7 dias.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-[var(--wq-border)]">
+                    {attention.map(({ shop, reason, urgent }) => (
+                      <li key={shop.id} className="flex items-center gap-3 px-4 py-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{shop.name}</p>
+                          <p className="text-xs text-[var(--wq-text-muted)]">
+                            {planLabel(shop.subscription?.planCode)}
+                            {" · "}
+                            <span className={urgent ? "font-medium text-amber-800" : ""}>{reason}</span>
+                            {" · "}
+                            {shop.openCount ?? 0} abertos
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+                          onClick={() => {
+                            enterPlatformShop({ id: shop.id, name: shop.name, slug: shop.slug })
+                            window.location.href = "/dashboard"
+                          }}
+                        >
+                          Entrar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">Saúde agora</h2>
+                <dl className="divide-y divide-[var(--wq-border)] text-sm">
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <dt className="text-[var(--wq-text-muted)]">Redis</dt>
+                    <dd className="font-medium">{ops?.redis === "down" ? "Fora do ar" : "Ok"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <dt className="text-[var(--wq-text-muted)]">Usuários ativos</dt>
+                    <dd className="font-medium tabular-nums">{ops?.activeUsers ?? "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <dt className="text-[var(--wq-text-muted)]">Chamadas 24h</dt>
+                    <dd className="font-medium tabular-nums">{view24h?.calls ?? "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <dt className="text-[var(--wq-text-muted)]">Erros 5xx 24h</dt>
+                    <dd className="font-medium tabular-nums">{view24h?.errors ?? "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <dt className="text-[var(--wq-text-muted)]">Tempo médio 24h</dt>
+                    <dd className="font-medium tabular-nums">{view24h ? `${view24h.avgMs} ms` : "—"}</dd>
+                  </div>
+                </dl>
+                <div className="flex flex-wrap gap-2 border-t border-[var(--wq-border)] px-4 py-3">
+                  <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                    <Link href="/admin/plataforma/parametros">Parâmetros</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-[10px]">
+                    <Link href="/admin/plataforma/noticias">Notícias</Link>
+                  </Button>
+                </div>
+              </section>
+            </div>
+
+            <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">Operação da API</p>
 
             <div className="flex flex-wrap items-center gap-2">
               {WINDOWS.map((item) => (

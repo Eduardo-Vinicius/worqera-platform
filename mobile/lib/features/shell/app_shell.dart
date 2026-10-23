@@ -17,7 +17,6 @@ import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../ops/ops_screens.dart';
 import '../settings/settings_screens.dart';
-import '../products/products_screen.dart';
 import '../settings/tv_boards.dart';
 
 class AppShell extends StatefulWidget {
@@ -413,7 +412,7 @@ class _Drawer extends StatelessWidget {
             if (inShop && admin) ...[
               const _Section('Gestão'),
               _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),
-              if (flags.on('finance')) _item(context, Icons.account_balance_wallet_outlined, 'Financeiro', () => _open('financeiro', FinanceScreen(api: api, stock: session.platformAdmin))),
+              if (flags.on('finance')) _item(context, Icons.account_balance_wallet_outlined, 'Financeiro', () => _open('financeiro', FinanceScreen(api: api, stock: true))),
               if (flags.on('finance')) _item(context, Icons.monitor, 'TV Financeiro', () => _open('tv-financeiro', TvFinanceBoard(api: api))),
               if (flags.on('metrics')) _item(context, Icons.bar_chart, 'Métricas', () => _open('metricas', MetricsScreen(api: api))),
             ],
@@ -428,7 +427,6 @@ class _Drawer extends StatelessWidget {
               _item(context, Icons.monitor_heart_outlined, 'Portal', () => _open('portal', PortalScreen(api: api))),
               _item(context, Icons.tune, 'Parâmetros', () => _open('parametros', ParamsScreen(api: api))),
               _item(context, Icons.campaign_outlined, 'Notícias', () => _open('noticias', NoticesScreen(api: api))),
-              if (inShop) _item(context, Icons.inventory_outlined, 'Produtos', () => _open('produtos', ProductsScreen(api: api))),
             ],
             const SizedBox(height: 8),
             _item(context, Icons.privacy_tip_outlined, 'Privacidade', () => _open('privacidade', const PrivacyScreen())),

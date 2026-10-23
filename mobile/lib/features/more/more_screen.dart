@@ -13,7 +13,6 @@ import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../settings/settings_screens.dart';
-import '../products/products_screen.dart';
 import '../settings/tv_boards.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -93,7 +92,7 @@ class _MoreScreenState extends State<MoreScreen> {
           if (inShop && session.isAdmin) ...[
             const _Heading('Gestão'),
             _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
-            if (flags.on('finance')) _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api, stock: session.platformAdmin))),
+            if (flags.on('finance')) _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api, stock: true))),
             if (flags.on('finance')) _row(context, 'TV Financeiro', Icons.monitor, () => open(TvFinanceBoard(api: api))),
             if (flags.on('metrics')) _row(context, 'Métricas', Icons.bar_chart, () => open(MetricsScreen(api: api))),
           ],
@@ -109,7 +108,6 @@ class _MoreScreenState extends State<MoreScreen> {
             _row(context, 'Portal', Icons.monitor_heart_outlined, () => open(PortalScreen(api: api))),
             _row(context, 'Parâmetros', Icons.tune, () => open(ParamsScreen(api: api))),
             _row(context, 'Notícias', Icons.campaign_outlined, () => open(NoticesScreen(api: api))),
-            if (inShop) _row(context, 'Produtos', Icons.inventory_outlined, () => open(ProductsScreen(api: api))),
           ],
           const SizedBox(height: 12),
           _row(context, 'Privacidade', Icons.privacy_tip_outlined, () => open(const PrivacyScreen())),

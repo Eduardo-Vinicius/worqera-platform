@@ -1,9 +1,17 @@
 # Worqera Web — Change log
 
+## 2026-10-23
+
+- **Catálogo:** `/admin/produtos` lista produtos, saldo e valor. Cadastro em ficha, variação em linha. Fora do menu. O pedido continua só com item do cliente.
+- **Worqera:** `/admin/plataforma` é a visão geral da plataforma. Oficinas em tabela, com plano e trial.
+- **Site:** relatos que passam sozinhos (Casa do Tênis, Sapataria Paulista, Axisbyte). Páginas por ramo: `/sapataria`, `/lavanderia`, `/assistencia` e as outras da home.
+
 ## 2026-10-13
 
 - **Planos:** site e aba Plano (dono e admin) mostram Basic R$ 97, Pro R$ 197 e Business R$ 499, com o teto de 100 pedidos no Basic e análises com IA no Business.
-- **Produtos:** o menu do admin Worqera mostra Produtos. A tela explica o fluxo (saldo, reserva, kanban, baixa) e abre o catálogo da oficina para teste.
+- **Produtos:** cadastro pede nome, preço e quantidade. O código interno fica em detalhes. O saldo aparece em disponíveis, reservados e em mãos. Dá para baixar o relatório de estoque, saídas e vendas.
+- **Pedido:** o item do cliente continua igual. Produto da loja só aparece no botão Da loja, para o admin Worqera.
+- **Plano:** oficina com plano vencido abre a tela de assinatura e para de recarregar.
 - **Site:** o dia da operação anima de manhã até a entrega. O card Basic fala em pedidos limitados. O número 100 aparece no checkout.
 - **Checkout:** a tela cumprimenta pelo nome, mostra a empresa no plano e os três momentos dos 7 dias. Sem cartão e sem slug.
 - **FAQ:** saiu a pergunta de WhatsApp automático.

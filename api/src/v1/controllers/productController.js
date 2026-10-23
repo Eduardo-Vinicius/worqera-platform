@@ -45,6 +45,13 @@ exports.movements = wrap(async (req, res) => {
   res.status(200).json({ movements });
 });
 
+exports.report = wrap(async (req, res) => {
+  const csv = await productService.reportCsv(req.shopId);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="estoque.csv"');
+  res.status(200).send(csv);
+});
+
 exports.summary = wrap(async (req, res) => {
   const summary = await productService.financeSnapshot(req.shopId);
   res.status(200).json({ summary });

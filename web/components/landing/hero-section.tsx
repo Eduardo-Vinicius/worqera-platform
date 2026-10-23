@@ -40,6 +40,7 @@ export function HeroSection() {
             </Button>
           </div>
           <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t.hero.note}</p>
+          <p className="mt-1 text-sm font-medium text-[var(--ink)]">{t.hero.social}</p>
         </div>
       </div>
 

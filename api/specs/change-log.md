@@ -1,7 +1,12 @@
 # Worqera API — Change log
 
+## 2026-10-23
+
+- **Produtos:** o catálogo e o estoque passam a ser da oficina (dono e admin). Item Da loja reserva e baixa para qualquer pedido da loja.
+
 ## 2026-10-13
 
+- **Estoque:** o admin Worqera baixa um CSV com o saldo, as saídas e as vendas da oficina.
 - **Planos:** Basic R$ 97, Pro R$ 197, Business R$ 499. No Basic, o 101º pedido do mês é recusado. Pro e Business não têm teto. A cobrança no AbacatePay continua no produto configurado lá.
 - **Oficinas:** o admin Worqera abre uma empresa pelo cabeçalho da loja e usa produtos, estoque e pedidos sem ser membro dela.
 - **Cadastro:** o plano escolhido no checkout (Basic ou Pro) é o do trial. Sem slug enviado, o endereço interno nasce do nome da empresa e ganha um número se já existir.

@@ -32,7 +32,7 @@ import {
   deletePedidoItemFotoService,
 } from "@/lib/apiService"
 import { compressImageFile } from "@/lib/compressImage"
-import { listProductsV1, listServicesV1, listSectorsV1 } from "@/lib/apiV1"
+import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
 import { normalizeWarranty } from "@/lib/warranty"
 import { clampDiscount, formatBRL, netTotal, roundMoney } from "@/lib/orderMoney"
 import { useRouter } from "next/navigation"
@@ -347,23 +347,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const MAX_FILE_MB = 5; // limite por arquivo antes da compressão
   const [uploadProgress, setUploadProgress] = useState(0)
   const [photoInputEpoch, setPhotoInputEpoch] = useState(0)
-  const [platformStock, setPlatformStock] = useState(false)
-  const [catalog, setCatalog] = useState<Array<{
-    id: string
-    name: string
-    price: number
-    trackStock?: boolean
-    available?: number
-    variants?: Array<{ id: string; name: string; price: number | null; available: number }>
-  }>>([])
-
-  useEffect(() => {
-    if (typeof window === "undefined" || localStorage.getItem("platformAdmin") !== "1") return
-    setPlatformStock(true)
-    listProductsV1()
-      .then((res) => setCatalog(res.products || []))
-      .catch(() => setCatalog([]))
-  }, [])
 
   const syncPayable = (
     nextSubtotal: number,
@@ -1491,99 +1474,6 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           </button>
                         ) : null}
                       </div>
-
-                      {platformStock ? (
-                        <div className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--wq-text-muted)]">
-                            Origem do item
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${item.origin !== "stock" ? "border-[var(--wq-text)] bg-[var(--wq-text)] text-white" : "border-[var(--wq-border)] bg-white"}`}
-                              onClick={() => patchItem(itemIndex, { origin: "brought", productId: "", variantId: "", quantity: 1, unitPrice: 0 })}
-                            >
-                              Do cliente
-                            </button>
-                            <button
-                              type="button"
-                              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${item.origin === "stock" ? "border-[var(--wq-text)] bg-[var(--wq-text)] text-white" : "border-[var(--wq-border)] bg-white"}`}
-                              onClick={() => patchItem(itemIndex, { origin: "stock", quantity: item.quantity || 1 })}
-                            >
-                              Da loja
-                            </button>
-                          </div>
-                          <p className="text-xs text-[var(--wq-text-muted)]">
-                            {item.origin === "stock"
-                              ? "Reserva ao criar o pedido. Na entrega, baixa. Se cancelar antes, devolve."
-                              : "O cliente trouxe. Este item não mexe no estoque."}
-                          </p>
-                          {item.origin === "stock" ? (
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <select
-                                className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-white px-2 text-sm"
-                                value={item.productId || ""}
-                                onChange={(e) => {
-                                  const product = catalog.find((row) => row.id === e.target.value)
-                                  const variant = product?.variants?.[0]
-                                  const price = variant?.price != null ? variant.price : product?.price || 0
-                                  patchItem(itemIndex, {
-                                    origin: "stock",
-                                    productId: product?.id || "",
-                                    variantId: variant?.id || "",
-                                    unitPrice: price,
-                                    quantity: item.quantity || 1,
-                                    sneaker: product?.name || item.sneaker,
-                                  })
-                                }}
-                              >
-                                <option value="">Produto</option>
-                                {catalog.map((row) => (
-                                  <option key={row.id} value={row.id}>
-                                    {row.name}
-                                    {row.trackStock === false ? " · sob encomenda" : ` · ${row.available ?? 0} disp.`}
-                                  </option>
-                                ))}
-                              </select>
-                              {(catalog.find((row) => row.id === item.productId)?.variants || []).length ? (
-                                <select
-                                  className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-white px-2 text-sm"
-                                  value={item.variantId || ""}
-                                  onChange={(e) => {
-                                    const product = catalog.find((row) => row.id === item.productId)
-                                    const variant = product?.variants?.find((row) => row.id === e.target.value)
-                                    patchItem(itemIndex, {
-                                      variantId: variant?.id || "",
-                                      unitPrice: variant?.price != null ? variant.price : product?.price || 0,
-                                    })
-                                  }}
-                                >
-                                  {(catalog.find((row) => row.id === item.productId)?.variants || []).map((row) => (
-                                    <option key={row.id} value={row.id}>
-                                      {row.name} · {row.available} disp.
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : null}
-                              <Input
-                                type="number"
-                                min={1}
-                                value={item.quantity || 1}
-                                onChange={(e) => patchItem(itemIndex, { quantity: Math.max(1, Number(e.target.value) || 1) })}
-                                className="bg-white"
-                              />
-                              <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={item.unitPrice ?? 0}
-                                onChange={(e) => patchItem(itemIndex, { unitPrice: Number(e.target.value) || 0 })}
-                                className="bg-white"
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
 
                       <div className="space-y-1.5">
                         <Label htmlFor={`brand-${itemIndex}`}>Marca</Label>

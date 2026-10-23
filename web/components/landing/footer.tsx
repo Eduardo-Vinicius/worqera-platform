@@ -41,6 +41,15 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap gap-5 text-sm text-[var(--muted-foreground)]">
+          <Link href="/sapataria" className="hover:text-[var(--ink)]">
+            {locale === "pt" ? "Sapataria" : "Footwear"}
+          </Link>
+          <Link href="/lavanderia" className="hover:text-[var(--ink)]">
+            {locale === "pt" ? "Lavanderia" : "Laundry"}
+          </Link>
+          <Link href="/assistencia" className="hover:text-[var(--ink)]">
+            {locale === "pt" ? "Assistência" : "Repair"}
+          </Link>
           <Link href="/signup" className="hover:text-[var(--ink)]">
             {locale === "pt" ? "Testar grátis" : "Try free"}
           </Link>

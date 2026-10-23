@@ -37,10 +37,8 @@ exports.list = wrap(async (req, res) => {
   });
 });
 
-const { isPlatformAdminEmail } = require('../middleware/platformAdmin');
-
 function allowStock(req) {
-  return isPlatformAdminEmail(req.auth?.email);
+  return Boolean(req.shopId);
 }
 
 exports.create = wrap(async (req, res) => {

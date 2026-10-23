@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/api/auth'];
 const ADMIN_PREFIX = '/admin';
+const TRADE_SLUGS = new Set([
+  'sapataria',
+  'lavanderia',
+  'assistencia',
+  'automotivo',
+  'atelier',
+  'grafica',
+  'marcenaria',
+  'otica',
+  'pet',
+]);
+
+function isTradePath(pathname: string) {
+  const slug = pathname.replace(/^\//, '');
+  return TRADE_SLUGS.has(slug);
+}
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
@@ -38,6 +54,7 @@ export function middleware(request: NextRequest) {
 
   if (
     PUBLIC_PATHS.includes(pathname) ||
+    isTradePath(pathname) ||
     pathname.startsWith('/p/') ||
     pathname.startsWith('/invite/') ||
     pathname === '/forgot-password' ||
@@ -99,10 +116,6 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/admin/shops', request.url));
     }
     return NextResponse.next();
-  }
-
-  if (pathname.startsWith('/admin/produtos') && !platformAdmin) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   if (

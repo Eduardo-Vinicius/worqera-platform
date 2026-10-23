@@ -72,7 +72,7 @@ export function FeedbackBell({ className }: { className?: string }) {
         setHistory(Array.isArray(res?.history) ? res.history : [])
       } catch (err: any) {
         if (cancelled) return
-        if (err?.status === 401 || err?.status === 403) {
+        if (err?.status === 401 || err?.status === 402 || err?.status === 403 || err?.code === "SUBSCRIPTION_INACTIVE") {
           stop()
           return
         }

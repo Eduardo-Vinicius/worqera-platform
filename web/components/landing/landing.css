@@ -116,6 +116,19 @@
   animation: lp-fade-up 0.65s ease-out both;
 }
 
+@keyframes lp-story {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.lp .lp-story-bar {
+  animation: lp-story 8s linear forwards;
+}
+
 .lp .lp-animate-in-delay {
   animation: lp-board-in 0.8s ease-out 0.1s both;
 }

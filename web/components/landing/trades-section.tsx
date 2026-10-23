@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useLanguage } from "@/components/landing/language-provider"
 
 export function TradesSection() {
@@ -16,8 +17,11 @@ export function TradesSection() {
         <ul className="mt-10 grid gap-6 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
           {t.trades.items.map((row) => (
             <li key={row.trade} className="border-t border-white/15 pt-4">
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--action)] uppercase">{row.trade}</p>
-              <p className="lp-display mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{row.item}</p>
+              <Link href={`/${row.slug}`} className="block hover:opacity-90">
+                <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--action)] uppercase">{row.trade}</p>
+                <p className="lp-display mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{row.item}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--on-band)]/60">{row.use}</p>
+              </Link>
             </li>
           ))}
         </ul>

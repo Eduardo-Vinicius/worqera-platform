@@ -183,17 +183,17 @@ GET/POST /accessories                # LIVE — catálogo da loja. POST também 
 PATCH/DELETE /accessories/{id}       # LIVE — só admin/dono. DELETE remove do cadastro; pedido antigo guarda o nome
 ```
 
-## Produtos (admin Worqera)
+## Produtos
 
 ```
-GET/POST /products                   # platformAdmin + loja no header. Loja comum recebe 403
+GET/POST /products                   # GET: equipe da oficina. POST: dono e admin
 GET /products/summary                # vendido, reservado, valor em estoque
 GET/PATCH/DELETE /products/{id}
 POST /products/{id}/adjust           # quantity + reason; variantId se houver variação
 GET /products/{id}/movements
 ```
 
-Item de pedido `origin=stock` reserva ao criar, baixa em `delivered`, estorna em cancelamento, exclusão ou reabertura. `origin=brought` não mexe no saldo. Sem `platformAdmin`, o payload de estoque vira pedido do cliente.
+Item de pedido `origin=stock` reserva ao criar, baixa em `delivered`, estorna em cancelamento, exclusão ou reabertura. `origin=brought` não mexe no saldo.
 
 ## Headers
 

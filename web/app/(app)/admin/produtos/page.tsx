@@ -1,18 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Download, Loader2, Plus, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   adjustProductV1,
   createProductV1,
   deleteProductV1,
+  productReportCsvV1,
   enterPlatformShop,
   listPlatformShopsV1,
   listProductsV1,
@@ -20,7 +27,7 @@ import {
   productMovementsV1,
 } from "@/lib/apiV1"
 
-type Variant = { id: string; name: string; price: number | null; available: number; onHand: number }
+type Variant = { id?: string; name: string; price: number | null; available?: number; onHand: number }
 type Product = {
   id: string
   name: string
@@ -35,24 +42,29 @@ type Product = {
   low?: boolean
   variants?: Variant[]
 }
+type DraftVariant = { name: string; onHand: string; price: string }
 
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0)
 
-const FLOW = [
-  { n: "1", title: "Produto", text: "Cadastra e põe o saldo. Dez na prateleira ficam dez disponíveis." },
-  { n: "2", title: "Pedido", text: "No item, escolhe Da loja. Criar o pedido reserva: nove disponíveis, um reservado. O item entra no kanban." },
-  { n: "3", title: "Etapas", text: "O card anda como qualquer pedido. O reservado fica esperando." },
-  { n: "4", title: "Saída", text: "Entregue baixa o reservado. Cancelar antes devolve para disponível." },
-]
-
 const moveLabel: Record<string, string> = {
   adjust: "Ajuste",
   reserve: "Reserva",
-  release: "Estorno",
-  commit: "Baixa",
+  release: "Devolução",
+  commit: "Saída",
   reopen: "Reabertura",
 }
+
+const emptyDraft = () => ({
+  name: "",
+  price: "",
+  sku: "",
+  description: "",
+  trackStock: true,
+  onHand: "0",
+  minQty: "0",
+  variants: [] as DraftVariant[],
+})
 
 export default function ProductsAdminPage() {
   const router = useRouter()
@@ -60,15 +72,11 @@ export default function ProductsAdminPage() {
   const [shopLabel, setShopLabel] = useState("")
   const [shops, setShops] = useState<Array<{ id: string; name: string; slug: string }>>([])
   const [products, setProducts] = useState<Product[]>([])
-  const [name, setName] = useState("")
-  const [price, setPrice] = useState("0")
-  const [sku, setSku] = useState("")
-  const [description, setDescription] = useState("")
-  const [trackStock, setTrackStock] = useState(true)
-  const [onHand, setOnHand] = useState("0")
-  const [minQty, setMinQty] = useState("0")
-  const [variantsText, setVariantsText] = useState("")
+  const [query, setQuery] = useState("")
+  const [formOpen, setFormOpen] = useState(false)
+  const [draft, setDraft] = useState(emptyDraft)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
   const [delta, setDelta] = useState("1")
   const [reason, setReason] = useState("")
@@ -85,24 +93,26 @@ export default function ProductsAdminPage() {
     ;(async () => {
       try {
         const me = await meV1()
-        if (!me?.platformAdmin) {
-          router.replace("/dashboard")
-          return
-        }
         const current = localStorage.getItem("shopId") || ""
         const currentName =
           localStorage.getItem("shopDisplayName") || localStorage.getItem("shopName") || ""
+        const isPlatform = me?.platformAdmin === true
         if (current) {
-          enterPlatformShop({
-            id: current,
-            name: currentName || "Oficina",
-            slug: localStorage.getItem("shopSlug") || "",
-          })
+          if (isPlatform) {
+            enterPlatformShop({
+              id: current,
+              name: currentName || "Oficina",
+              slug: localStorage.getItem("shopSlug") || "",
+            })
+          }
           if (!cancelled) setShopLabel(currentName || "Oficina")
           await load()
-        } else {
+        } else if (isPlatform) {
           const res = await listPlatformShopsV1()
           if (!cancelled) setShops(res.shops || [])
+        } else {
+          router.replace("/dashboard")
+          return
         }
         if (!cancelled) setReady(true)
       } catch (err: any) {
@@ -126,43 +136,53 @@ export default function ProductsAdminPage() {
     }
   }
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return products
+    return products.filter((product) =>
+      [product.name, product.sku, product.description].some((part) => String(part || "").toLowerCase().includes(q))
+    )
+  }, [products, query])
+
+  const stats = useMemo(() => {
+    const tracked = products.filter((p) => p.trackStock !== false)
+    return {
+      count: products.length,
+      available: tracked.reduce((sum, p) => sum + (p.available || 0), 0),
+      reserved: tracked.reduce((sum, p) => sum + (p.reserved || 0), 0),
+      value: tracked.reduce((sum, p) => sum + (p.price || 0) * (p.onHand || 0), 0),
+      low: tracked.filter((p) => p.low).length,
+    }
+  }, [products])
+
   const create = async () => {
-    if (!name.trim()) {
-      toast.message("Dê um nome ao produto")
+    if (!draft.name.trim()) {
+      toast.message("Informe o nome do produto")
       return
     }
     setSaving(true)
     try {
-      const variants = variantsText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          const [variantName, variantQty, variantPrice] = line.split("|").map((part) => part.trim())
-          return {
-            name: variantName,
-            onHand: Math.max(0, Number(variantQty) || 0),
-            price: variantPrice ? Number(variantPrice.replace(",", ".")) : null,
-          }
-        })
+      const variants = draft.variants
+        .map((row) => ({
+          name: row.name.trim(),
+          onHand: Math.max(0, Number(row.onHand) || 0),
+          price: row.price.trim() ? Number(String(row.price).replace(",", ".")) : null,
+        }))
+        .filter((row) => row.name)
       await createProductV1({
-        name: name.trim(),
-        sku: sku.trim(),
-        description: description.trim(),
-        price: Number(String(price).replace(",", ".")) || 0,
-        trackStock,
-        onHand: trackStock ? Math.max(0, Number(onHand) || 0) : 0,
-        minQty: Math.max(0, Number(minQty) || 0),
+        name: draft.name.trim(),
+        sku: draft.sku.trim(),
+        description: draft.description.trim(),
+        price: Number(String(draft.price).replace(",", ".")) || 0,
+        trackStock: draft.trackStock,
+        onHand: draft.trackStock && !variants.length ? Math.max(0, Number(draft.onHand) || 0) : 0,
+        minQty: Math.max(0, Number(draft.minQty) || 0),
         variants,
       })
-      setName("")
-      setSku("")
-      setDescription("")
-      setPrice("0")
-      setOnHand("0")
-      setVariantsText("")
+      setDraft(emptyDraft())
+      setFormOpen(false)
       await load()
-      toast.success("Produto cadastrado")
+      toast.success("Produto no catálogo")
     } catch (err: any) {
       toast.error(err?.message || "Não gravou o produto")
     } finally {
@@ -172,7 +192,6 @@ export default function ProductsAdminPage() {
 
   const openMoves = async (id: string) => {
     setOpenId(id)
-    setVariantId("")
     try {
       const res = await productMovementsV1(id)
       setMoves(res.movements || [])
@@ -184,11 +203,16 @@ export default function ProductsAdminPage() {
   const adjust = async (id: string) => {
     const quantity = Math.trunc(Number(delta))
     if (!quantity) {
-      toast.message("Informe a quantidade, positiva ou negativa")
+      toast.message("Informe quanto entra ou sai, com sinal")
       return
     }
     if (!reason.trim()) {
-      toast.message("Escreva o motivo")
+      toast.message("Informe o motivo do ajuste")
+      return
+    }
+    const product = products.find((row) => row.id === id)
+    if ((product?.variants || []).length && !variantId) {
+      toast.message("Escolha a variação")
       return
     }
     try {
@@ -196,9 +220,26 @@ export default function ProductsAdminPage() {
       setReason("")
       await load()
       await openMoves(id)
-      toast.success("Estoque ajustado")
+      toast.success("Estoque atualizado")
     } catch (err: any) {
       toast.error(err?.message || "Não ajustou")
+    }
+  }
+
+  const downloadReport = async () => {
+    setExporting(true)
+    try {
+      const blob = await productReportCsvV1()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = "catalogo-estoque.csv"
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      toast.error(err?.message || "Não gerou o relatório")
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -210,213 +251,366 @@ export default function ProductsAdminPage() {
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <AppHeader
-        title="Produtos e estoque"
-        subtitle="Só o admin Worqera vê esta tela, para testar antes de abrir para as oficinas."
-      />
-
-      <ol className="grid gap-3 sm:grid-cols-4">
-        {FLOW.map((step) => (
-          <li key={step.n} className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3">
-            <p className="text-xs font-semibold text-[var(--wq-brand-text)]">{step.n} · {step.title}</p>
-            <p className="mt-1 text-sm leading-snug text-[var(--wq-text)]">{step.text}</p>
-          </li>
-        ))}
-      </ol>
-      <p className="text-sm text-[var(--wq-text-muted)]">
-        Do cliente não mexe no estoque. Só Da loja reserva, baixa na entrega e devolve se cancelar.
-      </p>
-
-      {!shopLabel ? (
-        <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
-          <p className="text-sm font-semibold text-[var(--wq-text)]">Escolha a oficina</p>
-          <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
-            O catálogo, o saldo e a venda no pedido são desta empresa.
-          </p>
-          <ul className="mt-3 divide-y divide-[var(--wq-border)] overflow-hidden rounded-xl border border-[var(--wq-border)]">
-            {shops.length === 0 ? (
-              <li className="px-3 py-6 text-sm text-[var(--wq-text-muted)]">Nenhuma oficina.</li>
-            ) : (
-              shops.map((shop) => (
-                <li key={shop.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left hover:bg-[var(--wq-paper)]"
-                    onClick={() => void openShop(shop)}
-                  >
-                    <span>
-                      <span className="block font-medium">{shop.name}</span>
-                      <span className="block text-xs text-[var(--wq-text-muted)]">{shop.slug}</span>
-                    </span>
-                    <span className="shrink-0 rounded-[10px] bg-[var(--wq-action)] px-3 py-1.5 text-xs font-semibold text-white">
-                      Testar
-                    </span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-      ) : null}
-
-      {shopLabel ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-brand-soft)] px-4 py-3 text-sm">
-          <p>
-            Testando <span className="font-semibold">{shopLabel}</span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/kanban" className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1 text-xs font-semibold">
-              Kanban
-            </Link>
-            <Link href="/pedidos" className="rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-1 text-xs font-semibold">
-              Pedidos
-            </Link>
-            <Link href="/pedidos/novo" className="rounded-lg bg-[var(--wq-action)] px-2.5 py-1 text-xs font-semibold text-white">
-              Novo pedido
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-      {shopLabel ? (
-      <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
-        <p className="text-sm font-semibold text-[var(--wq-text)]">Novo produto</p>
-        <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
-          Com estoque, a venda reserva ao abrir o pedido e baixa na entrega. Sem estoque, entra no kanban sob encomenda.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label>Nome</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Palmilha, camiseta, bolo…" />
-          </div>
-          <div className="space-y-1">
-            <Label>Preço</Label>
-            <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
-          </div>
-          <div className="space-y-1">
-            <Label>SKU</Label>
-            <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Opcional" />
-          </div>
-          <div className="space-y-1">
-            <Label>Mínimo</Label>
-            <Input value={minQty} onChange={(e) => setMinQty(e.target.value)} inputMode="numeric" />
-          </div>
-          <div className="space-y-1 sm:col-span-2">
-            <Label>Descrição</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} />
-            Controla estoque
-          </label>
-          {trackStock && !variantsText.trim() ? (
-            <div className="space-y-1">
-              <Label>Saldo inicial</Label>
-              <Input value={onHand} onChange={(e) => setOnHand(e.target.value)} inputMode="numeric" />
-            </div>
-          ) : null}
-          <div className="space-y-1 sm:col-span-2">
-            <Label>Variações</Label>
-            <textarea
-              className="min-h-20 w-full rounded-[10px] border border-[var(--wq-border)] bg-white px-3 py-2 text-sm"
-              value={variantsText}
-              onChange={(e) => setVariantsText(e.target.value)}
-              placeholder={"Uma por linha: nome | saldo | preço\nP | 4 | 80\nM | 2"}
-            />
-          </div>
-        </div>
-        <Button type="button" className="mt-3 rounded-[10px] bg-[var(--wq-action)] text-white" disabled={saving} onClick={() => void create()}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          Cadastrar
-        </Button>
-      </section>
-      ) : null}
-
-      {shopLabel ? (
-      <section className="space-y-3">
-        {products.length === 0 ? (
-          <p className="text-sm text-[var(--wq-text-muted)]">
-            Nenhum produto. Pedido de algo que o cliente trouxe não precisa daqui.
-          </p>
-        ) : (
-          products.map((product) => (
-            <article key={product.id} className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-[var(--wq-text)]">{product.name}</p>
-                  <p className="text-sm text-[var(--wq-text-muted)]">
-                    {brl(product.price)}
-                    {product.trackStock === false
-                      ? " · sob encomenda"
-                      : ` · ${product.available ?? 0} disponível · ${product.reserved ?? 0} reservado`}
-                    {product.low ? " · abaixo do mínimo" : ""}
-                  </p>
-                </div>
+  if (!shopLabel) {
+    return (
+      <div className="space-y-6">
+        <AppHeader title="Catálogo" subtitle="Escolha a oficina" />
+        <ul className="divide-y divide-[var(--wq-border)] overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+          {shops.length === 0 ? (
+            <li className="px-4 py-8 text-sm text-[var(--wq-text-muted)]">Nenhuma oficina.</li>
+          ) : (
+            shops.map((shop) => (
+              <li key={shop.id}>
                 <button
                   type="button"
-                  className="rounded-lg p-2 text-[var(--wq-danger)]"
-                  aria-label="Apagar produto"
-                  onClick={async () => {
-                    if (!window.confirm("Apagar este produto do catálogo?")) return
-                    try {
-                      await deleteProductV1(product.id)
-                      await load()
-                    } catch (err: any) {
-                      toast.error(err?.message || "Não apagou")
-                    }
-                  }}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--wq-paper)]"
+                  onClick={() => void openShop(shop)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <span>
+                    <span className="block font-medium">{shop.name}</span>
+                    <span className="block text-xs text-[var(--wq-text-muted)]">{shop.slug}</span>
+                  </span>
+                  <span className="text-sm font-semibold text-[var(--wq-brand-text)]">Abrir</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    )
+  }
+
+  return (
+    <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
+      <AppHeader
+        title="Catálogo"
+        subtitle={shopLabel}
+        actions={
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" className="rounded-[10px]" disabled={exporting} onClick={() => void downloadReport()}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="ml-2 hidden sm:inline">Exportar</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+              onClick={() => {
+                setDraft(emptyDraft())
+                setFormOpen(true)
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Novo produto
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="mx-auto max-w-[1100px] space-y-5 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { label: "Produtos", value: String(stats.count) },
+            { label: "Disponível", value: String(stats.available) },
+            { label: "Reservado", value: String(stats.reserved) },
+            { label: "Valor em estoque", value: brl(stats.value) },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">{card.label}</p>
+              <p className="mt-1 font-[family-name:var(--font-display)] text-xl tabular-nums">{card.value}</p>
+            </div>
+          ))}
+        </section>
+        {stats.low ? (
+          <p className="text-sm text-[var(--wq-danger)]">{stats.low} produto{stats.low === 1 ? "" : "s"} abaixo do mínimo.</p>
+        ) : null}
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
+          <Input
+            className="h-11 rounded-[10px] pl-9"
+            placeholder="Buscar por nome ou código"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] px-6 py-16 text-center">
+            <p className="font-semibold">Nenhum produto no catálogo</p>
+            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">Cadastre o que a loja vende ou mantém em estoque. O pedido do cliente continua como hoje.</p>
+            <Button
+              type="button"
+              className="mt-4 rounded-[10px] bg-[var(--wq-action)] text-white"
+              onClick={() => {
+                setDraft(emptyDraft())
+                setFormOpen(true)
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Novo produto
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-[var(--wq-border)] bg-[var(--wq-paper)] text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Produto</th>
+                  <th className="hidden px-4 py-3 font-semibold sm:table-cell">Código</th>
+                  <th className="px-4 py-3 font-semibold">Preço</th>
+                  <th className="px-4 py-3 font-semibold">Disponível</th>
+                  <th className="hidden px-4 py-3 font-semibold md:table-cell">Reservado</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--wq-border)]">
+                {filtered.map((product) => {
+                  const open = openId === product.id
+                  return (
+                    <Fragment key={product.id}>
+                      <tr
+                        className="cursor-pointer hover:bg-[var(--wq-paper)]/80"
+                        onClick={() => {
+                          setOpenId(open ? null : product.id)
+                          setVariantId(product.variants?.[0]?.id || "")
+                          setDelta("1")
+                          setReason("")
+                          if (!open) void openMoves(product.id)
+                        }}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{product.name}</p>
+                          {product.low ? <p className="text-xs text-[var(--wq-danger)]">Abaixo do mínimo</p> : null}
+                          {product.trackStock === false ? (
+                            <p className="text-xs text-[var(--wq-text-muted)]">Sem controle de estoque</p>
+                          ) : null}
+                        </td>
+                        <td className="hidden px-4 py-3 text-[var(--wq-text-muted)] sm:table-cell">{product.sku || "—"}</td>
+                        <td className="px-4 py-3 tabular-nums">{brl(product.price)}</td>
+                        <td className="px-4 py-3 tabular-nums font-semibold">
+                          {product.trackStock === false ? "—" : product.available ?? 0}
+                        </td>
+                        <td className="hidden px-4 py-3 tabular-nums text-[var(--wq-text-muted)] md:table-cell">
+                          {product.trackStock === false ? "—" : product.reserved ?? 0}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            className="rounded-lg p-2 text-[var(--wq-danger)] hover:bg-[var(--wq-paper)]"
+                            aria-label="Apagar produto"
+                            onClick={async (event) => {
+                              event.stopPropagation()
+                              if (!window.confirm(`Apagar ${product.name} do catálogo?`)) return
+                              try {
+                                await deleteProductV1(product.id)
+                                await load()
+                              } catch (err: any) {
+                                toast.error(err?.message || "Não apagou")
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                      {open ? (
+                        <tr>
+                          <td colSpan={6} className="bg-[var(--wq-paper)] px-4 py-4">
+                            {(product.variants || []).length ? (
+                              <div className="mb-4 overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                                <table className="w-full text-sm">
+                                  <thead className="text-[11px] uppercase tracking-wide text-[var(--wq-text-muted)]">
+                                    <tr>
+                                      <th className="px-3 py-2 font-semibold">Variação</th>
+                                      <th className="px-3 py-2 font-semibold">Disponível</th>
+                                      <th className="px-3 py-2 font-semibold">Preço</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(product.variants || []).map((row) => (
+                                      <tr key={row.id}>
+                                        <td className="px-3 py-2">{row.name}</td>
+                                        <td className="px-3 py-2 tabular-nums">{row.available ?? row.onHand}</td>
+                                        <td className="px-3 py-2 tabular-nums">{row.price == null ? "—" : brl(row.price)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : null}
+                            {product.trackStock !== false ? (
+                              <div className="flex flex-wrap items-end gap-2">
+                                {(product.variants || []).length ? (
+                                  <div className="space-y-1">
+                                    <Label>Variação</Label>
+                                    <select
+                                      className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-white px-2 text-sm"
+                                      value={variantId}
+                                      onChange={(e) => setVariantId(e.target.value)}
+                                    >
+                                      {(product.variants || []).map((row) => (
+                                        <option key={row.id} value={row.id}>
+                                          {row.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : null}
+                                <div className="space-y-1">
+                                  <Label>Quantidade</Label>
+                                  <Input className="w-28" value={delta} onChange={(e) => setDelta(e.target.value)} inputMode="numeric" placeholder="+1 ou -1" />
+                                </div>
+                                <div className="min-w-48 flex-1 space-y-1">
+                                  <Label>Motivo</Label>
+                                  <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Entrada, perda, contagem…" />
+                                </div>
+                                <Button type="button" className="rounded-[10px]" variant="outline" onClick={() => void adjust(product.id)}>
+                                  Atualizar estoque
+                                </Button>
+                              </div>
+                            ) : null}
+                            {moves.length ? (
+                              <ul className="mt-4 space-y-1 text-xs text-[var(--wq-text-muted)]">
+                                {moves.slice(0, 8).map((move) => (
+                                  <li key={move.id}>
+                                    {moveLabel[move.type] || move.type} {move.quantity > 0 ? `+${move.quantity}` : move.quantity}
+                                    {move.variantName ? ` · ${move.variantName}` : ""}
+                                    {move.reason ? ` · ${move.reason}` : ""}
+                                    {move.orderCode ? ` · #${move.orderCode}` : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo produto</DialogTitle>
+            <DialogDescription>Nome, preço e quantidade. Variação é opcional, uma linha por tamanho ou cor.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1">
+              <Label>Nome</Label>
+              <Input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Palmilha gel, camiseta, kit…" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Preço</Label>
+                <Input value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} inputMode="decimal" placeholder="0,00" />
+              </div>
+              <div className="space-y-1">
+                <Label>Quantidade</Label>
+                <Input
+                  value={draft.onHand}
+                  onChange={(e) => setDraft((d) => ({ ...d, onHand: e.target.value }))}
+                  inputMode="numeric"
+                  disabled={!draft.trackStock || draft.variants.length > 0}
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Código</Label>
+                <Input value={draft.sku} onChange={(e) => setDraft((d) => ({ ...d, sku: e.target.value }))} placeholder="Opcional" />
+              </div>
+              <div className="space-y-1">
+                <Label>Avisar no mínimo</Label>
+                <Input value={draft.minQty} onChange={(e) => setDraft((d) => ({ ...d, minQty: e.target.value }))} inputMode="numeric" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Descrição</Label>
+              <Input value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} placeholder="Opcional" />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={draft.trackStock} onChange={(e) => setDraft((d) => ({ ...d, trackStock: e.target.checked }))} />
+              Controlar estoque
+            </label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Variações</Label>
+                <button
+                  type="button"
+                  className="text-sm font-medium text-[var(--wq-brand-text)]"
+                  onClick={() => setDraft((d) => ({ ...d, variants: [...d.variants, { name: "", onHand: "0", price: "" }] }))}
+                >
+                  Adicionar
                 </button>
               </div>
-              {product.trackStock !== false ? (
-                <div className="mt-3 flex flex-wrap items-end gap-2">
-                  {(product.variants || []).length ? (
-                    <select
-                      className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-white px-2 text-sm"
-                      value={openId === product.id ? variantId : ""}
-                      onChange={(e) => {
-                        setOpenId(product.id)
-                        setVariantId(e.target.value)
-                      }}
-                    >
-                      <option value="">Variação</option>
-                      {(product.variants || []).map((row) => (
-                        <option key={row.id} value={row.id}>
-                          {row.name} · {row.available} disp.
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
-                  <Input className="w-24" value={openId === product.id ? delta : "1"} onChange={(e) => { setOpenId(product.id); setDelta(e.target.value) }} inputMode="numeric" />
-                  <Input className="min-w-40 flex-1" placeholder="Motivo" value={openId === product.id ? reason : ""} onChange={(e) => { setOpenId(product.id); setReason(e.target.value) }} />
-                  <Button type="button" variant="outline" className="rounded-[10px]" onClick={() => void adjust(product.id)}>
-                    Ajustar
-                  </Button>
-                  <Button type="button" variant="outline" className="rounded-[10px]" onClick={() => void openMoves(product.id)}>
-                    Histórico
-                  </Button>
-                </div>
-              ) : null}
-              {openId === product.id && moves.length ? (
-                <ul className="mt-3 space-y-1 text-xs text-[var(--wq-text-muted)]">
-                  {moves.map((move) => (
-                    <li key={move.id}>
-                      {moveLabel[move.type] || move.type} {move.quantity > 0 ? `+${move.quantity}` : move.quantity}
-                      {move.variantName ? ` · ${move.variantName}` : ""}
-                      {move.reason ? ` · ${move.reason}` : ""}
-                      {move.orderCode ? ` · #${move.orderCode}` : ""}
-                    </li>
+              {draft.variants.length ? (
+                <div className="space-y-2">
+                  {draft.variants.map((row, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_4.5rem_5.5rem_auto] gap-2">
+                      <Input
+                        placeholder="P, M, Preto…"
+                        value={row.name}
+                        onChange={(e) =>
+                          setDraft((d) => {
+                            const variants = [...d.variants]
+                            variants[index] = { ...row, name: e.target.value }
+                            return { ...d, variants }
+                          })
+                        }
+                      />
+                      <Input
+                        inputMode="numeric"
+                        placeholder="Qtd"
+                        value={row.onHand}
+                        onChange={(e) =>
+                          setDraft((d) => {
+                            const variants = [...d.variants]
+                            variants[index] = { ...row, onHand: e.target.value }
+                            return { ...d, variants }
+                          })
+                        }
+                      />
+                      <Input
+                        inputMode="decimal"
+                        placeholder="Preço"
+                        value={row.price}
+                        onChange={(e) =>
+                          setDraft((d) => {
+                            const variants = [...d.variants]
+                            variants[index] = { ...row, price: e.target.value }
+                            return { ...d, variants }
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="text-[var(--wq-danger)]"
+                        aria-label="Remover variação"
+                        onClick={() => setDraft((d) => ({ ...d, variants: d.variants.filter((_, i) => i !== index) }))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   ))}
-                </ul>
-              ) : null}
-            </article>
-          ))
-        )}
-      </section>
-      ) : null}
+                  <p className="text-xs text-[var(--wq-text-muted)]">Com variação, o saldo fica em cada linha. O preço vazio usa o do produto.</p>
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--wq-text-muted)]">Opcional. Tamanho, cor ou outro recorte.</p>
+              )}
+            </div>
+            <Button type="button" className="rounded-[10px] bg-[var(--wq-action)] text-white" disabled={saving} onClick={() => void create()}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Salvar no catálogo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

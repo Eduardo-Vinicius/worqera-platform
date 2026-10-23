@@ -9,6 +9,7 @@ import { SystemSection } from "@/components/landing/system-section"
 import { ProofSection } from "@/components/landing/proof-section"
 import { ClientsSection } from "@/components/landing/clients-section"
 import { TradesSection } from "@/components/landing/trades-section"
+import { WhySection } from "@/components/landing/why-section"
 import { DayReel } from "@/components/landing/day-reel"
 import { LoopSection } from "@/components/landing/loop-section"
 import { PracticeSection } from "@/components/landing/practice-section"
@@ -40,6 +41,7 @@ function LandingInner() {
         <ProofSection />
         <ClientsSection />
         <TradesSection />
+        <WhySection />
         <LoopSection />
         <DayReel />
         <PracticeSection />

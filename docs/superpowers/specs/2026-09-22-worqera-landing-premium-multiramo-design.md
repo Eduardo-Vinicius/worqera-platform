@@ -1,6 +1,6 @@
 # Worqera Landing — premium multi-ramo (2026-09-22)
 
-**Atualizado:** 2026-10-13. A face pública fala de pedidos, produtos, estoque e vendas para várias áreas. O quadro do topo anima o pedido. Logo, papel, ink e fontes não mudam. O app logado continua dizendo oficina.
+**Atualizado:** 2026-10-23. A face pública fala de pedidos, produtos, estoque e vendas para várias áreas. Prova com empresas reais, ramos com uso e o que a fila substitui. O quadro do topo anima o pedido. Logo, papel, ink e fontes não mudam. O app logado continua dizendo oficina. Sem depoimento inventado.
 
 ## Em uma frase
 
@@ -16,14 +16,15 @@ Landing minimal/premium que vende a **operação inteira** (pedido + produto + e
 
 ## Estrutura
 
-1. Header (Produto / Ramos / Preço) — sem theme toggle
-2. Hero — marca + operação inteira + CTA + filme do pedido (entra, anda, e-mail, entrega, baixa estoque)
+1. Header (Produto / Quem usa / Ramos / Preço)
+2. Hero — marca + operação inteira + CTA + filme do pedido
 3. Prova — 1.000+ pedidos, R$ 200 mil+, vários ramos
-4. Parceiros
-5. Ramos — ramo + o item daquele ramo
-6. Loop — Recebe → Fila → Cliente consulta
-7. Na prática — mock kanban + consulta
-8. Preço + FAQ curto + footer
+4. Quem usa — relatos em rotação (Junior / Thiago / Eduardo) + cards
+5. Ramos — cada card abre `/sapataria`, `/lavanderia`, `/assistencia`… com problema, passo a passo, setores e empresa
+6. Substitui — caderno, grupo, planilha, ligação de status
+7. Loop — Recebe → Fila → Cliente consulta
+8. Na prática — mock kanban + consulta
+9. Preço + FAQ curto + footer
 
 ## Visual
 

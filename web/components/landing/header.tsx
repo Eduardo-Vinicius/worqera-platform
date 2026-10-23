@@ -12,9 +12,10 @@ export function Header({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
-    { label: t.nav.product, href: "#produto" },
-    { label: t.nav.trades, href: "#ramos" },
-    { label: t.nav.pricing, href: "#pricing" },
+    { label: t.nav.product, href: "/#produto" },
+    { label: t.nav.clients, href: "/#clientes" },
+    { label: t.nav.trades, href: "/#ramos" },
+    { label: t.nav.pricing, href: "/#pricing" },
   ]
 
   return (

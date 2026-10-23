@@ -49,7 +49,11 @@ async function v1Fetch<T = unknown>(path: string, init: RequestInit = {}, retrie
     }
     const msg = data?.detail || data?.title || data?.error || res.statusText
     const code = data?.code
-    if (code === "SUBSCRIPTION_INACTIVE" && typeof window !== "undefined") {
+    if (
+      code === "SUBSCRIPTION_INACTIVE" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/billing"
+    ) {
       window.location.href = "/billing"
     }
     throw new ApiV1Error(msg, res.status, code)
@@ -796,7 +800,11 @@ async function v1FetchBlob(path: string, init: RequestInit = {}, retried = false
     }
     const msg = data?.detail || data?.title || data?.error || res.statusText
     const code = data?.code
-    if (code === "SUBSCRIPTION_INACTIVE" && typeof window !== "undefined") {
+    if (
+      code === "SUBSCRIPTION_INACTIVE" &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/billing"
+    ) {
       window.location.href = "/billing"
     }
     throw new ApiV1Error(msg, res.status, code)
@@ -1064,6 +1072,10 @@ export async function productMovementsV1(id: string) {
   return v1Fetch<{ movements: Array<{ id: string; type: string; quantity: number; reason: string; orderCode?: string; createdAt?: string; variantName?: string }> }>(
     `/products/${id}/movements`
   )
+}
+
+export async function productReportCsvV1() {
+  return v1FetchBlob("/products/report.csv")
 }
 
 export async function productSummaryV1() {

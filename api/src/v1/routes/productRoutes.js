@@ -3,18 +3,20 @@ const productController = require('../controllers/productController');
 const { auth } = require('../middleware/auth');
 const { shopContext } = require('../middleware/shopContext');
 const { subscriptionGate } = require('../middleware/subscriptionGate');
-const { requirePlatformAdmin } = require('../middleware/platformAdmin');
+const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
-const guard = [auth, shopContext, subscriptionGate, requirePlatformAdmin];
+const guard = [auth, shopContext, subscriptionGate];
+const write = [...guard, requireRole('owner', 'admin')];
 
 router.get('/', ...guard, productController.list);
-router.get('/summary', ...guard, productController.summary);
-router.post('/', ...guard, productController.create);
-router.get('/:id/movements', ...guard, productController.movements);
-router.post('/:id/adjust', ...guard, productController.adjust);
+router.get('/summary', ...write, productController.summary);
+router.get('/report.csv', ...write, productController.report);
+router.post('/', ...write, productController.create);
+router.get('/:id/movements', ...write, productController.movements);
+router.post('/:id/adjust', ...write, productController.adjust);
 router.get('/:id', ...guard, productController.get);
-router.patch('/:id', ...guard, productController.patch);
-router.delete('/:id', ...guard, productController.remove);
+router.patch('/:id', ...write, productController.patch);
+router.delete('/:id', ...write, productController.remove);
 
 module.exports = router;

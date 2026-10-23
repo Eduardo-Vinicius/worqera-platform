@@ -3,6 +3,7 @@ export type Locale = "pt" | "en"
 const pt = {
   nav: {
     product: "Produto",
+    clients: "Quem usa",
     trades: "Ramos",
     pricing: "Preço",
     faq: "FAQ",
@@ -15,6 +16,7 @@ const pt = {
     cta: "Testar grátis por 7 dias",
     secondary: "Já tenho conta",
     note: "Sem cartão · Setup em minutos · Cancele quando quiser",
+    social: "Já na operação de sapataria, assistência e outros ramos com fila.",
   },
   film: {
     live: "Operação ao vivo",
@@ -98,6 +100,7 @@ const pt = {
     ],
   },
   proof: {
+    title: "Números de quem já opera, não de pitch.",
     items: [
       { value: "1.000+", label: "pedidos operados na Worqera" },
       { value: "R$ 200 mil+", label: "gerados para os clientes" },
@@ -135,15 +138,15 @@ const pt = {
     line: "Serviço, venda de balcão, fábrica e encomenda usam a mesma operação: pedido, produto, estoque e aviso.",
     hint: "O nome do item e os setores se configuram na empresa. Não existe um sistema diferente por ramo.",
     items: [
-      { trade: "Calçados", item: "Calçado" },
-      { trade: "Lavanderia", item: "Roupa" },
-      { trade: "Assistência", item: "Aparelho" },
-      { trade: "Automotivo", item: "Veículo" },
-      { trade: "Atelier", item: "Peça sob medida" },
-      { trade: "Gráfica", item: "Impresso" },
-      { trade: "Marcenaria", item: "Móvel" },
-      { trade: "Ótica", item: "Óculos" },
-      { trade: "Pet", item: "Acessório" },
+      { slug: "sapataria", trade: "Calçados", item: "Calçado", use: "O par entra, passa pelos setores e o cliente consulta o código." },
+      { slug: "lavanderia", trade: "Lavanderia", item: "Roupa", use: "A peça ganha prazo. O cliente para de ligar perguntando se ficou pronta." },
+      { slug: "assistencia", trade: "Assistência", item: "Aparelho", use: "Ordem de serviço com etapa, previsão e retirada." },
+      { slug: "automotivo", trade: "Automotivo", item: "Veículo", use: "Estética, funilaria leve e detailing na mesma fila." },
+      { slug: "atelier", trade: "Atelier", item: "Peça sob medida", use: "Reforma e encomenda andam como pedido, não como conversa." },
+      { slug: "grafica", trade: "Gráfica", item: "Impresso", use: "Arte entra, produção puxa, o cliente vê quando pode buscar." },
+      { slug: "marcenaria", trade: "Marcenaria", item: "Móvel", use: "Encomenda com etapas reais, não prazo no ar." },
+      { slug: "otica", trade: "Ótica", item: "Óculos", use: "Conserto e ajuste com código e aviso no pronto." },
+      { slug: "pet", trade: "Pet", item: "Acessório", use: "Serviço com horário de saída e consulta sem mensagem." },
     ],
   },
   practice: {
@@ -163,9 +166,85 @@ const pt = {
     mailTo: "ana@cliente.com",
   },
   clients: {
-    title: "Parceiros",
-    subtitle: "Empresas que operam na Worqera no dia a dia.",
-    names: ["Casa do Tênis", "Sapataria Paulista", "Axisbyte"],
+    title: "Quem já opera na Worqera",
+    subtitle: "Quem tem fila de verdade. As frases são o jeito da casa — curto, sem enrolação.",
+    items: [
+      {
+        name: "Casa do Tênis",
+        trade: "Calçados",
+        line: "Restauração na Av. Paulista. O par entra, o setor puxa, o cliente consulta o código.",
+      },
+      {
+        name: "Sapataria Paulista",
+        trade: "Calçados",
+        line: "Conserto e sola no kanban, do balcão até a entrega.",
+      },
+      {
+        name: "Axisbyte",
+        trade: "Operação",
+        line: "Constrói a Worqera e opera nela. Cliente, não marca por trás.",
+      },
+    ],
+    stories: [
+      {
+        quote:
+          "A gente cuida de tênis todo dia. O que revolucionou não foi a tela — foi o setor. Cada um vê a própria fila. A produção anda mais. E quando o cliente pergunta, a gente acha o par na hora.",
+        name: "Junior Ribeiro",
+        role: "Sócio",
+        company: "Casa do Tênis",
+        place: "Av. Paulista, São Paulo",
+        href: "https://acasadotenis.com.br",
+      },
+      {
+        quote:
+          "Na sapataria o pedido vivia na cabeça de quem estava na bancada. Hoje tem código, setor e prazo. A equipe produz mais porque não perde tempo procurando. O cliente consulta sozinho.",
+        name: "Thiago Landes",
+        role: "Sócio",
+        company: "Sapataria Paulista",
+        place: "São Paulo",
+        href: "",
+      },
+      {
+        quote:
+          "A Axisbyte faz a Worqera e usa a Worqera. Pedido, setor, aviso ao cliente. Se a fila da gente não aguentar o dia, a oficina também não aguenta. É o teste de verdade.",
+        name: "Eduardo",
+        role: "Fundador",
+        company: "Axisbyte",
+        place: "São Paulo",
+        href: "",
+      },
+    ],
+  },
+  why: {
+    title: "O escritório já tem sistema. A fila ainda está no caderno.",
+    subtitle: "Sai o papel, o grupo e a ligação. Fica o pedido, o setor e o aviso ao cliente.",
+    replacesTitle: "Sai da frente",
+    replaces: [
+      { from: "Caderno da recepção", to: "Pedido com código e prazo" },
+      { from: "Grupo de WhatsApp da equipe", to: "Kanban por setor" },
+      { from: "Planilha do dono", to: "Financeiro e métricas no Pro" },
+      { from: "Ligação “já ficou pronto?”", to: "Consulta pública e e-mail" },
+    ],
+    reasonsTitle: "Por isso empresas de vários ramos escolhem",
+    reasons: [
+      {
+        title: "Um preço por empresa",
+        desc: "Não cobra por pessoa. A equipe entra, o plano continua o mesmo.",
+      },
+      {
+        title: "O cliente consulta sozinho",
+        desc: "Link e QR na etiqueta. Status e previsão, sem a loja atender o telefone.",
+      },
+      {
+        title: "Setores do jeito da operação",
+        desc: "Recebido, produção, pronto — ou os nomes da sua área. A fila é sua.",
+      },
+      {
+        title: "7 dias, sem cartão",
+        desc: "Sobe a empresa, testa com pedido real, cancela se não for a hora.",
+      },
+    ],
+    cta: "Testar grátis por 7 dias",
   },
   pricing: {
     title: "Preço claro. Uma empresa, um plano.",
@@ -247,6 +326,14 @@ const pt = {
         q: "Dá para ter conta por setor?",
         a: "Sim. Quem administra vê tudo; contas de setor veem só a própria fila e encaminham o pedido.",
       },
+      {
+        q: "É só para sapataria?",
+        a: "Não. Nasceu em calçados e já atende quem tem fila: lavanderia, assistência, atelier, auto leve, gráfica. O item muda. O fluxo não.",
+      },
+      {
+        q: "Substitui o WhatsApp da oficina?",
+        a: "Substitui o grupo como fila e a ligação de status. A equipe ainda pode falar com o cliente; o pedido, o setor e o “está pronto” ficam no sistema.",
+      },
     ],
   },
   footer: {
@@ -258,6 +345,7 @@ const pt = {
 const en: typeof pt = {
   nav: {
     product: "Product",
+    clients: "Who uses it",
     trades: "Trades",
     pricing: "Pricing",
     faq: "FAQ",
@@ -270,6 +358,7 @@ const en: typeof pt = {
     cta: "Try free for 7 days",
     secondary: "I have an account",
     note: "No card · Setup in minutes · Cancel anytime",
+    social: "Already running in cobbler shops, repair benches and other queued trades.",
   },
   film: {
     live: "Live operation",
@@ -353,6 +442,7 @@ const en: typeof pt = {
     ],
   },
   proof: {
+    title: "Numbers from shops already live, not from a pitch.",
     items: [
       { value: "1,000+", label: "orders run on Worqera" },
       { value: "R$ 200k+", label: "generated for clients" },
@@ -390,15 +480,15 @@ const en: typeof pt = {
     line: "Service, counter sales, making and custom work share the same operation: order, product, stock and notice.",
     hint: "The item name and the sectors are set on the company. There is no separate system per trade.",
     items: [
-      { trade: "Footwear", item: "Shoe" },
-      { trade: "Laundry", item: "Garment" },
-      { trade: "Repair", item: "Device" },
-      { trade: "Automotive", item: "Vehicle" },
-      { trade: "Atelier", item: "Made to measure" },
-      { trade: "Print", item: "Print job" },
-      { trade: "Woodwork", item: "Furniture" },
-      { trade: "Optical", item: "Glasses" },
-      { trade: "Pet", item: "Accessory" },
+      { slug: "sapataria", trade: "Footwear", item: "Shoe", use: "The pair comes in, moves through sectors and the customer checks the code." },
+      { slug: "lavanderia", trade: "Laundry", item: "Garment", use: "The piece gets a due date. The customer stops calling to ask if it is ready." },
+      { slug: "assistencia", trade: "Repair", item: "Device", use: "A work order with stage, due date and pickup." },
+      { slug: "automotivo", trade: "Automotive", item: "Vehicle", use: "Detailing, light bodywork and the same queue." },
+      { slug: "atelier", trade: "Atelier", item: "Made to measure", use: "Alterations and custom work move as orders, not as chats." },
+      { slug: "grafica", trade: "Print", item: "Print job", use: "Art comes in, production pulls it, the customer sees when to collect." },
+      { slug: "marcenaria", trade: "Woodwork", item: "Furniture", use: "Made-to-order with real stages, not a guess." },
+      { slug: "otica", trade: "Optical", item: "Glasses", use: "Repair and fitting with a code and a ready notice." },
+      { slug: "pet", trade: "Pet", item: "Accessory", use: "A service with a pickup time and no status texts." },
     ],
   },
   practice: {
@@ -418,9 +508,85 @@ const en: typeof pt = {
     mailTo: "ana@cliente.com",
   },
   clients: {
-    title: "Partners",
-    subtitle: "Companies running on Worqera, day to day.",
-    names: ["Casa do Tênis", "Sapataria Paulista", "Axisbyte"],
+    title: "Who already runs on Worqera",
+    subtitle: "People with a real queue. Short, straight, the way the shop talks.",
+    items: [
+      {
+        name: "Casa do Tênis",
+        trade: "Footwear",
+        line: "Restoration on Av. Paulista. The pair comes in, the sector pulls it, the customer checks the code.",
+      },
+      {
+        name: "Sapataria Paulista",
+        trade: "Footwear",
+        line: "Repairs and soles on the kanban, from the counter to handover.",
+      },
+      {
+        name: "Axisbyte",
+        trade: "Operations",
+        line: "Builds Worqera and runs on it. A customer, not the brand behind it.",
+      },
+    ],
+    stories: [
+      {
+        quote:
+          "We take care of sneakers every day. What changed wasn’t the screen — it was the sector. Each one sees its own queue. Production moves faster. And when the customer asks, we find the pair right away.",
+        name: "Junior Ribeiro",
+        role: "Partner",
+        company: "Casa do Tênis",
+        place: "Av. Paulista, São Paulo",
+        href: "https://acasadotenis.com.br",
+      },
+      {
+        quote:
+          "In the cobbler shop the order lived in whoever was at the bench. Now it has a code, a sector and a due date. The team produces more because nobody hunts for the job. The customer checks it alone.",
+        name: "Thiago Landes",
+        role: "Partner",
+        company: "Sapataria Paulista",
+        place: "São Paulo",
+        href: "",
+      },
+      {
+        quote:
+          "Axisbyte builds Worqera and runs Worqera. Order, sector, customer notice. If our own queue can’t take the day, a shop’s queue won’t either. That’s the real test.",
+        name: "Eduardo",
+        role: "Founder",
+        company: "Axisbyte",
+        place: "São Paulo",
+        href: "",
+      },
+    ],
+  },
+  why: {
+    title: "The office already has software. The queue is still a notebook.",
+    subtitle: "Drop the paper, the group chat and the phone. Keep the order, the sector and the customer notice.",
+    replacesTitle: "What leaves",
+    replaces: [
+      { from: "Front-desk notebook", to: "Order with a code and a due date" },
+      { from: "Team WhatsApp group", to: "Kanban by sector" },
+      { from: "Owner spreadsheet", to: "Finance and metrics on Pro" },
+      { from: "“Is it ready yet?” calls", to: "Public tracking and email" },
+    ],
+    reasonsTitle: "Why companies in many trades pick it",
+    reasons: [
+      {
+        title: "One price per company",
+        desc: "No per-seat billing. The team joins, the plan stays the same.",
+      },
+      {
+        title: "The customer tracks alone",
+        desc: "Link and QR on the label. Status and due date, without the shop answering the phone.",
+      },
+      {
+        title: "Sectors that match the floor",
+        desc: "Received, production, ready — or the names your trade uses. The queue is yours.",
+      },
+      {
+        title: "7 days, no card",
+        desc: "Stand the company up, try a real order, cancel if it is not the moment.",
+      },
+    ],
+    cta: "Try free for 7 days",
   },
   pricing: {
     title: "Clear pricing. One company, one plan.",
@@ -501,6 +667,14 @@ const en: typeof pt = {
       {
         q: "Can I have sector accounts?",
         a: "Yes. Admins see everything; sector accounts see their own queue and forward orders.",
+      },
+      {
+        q: "Is it only for cobbler shops?",
+        a: "No. It started in footwear and already fits any queued trade: laundry, repair, atelier, light auto, print. The item changes. The flow does not.",
+      },
+      {
+        q: "Does it replace the shop WhatsApp?",
+        a: "It replaces the group as a queue and the status call. The team can still talk to the customer; the order, the sector and “it’s ready” live in the system.",
       },
     ],
   },
