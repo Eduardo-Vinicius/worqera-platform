@@ -104,6 +104,14 @@ async function listShops({ q, status, limit = 50 } = {}) {
             planCode: sub.planCode,
             currentPeriodEnd: sub.currentPeriodEnd,
             provider: sub.provider,
+            founderUntil: sub.founder?.until || null,
+          }
+        : null,
+      whatsapp: shop.whatsappCloud?.status && shop.whatsappCloud.status !== 'off'
+        ? {
+            status: shop.whatsappCloud.status,
+            paymentOk: Boolean(shop.whatsappCloud.paymentOk),
+            displayPhone: shop.whatsappCloud.displayPhone || '',
           }
         : null,
     };
@@ -198,6 +206,18 @@ async function patchShop(shopId, updates = {}) {
     ).lean();
   }
 
+  if (typeof updates.founder === 'boolean') {
+    const { FOUNDER_PRICE_CENTS } = require('./billingService');
+    const founder = updates.founder
+      ? { priceCents: FOUNDER_PRICE_CENTS, until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
+      : { priceCents: null, until: null };
+    subscription = await Subscription.findOneAndUpdate(
+      { shopId },
+      { $set: { founder } },
+      { new: true, upsert: true }
+    ).lean();
+  }
+
   return {
     id: shop._id,
     name: shop.name,
@@ -212,6 +232,7 @@ async function patchShop(shopId, updates = {}) {
           planCode: subscription.planCode,
           currentPeriodEnd: subscription.currentPeriodEnd,
           provider: subscription.provider,
+          founderUntil: subscription.founder?.until || null,
         }
       : null,
   };

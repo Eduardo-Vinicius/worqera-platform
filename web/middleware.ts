@@ -140,6 +140,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/billing') ||
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/clientes') ||
+      pathname.startsWith('/orcamentos') ||
       pathname === '/pedidos' ||
       pathname.startsWith('/pedidos/');
     if (blocked) {

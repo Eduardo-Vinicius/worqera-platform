@@ -15,5 +15,6 @@ router.get('/delays', ...guard, metricsController.delays);
 router.get('/summary', ...guard, metricsController.summary);
 router.get('/finance', ...guard, metricsController.finance);
 router.get('/overview', ...guard, metricsController.overview);
+router.get('/insights', ...guard, require('../controllers/aiController').insights);
 
 module.exports = router;

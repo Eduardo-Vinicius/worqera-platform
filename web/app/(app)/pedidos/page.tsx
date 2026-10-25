@@ -53,6 +53,8 @@ function statusLabel(status?: string) {
       return "Em andamento"
     case "open":
       return "Aberto"
+    case "cancelled":
+      return "Cancelado"
     default:
       return status || ""
   }
@@ -402,7 +404,9 @@ export default function PedidosPage() {
                             </Badge>
                           )}
                           {order.status && (
-                            <Badge variant="outline">{statusLabel(order.status)}</Badge>
+                            <Badge variant="outline">
+                              {order.quoteRefusal?.refusedAt ? "Orçamento recusado" : statusLabel(order.status)}
+                            </Badge>
                           )}
                           {tab === "lixeira" && deleted ? (
                             <Badge variant="secondary" className="text-xs">

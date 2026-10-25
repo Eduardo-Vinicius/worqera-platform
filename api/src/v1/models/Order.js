@@ -144,6 +144,19 @@ const orderSchema = new mongoose.Schema(
     deletedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     /** Set when reopened for rework; cleared when delivered again. */
     reopenedAt: { type: Date, default: null },
+    /** Plain-language summary for the customer (laudo + public page). AI on Business, editable. */
+    customerSummary: {
+      text: { type: String, default: '' },
+      ai: { type: Boolean, default: false },
+      edited: { type: Boolean, default: false },
+      at: { type: Date, default: null },
+    },
+    /** Customer refused the quote: order is cancelled and lives on in Orçamentos. */
+    quoteRefusal: {
+      quoteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quote', default: null },
+      refusedAt: { type: Date, default: null },
+      reason: { type: String, default: null },
+    },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
     pdfUrl: { type: String, default: null },
     /**

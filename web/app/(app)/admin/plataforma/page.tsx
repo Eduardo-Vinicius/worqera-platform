@@ -280,6 +280,69 @@ export default function PlatformPortalPage() {
               </section>
             </div>
 
+            <div className="grid gap-4 lg:grid-cols-2">
+              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
+                  <h2 className="text-sm font-semibold">IA no mês</h2>
+                  <span className="text-xs text-[var(--wq-text-muted)]">
+                    {ops?.ai?.configured ? `${ops.ai.model} · ${ops.ai.deepModel}` : "Sem OPENAI_API_KEY"}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-4 px-4 py-3">
+                  <p className="text-2xl font-semibold tabular-nums">US$ {(ops?.ai?.totalUsd ?? 0).toFixed(2)}</p>
+                  <p className="text-sm text-[var(--wq-text-muted)]">
+                    ≈ R$ {((ops?.ai?.totalUsd ?? 0) * 5.7).toFixed(2)} · {ops?.ai?.calls ?? 0} chamadas
+                  </p>
+                </div>
+                <ul className="max-h-56 divide-y divide-[var(--wq-border)] overflow-y-auto border-t border-[var(--wq-border)]">
+                  {(ops?.ai?.shops || []).length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-[var(--wq-text-muted)]">Nenhuma chamada de IA este mês.</li>
+                  ) : (
+                    ops?.ai?.shops.map((row) => (
+                      <li key={row.shopId} className="flex items-center justify-between px-4 py-2 text-sm">
+                        <span className="truncate">{row.shopName || row.shopId}</span>
+                        <span className={`tabular-nums ${row.blocked ? "font-semibold text-rose-600" : "text-[var(--wq-text-muted)]"}`}>
+                          {row.used}/{row.limit} usos · US$ {row.costUsd.toFixed(3)}
+                          {row.failed ? ` · ${row.failed} falhas` : ""}
+                          {row.blocked ? " · limite" : ""}
+                        </span>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </section>
+
+              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
+                  <h2 className="text-sm font-semibold">WhatsApp oficial no mês</h2>
+                  <span className="text-xs text-[var(--wq-text-muted)]">
+                    {ops?.whatsapp?.configured ? "Meta configurada" : "Meta não configurada"}
+                  </span>
+                </div>
+                <ul className="max-h-72 divide-y divide-[var(--wq-border)] overflow-y-auto">
+                  {(ops?.whatsapp?.shops || []).length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-[var(--wq-text-muted)]">Nenhuma loja com número conectado.</li>
+                  ) : (
+                    ops?.whatsapp?.shops.map((row) => (
+                      <li key={row.shopId} className="px-4 py-2.5 text-sm">
+                        <p className="flex items-center justify-between gap-2">
+                          <span className="truncate font-medium">{row.name}</span>
+                          <span className="tabular-nums">Meta R$ {row.metaCostBrl.toFixed(2)}</span>
+                        </p>
+                        <p className="text-xs text-[var(--wq-text-muted)]">
+                          {row.status}
+                          {row.paymentOk ? " · cartão ok" : " · sem cartão"} · {row.counts.utility} avisos ·{" "}
+                          {row.counts.marketing} retomadas
+                          {row.overageBrl > 0 ? ` · excedente R$ ${row.overageBrl.toFixed(2)}` : ""}
+                          {row.overageDue ? ` · em aberto ${row.overageDue.month}: R$ ${row.overageDue.amountBrl.toFixed(2)}` : ""}
+                        </p>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </section>
+            </div>
+
             <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">Operação da API</p>
 
             <div className="flex flex-wrap items-center gap-2">

@@ -23,6 +23,7 @@ import {
   FileText,
   Mail,
   MessageCircle,
+  PhoneOff,
   Plus,
   Printer,
   RefreshCw,
@@ -64,6 +65,7 @@ import { formatBRL, moneyVisibility, readOrderPricing, roundMoney } from "@/lib/
 import { MoneyField } from "@/components/orders/MoneyField"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { laudoSaveMessage, type LaudoNotice } from "@/components/orders/laudoNotice"
+import { RefuseQuoteDialog } from "@/components/quotes/RefuseQuoteDialog"
 
 type OrderCard = {
   _id?: string
@@ -877,6 +879,7 @@ export default function KanbanPage() {
   const [detailItemIndex, setDetailItemIndex] = useState<number | null>(null)
   const [showAllOrderPhotos, setShowAllOrderPhotos] = useState(false)
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
+  const [refuseOpen, setRefuseOpen] = useState(false)
   const isSectorRole = membershipRole === "sector"
   const moneyTone = moneyVisibility(membershipRole)
   // Soma da coluna fica oculta por ora, inclusive para admin e dono.
@@ -2507,6 +2510,18 @@ export default function KanbanPage() {
                     <Link href={`/pedidos/${detail.id}/etiqueta`}>Ver etiqueta</Link>
                   </Button>
 
+                  {!isSectorRole && detail.id && detail.status !== "delivered" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
+                      onClick={() => setRefuseOpen(true)}
+                    >
+                      <PhoneOff className="mr-1.5 h-4 w-4" />
+                      Cliente não fechou
+                    </Button>
+                  ) : null}
+
                   <Button
                     type="button"
                     variant="outline"
@@ -2537,6 +2552,26 @@ export default function KanbanPage() {
           </aside>
         </div>
       )}
+
+      <RefuseQuoteDialog
+        open={refuseOpen}
+        onOpenChange={setRefuseOpen}
+        order={
+          detail?.id
+            ? {
+                id: String(detail.id),
+                code: detail.code,
+                clientName: detail.clientName || detail.client?.name || detail.client?.nomeCompleto,
+                total: roundMoney(detailPrice),
+              }
+            : null
+        }
+        onDone={() => {
+          setDetailOpen(false)
+          setDetail(null)
+          void load()
+        }}
+      />
 
       <Dialog open={priceAskOpen} onOpenChange={setPriceAskOpen}>
         <DialogContent className="max-w-sm">

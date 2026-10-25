@@ -6,6 +6,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../ai/ai_widgets.dart';
 import '../lookup/simple_lists.dart';
 import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
@@ -202,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w700))),
+                  if (!widget.session.isSector) DailyBriefCard(api: widget.api, session: widget.session),
                   if (showChecklist) ...[
                     WqCard(
                       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),

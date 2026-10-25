@@ -21,6 +21,7 @@ import {
   Tv,
   Monitor,
   Star,
+  HandCoins,
   type LucideIcon,
 } from "lucide-react"
 
@@ -60,6 +61,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard, hideForSector: true },
       { href: "/kanban", label: "Kanban", icon: KanbanSquare, serviceKey: "kanban" },
       { href: "/pedidos", label: "Pedidos", icon: ClipboardList, hideForSector: true, serviceKey: "orders" },
+      { href: "/orcamentos", label: "Orçamentos", icon: HandCoins, hideForSector: true, serviceKey: "orders" },
       { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true, serviceKey: "clients" },
       { href: "/consultas", label: "Consultas", icon: Search, serviceKey: "consultas" },
       { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true, serviceKey: "reviews" },

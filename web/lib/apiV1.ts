@@ -479,6 +479,7 @@ export async function patchPlatformShopV1(
     planCode: string
     adminNote: string
     seal: string
+    founder: boolean
   }>
 ) {
   return v1Fetch(`/platform/shops/${encodeURIComponent(id)}`, {
@@ -547,6 +548,37 @@ export async function getPlatformOpsV1() {
     shops: { total: number; suspended: number; trialing: number; active: number; openOrders: number }
     notices: PlatformNotice[]
     disabled: Array<{ kind: "feature" | "service"; key: string; label: string }>
+    ai?: {
+      configured: boolean
+      model: string
+      deepModel: string
+      totalUsd: number
+      calls: number
+      shops: Array<{
+        shopId: string
+        shopName: string
+        calls: number
+        failed: number
+        costUsd: number
+        used: number
+        limit: number
+        blocked: boolean
+      }>
+    }
+    whatsapp?: {
+      configured: boolean
+      shops: Array<{
+        shopId: string
+        name: string
+        status: string
+        paymentOk: boolean
+        displayPhone: string
+        metaCostBrl: number
+        overageBrl: number
+        counts: { utility: number; marketing: number; service: number }
+        overageDue: { month: string; amountBrl: number } | null
+      }>
+    }
   }>("/platform/ops")
 }
 
@@ -1089,6 +1121,295 @@ export async function productSummaryV1() {
     low: Array<{ id: string; name: string; available: number }>
     movements: Array<{ id: string; productName: string; variantName?: string; type: string; quantity: number; reason: string; orderCode?: string; createdAt?: string }>
   } }>("/products/summary")
+}
+
+export type QuoteStage = "new" | "contact" | "followup" | "lost" | "won"
+export type QuoteReason = "price" | "deadline" | "thinking" | "other_shop" | "no_need" | "other"
+
+export type QuoteActivity = {
+  id: string
+  kind: "created" | "refused" | "stage" | "note" | "call" | "whatsapp" | "won" | "lost" | "reopened" | "reply"
+  text: string
+  stage: QuoteStage | null
+  byName: string
+  at: string
+}
+
+export type Quote = {
+  id: string
+  clientId: string | null
+  orderId: string | null
+  orderCode: string
+  source: "order" | "counter"
+  name: string
+  phone: string
+  phoneDigits: string
+  email: string
+  what: string
+  value: number
+  stage: QuoteStage
+  reason: QuoteReason | null
+  reasonLabel: string
+  reasonNote: string
+  followUpAt: string | null
+  followUp: { state: "overdue" | "today" | "later" | "none"; days: number }
+  notes: string
+  contactCount: number
+  lastContactAt: string | null
+  wonAt: string | null
+  lostAt: string | null
+  wonOrderId: string | null
+  priority: { level: "high" | "medium" | "low" | "none"; score: number; hint: string }
+  activity: QuoteActivity[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type QuoteSummary = {
+  openCount: number
+  openValue: number
+  todayCount: number
+  overdueCount: number
+  wonCount30d: number
+  wonValue30d: number
+  lostCount30d: number
+  recoveryRate: number
+  byStage: Record<QuoteStage, number>
+}
+
+export type QuotePrefill = {
+  clientId: string | null
+  name: string
+  phone: string
+  email: string
+  what: string
+  value: number
+}
+
+export async function listQuotesV1(params: { view?: "today" | "board" | "all"; q?: string; clientId?: string } = {}) {
+  const qs = new URLSearchParams()
+  if (params.view) qs.set("view", params.view)
+  if (params.q) qs.set("q", params.q)
+  if (params.clientId) qs.set("clientId", params.clientId)
+  const suffix = qs.toString() ? `?${qs}` : ""
+  return v1Fetch<{ view: string; quotes: Quote[]; summary: QuoteSummary; channels?: QuoteChannels }>(
+    `/quotes${suffix}`
+  )
+}
+
+export type QuoteChannels = { ai: boolean; whatsappOfficial: boolean }
+
+export async function getQuoteV1(id: string) {
+  return v1Fetch<{ quote: Quote; channels?: QuoteChannels }>(`/quotes/${encodeURIComponent(id)}`)
+}
+
+export async function createQuoteV1(body: {
+  clientId?: string | null
+  name: string
+  phone?: string
+  email?: string
+  what?: string
+  value?: number
+  reason?: QuoteReason | null
+  reasonNote?: string
+  followUpAt?: string | null
+  notes?: string
+}) {
+  return v1Fetch<{ quote: Quote }>("/quotes", { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function patchQuoteV1(
+  id: string,
+  body: Partial<{
+    name: string
+    phone: string
+    email: string
+    what: string
+    value: number
+    stage: QuoteStage
+    reason: QuoteReason | null
+    reasonNote: string
+    followUpAt: string | null
+    notes: string
+  }>
+) {
+  return v1Fetch<{ quote: Quote; order?: any; prefill?: QuotePrefill | null }>(
+    `/quotes/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(body) }
+  )
+}
+
+export async function addQuoteActivityV1(
+  id: string,
+  body: { kind: "call" | "whatsapp" | "note"; text?: string; followUpAt?: string | null }
+) {
+  return v1Fetch<{ quote: Quote }>(`/quotes/${encodeURIComponent(id)}/activity`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function suggestQuoteMessageV1(id: string) {
+  return v1Fetch<{
+    ai: boolean
+    options: Array<{ tone: string; label: string; text: string; waUrl: string | null }>
+    aiQuota?: AiQuota | null
+  }>(`/quotes/${encodeURIComponent(id)}/suggest`, { method: "POST", body: "{}" })
+}
+
+export async function winQuoteV1(id: string) {
+  return v1Fetch<{ quote: Quote; order: any | null; prefill: QuotePrefill | null }>(
+    `/quotes/${encodeURIComponent(id)}/win`,
+    { method: "POST", body: "{}" }
+  )
+}
+
+export async function deleteQuoteV1(id: string) {
+  return v1Fetch<{ ok: boolean }>(`/quotes/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export async function refuseOrderQuoteV1(
+  orderId: string,
+  body: { reason: QuoteReason; reasonNote?: string; followUpAt?: string | null }
+) {
+  return v1Fetch<{ order: any; quote: Quote }>(`/orders/${encodeURIComponent(orderId)}/refuse-quote`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export type DailyBrief = {
+  day: string
+  text: string
+  ai: boolean
+  numbers: {
+    ready: number
+    open: number
+    overdue: number
+    dueTomorrow: number
+    tomorrowBySector: Array<{ name: string; count: number }>
+    callToday: number
+    callOverdue: number
+    quotesOpenValue: number
+  }
+}
+
+export type AiQuota = {
+  used: number
+  limit: number
+  included: number
+  extra: number
+  left: number
+  percent: number
+  blocked: boolean
+  nearLimit: boolean
+  resetsAt: string
+}
+
+export async function getAiQuotaV1() {
+  return v1Fetch<{ business: boolean; configured: boolean; quota: AiQuota | null }>("/ai/quota")
+}
+
+export async function platformAiQuotaV1(shopId: string, body: { extraCalls?: number; monthlyCap?: number | null }) {
+  return v1Fetch<{ quota: AiQuota }>(`/platform/shops/${encodeURIComponent(shopId)}/ai`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getDailyBriefV1(refresh = false) {
+  return v1Fetch<{ brief: DailyBrief; business: boolean; aiQuota: AiQuota | null }>(
+    `/dashboard/brief${refresh ? "?refresh=1" : ""}`
+  )
+}
+
+export async function getWeeklyInsightsV1(refresh = false) {
+  return v1Fetch<{
+    locked: boolean
+    insights: { week: string; bullets: string[]; ai: boolean } | null
+    aiQuota?: AiQuota | null
+  }>(`/metrics/insights${refresh ? "?refresh=1" : ""}`)
+}
+
+/** `text` saves the team's wording; no text asks the AI (Business). */
+export async function customerSummaryV1(orderId: string, text?: string) {
+  return v1Fetch<{
+    customerSummary: { text: string; ai: boolean; edited: boolean } | null
+    ai?: boolean
+    aiQuota?: AiQuota | null
+  }>(`/orders/${encodeURIComponent(orderId)}/customer-summary`, {
+    method: "POST",
+    body: JSON.stringify(text != null ? { text } : {}),
+  })
+}
+
+export async function suggestReviewReplyV1(orderId: string) {
+  return v1Fetch<{
+    ai: boolean
+    options: Array<{ tone: string; label: string; text: string }>
+    aiQuota?: AiQuota | null
+  }>(`/orders/${encodeURIComponent(orderId)}/feedback/reply-suggest`, { method: "POST", body: "{}" })
+}
+
+export type WhatsAppCloudStatus = {
+  configured: boolean
+  business: boolean
+  status: "off" | "pending" | "connected" | "paused"
+  displayPhone: string
+  verifiedName: string
+  paymentOk: boolean
+  pausedReason: string
+  autoReady: boolean
+  consentAtCounter: boolean
+  canSend: boolean
+  blockedReason: string | null
+  blockedText: string
+  usage: {
+    counts: { utility: number; marketing: number; service: number }
+    pack: { utility: number; marketing: number }
+    cap: { utility: number; marketing: number }
+    extra: { utility: number; marketing: number }
+    metaCostBrl: number
+    overageBrl: number
+    percentOfPack: { utility: number; marketing: number }
+  } | null
+  overage: { month: string; amountBrl: number; since: string | null; paidAt: string | null } | null
+  rates: { utility: number; marketing: number; service: number }
+  overagePrices: { utility: number; marketing: number }
+  signup: { appId: string; configId: string; graphVersion: string } | null
+}
+
+export async function getWhatsAppV1() {
+  return v1Fetch<WhatsAppCloudStatus>("/whatsapp")
+}
+
+export async function connectWhatsAppV1(body: { code: string; wabaId: string; phoneNumberId: string; coexistence?: boolean }) {
+  return v1Fetch<WhatsAppCloudStatus>("/whatsapp/connect", { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function patchWhatsAppV1(body: { autoReady?: boolean; consentAtCounter?: boolean }) {
+  return v1Fetch<WhatsAppCloudStatus>("/whatsapp", { method: "PATCH", body: JSON.stringify(body) })
+}
+
+export async function disconnectWhatsAppV1() {
+  return v1Fetch<WhatsAppCloudStatus>("/whatsapp/disconnect", { method: "POST", body: "{}" })
+}
+
+export async function sendQuoteWhatsAppV1(quoteId: string) {
+  return v1Fetch<{ ok: boolean; reason?: string; message?: string; followUpsLeft?: number }>(
+    `/quotes/${encodeURIComponent(quoteId)}/whatsapp`,
+    { method: "POST", body: "{}" }
+  )
+}
+
+export async function platformWhatsAppV1(
+  shopId: string,
+  body: { paymentOk?: boolean; paused?: boolean; pausedReason?: string; overagePaid?: boolean; capBoost?: boolean }
+) {
+  return v1Fetch<WhatsAppCloudStatus>(`/platform/shops/${encodeURIComponent(shopId)}/whatsapp`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
 }
 
 /** Clears refresh cookie on API then local session. */

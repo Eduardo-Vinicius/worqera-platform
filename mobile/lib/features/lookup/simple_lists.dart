@@ -10,6 +10,7 @@ import '../../design/sheet.dart';
 import '../../design/ui.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
+import '../quotes/quotes_screen.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key, required this.api, this.openClient, this.session});
@@ -317,6 +318,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                   ]),
                 ),
+                if (widget.session != null)
+                  ClientQuotesSection(api: widget.api, session: widget.session!, clientId: widget.clientId),
                 const SizedBox(height: 12),
                 const WqSectionTitle('Pedidos'),
                 for (final order in orders)

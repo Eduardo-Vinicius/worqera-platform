@@ -31,14 +31,19 @@ function noticeIsLive(notice, now = new Date()) {
 }
 
 exports.ops = wrap(async (_req, res) => {
-  const [ops, config, notices, shops, mail] = await Promise.all([
+  const { monthUsageByShop, aiConfigured, modelFor, quotaFor } = require('../services/aiService');
+  const { platformOverview } = require('../services/whatsappCloud');
+  const [ops, config, notices, shops, mail, aiRows, whatsapp] = await Promise.all([
     readOpsSnapshot(),
     platformConsole.getConfig(),
     platformConsole.listNotices(),
     platformService.listShops({ limit: 200 }),
     listRecentMailLogs(40),
+    monthUsageByShop().catch(() => []),
+    platformOverview().catch(() => ({ configured: false, shops: [] })),
   ]);
   const shopName = Object.fromEntries(shops.map((s) => [String(s.id), s.name]));
+  const aiQuotas = await Promise.all(aiRows.map((r) => quotaFor(r._id).catch(() => null)));
   const disabled = [
     ...(config.features || [])
       .filter((f) => !f.enabled)
@@ -70,6 +75,24 @@ exports.ops = wrap(async (_req, res) => {
     },
     notices: notices.filter((n) => noticeIsLive(n)).slice(0, 8),
     disabled,
+    ai: {
+      configured: aiConfigured(),
+      model: modelFor('fast'),
+      deepModel: modelFor('deep'),
+      totalUsd: Math.round(aiRows.reduce((sum, r) => sum + (r.costUsd || 0), 0) * 10000) / 10000,
+      calls: aiRows.reduce((sum, r) => sum + (r.calls || 0), 0),
+      shops: aiRows.map((r, i) => ({
+        shopId: String(r._id),
+        shopName: shopName[String(r._id)] || '',
+        calls: r.calls,
+        failed: r.failed,
+        costUsd: Math.round((r.costUsd || 0) * 10000) / 10000,
+        used: aiQuotas[i]?.used ?? 0,
+        limit: aiQuotas[i]?.limit ?? 0,
+        blocked: Boolean(aiQuotas[i]?.blocked),
+      })),
+    },
+    whatsapp,
   });
 });
 

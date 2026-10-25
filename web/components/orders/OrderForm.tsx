@@ -299,6 +299,20 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       /* ignore */
     }
     setFormData((prev) => (prev.expectedDate ? prev : { ...prev, expectedDate: dueInDays(15) }))
+    const params = new URLSearchParams(window.location.search)
+    const prefillId = params.get("clientId") || ""
+    const prefillName = params.get("clientName") || ""
+    const prefillPhone = params.get("clientPhone") || ""
+    const prefillObs = params.get("obs") || ""
+    if (prefillObs) setFormData((prev) => ({ ...prev, observations: prev.observations || prefillObs }))
+    if (prefillId) {
+      setFormData((prev) => ({ ...prev, clientId: prefillId }))
+      setClientNameOverride(prefillName)
+      setClientPhone(prefillPhone)
+    } else if (prefillName) {
+      setShowNewClient(true)
+      setNewClient((prev) => ({ ...prev, nomeCompleto: prefillName, telefone: prefillPhone }))
+    }
   }, [isEdit])
 
   useEffect(() => {

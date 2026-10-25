@@ -1,5 +1,19 @@
 # Worqera API — Change log
 
+## 2026-10-25
+
+- **Limite de IA:** 1.000 usos por mês no Business, só os que deram certo. Acabou, a IA para até o dia 1º e as respostas avisam `aiQuota.blocked`. O admin Worqera soma usos no mês ou muda o limite da loja.
+
+## 2026-10-24
+
+- **IA no Business:** resumo do dia, leitura da semana (também no e-mail semanal), texto do laudo para o cliente, resposta para avaliação e textos de orçamento. Fora do Business, ou sem chave, os mesmos números saem em texto pronto. Cada chamada grava tokens e custo; teto de 2.000 por loja por mês.
+- **WhatsApp oficial:** conectar número (Embedded Signup), aviso de pedido pronto, retomada de orçamento, webhook de entrega e resposta. Desligado até a Meta ser configurada. Pacote do Business, teto, excedente, PARAR e pausa quando a loja tira o acesso.
+- **Planos:** Business R$ 697. Preço de fundador R$ 499 por 12 meses, marcado pelo admin Worqera.
+- **Orçamentos:** `/quotes` guarda quem não fechou, com motivo, dia de ligar, contatos e histórico. Dá para registrar do balcão, sem pedido.
+- **Pedido:** `POST /orders/:id/refuse-quote` tira o pedido da fila (cancelado, estoque devolvido) e abre o orçamento. Ao recuperar, o pedido volta para o setor em que estava.
+- **Ligar hoje:** a lista vem ordenada por prioridade: retorno atrasado, motivo, valor e quantos contatos já houve.
+- **Mensagem:** três textos para o WhatsApp no tom da loja. Com `OPENAI_API_KEY`, a IA escreve e a resposta marca `ai: true`.
+
 ## 2026-10-23
 
 - **Produtos:** o catálogo e o estoque passam a ser da oficina (dono e admin). Item Da loja reserva e baixa para qualquer pedido da loja.

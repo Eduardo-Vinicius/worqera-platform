@@ -424,6 +424,7 @@ async function moveOrderItem(shopId, orderId, itemId, membership, userId, body) 
         notifyOrderStatusSafe(shop, order.toObject ? order.toObject() : order, 'ready', {
           sectorName: publicSectorName,
         });
+        require('./whatsappCloud').notifyReadySafe(shop, order.toObject ? order.toObject() : order);
       }
     } catch (_err) {
       // never block move

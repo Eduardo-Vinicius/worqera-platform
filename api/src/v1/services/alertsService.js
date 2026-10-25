@@ -175,6 +175,26 @@ async function sendWeeklyDigest(shopId) {
         .join('\n')
     : '• Nenhum pedido finalizado nos últimos 7 dias';
 
+  let insightLines = '';
+  let insightHtml = '';
+  try {
+    const Subscription = require('../models/Subscription');
+    const { isBusinessPlan } = require('../lib/planCap');
+    const sub = await Subscription.findOne({ shopId }).select('planCode').lean();
+    if (isBusinessPlan(sub?.planCode)) {
+      const { weeklyInsights } = require('./aiFeatures');
+      const insights = await weeklyInsights(shopId, { aiAllowed: true });
+      if (insights?.bullets?.length) {
+        insightLines = insights.bullets.map((b) => `• ${b}`).join('\n');
+        insightHtml = `<h3>Leitura da semana${insights.ai ? ' (IA)' : ''}</h3><ul>${insights.bullets
+          .map((b) => `<li>${String(b).replace(/</g, '&lt;')}</li>`)
+          .join('')}</ul>`;
+      }
+    }
+  } catch (err) {
+    console.warn('[weekly] insights skipped', err?.message || err);
+  }
+
   const subject = `Resumo semanal · ${shop?.name || 'Worqera'} · ${stats.deliveredCount} finalizados`;
 
   const bodyText = [
@@ -185,6 +205,7 @@ async function sendWeeklyDigest(shopId) {
     `Em aberto agora: ${stats.openCount}`,
     `Em atraso: ${stats.delaysTotal}`,
     ``,
+    ...(insightLines ? ['Leitura da semana:', insightLines, ''] : []),
     `Top serviços:`,
     topLines,
     ``,
@@ -206,6 +227,7 @@ async function sendWeeklyDigest(shopId) {
       <li><strong>${stats.openCount}</strong> em aberto agora</li>
       <li><strong>${stats.delaysTotal}</strong> em atraso</li>
     </ul>
+    ${insightHtml}
     <h3>Top serviços</h3>
     <pre style="font-family:monospace;white-space:pre-wrap">${topLines}</pre>
     <h3>Finalizados (amostra)</h3>
@@ -459,6 +481,7 @@ async function listFeedback(shopId, opts = {}) {
       id: String(o._id),
       code: o.code,
       clientName: o.clientName || '',
+      clientPhone: o.clientPhone || '',
       status: o.status,
       score: o.feedback?.score,
       comment: o.feedback?.comment || '',

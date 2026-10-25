@@ -19,6 +19,9 @@ router.use('/services', require('./routes/serviceRoutes'));
 router.use('/accessories', require('./routes/accessoryRoutes'));
 router.use('/brands', require('./routes/brandRoutes'));
 router.use('/products', require('./routes/productRoutes'));
+router.use('/quotes', require('./routes/quoteRoutes'));
+router.use('/whatsapp', require('./routes/whatsappRoutes'));
+router.use('/ai', require('./routes/aiRoutes'));
 router.use('/platform', require('./routes/platformRoutes'));
 router.use('/runtime', require('./routes/runtimeRoutes'));
 router.use('/alerts', require('./routes/alertsRoutes'));
@@ -26,5 +29,10 @@ router.use('/invites', require('./routes/inviteRoutes'));
 
 // Webhook at /api/v1/webhooks/abacatepay
 router.post('/webhooks/abacatepay', billingController.abacateWebhook);
+
+// Meta WhatsApp Cloud API: /api/v1/webhooks/whatsapp
+const whatsappController = require('./controllers/whatsappController');
+router.get('/webhooks/whatsapp', whatsappController.webhookVerify);
+router.post('/webhooks/whatsapp', whatsappController.webhookReceive);
 
 module.exports = router;

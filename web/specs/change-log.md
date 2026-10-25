@@ -1,5 +1,25 @@
 # Worqera Web — Change log
 
+## 2026-10-25
+
+- **Limite de IA:** o Plano mostra "IA do mês: X de 1.000 usos". Perto do fim aparece quanto resta; ao acabar, um aviso explica que a IA volta no dia 1º e chama para falar com a Worqera. O site e o FAQ dizem 1.000 usos por mês no Business.
+- **Worqera:** Oficinas ganha "+500 usos de IA este mês"; a Visão geral mostra usos/limite por loja.
+
+## 2026-10-24
+
+- **Início:** Resumo do dia no topo, com prontos para avisar, orçamentos para ligar, atrasados e o que vence amanhã. No Business, a frase vem da IA.
+- **Financeiro:** Leitura da semana (Business).
+- **Pedido:** "O que o cliente lê" — texto do laudo e da consulta pública, escrito pela IA no Business e editável.
+- **Avaliações:** Sugerir resposta, para copiar ou mandar no WhatsApp.
+- **Empresa:** WhatsApp oficial (em breve até a Worqera ligar a Meta): conectar número, autorização do cliente, aviso automático de pronto e uso do pacote.
+- **Orçamentos:** com o WhatsApp oficial ativo, Retomar pelo WhatsApp oficial (até 2 por orçamento).
+- **Worqera:** Visão geral mostra o custo de IA e o WhatsApp do mês por loja. Oficinas ganha preço de fundador e controles do WhatsApp (cartão, pausa, excedente pago, teto).
+- **Planos:** Business R$ 697 no site, no checkout e na aba Plano; fundador aparece como R$ 499 até a data.
+- **Orçamentos:** novo item no menu, depois de Pedidos. Abre em Ligar hoje, ordenado por prioridade, com o que está na mesa, o recuperado em 30 dias e a taxa de recuperação. Quadro arrastável por etapa e aba Todos.
+- **Kanban e pedido:** botão Cliente não fechou, com motivo e dia de ligar. O pedido sai da fila, ganha a faixa Orçamento não fechado e abre em Orçamentos.
+- **Ficha do orçamento:** WhatsApp com três textos prontos (IA quando ligada), ligar, adiar, anotar e histórico. Fechou reabre o pedido; sem pedido, abre Novo pedido com o cliente preenchido.
+- **Cliente:** a ficha mostra os orçamentos daquela pessoa.
+
 ## 2026-10-23
 
 - **Catálogo:** `/admin/produtos` lista produtos, saldo e valor. Cadastro em ficha, variação em linha. Fora do menu. O pedido continua só com item do cliente.

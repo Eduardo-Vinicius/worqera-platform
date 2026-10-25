@@ -7,14 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   completeCheckoutDevV1,
   createCheckoutSessionV1,
+  getAiQuotaV1,
   getSubscriptionV1,
+  type AiQuota,
 } from "@/lib/apiV1"
+import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Check, CreditCard } from "lucide-react"
 
 export default function BillingPage() {
   const [sub, setSub] = useState<any>(null)
+  const [aiQuota, setAiQuota] = useState<AiQuota | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
@@ -23,6 +27,9 @@ export default function BillingPage() {
     try {
       const s = await getSubscriptionV1()
       setSub(s.subscription)
+      getAiQuotaV1()
+        .then((res) => setAiQuota(res.quota))
+        .catch(() => setAiQuota(null))
     } catch (err: any) {
       toast.error(err?.message || "Erro ao carregar billing")
     } finally {
@@ -88,8 +95,11 @@ export default function BillingPage() {
     WORQERA_BUSINESS: {
       name: "Worqera Business",
       short: "Business",
-      price: "Business · R$ 499/mês",
-      description: "Análises com IA, acompanhamento semanal, integração e treinamento. Tudo do Pro.",
+      price: sub?.price?.founderUntil
+        ? `Business · R$ 499/mês · preço de fundador até ${new Date(sub.price.founderUntil).toLocaleDateString("pt-BR")}`
+        : "Business · R$ 697/mês",
+      description:
+        "IA em orçamentos, resumo do dia e leitura semanal (1.000 usos por mês), WhatsApp oficial com pacote de mensagens, implantação e treinamento. Tudo do Pro.",
     },
   }
   const current = catalog[planCode] || (loading ? null : catalog.WORQERA_PRO)
@@ -106,7 +116,7 @@ export default function BillingPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Plano e assinatura"
-        subtitle="Basic R$ 97 · Pro R$ 197 · Business R$ 499"
+        subtitle="Basic R$ 97 · Pro R$ 197 · Business R$ 697"
         actions={
           !locked ? (
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -139,7 +149,7 @@ export default function BillingPage() {
             },
             {
               name: "Business",
-              price: "R$ 499",
+              price: sub?.price?.founderUntil ? "R$ 499" : "R$ 697",
               line: "Com a Worqera",
               tone: "border-amber-300 bg-amber-50 text-amber-950",
             },
@@ -188,6 +198,28 @@ export default function BillingPage() {
               </p>
             </div>
 
+            {aiQuota ? (
+              <div className="rounded-xl border border-[var(--wq-border)] p-3">
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="font-medium">IA do mês</span>
+                  <span className="tabular-nums text-[var(--wq-text-muted)]">
+                    {aiQuota.used.toLocaleString("pt-BR")} de {aiQuota.limit.toLocaleString("pt-BR")} usos
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--wq-paper)]">
+                  <div
+                    className={`h-full rounded-full ${aiQuota.blocked ? "bg-rose-500" : aiQuota.nearLimit ? "bg-amber-400" : "bg-[var(--wq-brand)]"}`}
+                    style={{ width: `${aiQuota.percent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-[var(--wq-text-muted)]">
+                  Cada texto que a IA escreve conta 1 uso: orçamento, resumo do dia, leitura da semana, texto do cliente e
+                  resposta de avaliação. Acabou, os textos saem prontos até o mês virar.
+                </p>
+                <AiQuotaNotice quota={aiQuota} always className="mt-2" />
+              </div>
+            ) : null}
+
             <ul className="space-y-2">
               {includes.map((item) => (
                 <li key={item} className="flex items-start gap-2 text-sm text-[var(--wq-text)]">
@@ -212,7 +244,7 @@ export default function BillingPage() {
             </Button>
 
             <p className="mt-2 text-sm text-[var(--wq-text-muted)]">
-              Basic R$ 97 · Pro R$ 197/mês · Business R$ 499. Cobrança via AbacatePay ou PIX.
+              Basic R$ 97 · Pro R$ 197/mês · Business R$ 697. Cobrança via AbacatePay ou PIX.
               Indique pelo link em Empresa (?ref=) — 1 mês grátis quando a oficina assinar.
             </p>
 

@@ -288,14 +288,14 @@ const pt = {
       {
         name: "Business",
         seal: "Com a Worqera",
-        price: "R$ 499",
+        price: "R$ 697",
         priceNote: "/mês",
-        description: "A gente lê o movimento com você.",
+        description: "A Worqera vende e lê a operação com você.",
         features: [
-          "Análises com IA",
-          "Acompanhamento semanal",
-          "Integração",
-          "Treinamento da equipe",
+          "IA em orçamentos e resumo do dia (1.000 usos/mês)",
+          "Leitura semanal da operação",
+          "WhatsApp oficial com pacote de mensagens",
+          "Implantação e treinamento",
           "Tudo do Pro",
         ],
         cta: "Falar com a Worqera",
@@ -325,6 +325,10 @@ const pt = {
       {
         q: "Dá para ter conta por setor?",
         a: "Sim. Quem administra vê tudo; contas de setor veem só a própria fila e encaminham o pedido.",
+      },
+      {
+        q: "A IA tem limite?",
+        a: "Tem. O Business inclui 1.000 usos de IA por mês — cada texto que a IA escreve conta um. Quando acaba, os textos continuam saindo prontos, sem IA, até o mês virar. Precisa de mais? A Worqera libera um pacote extra.",
       },
       {
         q: "É só para sapataria?",
@@ -630,14 +634,14 @@ const en: typeof pt = {
       {
         name: "Business",
         seal: "With Worqera",
-        price: "R$ 499",
+        price: "R$ 697",
         priceNote: "/month",
-        description: "We read the movement with you.",
+        description: "Worqera sells and reads the operation with you.",
         features: [
-          "AI analyses",
-          "Weekly accompaniment",
-          "Integration",
-          "Team training",
+          "AI quotes and daily brief (1,000 uses/month)",
+          "Weekly read of the operation",
+          "Official WhatsApp with a message pack",
+          "Onboarding and training",
           "Everything in Pro",
         ],
         cta: "Talk to Worqera",
@@ -667,6 +671,10 @@ const en: typeof pt = {
       {
         q: "Can I have sector accounts?",
         a: "Yes. Admins see everything; sector accounts see their own queue and forward orders.",
+      },
+      {
+        q: "Is AI limited?",
+        a: "Yes. Business includes 1,000 AI uses a month — each text the AI writes counts as one. When they run out, texts keep coming ready-made, without AI, until the month turns. Need more? Worqera adds an extra pack.",
       },
       {
         q: "Is it only for cobbler shops?",

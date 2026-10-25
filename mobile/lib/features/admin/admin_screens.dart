@@ -16,7 +16,7 @@ class _ShopsScreenState extends State<ShopsScreen> {
   static const plans = [
     ('WORQERA_BASIC', 'Basic · R\$ 97'),
     ('WORQERA_PRO', 'Pro · R\$ 197'),
-    ('WORQERA_BUSINESS', 'Business · R\$ 499'),
+    ('WORQERA_BUSINESS', 'Business · R\$ 697'),
   ];
 
   List<Map<String, dynamic>> rows = [];

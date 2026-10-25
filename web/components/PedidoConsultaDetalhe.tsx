@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Camera, Loader2, Mail, MessageCircle, Trash2, X } from "lucide-react"
+import { Camera, HandCoins, Loader2, Mail, MessageCircle, PhoneOff, Trash2, X } from "lucide-react"
+import { RefuseQuoteDialog } from "@/components/quotes/RefuseQuoteDialog"
+import { CustomerSummaryBox } from "@/components/ai/CustomerSummaryBox"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,6 +129,8 @@ export function PedidoConsultaDetalhe({
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const [uploadItemIndex, setUploadItemIndex] = useState(0)
   const [canPurge, setCanPurge] = useState(false)
+  const [canQuote, setCanQuote] = useState(false)
+  const [refuseOpen, setRefuseOpen] = useState(false)
   const [moneyTone, setMoneyTone] = useState<MoneyVisibility>("hidden")
   const fileRef = useRef<HTMLInputElement>(null)
   const [photoInputEpoch, setPhotoInputEpoch] = useState(0)
@@ -175,6 +179,7 @@ export function PedidoConsultaDetalhe({
     if (!open) return
     const role = String(localStorage.getItem("role") || "").toLowerCase()
     setCanPurge(role === "owner" || role === "admin")
+    setCanQuote(role !== "sector")
     setMoneyTone(moneyVisibility(role))
     ;(async () => {
       try {
@@ -418,8 +423,29 @@ export function PedidoConsultaDetalhe({
             <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
           ) : (
             <>
+              {order.quoteRefusal?.refusedAt ? (
+                <Link
+                  href={
+                    order.quoteRefusal.quoteId
+                      ? `/orcamentos?open=${encodeURIComponent(order.quoteRefusal.quoteId)}`
+                      : "/orcamentos"
+                  }
+                  className="flex items-center gap-3 rounded-xl border border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)] px-4 py-3 text-sm"
+                >
+                  <HandCoins className="h-5 w-5 shrink-0 text-[var(--wq-brand)]" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">Orçamento não fechado</span>
+                    <span className="block text-xs text-[var(--wq-text-muted)]">
+                      Está em Orçamentos para ligar de novo. Abrir →
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
+
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{statusLabel(order.status)}</Badge>
+                <Badge variant="outline">
+                  {order.quoteRefusal?.refusedAt ? "Orçamento recusado" : statusLabel(order.status)}
+                </Badge>
                 {pairCount(order) > 1 && (
                   <Badge variant="secondary" className="font-mono text-xs">
                     {pairCount(order)} pares
@@ -434,6 +460,10 @@ export function PedidoConsultaDetalhe({
                   {formatDate(order.createdAt || order.dataCriacao)}
                 </span>
               </div>
+
+              {canQuote ? (
+                <CustomerSummaryBox orderId={String(order.id || orderId)} summary={order.customerSummary} />
+              ) : null}
 
               {order.feedback?.score ? (
                 <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-3">
@@ -867,6 +897,18 @@ export function PedidoConsultaDetalhe({
                 </Button>
               )}
 
+              {canQuote && !order.deletedAt && !["delivered", "cancelled"].includes(String(order.status)) ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
+                  onClick={() => setRefuseOpen(true)}
+                >
+                  <PhoneOff className="mr-1.5 h-4 w-4" />
+                  Cliente não fechou
+                </Button>
+              ) : null}
+
               {allowDelete ? (
                 <div className="space-y-2 rounded-xl border border-[var(--wq-danger)]/25 bg-red-50/50 p-3">
                   {order.deletedAt ? (
@@ -942,6 +984,25 @@ export function PedidoConsultaDetalhe({
           </Button>
         </div>
       </aside>
+
+      <RefuseQuoteDialog
+        open={refuseOpen}
+        onOpenChange={setRefuseOpen}
+        order={
+          order
+            ? {
+                id: String(order.id || orderId),
+                code,
+                clientName: order.clientName || order.client?.name,
+                total: Number(order.pricing?.total) || 0,
+              }
+            : null
+        }
+        onDone={(result) => {
+          syncForm(result.order)
+          onSaved?.(result.order)
+        }}
+      />
 
       <Dialog
         open={deliverAsk}

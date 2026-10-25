@@ -4,6 +4,7 @@ import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
+import '../quotes/quote_kit.dart';
 
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key, required this.api, required this.session, required this.openOrder});
@@ -290,6 +291,25 @@ class _KanbanScreenState extends State<KanbanScreen> {
                   Navigator.pop(ctx);
                   widget.openOrder('${card['orderId'] ?? card['id']}');
                 }, child: const Text('Abrir ficha')),
+                if (!widget.session.isSector) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Wq.brand, minimumSize: const Size.fromHeight(48)),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final ok = await showRefuseQuoteSheet(
+                        context,
+                        api: widget.api,
+                        orderId: '${card['orderId'] ?? card['id']}',
+                        code: '${card['code'] ?? card['pairLabel'] ?? ''}',
+                        clientName: '${card['clientName'] ?? ''}',
+                      );
+                      if (ok) await load();
+                    },
+                    icon: const Icon(Icons.phone_disabled_outlined, size: 18),
+                    label: const Text('Cliente não fechou'),
+                  ),
+                ],
               ]),
             ),
           ),

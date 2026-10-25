@@ -23,7 +23,7 @@ const BEATS = [
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 499).")
+  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 697).")
 
 type PlanId = "basic" | "pro"
 

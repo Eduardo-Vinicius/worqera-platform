@@ -8,6 +8,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../quotes/quote_kit.dart';
 import 'label_screen.dart';
 import 'public_order_screen.dart';
 
@@ -170,6 +171,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final comments = ((order!['comments'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList().reversed.toList();
     final warranty = order!['warranty'] ?? order!['garantia'];
     final delivered = order!['status'] == 'delivered';
+    final refused = order!['quoteRefusal'] is Map && (order!['quoteRefusal'] as Map)['refusedAt'] != null;
+    final canRefuse = !widget.session.isSector && !delivered && order!['status'] != 'cancelled';
     return WqPage(
       title: '${order!['code'] ?? 'Pedido'}',
       subtitle: '${order!['clientName'] ?? ''}',
@@ -179,6 +182,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (refused) ...[
+            WqCard(
+              child: Row(children: [
+                const Icon(Icons.request_quote_outlined, color: Wq.brand),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Orçamento não fechado', style: TextStyle(fontWeight: FontWeight.w800)),
+                    Text('Está em Orçamentos para ligar de novo.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+                  ]),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 10),
+          ],
           WqCard(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [StatusChip(order!['status']), const SizedBox(width: 8), if ('${order!['clientPhone'] ?? ''}'.isNotEmpty) Text('${order!['clientPhone']}', style: const TextStyle(color: Wq.muted))]),
@@ -220,6 +238,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
             if (!delivered) FilledButton(style: FilledButton.styleFrom(backgroundColor: Wq.success), onPressed: () => deliver(paid: false), child: const Text('Marcar entregue')),
             if (delivered) OutlinedButton(onPressed: reopen, child: const Text('Reabrir')),
+            if (canRefuse)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(foregroundColor: Wq.brand),
+                onPressed: () async {
+                  final ok = await showRefuseQuoteSheet(
+                    context,
+                    api: widget.api,
+                    orderId: widget.orderId,
+                    code: '${order!['code'] ?? ''}',
+                    clientName: '${order!['clientName'] ?? ''}',
+                  );
+                  if (ok) await load();
+                },
+                icon: const Icon(Icons.phone_disabled_outlined, size: 18),
+                label: const Text('Cliente não fechou'),
+              ),
             if (!widget.session.isSector) TextButton(onPressed: trash, child: const Text('Lixeira', style: TextStyle(color: Wq.danger))),
           ]),
           const SizedBox(height: 16),

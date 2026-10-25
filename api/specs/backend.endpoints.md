@@ -195,6 +195,61 @@ GET /products/{id}/movements
 
 Item de pedido `origin=stock` reserva ao criar, baixa em `delivered`, estorna em cancelamento, exclusão ou reabertura. `origin=brought` não mexe no saldo.
 
+## Orçamentos
+
+Dono, admin e atendimento. Setor não acessa.
+
+```
+GET  /quotes?view=today|board|all&q=&clientId=   # quotes[] + summary (Ligar hoje, na mesa, recuperado 30d, taxa)
+POST /quotes                         # orçamento do balcão, sem pedido: name, phone, what, value, reason, followUpAt
+GET  /quotes/{id}                    # com activity[]
+PATCH /quotes/{id}                   # stage, followUpAt, reason, reasonNote, notes, dados do cliente. stage=won com pedido = win
+POST /quotes/{id}/activity           # kind call | whatsapp | note. call/whatsapp contam contato; new → contact
+POST /quotes/{id}/suggest            # 3 textos (Direto, Leve, Curto) + waUrl. ai=true só com OPENAI_API_KEY
+POST /quotes/{id}/win                # reabre o pedido recusado na fila; sem pedido devolve prefill para Novo pedido
+DELETE /quotes/{id}                  # dono/admin
+POST /orders/{id}/refuse-quote       # reason, reasonNote, followUpAt. Pedido vira cancelled + quoteRefusal; libera estoque
+```
+
+## IA (Business)
+
+Sem `OPENAI_API_KEY`, sem Business ou acima do teto mensal: mesma resposta, com texto pronto e `ai: false`.
+
+```
+GET  /dashboard/brief?refresh=1             # resumo do dia: números ao vivo + frase (IA no máx. a cada 3 h)
+GET  /metrics/insights?refresh=1            # leitura da semana; { locked: true } fora do Business
+POST /orders/{id}/customer-summary          # { text } salva o texto da equipe; sem body, a IA escreve (Business)
+POST /orders/{id}/feedback/reply-suggest    # 2 respostas para a avaliação
+```
+
+`POST /quotes/{id}/suggest` só usa IA no Business. Cada chamada grava `AiUsage` (tokens e custo).
+
+Limite: 1.000 usos por mês no Business (`WORQERA_AI_MONTHLY_CAP`), só respostas com sucesso contam, renova no dia 1º (SP). Toda resposta de IA traz `aiQuota { used, limit, left, percent, blocked, nearLimit, resetsAt }`.
+
+```
+GET   /ai/quota                       # { business, configured, quota }
+PATCH /platform/shops/{id}/ai         # admin Worqera: { extraCalls } soma no mês atual; { monthlyCap } muda o limite fixo (null = padrão)
+```
+
+## WhatsApp oficial (Business)
+
+Fica inerte sem `META_APP_ID`, `META_APP_SECRET` e `META_WA_CONFIG_ID`.
+
+```
+GET   /whatsapp                       # status, uso do mês, pacote, excedente, dados do Embedded Signup
+POST  /whatsapp/connect               # { code, wabaId, phoneNumberId, coexistence } — dono/admin
+PATCH /whatsapp                       # { autoReady, consentAtCounter } — dono/admin
+POST  /whatsapp/disconnect
+POST  /quotes/{id}/whatsapp           # retomada (modelo marketing), máx. 2 por orçamento
+GET   /webhooks/whatsapp              # verificação da Meta (hub.challenge)
+POST  /webhooks/whatsapp              # status, respostas do cliente, account_update (X-Hub-Signature-256)
+PATCH /platform/shops/{id}/whatsapp   # admin Worqera: paymentOk, paused, overagePaid, capBoost
+```
+
+Pedido pronto (todos os itens no setor final) envia `pedido_pronto` quando `autoReady` está ligado.
+
+Etapas: `new` · `contact` · `followup` · `won` · `lost`. Motivos: `price` · `thinking` · `deadline` · `other_shop` · `no_need` · `other`. A prioridade (`high|medium|low` + `hint`) é calculada no servidor: retorno atrasado, motivo, valor e quantos contatos já houve. O dia de "hoje" é o de São Paulo.
+
 ## Headers
 
 | Header | Uso |

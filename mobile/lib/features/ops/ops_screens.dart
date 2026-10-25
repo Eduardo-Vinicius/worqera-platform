@@ -9,6 +9,7 @@ import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../ai/ai_widgets.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key, required this.api});
@@ -129,6 +130,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 if ('${row['comment'] ?? ''}'.isNotEmpty) Text('“${row['comment']}”', style: const TextStyle(color: Wq.muted)),
                 if (row['tags'] is List && (row['tags'] as List).isNotEmpty) Text((row['tags'] as List).join(' · '), style: const TextStyle(color: Wq.muted, fontSize: 12)),
                 if ('${row['code'] ?? ''}'.isNotEmpty) Text('${row['code']}', style: const TextStyle(fontSize: 12, color: Wq.muted)),
+                if ('${row['id'] ?? ''}'.isNotEmpty)
+                  ReviewReplyButton(api: widget.api, orderId: '${row['id']}', phone: '${row['clientPhone'] ?? ''}'),
               ]),
             ),
             const SizedBox(height: 8),
@@ -442,6 +445,7 @@ class BillingScreen extends StatefulWidget {
 
 class _BillingScreenState extends State<BillingScreen> {
   Map? sub;
+  Map? aiQuota;
   String? error;
 
   @override
@@ -453,12 +457,19 @@ class _BillingScreenState extends State<BillingScreen> {
     }).catchError((e) {
       if (mounted) setState(() => error = widget.api.message(e));
     });
+    widget.api.dio.get('/ai/quota').then((res) {
+      final body = res.data;
+      if (mounted && body is Map && body['quota'] is Map) setState(() => aiQuota = body['quota'] as Map);
+    }).catchError((_) {});
   }
 
   String _planName() {
     final code = '${sub?['planCode'] ?? ''}';
     if (code == 'WORQERA_BASIC') return 'Worqera Basic · R\$ 97/mês';
-    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') return 'Worqera Business · R\$ 499/mês';
+    final founder = DateTime.tryParse('${(sub?['price'] as Map?)?['founderUntil'] ?? ''}');
+    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') {
+      return founder == null ? 'Worqera Business · R\$ 697/mês' : 'Worqera Business · R\$ 499/mês (fundador até ${dayLabel(founder.toIso8601String())})';
+    }
     if (code == 'WORQERA_PRO') return 'Worqera Pro · R\$ 197/mês';
     if (sub == null && error == null) return 'Carregando…';
     return 'Sem assinatura';
@@ -468,7 +479,7 @@ class _BillingScreenState extends State<BillingScreen> {
     final code = '${sub?['planCode'] ?? ''}';
     if (code == 'WORQERA_BASIC') return 'Até 100 pedidos no mês. Sem caixa, sem métricas, sem estoque.';
     if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') {
-      return 'Análises com IA, acompanhamento semanal, integração e treinamento.';
+      return 'IA em orçamentos, resumo do dia e leitura semanal (1.000 usos por mês), WhatsApp oficial com pacote de mensagens, implantação e treinamento.';
     }
     if (code == 'WORQERA_PRO') return 'Oficina inteira, sem teto: financeiro, métricas, marca e estoque.';
     return '';
@@ -495,7 +506,7 @@ class _BillingScreenState extends State<BillingScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Plano e assinatura',
-      subtitle: 'Basic R\$ 97 · Pro R\$ 197 · Business R\$ 499',
+      subtitle: 'Basic R\$ 97 · Pro R\$ 197 · Business R\$ 697',
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -508,11 +519,33 @@ class _BillingScreenState extends State<BillingScreen> {
               if (_planPitch().isNotEmpty) Text(_planPitch(), style: const TextStyle(color: Wq.muted)),
             ]),
           ),
+          if (aiQuota != null) ...[
+            const SizedBox(height: 12),
+            WqCard(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('IA DO MÊS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: ((aiQuota!['percent'] ?? 0) as num) / 100,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(8),
+                  color: aiQuota!['blocked'] == true ? Wq.danger : aiQuota!['nearLimit'] == true ? Wq.warn : Wq.brand,
+                  backgroundColor: context.wqPaper,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Cada texto que a IA escreve conta 1 uso. Acabou, os textos saem prontos até o mês virar.',
+                  style: TextStyle(color: Wq.muted, fontSize: 12),
+                ),
+                AiQuotaNotice(quota: aiQuota, always: true),
+              ]),
+            ),
+          ],
           const SizedBox(height: 12),
           for (final plan in [
             ('WORQERA_BASIC', 'Basic', 'R\$ 97', 'Até 100 pedidos'),
             ('WORQERA_PRO', 'Pro', 'R\$ 197', 'Sem teto'),
-            ('WORQERA_BUSINESS', 'Business', 'R\$ 499', 'Com a Worqera'),
+            ('WORQERA_BUSINESS', 'Business', 'R\$ 697', 'Com a Worqera'),
           ])
             Padding(
               padding: const EdgeInsets.only(bottom: 8),

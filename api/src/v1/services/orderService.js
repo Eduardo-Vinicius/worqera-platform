@@ -2109,6 +2109,7 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     currentSector,
     dueAt: order.dueAt,
     updatedAt: order.updatedAt,
+    customerSummary: order.customerSummary?.text || '',
     feedback: order.feedback?.score
       ? {
           score: order.feedback.score,

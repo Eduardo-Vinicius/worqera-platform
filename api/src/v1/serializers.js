@@ -174,6 +174,21 @@ function serializeOrder(order, { hidePrices = false } = {}) {
     deliveredAt: order.deliveredAt || null,
     deletedAt: order.deletedAt || null,
     reopenedAt: order.reopenedAt || null,
+    customerSummary: order.customerSummary?.text
+      ? {
+          text: order.customerSummary.text,
+          ai: Boolean(order.customerSummary.ai),
+          edited: Boolean(order.customerSummary.edited),
+          at: order.customerSummary.at || null,
+        }
+      : null,
+    quoteRefusal: order.quoteRefusal?.refusedAt
+      ? {
+          quoteId: order.quoteRefusal.quoteId ? String(order.quoteRefusal.quoteId) : null,
+          refusedAt: order.quoteRefusal.refusedAt,
+          reason: order.quoteRefusal.reason || null,
+        }
+      : null,
     photosPending: Boolean(
       order.photoNotify &&
         order.photoNotify.sent !== true &&

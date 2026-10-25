@@ -8,6 +8,8 @@ const clientSchema = new mongoose.Schema(
     phone: { type: String, default: null },
     email: { type: String, default: null },
     whatsappOptIn: { type: Boolean, default: false },
+    /** Customer answered PARAR/SAIR: no business-initiated WhatsApp anymore. */
+    whatsappOptOut: { type: Boolean, default: false },
     address: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }

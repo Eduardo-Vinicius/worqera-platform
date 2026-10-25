@@ -343,6 +343,18 @@ async function generateOrderPdf(shopId, orderId) {
   if (address) y = kvLine(doc, 'Endereço', address, y, pageWidth);
   y += 6;
 
+  const summaryText = String(order.customerSummary?.text || '').trim();
+  if (summaryText) {
+    const lines = doc.splitTextToSize(summaryText, pageWidth - 50);
+    y = ensureSpace(doc, y, 14 + lines.length * 4.5, pageHeight, pageCtx);
+    y = sectionTitle(doc, 'O que vamos fazer', y, pageWidth, accent);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...BRAND_RGB);
+    doc.text(lines, 25, y);
+    y += lines.length * 4.5 + 6;
+  }
+
   const orderTotalEarly = order.pricing?.total != null ? Number(order.pricing.total) : null;
   let grandServices = 0;
   for (let i = 0; i < items.length; i += 1) {

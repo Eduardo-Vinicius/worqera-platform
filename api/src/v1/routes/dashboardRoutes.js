@@ -3,6 +3,7 @@ const dashboardController = require('../controllers/dashboardController');
 const { auth } = require('../middleware/auth');
 const { shopContext } = require('../middleware/shopContext');
 const { subscriptionGate } = require('../middleware/subscriptionGate');
+const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate];
@@ -10,5 +11,11 @@ const guard = [auth, shopContext, subscriptionGate];
 router.get('/', ...guard, dashboardController.dashboard);
 router.get('/summary', ...guard, dashboardController.summary);
 router.get('/sectors', ...guard, dashboardController.sectors);
+router.get(
+  '/brief',
+  ...guard,
+  requireRole('owner', 'admin', 'atendimento'),
+  require('../controllers/aiController').brief
+);
 
 module.exports = router;

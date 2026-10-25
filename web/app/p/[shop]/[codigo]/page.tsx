@@ -225,6 +225,15 @@ function PublicOrderByShopInner() {
                 </ul>
               ) : null}
 
+              {data.customerSummary ? (
+                <div className="rounded-[12px] border border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-3 text-left">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                    O que vamos fazer
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--wq-text)]">{data.customerSummary}</p>
+                </div>
+              ) : null}
+
               {data.dueAt ? (
                 <p className="text-xs text-[var(--wq-text-muted)]">
                   Previsão{" "}

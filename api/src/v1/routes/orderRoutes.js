@@ -46,6 +46,24 @@ router.post('/:id/notify-created', ...guard, orderController.notifyCreated);
 router.get('/:id', ...guard, orderController.get);
 router.patch('/:id', ...guard, orderController.patch);
 router.post('/:id/reopen', ...guard, orderController.reopen);
+router.post(
+  '/:id/customer-summary',
+  ...guard,
+  requireRole('owner', 'admin', 'atendimento'),
+  require('../controllers/aiController').customerSummary
+);
+router.post(
+  '/:id/feedback/reply-suggest',
+  ...guard,
+  requireRole('owner', 'admin', 'atendimento'),
+  require('../controllers/aiController').reviewReply
+);
+router.post(
+  '/:id/refuse-quote',
+  ...guard,
+  requireRole('owner', 'admin', 'atendimento'),
+  require('../controllers/quoteController').refuseOrder
+);
 router.post('/:id/restore', ...guard, orderController.restore);
 router.delete('/:id/purge', ...guard, requireRole('owner', 'admin'), orderController.purge);
 router.post('/:id/comments', ...guard, orderController.addComment);

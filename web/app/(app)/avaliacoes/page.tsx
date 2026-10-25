@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { API_V1, feedbackExportCsvUrl, listFeedbackV1 } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
+import { ReviewReply } from "@/components/ai/ReviewReply"
 import { toast } from "sonner"
 
 type Period = "30d" | "90d" | "all"
@@ -252,16 +253,16 @@ export default function AvaliacoesPage() {
           {data?.items.map((f) => {
             const low = Number(f.score) > 0 && Number(f.score) <= 3
             return (
-              <Link
+              <div
                 key={f.id}
-                href={`/pedidos?q=${encodeURIComponent(f.code)}`}
                 className={cn(
-                  "block rounded-2xl border bg-white px-4 py-3.5 transition-colors hover:border-[var(--wq-brand)]",
+                  "rounded-2xl border bg-white px-4 py-3.5 transition-colors hover:border-[var(--wq-brand)]",
                   low
                     ? "border-amber-300/80 shadow-[inset_3px_0_0_0_rgb(245,158,11)]"
                     : "border-[var(--wq-border)]"
                 )}
               >
+              <Link href={`/pedidos?q=${encodeURIComponent(f.code)}`} className="block">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -298,6 +299,8 @@ export default function AvaliacoesPage() {
                   <p className="mt-2 text-sm text-[var(--wq-text-muted)]">“{f.comment}”</p>
                 ) : null}
               </Link>
+              <ReviewReply orderId={f.id} phone={(f as { clientPhone?: string }).clientPhone} />
+              </div>
             )
           })}
         </div>

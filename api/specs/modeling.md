@@ -187,6 +187,46 @@ Campos alinhados ao legado útil (`pedidoModel` + runtime):
 
 **Espelho flat:** `shoeModel` / `services` / `photos` no documento = `items[0]` (legado). Create/PATCH aceitam `items[]` **ou** payload flat; se `items` vier preenchido, o primeiro item é copiado para os campos flat. Docs antigos sem `items` (ou `items: []`) continuam válidos — leitura (`effectiveItems`) sintetiza um item a partir do flat. **Um pedido = um `code`**; no kanban **1 card por item** (`items[].currentSectorId`, label `code-N`). Pedido fica `ready` quando **todos** os itens estão no setor terminal; entrega só no pedido. Serialização sempre devolve `items` + `itemCount` (readers vazios ainda saem com 1 item sintetizado). `pricing.total` = soma dos serviços de **todos** os items, mais o valor de item `origin=stock`, salvo total explícito no body. Sem admin Worqera, `origin=stock` é gravado como `brought`.
 
+Pedido recusado: `status=cancelled` + `quoteRefusal: { quoteId, refusedAt, reason }`. Ao recuperar, `refusedAt` volta a `null` e o pedido retorna à fila.
+
+### `quotes` (Orçamentos)
+
+```json
+{
+  "_id": "ObjectId",
+  "shopId": "ObjectId",
+  "clientId": "ObjectId|null",
+  "orderId": "ObjectId|null",
+  "orderCode": "string",
+  "source": "order|counter",
+  "name": "string",
+  "phone": "string",
+  "what": "string",
+  "value": 0,
+  "stage": "new|contact|followup|won|lost",
+  "reason": "price|thinking|deadline|other_shop|no_need|other|null",
+  "reasonNote": "string",
+  "followUpAt": "Date|null",
+  "contactCount": 0,
+  "lastContactAt": "Date|null",
+  "wonAt": "Date|null",
+  "lostAt": "Date|null",
+  "activity": [{ "kind": "created|refused|stage|note|call|whatsapp|won|lost", "text": "string", "byName": "string", "at": "Date" }]
+}
+```
+
+Índices: `(shopId, stage, followUpAt)`; `(shopId, createdAt)`; `(shopId, clientId)`; `(shopId, orderId)`. A prioridade não é gravada: sai calculada na leitura.
+
+Pedido também guarda `customerSummary: { text, ai, edited, at }` (texto para o cliente no laudo e na consulta).
+
+### `ai_usages` / `ai_briefs`
+
+`AiUsage`: uma linha por chamada de IA (loja, recurso, modelo, tokens, `costUsd`, ok/erro). `AiBrief`: cache do resumo do dia (`kind: daily`, dia de SP) e da leitura da semana (`kind: weekly`, segunda-feira).
+
+### `whatsappmessages` + `shops.whatsappCloud`
+
+`WhatsAppMessage`: entrada e saída do WhatsApp oficial (categoria `utility|marketing|service`, modelo, status Meta, `wamid`, custo estimado em BRL). `Shop.whatsappCloud`: status, WABA, número, token criptografado, `paymentOk`, `autoReady`, `consentAtCounter`, excedente do mês fechado, teto extra do mês. `Client.whatsappOptOut` após PARAR. `Subscription.founder: { priceCents, until }`.
+
 ### `service_catalog` (TOP-01)
 
 ```json

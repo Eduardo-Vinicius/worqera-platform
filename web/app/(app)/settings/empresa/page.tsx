@@ -13,6 +13,7 @@ import {
 } from "@/lib/apiV1"
 import { DEFAULT_WA_TEMPLATES } from "@/lib/whatsapp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
+import { WhatsAppCloudCard } from "@/components/whatsapp/WhatsAppCloudCard"
 import { VERTICAL_PRESETS, type ShopVertical } from "@/lib/itemNoun"
 import {
   BRAND_PRESETS,
@@ -659,6 +660,8 @@ export default function EmpresaPage() {
                 .
               </p>
             </section>
+
+            <WhatsAppCloudCard />
 
             {ENABLE_WA_ME ? (
             <section className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 sm:p-6">

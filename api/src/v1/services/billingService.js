@@ -22,8 +22,9 @@ const PRODUCTS = [
   {
     code: 'WORQERA_BUSINESS',
     name: 'Worqera Business',
-    description: 'Análises com IA, acompanhamento semanal, integração e treinamento. Tudo do Pro',
-    priceCents: 49900,
+    description:
+      'IA em orçamentos, resumo do dia e leitura semanal (1.000 usos por mês), WhatsApp oficial com pacote de mensagens, implantação e treinamento. Tudo do Pro',
+    priceCents: 69700,
     currency: 'BRL',
     interval: 'month',
   },
@@ -51,8 +52,28 @@ const ABACATE_PUBLIC_KEY =
 const API_BASE =
   process.env.WORQERA_AbacatePay__ApiBaseUrl || 'https://api.abacatepay.com/v1';
 
+const FOUNDER_PRICE_CENTS = 49900;
+
+/** Monthly price this shop pays: the founder price while it lasts, else the catalog. */
+function effectivePrice(sub, now = new Date()) {
+  const code = normalizePlanCode(sub?.planCode);
+  const plan = PRODUCTS.find((p) => p.code === code);
+  const founderActive =
+    code === 'WORQERA_BUSINESS' &&
+    sub?.founder?.priceCents &&
+    sub?.founder?.until &&
+    new Date(sub.founder.until) > now;
+  return {
+    priceCents: founderActive ? sub.founder.priceCents : plan?.priceCents ?? null,
+    listPriceCents: plan?.priceCents ?? null,
+    founderUntil: founderActive ? sub.founder.until : null,
+  };
+}
+
 async function getSubscription(shopId) {
-  return Subscription.findOne({ shopId }).lean();
+  const sub = await Subscription.findOne({ shopId }).lean();
+  if (!sub) return sub;
+  return { ...sub, price: effectivePrice(sub) };
 }
 
 function listProducts() {
@@ -357,6 +378,8 @@ async function handleAbacateWebhook(payload) {
 }
 
 module.exports = {
+  FOUNDER_PRICE_CENTS,
+  effectivePrice,
   getSubscription,
   listProducts,
   createCheckoutSession,

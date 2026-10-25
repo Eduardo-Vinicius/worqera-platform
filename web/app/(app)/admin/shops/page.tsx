@@ -6,7 +6,14 @@ import { Search } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { enterPlatformShop, listPlatformShopsV1, meV1, patchPlatformShopV1 } from "@/lib/apiV1"
+import {
+  enterPlatformShop,
+  listPlatformShopsV1,
+  meV1,
+  patchPlatformShopV1,
+  platformAiQuotaV1,
+  platformWhatsAppV1,
+} from "@/lib/apiV1"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -26,7 +33,9 @@ type ShopRow = {
     status?: string
     trialEndsAt?: string
     planCode?: string
+    founderUntil?: string | null
   } | null
+  whatsapp?: { status: string; paymentOk: boolean; displayPhone: string } | null
 }
 
 type Filter = "all" | "trialing" | "trial_7d" | "active" | "suspended"
@@ -34,7 +43,7 @@ type Filter = "all" | "trialing" | "trial_7d" | "active" | "suspended"
 const PLANS = [
   { code: "WORQERA_BASIC", label: "Basic", price: "R$ 97" },
   { code: "WORQERA_PRO", label: "Pro", price: "R$ 197" },
-  { code: "WORQERA_BUSINESS", label: "Business", price: "R$ 499" },
+  { code: "WORQERA_BUSINESS", label: "Business", price: "R$ 697" },
 ] as const
 
 type PlanCode = (typeof PLANS)[number]["code"] | "WORQERA_EARLY" | "WORQERA_PREMIUM" | ""
@@ -204,6 +213,19 @@ export default function PlatformShopsPage() {
       await load()
     } catch (err: any) {
       toast.error(err?.message || "Falha ao revogar")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const runPlatform = async (id: string, fn: () => Promise<unknown>, okText: string) => {
+    setBusyId(id)
+    try {
+      await fn()
+      toast.success(okText)
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao atualizar")
     } finally {
       setBusyId(null)
     }
@@ -427,6 +449,112 @@ export default function PlatformShopsPage() {
                                   Suspender
                                 </Button>
                               )}
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="rounded-[10px]"
+                                disabled={busy}
+                                onClick={() =>
+                                  void runPlatform(
+                                    s.id,
+                                    () => patchPlatformShopV1(s.id, { founder: !s.subscription?.founderUntil }),
+                                    s.subscription?.founderUntil
+                                      ? "Preço de fundador removido"
+                                      : "Preço de fundador: R$ 499 por 12 meses"
+                                  )
+                                }
+                              >
+                                {s.subscription?.founderUntil
+                                  ? `Fundador até ${new Date(s.subscription.founderUntil).toLocaleDateString("pt-BR")} · remover`
+                                  : "Preço de fundador (R$ 499 / 12 meses)"}
+                              </Button>
+                              {s.subscription?.planCode === "WORQERA_BUSINESS" || s.subscription?.planCode === "WORQERA_PREMIUM" ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-[10px]"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void runPlatform(
+                                      s.id,
+                                      async () => {
+                                        const res = await platformAiQuotaV1(s.id, { extraCalls: 500 })
+                                        toast.message(`IA: ${res.quota.used} de ${res.quota.limit} usos este mês`)
+                                      },
+                                      "+500 usos de IA neste mês"
+                                    )
+                                  }
+                                >
+                                  +500 usos de IA este mês
+                                </Button>
+                              ) : null}
+                              {s.whatsapp ? (
+                                <>
+                                  <span className="text-xs text-[var(--wq-text-muted)]">
+                                    WhatsApp {s.whatsapp.displayPhone || ""} · {s.whatsapp.status}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-[10px]"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void runPlatform(
+                                        s.id,
+                                        () => platformWhatsAppV1(s.id, { paymentOk: !s.whatsapp?.paymentOk }),
+                                        s.whatsapp?.paymentOk ? "Pagamento do WhatsApp desligado" : "Cartão do WhatsApp ativo"
+                                      )
+                                    }
+                                  >
+                                    {s.whatsapp.paymentOk ? "Cartão ok · desligar" : "Meu cartão já está na WABA"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-[10px]"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void runPlatform(
+                                        s.id,
+                                        () => platformWhatsAppV1(s.id, { paused: s.whatsapp?.status !== "paused" }),
+                                        s.whatsapp?.status === "paused" ? "WhatsApp retomado" : "WhatsApp pausado"
+                                      )
+                                    }
+                                  >
+                                    {s.whatsapp.status === "paused" ? "Retomar envio" : "Pausar envio"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="rounded-[10px]"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void runPlatform(s.id, () => platformWhatsAppV1(s.id, { overagePaid: true }), "Excedente marcado como pago")
+                                    }
+                                  >
+                                    Excedente pago
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="rounded-[10px]"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void runPlatform(s.id, () => platformWhatsAppV1(s.id, { capBoost: true }), "Teto dobrado este mês")
+                                    }
+                                  >
+                                    Dobrar teto do mês
+                                  </Button>
+                                </>
+                              ) : null}
                             </div>
                             <div className="mt-3 flex gap-2">
                               <Input

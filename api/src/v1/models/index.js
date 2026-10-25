@@ -18,4 +18,8 @@ module.exports = {
   PlatformNotice: require('./PlatformNotice'),
   Product: require('./Product'),
   StockMovement: require('./StockMovement'),
+  Quote: require('./Quote'),
+  AiUsage: require('./AiUsage'),
+  AiBrief: require('./AiBrief'),
+  WhatsAppMessage: require('./WhatsAppMessage'),
 };

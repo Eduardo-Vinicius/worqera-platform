@@ -67,6 +67,48 @@ const shopSchema = new mongoose.Schema(
         enabled: { type: Boolean, default: true },
       },
     },
+    /** AI uses per month on Business. Empty = plan default; extra* = granted by Worqera for one month. */
+    aiQuota: {
+      monthlyCap: { type: Number, default: null },
+      extraMonth: { type: String, default: '' },
+      extraCalls: { type: Number, default: 0 },
+    },
+    /**
+     * Official WhatsApp (Cloud API). Worqera is the Tech Provider; Eduardo's card
+     * pays Meta on this WABA and Worqera passes the cost on (Business pack + overage).
+     */
+    whatsappCloud: {
+      status: {
+        type: String,
+        enum: ['off', 'pending', 'connected', 'paused'],
+        default: 'off',
+      },
+      wabaId: { type: String, default: '' },
+      phoneNumberId: { type: String, default: '' },
+      displayPhone: { type: String, default: '' },
+      verifiedName: { type: String, default: '' },
+      /** AES-GCM encrypted business token. Never serialized. */
+      tokenEnc: { type: String, default: '' },
+      currency: { type: String, default: 'BRL' },
+      /** Set by the Worqera admin after the card is on the WABA. */
+      paymentOk: { type: Boolean, default: false },
+      pausedReason: { type: String, default: '' },
+      /** Send "pedido pronto" when the whole order reaches the final sector. */
+      autoReady: { type: Boolean, default: false },
+      /** The shop declares it asks the customer at the counter (required to send). */
+      consentAtCounter: { type: Boolean, default: false },
+      templates: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      connectedAt: { type: Date, default: null },
+      /** Overage of the last closed month, billed after it ends. */
+      overage: {
+        month: { type: String, default: '' },
+        amountBrl: { type: Number, default: 0 },
+        since: { type: Date, default: null },
+        paidAt: { type: Date, default: null },
+      },
+      /** Extra cap granted by the Worqera admin for the current month (multiplier on the pack). */
+      capBoostMonth: { type: String, default: '' },
+    },
     partnerCode: { type: String, default: null, trim: true, uppercase: true },
     referredByPartnerCode: { type: String, default: null, trim: true, uppercase: true },
     timezone: { type: String, default: 'America/Sao_Paulo' },

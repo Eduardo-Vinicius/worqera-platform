@@ -1,5 +1,20 @@
 # App celular
 
+## 2026-10-25
+
+- **Limite de IA:** Plano mostra os usos do mês. Resumo do dia, orçamento e avaliação avisam quando está acabando ou acabou, com o atalho para falar com a Worqera.
+
+## 2026-10-24
+
+- **Início:** Resumo do dia com os números do dia; IA no Business. Ligar hoje abre Orçamentos.
+- **Avaliações:** Sugerir resposta.
+- **Orçamentos:** Retomar pelo WhatsApp oficial quando a loja estiver conectada.
+- **Plano:** Business R$ 697; fundador aparece como R$ 499 até a data.
+
+- **Orçamentos:** em Mais. Abre em Hoje (quem ligar, por prioridade), com Quadro por etapa e Todos. Cada linha tem WhatsApp com texto pronto, ligar, adiar e Fechou.
+- **Pedido e kanban:** botão Cliente não fechou, com motivo e dia de ligar. O pedido sai da fila e aparece em Orçamentos.
+- **Cliente:** a ficha mostra os orçamentos daquela pessoa.
+
 ## 2026-10-23
 
 - **Pedido:** continua o item do cliente. Catálogo de produtos fica no site, fora do menu.

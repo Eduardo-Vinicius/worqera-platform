@@ -7,7 +7,7 @@ import { Check } from "lucide-react"
 
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 499).")
+  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 697).")
 
 export function PricingSection() {
   const { locale, t } = useLanguage()

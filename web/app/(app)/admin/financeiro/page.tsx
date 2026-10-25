@@ -21,6 +21,7 @@ import {
 } from "@/lib/apiService"
 import { productSummaryV1 } from "@/lib/apiV1"
 import { AppHeader } from "@/components/shell/AppHeader"
+import { WeeklyInsightsCard } from "@/components/ai/WeeklyInsightsCard"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -234,6 +235,8 @@ export default function AdminFinanceiroPage() {
             )
           })}
         </div>
+
+        <WeeklyInsightsCard />
 
         {error ? (
           <Alert className="border-[var(--wq-danger)]/30 bg-[var(--wq-danger)]/5">

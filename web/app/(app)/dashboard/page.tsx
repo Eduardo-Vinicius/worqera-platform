@@ -8,6 +8,7 @@ import { getDashboardService } from "@/lib/apiService"
 import { getShopCurrentV1, sendWeeklyDigestV1 } from "@/lib/apiV1"
 import { SetupChecklist } from "@/components/shell/SetupChecklist"
 import { ReferralCard } from "@/components/shell/ReferralCard"
+import { DailyBriefCard } from "@/components/ai/DailyBriefCard"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -231,6 +232,7 @@ export default function DashboardPage() {
 
         {!loading && !error && (
           <>
+            <DailyBriefCard />
             <SetupChecklist openOrders={open} totalClients={clients} />
 
             {nextActions.length > 0 ? (

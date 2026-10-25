@@ -12,6 +12,7 @@ import '../lookup/simple_lists.dart';
 import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
+import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
 
@@ -73,6 +74,7 @@ class _MoreScreenState extends State<MoreScreen> {
         children: [
           if (inShop) ...[
             const _Heading('Operação'),
+            if (!session.isSector && flags.on('orders')) _row(context, 'Orçamentos', Icons.request_quote_outlined, () => open(QuotesScreen(api: api, session: session), id: 'quotes')),
             if (!session.isSector && flags.on('clients')) _row(context, 'Clientes', Icons.people_outline, () => open(ClientsScreen(api: api, session: session, openClient: (id) => open(ClientDetailScreen(api: api, clientId: id, session: session), id: 'client', stack: true)))),
             if (flags.on('consultas')) _row(context, 'Consultas', Icons.search, () => open(ConsultasScreen(api: api, session: session, openOrder: openOrder))),
             if (!session.isSector && flags.on('reviews')) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),

@@ -14,6 +14,11 @@ const subscriptionSchema = new mongoose.Schema(
     currentPeriodEnd: { type: Date, default: null },
     providerCustomerId: { type: String, default: null },
     providerSubscriptionId: { type: String, default: null },
+    /** Founder price: shops that were customers before Business went to R$ 697 keep R$ 499 for 12 months. */
+    founder: {
+      priceCents: { type: Number, default: null },
+      until: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

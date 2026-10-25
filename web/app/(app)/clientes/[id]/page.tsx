@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getClienteByIdService } from "@/lib/apiService";
 import Link from "next/link";
+import { ClientQuotes } from "@/components/quotes/ClientQuotes";
 
 interface Cliente {
   id: string;
@@ -108,6 +109,7 @@ export default function ClienteDetalhesPage() {
           </Link>
         </CardContent>
       </Card>
+      <ClientQuotes clientId={cliente.id || id} />
     </div>
   );
 }

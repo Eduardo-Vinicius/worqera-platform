@@ -1286,19 +1286,6 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     return title.isEmpty ? '' : ' · $title';
   }
 
-  List<Map<String, dynamic>> _variantsOf(_ItemDraft item) {
-    for (final row in catalog) {
-      if ('${row['id']}' != item.productId) continue;
-      final raw = row['variants'];
-      if (raw is! List) return [];
-      return [
-        for (final variant in raw)
-          if (variant is Map) Map<String, dynamic>.from(variant),
-      ];
-    }
-    return [];
-  }
-
   bool _onFlow(_ItemDraft item, Map<String, dynamic> sector) {
     final key = '${sector['slug'] ?? ''}';
     final id = '${sector['id'] ?? ''}';
