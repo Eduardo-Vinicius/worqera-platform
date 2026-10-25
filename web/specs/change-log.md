@@ -2,6 +2,20 @@
 
 ## 2026-10-25
 
+- **Produtos para todas as lojas:** "Produtos" entra no menu em Configuração (dono e admin), depois de Serviços. A página fala com a loja ("O que a loja vende…").
+- **Pedido completo (cliente + loja):** o bloco Item continua só para o que o cliente trouxe. Logo abaixo, "Produtos da loja" (aparece só com produto ativo): busca com Enter, toque adiciona (repetir soma +1), linha com variação, − / +, preço unitário, total e disponível; o + trava no saldo. Produto da prateleira nasce pronto no setor final; "Passa pela produção" segue os setores. Só produto no pedido = "Cliente já levou — entregar agora" (padrão ligado): sem prazo, nasce entregue, baixa o estoque, sem e-mail. Confirmação lista os produtos e não cobra foto deles. Rascunho guarda os produtos.
+- **Notícias:** três modelos prontos — "Produtos e venda no pedido", "Novidades da semana" (prateleira, Google, pedido em seções, produtos, orçamentos) e "Orçamentos e IA". O quadro de novidades não abre para conta de setor.
+- **Site:** Produtos e estoque descrito como no ar (cadastro pela loja, venda no pedido); "Chegando" fica com WhatsApp oficial e app; home com Produtos em "Novo na Worqera".
+
+- **Site institucional:** posicionamento "O orquestrador da fila de pedidos". Novo índice `/recursos` (grupos, tabela de planos, "Chegando") e 8 páginas `/recursos/[slug]` (kanban, CRM de orçamentos, WhatsApp, consulta e avaliações, financeiro e análise, IA, equipe e TVs, produtos e estoque), em pt e en. Home com pilares clicáveis, seção "Novo na Worqera", planos e FAQ atualizados; ramos com faixa de recursos; menu "Recursos"; rodapé em colunas. Middleware libera `/recursos`.
+
+- **Confirmar e-mail:** cadastro novo leva a `/verify-email` com campo de código de 6 dígitos (envia sozinho ao completar), reenviar com contagem de 60 s, link do e-mail continua valendo. Confirmar já entra na conta (onboarding). Login de conta não confirmada vai direto para essa tela.
+- **Na prateleira (só owner):** card no dashboard com prontos não retirados, parados 3+ dias, total a receber na retirada e botão "Lembrar" (WhatsApp com texto pronto; registra o lembrete).
+- **Avaliação no Google:** campo "Link de avaliação no Google" em Empresa. Na página do pedido, quem dá nota 4 ou 5 vê "Avaliar no Google".
+
+- **Novidades:** notícia com "Quadro no centro" abre uma vez por navegador, no meio da tela, com capa e tour passo a passo (cada passo pode levar para uma tela). Em Notícias, o admin Worqera escolhe o formato, monta os passos e tem o modelo pronto "Orçamentos e IA".
+- **Kanban:** o detalhe do pedido fica em seções (Valor, Pares e serviços, Ações, Fila, Fotos e QR, Cliente e prazo, Observação, Histórico). Cabeçalho com setor, status, prazo e pares. QR recolhido. "Cliente não fechou → Orçamentos" e Ver etiqueta ficam em Ações; Excluir fica discreto no fim.
+
 - **Limite de IA:** o Plano mostra "IA do mês: X de 1.000 usos". Perto do fim aparece quanto resta; ao acabar, um aviso explica que a IA volta no dia 1º e chama para falar com a Worqera. O site e o FAQ dizem 1.000 usos por mês no Business.
 - **Worqera:** Oficinas ganha "+500 usos de IA este mês"; a Visão geral mostra usos/limite por loja.
 

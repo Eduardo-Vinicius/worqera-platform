@@ -12,6 +12,7 @@ import '../lookup/simple_lists.dart';
 import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
+import '../products/products_screen.dart';
 import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
@@ -85,6 +86,7 @@ class _MoreScreenState extends State<MoreScreen> {
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
             _row(context, 'Setores', Icons.view_column_outlined, () => open(CatalogScreen(api: api, title: 'Setores', subtitle: 'Colunas do kanban', path: '/sectors', sector: true))),
             _row(context, 'Serviços', Icons.build_outlined, () => open(CatalogScreen(api: api, title: 'Serviços', subtitle: 'O que entra no pedido', path: '/services', price: true))),
+            if (session.isAdmin) _row(context, 'Produtos', Icons.shopping_bag_outlined, () => open(ProductsScreen(api: api), id: 'produtos')),
             _row(context, 'Marcas', Icons.sell_outlined, () => open(CatalogScreen(api: api, title: 'Marcas', subtitle: 'Catálogo usado no pedido', path: '/brands'))),
             _row(context, 'Acessórios', Icons.inventory_2_outlined, () => open(CatalogScreen(api: api, title: 'Acessórios', subtitle: 'Itens que acompanham o pedido', path: '/accessories'))),
             _row(context, 'Equipe', Icons.group_outlined, () => open(TeamScreen(api: api))),

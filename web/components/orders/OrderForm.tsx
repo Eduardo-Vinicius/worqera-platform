@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Search, Upload, X, Plus } from "lucide-react"
+import { Loader2, Minus, Search, ShoppingBag, Upload, X, Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -32,15 +32,19 @@ import {
   deletePedidoItemFotoService,
 } from "@/lib/apiService"
 import { compressImageFile } from "@/lib/compressImage"
-import { listServicesV1, listSectorsV1 } from "@/lib/apiV1"
+import { listProductsV1, listServicesV1, listSectorsV1 } from "@/lib/apiV1"
 import { normalizeWarranty } from "@/lib/warranty"
 import { clampDiscount, formatBRL, netTotal, roundMoney } from "@/lib/orderMoney"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import {
+  clientItemIndexes,
   emptyOrderItemDraft,
   filterFilledItems,
+  isItemTouched,
+  stockItemIndexes,
+  stockLineDraft,
   hydrateDraftsFromOrder,
   mapItemsToCreatePayload,
   servicesSum,
@@ -58,6 +62,21 @@ import { AccessoryPicker } from "./AccessoryPicker"
 import { BrandField } from "./BrandField"
 
 export type OrderFormMode = "create" | "edit"
+
+type CatalogProduct = Awaited<ReturnType<typeof listProductsV1>>["products"][number]
+
+function stockLabel(product: CatalogProduct | undefined, variantId?: string) {
+  if (!product) return ""
+  const variant = product.variants?.find((v) => v.id === variantId)
+  return [product.name, variant?.name].filter(Boolean).join(" · ")
+}
+
+function stockAvailable(product: CatalogProduct | undefined, variantId?: string) {
+  if (!product || product.trackStock === false) return null
+  const variant = product.variants?.find((v) => v.id === variantId)
+  if (product.variants?.length && !variant) return null
+  return Number((variant ? variant.available : product.available) ?? 0)
+}
 
 type OrderFormProps = {
   mode?: OrderFormMode
@@ -149,6 +168,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [clients, setClients] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [availableServices, setAvailableServices] = useState(FALLBACK_SERVICES);
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([])
+  const [productQuery, setProductQuery] = useState("")
+  const [productPickerOpen, setProductPickerOpen] = useState(false)
+  const [deliverNow, setDeliverNow] = useState(true)
   const [showNewClient, setShowNewClient] = useState(false)
   const [savingClient, setSavingClient] = useState(false)
   const [newClient, setNewClient] = useState({
@@ -222,6 +245,18 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       cancelled = true
     }
   }, [isEdit, orderId, router])
+
+  useEffect(() => {
+    let cancelled = false
+    listProductsV1()
+      .then((res) => {
+        if (!cancelled) setCatalog((res.products || []).filter((p) => p.active !== false))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -394,6 +429,53 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       "origin" in patch || "unitPrice" in patch || "quantity" in patch || "productId" in patch || "variantId" in patch
     if (touchesPrice) updateItemsAndTotal(apply)
     else setItems(apply)
+  }
+
+  /** Adds a shop product to the order, or one more unit when the same line is already there. */
+  const addStockLine = (productId: string, variantId = "") => {
+    const product = catalog.find((p) => p.id === productId)
+    if (!product) return
+    const variant = product.variants?.find((v) => v.id === variantId)
+    const unit = variant && variant.price != null ? Number(variant.price) : Number(product.price) || 0
+    updateItemsAndTotal((prev) => {
+      const same = prev.findIndex(
+        (it) =>
+          it.origin === "stock" &&
+          it.productId === productId &&
+          (it.variantId || "") === variantId &&
+          (variantId || !product.variants?.length)
+      )
+      if (same >= 0) {
+        return prev.map((it, i) => (i === same ? { ...it, quantity: Math.max(1, Number(it.quantity) || 1) + 1 } : it))
+      }
+      return [...prev, stockLineDraft({ productId, variantId, label: stockLabel(product, variantId), unitPrice: unit })]
+    })
+    setProductQuery("")
+    setProductPickerOpen(false)
+    if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
+  }
+
+  const pickVariant = (itemIndex: number, productId: string, variantId: string) => {
+    const product = catalog.find((p) => p.id === productId)
+    const variant = product?.variants?.find((v) => v.id === variantId)
+    if (!product || !variant) return
+    patchItem(itemIndex, {
+      variantId,
+      unitPrice: variant.price != null ? Number(variant.price) : Number(product.price) || 0,
+      sneaker: stockLabel(product, variantId),
+    })
+  }
+
+  const removeStockLine = (itemIndex: number) => {
+    const target = items[itemIndex]
+    if (isEdit && target?.serverItemIndex != null && !window.confirm("Tirar este produto do pedido? A reserva volta para o estoque.")) {
+      return
+    }
+    updateItemsAndTotal((prev) => {
+      const next = prev.filter((_, index) => index !== itemIndex)
+      return next.length ? next : [emptyOrderItemDraft()]
+    })
+    setActiveItemIndex((cur) => (cur > itemIndex ? cur - 1 : cur))
   }
 
   const addItem = () => {
@@ -846,8 +928,16 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     }
 
     Object.assign(newErrors, validateOrderItems(items))
+    const missingVariant = items.find((item) => {
+      if (item.origin !== "stock" || !item.productId) return false
+      const product = catalog.find((p) => p.id === item.productId)
+      return Boolean(product?.variants?.length) && !item.variantId
+    })
+    if (missingVariant) {
+      newErrors.items = `${catalog.find((p) => p.id === missingVariant.productId)?.name || "Produto"}: escolha a variação`
+    }
 
-    if (!formData.expectedDate) {
+    if (!formData.expectedDate && !(counterSale && deliverNow)) {
       newErrors.expectedDate = "Data prevista é obrigatória"
     }
 
@@ -951,8 +1041,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
           note: s.description.trim() || undefined,
         })),
         notes: draft.notes.trim() || undefined,
-        flowOptionIds: draft.flowOptionIds,
-        departamentosSelecionados: flowSelections,
+        ...(draft.origin === "stock" && draft.ready !== false
+          ? {}
+          : { flowOptionIds: draft.flowOptionIds, departamentosSelecionados: flowSelections }),
         ...(draft.origin === "stock" && draft.productId
           ? {
               origin: "stock" as const,
@@ -960,6 +1051,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               variantId: draft.variantId,
               quantity: Math.max(1, Number(draft.quantity) || 1),
               unitPrice: Number(draft.unitPrice) || 0,
+              ready: draft.ready !== false,
             }
           : draft.origin === "brought"
             ? { origin: "brought" as const }
@@ -1095,7 +1187,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         precoTotal: pricing.total,
         valorSinal: pricing.deposit,
         valorRestante: pricing.remaining,
-        dataPrevistaEntrega: formData.expectedDate,
+        dataPrevistaEntrega: counterSale && deliverNow ? dueInDays(0) : formData.expectedDate,
+        deliverNow: counterSale && deliverNow,
         departamento: formData.department,
         observacoes: observacoesFinais,
         prioridade: Number(prioridade),
@@ -1159,7 +1252,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         selectedClient?.email || selectedClient?.clientEmail
       )
       toast.success(
-        itemsWithPhotos.length > 0
+        counterSale && deliverNow
+          ? "Venda registrada e entregue. O estoque já baixou."
+          : itemsWithPhotos.length > 0
           ? hasEmail
             ? "Pedido criado. As fotos sobem agora e o e-mail sai em seguida, já com elas."
             : "Pedido criado. As fotos sobem agora."
@@ -1198,6 +1293,26 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     }
   }
 
+  const clientIndexes = clientItemIndexes(items)
+  const activeClientIndex = clientIndexes.includes(activeItemIndex) ? activeItemIndex : clientIndexes[0]
+  const stockIndexes = stockItemIndexes(items)
+  const stockLines = stockIndexes.map((index) => ({ index, item: items[index] })).filter((line) => line.item.productId)
+  const stockTotal = stockLines.reduce(
+    (sum, line) => sum + (Number(line.item.unitPrice) || 0) * Math.max(1, Number(line.item.quantity) || 1),
+    0
+  )
+  const counterSale =
+    !isEdit &&
+    stockLines.length > 0 &&
+    stockLines.every((line) => line.item.ready !== false) &&
+    !clientIndexes.some((index) => isItemTouched(items[index]))
+  const pickerResults = (() => {
+    const q = productQuery.trim().toLowerCase()
+    const list = q
+      ? catalog.filter((p) => p.name.toLowerCase().includes(q) || String(p.sku || "").toLowerCase().includes(q))
+      : catalog
+    return list.slice(0, 8)
+  })()
   const itemsServicesTotal = servicesSum(items)
   const remaining = Math.max(0, totalPrice - signalValue)
   const createReview = summarizeCreateReview(items)
@@ -1438,11 +1553,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </div>
                 {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
 
-                {items.length > 1 ? (
+                {clientIndexes.length > 1 ? (
                   <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {items.map((it, idx) => {
-                      const label = [it.brand, it.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ") || `Item ${idx + 1}`
-                      const active = idx === Math.min(activeItemIndex, items.length - 1)
+                    {clientIndexes.map((idx, position) => {
+                      const it = items[idx]
+                      const label = [it.brand, it.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ") || `Item ${position + 1}`
+                      const active = idx === activeClientIndex
                       return (
                         <button
                           key={it.id}
@@ -1462,15 +1578,21 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   </div>
                 ) : null}
 
+                {clientIndexes.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-[var(--wq-border)] px-3 py-4 text-sm text-[var(--wq-text-muted)]">
+                    Só produtos da loja neste pedido. Trouxe algo para consertar? Toque em Adicionar item.
+                  </p>
+                ) : null}
+
                 {(() => {
-                  const itemIndex = Math.min(activeItemIndex, Math.max(0, items.length - 1))
-                  const item = items[itemIndex]
-                  if (!item) return null
+                  const itemIndex = activeClientIndex
+                  const item = itemIndex != null ? items[itemIndex] : null
+                  if (!item || itemIndex == null) return null
                   return (
                     <div className="space-y-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="min-w-0 text-sm font-semibold text-[var(--wq-text)]">
-                          Item {itemIndex + 1}
+                          Item {clientIndexes.indexOf(itemIndex) + 1}
                           {[item.brand, item.sneaker].map((part) => part?.trim()).filter(Boolean).length ? (
                             <span className="font-normal text-[var(--wq-text-muted)]">
                               {" "}
@@ -1709,6 +1831,184 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 })()}
               </section>
 
+              {catalog.length > 0 || stockIndexes.length > 0 ? (
+                <section className="space-y-3 border-t border-[var(--wq-border)] pt-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-[var(--wq-text)]">
+                        <ShoppingBag className="h-4 w-4 text-[var(--wq-brand-text)]" />
+                        Produtos da loja
+                      </p>
+                      <p className="text-xs text-[var(--wq-text-muted)]">
+                        Vendeu algo junto? Cadarço, palmilha, produto de limpeza. Entra no mesmo pedido e no mesmo total.
+                      </p>
+                    </div>
+                    {stockLines.length ? (
+                      <p className="shrink-0 text-sm font-semibold tabular-nums text-[var(--wq-text)]">{formatBRL(stockTotal)}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
+                    <Input
+                      value={productQuery}
+                      onChange={(e) => {
+                        setProductQuery(e.target.value)
+                        setProductPickerOpen(true)
+                      }}
+                      onFocus={() => setProductPickerOpen(true)}
+                      onBlur={() => setTimeout(() => setProductPickerOpen(false), 150)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const first = pickerResults[0]
+                          if (first) addStockLine(first.id)
+                        }
+                      }}
+                      placeholder={catalog.length ? "Buscar produto para adicionar" : "Nenhum produto ativo em Produtos"}
+                      disabled={!catalog.length}
+                      className="h-11 rounded-[10px] bg-[var(--wq-surface)] pl-9"
+                    />
+                    {productPickerOpen && pickerResults.length ? (
+                      <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-[12px] border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 shadow-lg">
+                        {pickerResults.map((p) => {
+                          const tracked = p.trackStock !== false
+                          const out = tracked && !p.variants?.length && Number(p.available ?? 0) <= 0
+                          return (
+                            <li key={p.id}>
+                              <button
+                                type="button"
+                                disabled={out}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => addStockLine(p.id)}
+                                className="flex w-full items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-left text-sm hover:bg-[var(--wq-paper)] disabled:opacity-50"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate font-medium text-[var(--wq-text)]">{p.name}</span>
+                                  <span className="block text-xs text-[var(--wq-text-muted)]">
+                                    {p.variants?.length
+                                      ? `${p.variants.length} variações`
+                                      : tracked
+                                        ? out
+                                          ? "Sem estoque"
+                                          : `${p.available ?? 0} disponível`
+                                        : "Sem controle de saldo"}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 font-semibold tabular-nums">{formatBRL(Number(p.price) || 0)}</span>
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : null}
+                  </div>
+
+                  {stockIndexes.length ? (
+                    <ul className="divide-y divide-[var(--wq-border)] overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+                      {stockIndexes.map((index) => {
+                        const line = items[index]
+                        const product = catalog.find((p) => p.id === line.productId)
+                        const qty = Math.max(1, Number(line.quantity) || 1)
+                        const available = stockAvailable(product, line.variantId)
+                        const short = available != null && qty > available
+                        const committed = isEdit && orderStatus === "delivered"
+                        return (
+                          <li key={line.id} className="space-y-2 px-3 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-[var(--wq-text)]">{product?.name || line.sneaker || "Produto"}</p>
+                                {product?.variants?.length ? (
+                                  <Select
+                                    value={line.variantId || ""}
+                                    onValueChange={(value) => pickVariant(index, product.id, value)}
+                                  >
+                                    <SelectTrigger className="mt-1 h-8 w-48 max-w-full text-xs">
+                                      <SelectValue placeholder="Escolha a variação" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {product.variants.map((v) => (
+                                        <SelectItem key={v.id} value={v.id} disabled={product.trackStock !== false && v.available <= 0}>
+                                          {v.name}
+                                          {product.trackStock !== false ? ` · ${v.available} disp.` : ""}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : null}
+                              </div>
+                              <button
+                                type="button"
+                                aria-label="Tirar produto"
+                                disabled={committed}
+                                onClick={() => removeStockLine(index)}
+                                className="rounded-md p-1 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-danger)] disabled:opacity-40"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="inline-flex items-center rounded-[10px] border border-[var(--wq-border)]">
+                                <button
+                                  type="button"
+                                  aria-label="Menos um"
+                                  disabled={qty <= 1 || committed}
+                                  onClick={() => patchItem(index, { quantity: qty - 1 })}
+                                  className="flex h-9 w-9 items-center justify-center text-[var(--wq-text-muted)] hover:text-[var(--wq-text)] disabled:opacity-40"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="w-8 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                                <button
+                                  type="button"
+                                  aria-label="Mais um"
+                                  disabled={committed || (available != null && qty >= available)}
+                                  onClick={() => patchItem(index, { quantity: qty + 1 })}
+                                  className="flex h-9 w-9 items-center justify-center text-[var(--wq-text-muted)] hover:text-[var(--wq-text)] disabled:opacity-40"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <span className="text-xs text-[var(--wq-text-muted)]">×</span>
+                              <MoneyField
+                                value={Number(line.unitPrice) || 0}
+                                onValue={(next) => patchItem(index, { unitPrice: next })}
+                                className="h-9 w-28"
+                              />
+                              <span className="ml-auto text-sm font-semibold tabular-nums text-[var(--wq-text)]">
+                                {formatBRL(qty * (Number(line.unitPrice) || 0))}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <span className={short ? "text-[var(--wq-danger)]" : "text-[var(--wq-text-muted)]"}>
+                                {short
+                                  ? `Só ${Math.max(0, available ?? 0)} disponível`
+                                  : available != null
+                                    ? `${available} disponível · reserva ao salvar`
+                                    : product
+                                      ? "Sem controle de saldo"
+                                      : ""}
+                              </span>
+                              {line.serverItemIndex == null ? (
+                                <label className="inline-flex cursor-pointer items-center gap-1.5 text-[var(--wq-text-muted)]">
+                                  <input
+                                    type="checkbox"
+                                    checked={line.ready === false}
+                                    onChange={(e) => patchItem(index, { ready: !e.target.checked })}
+                                    className="h-3.5 w-3.5 rounded border-[var(--wq-border)]"
+                                  />
+                                  Passa pela produção
+                                </label>
+                              ) : null}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                </section>
+              ) : null}
+
               {/* Block 2b — Acessórios (partida vai junto do pagamento) */}
               <section className="space-y-2 border-t border-[var(--wq-border)] pt-5">
                 <p className="text-sm font-medium text-[var(--wq-text)]">Acessórios</p>
@@ -1721,6 +2021,23 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
               <section className="space-y-4 border-t border-[var(--wq-border)] pt-6">
                 <StepHeading step="3" title="Pagamento" hint="Prazo, sinal e garantia. O total sai dos serviços." />
+
+                {counterSale ? (
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--wq-action)]/40 bg-[var(--wq-action)]/5 p-3">
+                    <input
+                      type="checkbox"
+                      checked={deliverNow}
+                      onChange={(e) => setDeliverNow(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-[var(--wq-border)]"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--wq-text)]">Cliente já levou — entregar agora</span>
+                      <span className="block text-xs text-[var(--wq-text-muted)]">
+                        Venda de balcão: o pedido já nasce entregue, o estoque baixa e entra no caixa de hoje. Sem e-mail para o cliente.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
 
                 <div className="space-y-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1879,7 +2196,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
                 {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
 
-                <div className="grid grid-cols-1 gap-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4 md:grid-cols-2">
+                <div className={`grid grid-cols-1 gap-4 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-4 md:grid-cols-2 ${counterSale && deliverNow ? "hidden" : ""}`}>
                   <div className="space-y-2 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] p-3">
                     <Label htmlFor="expectedDate">Data prevista *</Label>
                     <Input
@@ -2097,10 +2414,24 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                       </p>
                     </div>
                   ))}
+                  {createReview.products.length ? (
+                    <div className="rounded-xl border border-[var(--wq-border)] px-3 py-2">
+                      <p className="text-xs text-[var(--wq-text-muted)]">Produtos da loja</p>
+                      {createReview.products.map((product, index) => (
+                        <p key={`${product.label}-${index}`} className="flex justify-between gap-3">
+                          <span className="font-medium text-[var(--wq-text)]">
+                            {product.quantity > 1 ? `${product.quantity}× ` : ""}
+                            {product.label}
+                          </span>
+                          <span className="tabular-nums text-[var(--wq-text-muted)]">{formatBRL(product.total)}</span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-[var(--wq-text-muted)]">Prazo</span>
-                  <span className="font-medium">{confirmDue}</span>
+                  <span className="font-medium">{counterSale && deliverNow ? "Entregue agora" : confirmDue}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-[var(--wq-text-muted)]">Total</span>

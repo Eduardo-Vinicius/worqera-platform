@@ -162,6 +162,16 @@ exports.remove = wrap(async (req, res) => {
   res.status(200).json(presentOrder(req, order));
 });
 
+exports.shelf = wrap(async (req, res) => {
+  const { listShelf } = require('../services/shelfService');
+  res.status(200).json(await listShelf(req.shopId));
+});
+
+exports.shelfRemind = wrap(async (req, res) => {
+  const { markReminded } = require('../services/shelfService');
+  res.status(200).json(await markReminded(req.shopId, req.params.id));
+});
+
 exports.restore = wrap(async (req, res) => {
   const order = await orderService.restoreOrder(req.shopId, req.params.id, req.auth.userId);
   res.status(200).json(presentOrder(req, order));

@@ -19,6 +19,7 @@ export function PlatformNoticeBanner() {
       const list = runtimeSnapshot()?.notices || []
       const now = Date.now()
       const next = list.find((item) => {
+        if (item.display === "modal") return false
         const raw = localStorage.getItem(`wq-notice-dismiss:${item.id}`)
         if (!raw) return true
         if (raw === "forever") return false

@@ -157,6 +157,11 @@ const orderSchema = new mongoose.Schema(
       refusedAt: { type: Date, default: null },
       reason: { type: String, default: null },
     },
+    /** Reminders sent while the order waits on the shelf (ready, not picked up). */
+    shelfReminder: {
+      count: { type: Number, default: 0 },
+      lastAt: { type: Date, default: null },
+    },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
     pdfUrl: { type: String, default: null },
     /**

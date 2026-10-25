@@ -206,7 +206,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Produtos',
-      subtitle: 'Só o admin Worqera vê esta tela.',
+      subtitle: 'O que a loja vende. No pedido, em Produtos da loja: reserva e a entrega baixa.',
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

@@ -7,7 +7,9 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 
 | Rota | Capacidades | Gaps |
 |------|-------------|------|
-| `/` | Landing premium multi-ramo (loop + ramos + trial) | |
+| `/` | Landing premium multi-ramo (orquestrador: pilares, novo na Worqera, loop, ramos, planos) | |
+| `/recursos` | Todos os recursos + comparação de planos + "Chegando" | público |
+| `/recursos/[slug]` | Página por recurso: kanban, orcamentos, whatsapp, cliente, financeiro, ia, equipe, produtos | público |
 | `/login` | Login e-mail/senha | |
 | `/signup` | Trial 7 dias | |
 | `/dashboard` | KPIs compactos, atalhos (Financeiro p/ owner/admin), chips “o que fazer”, setores | |

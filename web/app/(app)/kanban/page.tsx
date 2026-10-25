@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import {
   DndContext,
@@ -15,22 +15,32 @@ import {
 } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import {
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   Copy,
   ExternalLink,
   FileText,
+  History,
+  KanbanSquare,
   Mail,
   MessageCircle,
+  Package,
   PhoneOff,
   Plus,
   Printer,
+  QrCode,
   RefreshCw,
   Search,
   Settings,
+  StickyNote,
   Trash2,
+  UserRound,
+  Wallet,
   X,
+  Zap,
+  type LucideIcon,
 } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
@@ -380,6 +390,39 @@ function useDesktopKanbanDrag() {
     return () => mq.removeEventListener("change", apply)
   }, [])
   return desktop
+}
+
+const DETAIL_STATUS_LABEL: Record<string, string> = {
+  open: "Aberto",
+  in_progress: "Em andamento",
+  ready: "Pronto",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+}
+
+function DetailSection({
+  title,
+  icon: Icon,
+  action,
+  children,
+}: {
+  title: string
+  icon?: LucideIcon
+  action?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+      <header className="mb-3 flex items-center justify-between gap-2">
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">
+          {Icon ? <Icon className="h-3.5 w-3.5 text-[var(--wq-brand)]" /> : null}
+          {title}
+        </p>
+        {action}
+      </header>
+      {children}
+    </section>
+  )
 }
 
 function KanbanPairQrs({
@@ -1826,30 +1869,65 @@ export default function KanbanPage() {
       {detailOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setDetailOpen(false)}>
           <aside
-            className="flex h-full w-full max-w-md flex-col bg-[var(--wq-surface)] shadow-xl text-[var(--wq-text)]"
+            className="flex h-full w-full max-w-lg flex-col bg-[var(--wq-paper)] text-[var(--wq-text)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-5 py-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--wq-text-muted)]">Pedido</p>
-                <p className="font-mono text-2xl font-semibold">{detail?.code || "…"}</p>
-              </div>
-              <button type="button" onClick={() => setDetailOpen(false)} className="rounded-lg p-2 hover:bg-[var(--wq-paper)]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {detailLoading || !detail ? (
-                <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--wq-text)]">
+            <div className="border-b border-[var(--wq-border)] bg-[var(--wq-surface)] px-5 pb-4 pt-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">Pedido</p>
+                  <p className="font-mono text-2xl font-semibold leading-tight">{detail?.code || "…"}</p>
+                  {detail ? (
+                    <p className="mt-0.5 truncate text-sm font-medium text-[var(--wq-text)]">
                       {detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "Cliente"}
                     </p>
+                  ) : null}
+                </div>
+                <button type="button" onClick={() => setDetailOpen(false)} className="rounded-lg p-2 hover:bg-[var(--wq-paper)]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              {detail ? (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  {detailCurrentSectorId && sectorNameById.get(detailCurrentSectorId) ? (
+                    <span className="rounded-full bg-[var(--wq-brand)] px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                      {sectorNameById.get(detailCurrentSectorId)}
+                    </span>
+                  ) : null}
+                  {detail.status ? (
+                    <span className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)]">
+                      {DETAIL_STATUS_LABEL[detail.status] || detail.status}
+                    </span>
+                  ) : null}
+                  {detail.dueAt ? (
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                        new Date(detail.dueAt).getTime() < Date.now()
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
+                      )}
+                    >
+                      Prazo {new Date(detail.dueAt).toLocaleDateString("pt-BR")}
+                      {new Date(detail.dueAt).getTime() < Date.now() ? " · atrasado" : ""}
+                    </span>
+                  ) : null}
+                  {(detail.items || []).length > 1 ? (
+                    <span className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)]">
+                      {(detail.items || []).length} pares
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4">
+              {detailLoading || !detail ? (
+                <p className="px-2 py-6 text-sm text-[var(--wq-text-muted)]">Carregando…</p>
+              ) : (
+                <>
                     {moneyTone !== "hidden" ? (
-                      <div className={moneyTone === "quiet" ? "mt-1" : "mt-3"}>
+                      <DetailSection title="Valor" icon={Wallet}>
                         {readOrderPricing(detail).total <= 0.009 ? (
                           <p className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-950">
                             Pendente valor
@@ -1912,26 +1990,11 @@ export default function KanbanPage() {
                             </div>
                           ) : null}
                         </div>
-                      </div>
+                      </DetailSection>
                     ) : null}
-                    {detail.dueAt && (
-                      <p
-                        className={cn(
-                          "text-xs",
-                          new Date(detail.dueAt).getTime() < Date.now()
-                            ? "font-semibold text-rose-700"
-                            : "text-[var(--wq-text-muted)]"
-                        )}
-                      >
-                        Prazo {new Date(detail.dueAt).toLocaleDateString("pt-BR")}
-                        {new Date(detail.dueAt).getTime() < Date.now() ? " · atrasado" : ""}
-                      </p>
-                    )}
                     {(detail.items || []).length > 0 ? (
-                      <div className="mt-4 space-y-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                          Pares, serviços e observações
-                        </p>
+                      <DetailSection title="Pares, serviços e observações" icon={Package}>
+                      <div className="space-y-3">
                         {(detail.items || []).map((item, itemIndex) => {
                           const viewingOne = detailItemId != null || detailItemIndex != null
                           const focused =
@@ -1998,8 +2061,10 @@ export default function KanbanPage() {
                           )
                         })}
                       </div>
+                      </DetailSection>
                     ) : null}
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <DetailSection title="Ações" icon={Zap}>
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
                         size="sm"
@@ -2140,10 +2205,94 @@ export default function KanbanPage() {
                           Pedidos
                         </Link>
                       </Button>
+                      <Button asChild size="sm" variant="outline" className="col-span-2 rounded-[10px]">
+                        <Link href={`/pedidos/${detail.id}/etiqueta`}>
+                          <QrCode className="mr-1.5 h-3.5 w-3.5" />
+                          Ver etiqueta
+                        </Link>
+                      </Button>
                     </div>
-                  </div>
+                    {!isSectorRole && detail.id && detail.status !== "delivered" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-2 w-full rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
+                        onClick={() => setRefuseOpen(true)}
+                      >
+                        <PhoneOff className="mr-1.5 h-4 w-4" />
+                        Cliente não fechou → Orçamentos
+                      </Button>
+                    ) : null}
+                    </DetailSection>
 
-                  <div>
+                  <DetailSection
+                    title="Fila"
+                    icon={KanbanSquare}
+                    action={
+                      focusedDetailItem?.shoeModel ? (
+                        <span className="text-[11px] text-[var(--wq-text-muted)]">{focusedDetailItem.shoeModel}</span>
+                      ) : null
+                    }
+                  >
+                    <p className="mb-2 text-xs text-[var(--wq-text-muted)]">Caminho planejado</p>
+                    <div className="flex flex-wrap gap-2">
+                      {plannedPathIds.map((sid) => {
+                        const current = detailCurrentSectorId === sid
+                        const visited = (
+                          focusedDetailItem?.sectorHistory ||
+                          detail.sectorHistory ||
+                          []
+                        )
+                          .map((h) => String(h.sectorId || ""))
+                          .includes(sid)
+                        return (
+                          <span
+                            key={sid}
+                            className={cn(
+                              "rounded-full border px-3 py-1 text-xs",
+                              current
+                                ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
+                                : visited
+                                  ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+                                  : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
+                            )}
+                          >
+                            {visited && !current ? "✓ " : ""}
+                            {sectorNameById.get(sid) || sid.slice(-4)}
+                          </span>
+                        )
+                      })}
+                    </div>
+
+                    <p className="mb-1 mt-4 text-xs text-[var(--wq-text-muted)]">
+                      {isSectorRole ? "Encaminhar — no plano" : "Mover — no plano"}
+                    </p>
+                    {isSectorRole && (
+                      <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
+                        Você não vê a fila de destino — só envia o pedido. Quem encaminhou fica no
+                        histórico.
+                      </p>
+                    )}
+                    <div className="grid gap-2">
+                      {plannedMoveTargets.length === 0 && (
+                        <p className="text-xs text-[var(--wq-text-muted)]">Nenhum destino no plano.</p>
+                      )}
+                      {plannedMoveTargets.map((t) => renderMoveButton(t, true))}
+                    </div>
+
+                    {offPlanMoveTargets.length > 0 && (
+                      <div className="mt-4">
+                        <p className="mb-1 text-xs text-[var(--wq-text-muted)]">
+                          Fora do plano · exige comentário ao confirmar
+                        </p>
+                        <div className="grid gap-2">
+                          {offPlanMoveTargets.map((t) => renderMoveButton(t, false))}
+                        </div>
+                      </div>
+                    )}
+                  </DetailSection>
+
+                  <DetailSection title="Fotos e QR" icon={Camera}>
                     {(() => {
                       const pairFocus = (() => {
                         if (detailItemIndex != null) return detailItemIndex
@@ -2155,28 +2304,34 @@ export default function KanbanPage() {
                       })()
                       const onlyThisPair = pairFocus != null && !showAllOrderPhotos
                       return (
-                        <>
-                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                            {onlyThisPair ? "QR deste par" : "QR de cada par"}
-                          </p>
-                          <KanbanPairQrs
-                            code={String(detail.code || "")}
-                            token={String(detail.publicToken || "")}
-                            slug={String(
-                              shopDoc?.slug ||
-                                (typeof window !== "undefined"
-                                  ? localStorage.getItem("shopSlug")
-                                  : "") ||
-                                ""
-                            )}
-                            items={(detail.items || []).map((it) => ({ shoeModel: it.shoeModel }))}
-                            focusIndex={pairFocus}
-                            onlyIndex={onlyThisPair ? pairFocus : null}
-                          />
-                        </>
+                        <details className="group mb-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/60 px-3 py-2">
+                          <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-[var(--wq-text-muted)] [&::-webkit-details-marker]:hidden">
+                            <span className="flex items-center gap-1.5">
+                              <QrCode className="h-3.5 w-3.5" />
+                              {onlyThisPair ? "QR deste par" : "QR de cada par"}
+                            </span>
+                            <span className="text-[var(--wq-brand)] group-open:hidden">Mostrar</span>
+                            <span className="hidden text-[var(--wq-brand)] group-open:inline">Esconder</span>
+                          </summary>
+                          <div className="mt-3">
+                            <KanbanPairQrs
+                              code={String(detail.code || "")}
+                              token={String(detail.publicToken || "")}
+                              slug={String(
+                                shopDoc?.slug ||
+                                  (typeof window !== "undefined"
+                                    ? localStorage.getItem("shopSlug")
+                                    : "") ||
+                                  ""
+                              )}
+                              items={(detail.items || []).map((it) => ({ shoeModel: it.shoeModel }))}
+                              focusIndex={pairFocus}
+                              onlyIndex={onlyThisPair ? pairFocus : null}
+                            />
+                          </div>
+                        </details>
                       )
                     })()}
-                  </div>
 
                   {(() => {
                     const viewingItem = Boolean(detailItemId || detailItemIndex != null)
@@ -2260,90 +2415,22 @@ export default function KanbanPage() {
                       </div>
                     )
                   })()}
+                  </DetailSection>
 
-                  <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      Caminho planejado
-                      {focusedDetailItem?.shoeModel
-                        ? ` · ${focusedDetailItem.shoeModel}`
-                        : ""}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {plannedPathIds.map((sid) => {
-                        const current = detailCurrentSectorId === sid
-                        const visited = (
-                          focusedDetailItem?.sectorHistory ||
-                          detail.sectorHistory ||
-                          []
-                        )
-                          .map((h) => String(h.sectorId || ""))
-                          .includes(sid)
-                        return (
-                          <span
-                            key={sid}
-                            className={cn(
-                              "rounded-full border px-3 py-1 text-xs",
-                              current
-                                ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
-                                : visited
-                                  ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
-                                  : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
-                            )}
-                          >
-                            {visited && !current ? "✓ " : ""}
-                            {sectorNameById.get(sid) || sid.slice(-4)}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      {isSectorRole ? "Encaminhar — no plano" : "Mover — no plano"}
-                    </p>
-                    {isSectorRole && (
-                      <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
-                        Você não vê a fila de destino — só envia o pedido. Quem encaminhou fica no
-                        histórico.
-                      </p>
-                    )}
-                    <div className="grid gap-2">
-                      {plannedMoveTargets.length === 0 && (
-                        <p className="text-xs text-[var(--wq-text-muted)]">Nenhum destino no plano.</p>
-                      )}
-                      {plannedMoveTargets.map((t) => renderMoveButton(t, true))}
-                    </div>
-                  </div>
-
-                  {offPlanMoveTargets.length > 0 && (
-                    <div>
-                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                        Fora do plano
-                      </p>
-                      <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
-                        Exige comentário ao confirmar o move.
-                      </p>
-                      <div className="grid gap-2">
-                        {offPlanMoveTargets.map((t) => renderMoveButton(t, false))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                        Dados rápidos
-                      </p>
-                      {detail.id && !isSectorRole ? (
+                  <DetailSection
+                    title="Cliente e prazo"
+                    icon={UserRound}
+                    action={
+                      detail.id && !isSectorRole ? (
                         <Link
                           href={`/pedidos/${detail.id}/editar`}
-                          className="text-[11px] font-medium text-[var(--wq-brand-text)] hover:underline"
+                          className="text-[11px] font-medium text-[var(--wq-brand)] hover:underline"
                         >
                           Editar completo
                         </Link>
-                      ) : null}
-                    </div>
+                      ) : null
+                    }
+                  >
                     <div className="space-y-2">
                       <Input
                         value={detailClientName}
@@ -2382,12 +2469,9 @@ export default function KanbanPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </DetailSection>
 
-                  <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      Observação do pedido
-                    </p>
+                  <DetailSection title="Observação do pedido" icon={StickyNote}>
                     <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
                       Anote o que o cliente pediu no telefone — fica no pedido para a equipe ver.
                     </p>
@@ -2406,12 +2490,10 @@ export default function KanbanPage() {
                     >
                       {savingNotes ? "Salvando…" : "Salvar"}
                     </Button>
-                  </div>
+                  </DetailSection>
 
-                  <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                      Histórico de anotações
-                    </p>
+                  <DetailSection title="Histórico" icon={History}>
+                    <p className="mb-2 text-xs text-[var(--wq-text-muted)]">Anotações</p>
                     <div className="space-y-2">
                       <Textarea
                         value={commentDraft}
@@ -2454,13 +2536,10 @@ export default function KanbanPage() {
                         </li>
                       ))}
                     </ul>
-                  </div>
 
                   {historyEntries.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">
-                        Histórico de setores
-                      </p>
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs text-[var(--wq-text-muted)]">Setores</p>
                       <ul className="space-y-2">
                         {historyEntries.map((h, idx) => {
                           const toName = sectorNameById.get(String(h.sectorId || "")) || "Setor"
@@ -2505,27 +2584,12 @@ export default function KanbanPage() {
                       </ul>
                     </div>
                   )}
-
-                  <Button asChild variant="outline" className="w-full rounded-[10px]">
-                    <Link href={`/pedidos/${detail.id}/etiqueta`}>Ver etiqueta</Link>
-                  </Button>
-
-                  {!isSectorRole && detail.id && detail.status !== "delivered" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
-                      onClick={() => setRefuseOpen(true)}
-                    >
-                      <PhoneOff className="mr-1.5 h-4 w-4" />
-                      Cliente não fechou
-                    </Button>
-                  ) : null}
+                  </DetailSection>
 
                   <Button
                     type="button"
-                    variant="outline"
-                    className="w-full rounded-[10px] border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                    variant="ghost"
+                    className="w-full rounded-[10px] text-rose-700 hover:bg-rose-50 hover:text-rose-800"
                     onClick={async () => {
                       if (!detail.id) return
                       const ok = window.confirm(

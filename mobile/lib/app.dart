@@ -36,7 +36,7 @@ class _WorqeraAppState extends State<WorqeraApp> {
       if (!session.ready) return null;
       final loc = state.matchedLocation;
       if (!session.loggedIn) {
-        if (loc == '/login' || loc == '/signup' || loc == '/invite') return null;
+        if (loc == '/login' || loc == '/signup' || loc == '/invite' || loc == '/verify') return null;
         return '/login';
       }
       if (loc == '/login') {
@@ -51,6 +51,10 @@ class _WorqeraAppState extends State<WorqeraApp> {
       GoRoute(path: '/login', builder: (_, _) => LoginScreen(api: api, session: session)),
       GoRoute(path: '/signup', builder: (_, _) => SignupScreen(api: api, session: session)),
       GoRoute(path: '/invite', builder: (_, _) => InviteScreen(api: api, session: session)),
+      GoRoute(
+        path: '/verify',
+        builder: (_, state) => VerifyEmailScreen(api: api, session: session, email: state.uri.queryParameters['email'] ?? ''),
+      ),
       GoRoute(path: '/onboarding', builder: (_, _) => OnboardingScreen(api: api)),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(session: session, api: api, theme: theme, navigationShell: shell),

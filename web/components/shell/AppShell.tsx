@@ -16,6 +16,7 @@ import { AppSidebar } from "./AppSidebar"
 import { TrialBanner } from "./TrialBanner"
 import { DelayAlertsBanner } from "./DelayAlertsBanner"
 import { PlatformNoticeBanner } from "./PlatformNoticeBanner"
+import { ReleaseNotesModal } from "./ReleaseNotesModal"
 import { QuickOrderJump } from "./QuickOrderJump"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -324,6 +325,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {platformConsole ? null : <EmailUnverifiedBanner />}
           {platformConsole ? null : <TrialBanner />}
           {platformConsole ? null : <PlatformNoticeBanner />}
+          {platformConsole ? null : <ReleaseNotesModal />}
           {platformConsole ? null : <DelayAlertsBanner />}
         </div>
         <main

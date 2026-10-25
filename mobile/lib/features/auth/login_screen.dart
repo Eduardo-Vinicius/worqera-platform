@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import 'package:go_router/go_router.dart';
@@ -47,6 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await widget.api.login(email.text.trim(), password.text);
       }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['code'] == 'EMAIL_NOT_VERIFIED') {
+        if (mounted) context.go('/verify?email=${Uri.encodeQueryComponent(email.text.trim())}');
+        return;
+      }
+      setState(() => error = widget.api.message(e));
     } catch (e) {
       setState(() => error = widget.api.message(e));
     } finally {

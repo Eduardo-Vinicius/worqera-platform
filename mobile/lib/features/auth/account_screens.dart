@@ -69,7 +69,7 @@ class _SignupScreenState extends State<SignupScreen> {
       });
       final body = Map<String, dynamic>.from(res.data as Map);
       if (body['requiresEmailVerification'] == true || (body['token'] == null && body['accessToken'] == null)) {
-        setState(() => error = '${body['message'] ?? 'Conta criada. Confira o e-mail para entrar.'}');
+        if (mounted) context.go('/verify?email=${Uri.encodeQueryComponent(email.text.trim())}');
         return;
       }
       await widget.session.apply(body);
@@ -135,6 +135,126 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 8),
           const Text('Sem cartão. Cancele quando quiser. O endereço da empresa a gente cria.', style: TextStyle(color: Wq.muted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+class VerifyEmailScreen extends StatefulWidget {
+  const VerifyEmailScreen({super.key, required this.api, required this.session, required this.email});
+  final WorqeraApi api;
+  final SessionStore session;
+  final String email;
+  @override
+  State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
+}
+
+class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+  late final email = TextEditingController(text: widget.email);
+  final code = TextEditingController();
+  bool busy = false;
+  int cooldown = 0;
+  String? error;
+  String? info;
+
+  @override
+  void dispose() {
+    email.dispose();
+    code.dispose();
+    super.dispose();
+  }
+
+  void tick() {
+    if (!mounted || cooldown <= 0) return;
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() => cooldown -= 1);
+      tick();
+    });
+  }
+
+  Future<void> confirm() async {
+    final digits = code.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 6) {
+      setState(() => error = 'O código tem 6 números.');
+      return;
+    }
+    setState(() { busy = true; error = null; info = null; });
+    try {
+      final res = await widget.api.dio.post('/auth/verify-email', data: {'email': email.text.trim(), 'code': digits});
+      await widget.session.apply(Map<String, dynamic>.from(res.data as Map));
+      final me = await widget.api.dio.get('/auth/me');
+      await widget.session.apply(Map<String, dynamic>.from(me.data as Map), keep: widget.session);
+      if (mounted) context.go('/onboarding');
+    } catch (e) {
+      code.clear();
+      setState(() => error = widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> resend() async {
+    setState(() { error = null; info = null; });
+    try {
+      final res = await widget.api.dio.post('/auth/resend-verification', data: {'email': email.text.trim()});
+      final body = Map<String, dynamic>.from(res.data as Map);
+      if (body['alreadyVerified'] == true) {
+        widget.session.notice = 'Esse e-mail já está confirmado. Entre com a sua senha.';
+        if (mounted) context.go('/login');
+        return;
+      }
+      setState(() {
+        cooldown = (body['retryIn'] as num?)?.toInt() ?? 60;
+        info = body['throttled'] == true ? 'Aguarde para pedir outro código.' : 'Enviamos um código novo.';
+        if (body['devCode'] != null) info = '$info Código (dev): ${body['devCode']}';
+      });
+      tick();
+    } catch (e) {
+      setState(() => error = widget.api.message(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WqPage(
+      title: 'Confirme seu e-mail',
+      subtitle: 'Último passo para abrir a conta',
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          WqCard(
+            child: Text(
+              'Enviamos um código de 6 números para ${email.text.isEmpty ? 'o seu e-mail' : email.text}. Não chegou? Olhe o spam.',
+              style: const TextStyle(height: 1.35),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (widget.email.isEmpty)
+            TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail do cadastro')),
+          TextField(
+            controller: code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 28, letterSpacing: 12, fontWeight: FontWeight.w800),
+            decoration: const InputDecoration(labelText: 'Código', counterText: ''),
+            onChanged: (value) {
+              if (value.replaceAll(RegExp(r'\D'), '').length == 6 && !busy) confirm();
+            },
+          ),
+          if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: const TextStyle(color: Wq.danger))),
+          if (info != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(info!, style: const TextStyle(color: Wq.action))),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: busy ? null : confirm, child: Text(busy ? 'Confirmando…' : 'Confirmar e entrar')),
+          TextButton(
+            onPressed: cooldown > 0 ? null : resend,
+            child: Text(cooldown > 0 ? 'Reenviar em ${cooldown}s' : 'Reenviar código'),
+          ),
+          TextButton(onPressed: () => context.go('/login'), child: const Text('Voltar ao login')),
         ],
       ),
     );

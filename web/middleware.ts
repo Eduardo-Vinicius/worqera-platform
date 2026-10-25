@@ -55,6 +55,8 @@ export function middleware(request: NextRequest) {
   if (
     PUBLIC_PATHS.includes(pathname) ||
     isTradePath(pathname) ||
+    pathname === '/recursos' ||
+    pathname.startsWith('/recursos/') ||
     pathname.startsWith('/p/') ||
     pathname.startsWith('/invite/') ||
     pathname === '/forgot-password' ||

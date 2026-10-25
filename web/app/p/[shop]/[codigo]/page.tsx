@@ -78,6 +78,7 @@ function PublicOrderByShopInner() {
   const shopName = data?.shop?.name
   const logoUrl = data?.shop?.logoUrl || ""
   const phone = data?.shop?.phone || ""
+  const reviewUrl = /^https:\/\//i.test(String(data?.shop?.reviewUrl || "")) ? String(data.shop.reviewUrl) : ""
 
   const colors = useMemo(
     () =>
@@ -113,7 +114,9 @@ function PublicOrderByShopInner() {
         canFeedback: false,
         feedback: { score, comment, tags, createdAt: new Date().toISOString() },
       }))
-      setFbMsg("Obrigado! Sua opinião ajuda a oficina a melhorar.")
+      setFbMsg(
+        score >= 4 && reviewUrl ? "" : "Obrigado! Sua opinião ajuda a oficina a melhorar."
+      )
     } catch (e: any) {
       setFbMsg(e?.message || "Não foi possível enviar")
     } finally {
@@ -333,6 +336,27 @@ function PublicOrderByShopInner() {
                   {fbMsg ? (
                     <p className="mt-2 text-xs text-[var(--wq-text-muted)]">{fbMsg}</p>
                   ) : null}
+                </div>
+              ) : null}
+
+              {data.feedback?.score >= 4 && reviewUrl ? (
+                <div
+                  className="rounded-xl border px-4 py-4 text-center"
+                  style={{ borderColor: hexToRgba(colors.primary, 0.3), background: colors.soft }}
+                >
+                  <p className="text-base font-semibold">Que bom que você gostou!</p>
+                  <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+                    Conta isso no Google? Leva 30 segundos e ajuda muito a {shopName || "loja"}.
+                  </p>
+                  <a
+                    href={reviewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-[12px] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95 active:scale-[0.99]"
+                    style={{ background: colors.primary }}
+                  >
+                    <span aria-hidden>★</span> Avaliar no Google
+                  </a>
                 </div>
               ) : null}
 

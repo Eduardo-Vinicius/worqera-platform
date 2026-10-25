@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/components/landing/language-provider"
 import { Header } from "@/components/landing/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { SystemSection } from "@/components/landing/system-section"
+import { NewsSection } from "@/components/landing/news-section"
 import { ProofSection } from "@/components/landing/proof-section"
 import { ClientsSection } from "@/components/landing/clients-section"
 import { TradesSection } from "@/components/landing/trades-section"
@@ -38,6 +39,7 @@ function LandingInner() {
       <main>
         <HeroSection />
         <SystemSection />
+        <NewsSection />
         <ProofSection />
         <ClientsSection />
         <TradesSection />

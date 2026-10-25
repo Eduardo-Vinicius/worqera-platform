@@ -80,6 +80,8 @@ class _ItemDraft {
   bool fromStock = false;
   String productId = '';
   String variantId = '';
+  /// Picked off the shelf: starts in the final sector, no production.
+  bool ready = true;
 
   bool get touched =>
       brand.text.trim().isNotEmpty ||
@@ -166,6 +168,25 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   bool get editing => widget.orderId != null && widget.orderId!.isNotEmpty;
   _ItemDraft get current => items[itemIndex.clamp(0, items.length - 1)];
+  bool deliverNow = true;
+
+  List<int> get clientIndexes => [for (var i = 0; i < items.length; i++) if (!items[i].fromStock) i];
+  List<int> get stockIndexes => [for (var i = 0; i < items.length; i++) if (items[i].fromStock && items[i].productId.isNotEmpty) i];
+
+  /// Only shop products, all off the shelf: can close as a counter sale.
+  bool get counterSale =>
+      !editing &&
+      stockIndexes.isNotEmpty &&
+      stockIndexes.every((i) => items[i].ready) &&
+      !clientIndexes.any((i) => items[i].touched);
+
+  double get stockSum {
+    var sum = 0.0;
+    for (final i in stockIndexes) {
+      sum += items[i].quantity * items[i].unitPrice;
+    }
+    return sum;
+  }
 
   @override
   void initState() {
@@ -211,6 +232,12 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           .map((row) => '${row['name']}'.trim())
           .toList();
       clients = _maps(results[4].data, const ['clients', 'data', 'items']).map(_client).toList();
+      try {
+        final products = await widget.api.dio.get('/products');
+        catalog = _maps(products.data, const ['products', 'data']).where((row) => row['active'] != false).toList();
+      } catch (_) {
+        catalog = [];
+      }
       if (services.isEmpty) {
         services = [
           {'id': 'limpeza-simples', 'name': 'Limpeza Simples', 'defaultPrice': 30},
@@ -392,7 +419,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           return draft;
         }));
       serverItemCount = items.length;
-      itemIndex = 0;
+      if (items.every((row) => row.fromStock)) items.add(_ItemDraft()..flow.add('atendimento'));
+      itemIndex = clientIndexes.isEmpty ? 0 : clientIndexes.first;
     }
   }
 
@@ -447,6 +475,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     if (touched.isEmpty || filledItems.isEmpty) return 'Informe ao menos um item com modelo e serviços';
     if (touched.any((item) => !item.filled)) {
       return 'Cada item preenchido deve ter modelo e serviço, ou um produto da loja';
+    }
+    for (final item in items) {
+      if (!item.fromStock || item.productId.isEmpty) continue;
+      final product = _product(item.productId);
+      if (_variants(product).isNotEmpty && item.variantId.isEmpty) return '${product?['name'] ?? 'Produto'}: escolha a variação';
     }
     if (items.any((item) => item.photos.length > _maxPhotos)) return 'Máximo de $_maxPhotos fotos por item';
     if (deposit < 0 || deposit > total + 0.001) return 'O sinal precisa ficar entre zero e o total';
@@ -742,6 +775,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       'valorSinal': deposit,
       'valorRestante': remaining,
       'status': 'open',
+      if (counterSale && deliverNow) ...{
+        'deliverNow': true,
+        'dataPrevistaEntrega': _iso(_plusDays(0)),
+        'dueAt': _iso(_plusDays(0)),
+      },
     };
   }
 
@@ -759,7 +797,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           },
       ],
       'notes': _notesFor(item),
-      'flowOptionIds': item.flow,
+      if (!(item.fromStock && item.ready)) 'flowOptionIds': item.flow,
     };
     if (item.fromStock && item.productId.isNotEmpty) {
       payload.addAll({
@@ -768,6 +806,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         'variantId': item.variantId,
         'quantity': item.quantity,
         'unitPrice': item.unitPrice,
+        'ready': item.ready,
       });
     } else {
       payload['origin'] = 'brought';
@@ -923,7 +962,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Future<void> _openConfirm() async {
-    final missingPhoto = filledItems.any((item) => item.photos.isEmpty);
+    final missingPhoto = filledItems.any((item) => !item.fromStock && item.photos.isEmpty);
     final go = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -939,7 +978,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             Text('${client?['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
             if ('${client?['phone'] ?? ''}'.isNotEmpty) Text('${client?['phone']}', style: TextStyle(color: ctx.wqMuted)),
             const SizedBox(height: 8),
-            for (final entry in filledItems.asMap().entries)
+            for (final entry in filledItems.where((row) => !row.fromStock).toList().asMap().entries)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _box(ctx, [
@@ -952,7 +991,19 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                   ),
                 ]),
               ),
-            Text('Prazo ${dayLabel(due.toIso8601String())}'),
+            if (stockIndexes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _box(ctx, [
+                  Text('Produtos da loja', style: TextStyle(color: ctx.wqMuted, fontSize: 12)),
+                  for (final index in stockIndexes)
+                    Row(children: [
+                      Expanded(child: Text('${items[index].quantity > 1 ? '${items[index].quantity}× ' : ''}${items[index].model.text.trim()}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                      Text(brl(items[index].quantity * items[index].unitPrice), style: TextStyle(color: ctx.wqMuted)),
+                    ]),
+                ]),
+              ),
+            Text(counterSale && deliverNow ? 'Entregue agora' : 'Prazo ${dayLabel(due.toIso8601String())}'),
             Text('Total ${brl(total)}', style: const TextStyle(fontWeight: FontWeight.w800)),
             if (missingPhoto)
               Padding(
@@ -1001,6 +1052,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clientIdx = clientIndexes;
+    if (clientIdx.isNotEmpty && !clientIdx.contains(itemIndex)) itemIndex = clientIdx.first;
     final item = current;
     final query = clientQuery.text.trim().toLowerCase();
     final matches = query.isEmpty
@@ -1088,18 +1141,19 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 ],
                 const SizedBox(height: 18),
                 _section(context, '2', 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
-                if (items.length > 1)
+                if (clientIdx.length > 1)
                   SizedBox(
                     height: 42,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: items.length,
+                      itemCount: clientIdx.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (_, index) {
+                      itemBuilder: (_, position) {
+                        final index = clientIdx[position];
                         final label = [items[index].brand.text.trim(), items[index].model.text.trim()].where((part) => part.isNotEmpty).join(' · ');
                         final selected = index == itemIndex;
                         return ChoiceChip(
-                          label: Text(label.isEmpty ? 'Item ${index + 1}' : label),
+                          label: Text(label.isEmpty ? 'Item ${position + 1}' : label),
                           selected: selected,
                           onSelected: (_) => setState(() => itemIndex = index),
                         );
@@ -1108,8 +1162,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                   ),
                 _box(context, [
                   Row(children: [
-                    Expanded(child: Text('Item ${itemIndex + 1}${_itemTitle(item)}', style: const TextStyle(fontWeight: FontWeight.w800))),
-                    if (items.length > 1) TextButton(onPressed: () => removeItem(itemIndex), child: const Text('Remover', style: TextStyle(color: Wq.danger))),
+                    Expanded(child: Text('Item ${clientIdx.indexOf(itemIndex) + 1}${_itemTitle(item)}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    if (clientIdx.length > 1) TextButton(onPressed: () => removeItem(itemIndex), child: const Text('Remover', style: TextStyle(color: Wq.danger))),
                   ]),
                   const SizedBox(height: 8),
                   TextField(
@@ -1188,6 +1242,29 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     ),
                   ],
                 ]),
+                if (catalog.isNotEmpty || stockIndexes.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _section(
+                    context,
+                    '',
+                    'Produtos da loja',
+                    'Vendeu algo junto? Cadarço, palmilha, produto de limpeza.',
+                    trailing: FilledButton.tonalIcon(
+                      onPressed: catalog.isEmpty ? null : _openProductPicker,
+                      icon: const Icon(Icons.add_shopping_cart, size: 18),
+                      label: const Text('Produto'),
+                    ),
+                  ),
+                  if (stockIndexes.isEmpty)
+                    Text('Nenhum produto neste pedido.', style: TextStyle(color: context.wqMuted, fontSize: 13))
+                  else ...[
+                    for (final index in stockIndexes) _stockLine(context, index),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('Produtos: ${brl(stockSum)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 18),
                 _section(context, '', 'Acessórios', 'O que veio junto. Pode pular.'),
                 Wrap(spacing: 8, runSpacing: 8, children: [
@@ -1202,6 +1279,14 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 ]),
                 const SizedBox(height: 18),
                 _section(context, '3', 'Pagamento', 'Sem valor, o laudo fica em espera.'),
+                if (counterSale)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: deliverNow,
+                    onChanged: (value) => setState(() => deliverNow = value),
+                    title: const Text('Cliente já levou — entregar agora', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Venda de balcão: já nasce entregue, o estoque baixa e entra no caixa de hoje.'),
+                  ),
                 if (total <= 0.009) const Text('Pendente valor', style: TextStyle(color: Wq.warn, fontWeight: FontWeight.w800)),
                 TextField(
                   controller: valueField,
@@ -1222,7 +1307,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 TextField(controller: discountField, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Desconto (R\$)'), onChanged: (_) => setState(() {})),
                 const SizedBox(height: 8),
                 _box(context, [
-                  Text('Soma dos serviços: ${brl(servicesSum)}', style: TextStyle(color: context.wqMuted)),
+                  Text(stockIndexes.isEmpty ? 'Soma dos serviços: ${brl(servicesSum)}' : 'Serviços e produtos: ${brl(servicesSum)}', style: TextStyle(color: context.wqMuted)),
                   if (warranty) Text('Garantia (3 meses): ${brl(warrantyPrice)}', style: TextStyle(color: context.wqMuted)),
                   Text('Subtotal: ${brl(subtotal)}', style: TextStyle(color: context.wqMuted)),
                   if (discount > 0) Text('Desconto: − ${brl(discount)}', style: TextStyle(color: context.wqMuted)),
@@ -1246,25 +1331,27 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                   Text(brl(remaining), textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                   Text(total > 0 && deposit >= total ? 'Pago' : 'Na entrega', textAlign: TextAlign.center, style: TextStyle(color: context.wqMuted)),
                 ]),
-                const SizedBox(height: 12),
-                Text('Data prevista *', style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () async {
-                    final picked = await showDatePicker(context: context, initialDate: due, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 365)));
-                    if (picked != null) setState(() => due = DateTime(picked.year, picked.month, picked.day));
-                  },
-                  child: Text(dayLabel(due.toIso8601String())),
-                ),
-                const SizedBox(height: 8),
-                Wrap(spacing: 8, children: [
-                  for (final days in const [15, 30, 40])
-                    ChoiceChip(
-                      label: Text('+$days dias'),
-                      selected: _iso(due) == _iso(_plusDays(days)),
-                      onSelected: (_) => setState(() => due = _plusDays(days)),
-                    ),
-                ]),
+                if (!(counterSale && deliverNow)) ...[
+                  const SizedBox(height: 12),
+                  Text('Data prevista *', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(context: context, initialDate: due, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 365)));
+                      if (picked != null) setState(() => due = DateTime(picked.year, picked.month, picked.day));
+                    },
+                    child: Text(dayLabel(due.toIso8601String())),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, children: [
+                    for (final days in const [15, 30, 40])
+                      ChoiceChip(
+                        label: Text('+$days dias'),
+                        selected: _iso(due) == _iso(_plusDays(days)),
+                        onSelected: (_) => setState(() => due = _plusDays(days)),
+                      ),
+                  ]),
+                ],
                 const SizedBox(height: 12),
                 const Text('Prioridade', style: TextStyle(fontWeight: FontWeight.w700)),
                 Text('Se não informar, fica Média (II).', style: TextStyle(color: context.wqMuted, fontSize: 12)),
@@ -1278,6 +1365,207 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 TextField(controller: observations, maxLines: 3, decoration: const InputDecoration(labelText: 'Observações gerais')),
               ],
             ),
+    );
+  }
+
+  Map<String, dynamic>? _product(String id) {
+    for (final row in catalog) {
+      if ('${row['id'] ?? row['_id']}' == id) return row;
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _variants(Map<String, dynamic>? product) =>
+      ((product?['variants'] as List?) ?? const []).whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+
+  int? _available(Map<String, dynamic>? product, String variantId) {
+    if (product == null || product['trackStock'] == false) return null;
+    final variants = _variants(product);
+    if (variants.isEmpty) return (product['available'] as num?)?.toInt() ?? 0;
+    final variant = variants.where((v) => '${v['id']}' == variantId).firstOrNull;
+    return variant == null ? null : (variant['available'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Adds a shop product, or one more unit when the same line is already on the order.
+  void _addStock(String productId, String variantId) {
+    final product = _product(productId);
+    if (product == null) return;
+    final variant = _variants(product).where((v) => '${v['id']}' == variantId).firstOrNull;
+    setState(() {
+      for (final i in stockIndexes) {
+        final line = items[i];
+        if (line.productId == productId && line.variantId == variantId && line.serverIndex == null) {
+          line.qtyField.text = '${line.quantity + 1}';
+          return;
+        }
+      }
+      items.add(_ItemDraft()
+        ..fromStock = true
+        ..productId = productId
+        ..variantId = variantId
+        ..model.text = variant == null ? '${product['name']}' : '${product['name']} · ${variant['name']}'
+        ..priceField.text = '${variant?['price'] ?? product['price'] ?? 0}');
+    });
+  }
+
+  Future<void> _removeStock(int index) async {
+    final line = items[index];
+    if (editing && line.serverIndex != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Tirar este produto?'),
+          content: const Text('A reserva volta para o estoque.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Tirar')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    setState(() {
+      items.removeAt(index).dispose();
+      if (clientIndexes.isEmpty) {
+        items.add(_ItemDraft());
+        _applyDefaultFlow();
+      }
+      final remaining = clientIndexes;
+      if (!remaining.contains(itemIndex)) itemIndex = remaining.first;
+    });
+  }
+
+  Future<void> _openProductPicker() async {
+    final rows = <({String productId, String variantId, String label, dynamic price, int? available})>[];
+    for (final product in catalog) {
+      final id = '${product['id'] ?? product['_id']}';
+      final variants = _variants(product);
+      if (variants.isEmpty) {
+        rows.add((productId: id, variantId: '', label: '${product['name']}', price: product['price'], available: _available(product, '')));
+      } else {
+        for (final v in variants) {
+          rows.add((
+            productId: id,
+            variantId: '${v['id']}',
+            label: '${product['name']} · ${v['name']}',
+            price: v['price'] ?? product['price'],
+            available: _available(product, '${v['id']}'),
+          ));
+        }
+      }
+    }
+    final query = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final q = query.text.trim().toLowerCase();
+          final list = q.isEmpty ? rows : rows.where((row) => row.label.toLowerCase().contains(q)).toList();
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(ctx).viewInsets.bottom),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Text('Adicionar produto da loja', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: query,
+                  autofocus: rows.length > 8,
+                  decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Buscar produto'),
+                  onChanged: (_) => setSheet(() {}),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                  child: ListView(shrinkWrap: true, children: [
+                    for (final row in list)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        enabled: row.available == null || row.available! > 0,
+                        title: Text(row.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(row.available == null ? 'Sem controle de saldo' : row.available! > 0 ? '${row.available} disponível' : 'Sem estoque'),
+                        trailing: Text(brl(row.price), style: const TextStyle(fontWeight: FontWeight.w800)),
+                        onTap: () {
+                          _addStock(row.productId, row.variantId);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    if (list.isEmpty) Padding(padding: const EdgeInsets.all(12), child: Text('Nada encontrado.', style: TextStyle(color: ctx.wqMuted))),
+                  ]),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+    query.dispose();
+  }
+
+  Widget _stockLine(BuildContext context, int index) {
+    final line = items[index];
+    final product = _product(line.productId);
+    final available = _available(product, line.variantId);
+    final qty = line.quantity;
+    final short = available != null && qty > available;
+    final locked = editing && orderStatus == 'delivered';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _box(context, [
+        Row(children: [
+          Expanded(child: Text(line.model.text.trim().isEmpty ? 'Produto' : line.model.text.trim(), style: const TextStyle(fontWeight: FontWeight.w700))),
+          IconButton(
+            tooltip: 'Tirar produto',
+            visualDensity: VisualDensity.compact,
+            onPressed: locked ? null : () => _removeStock(index),
+            icon: const Icon(Icons.close, size: 18),
+          ),
+        ]),
+        Row(children: [
+          IconButton.outlined(
+            visualDensity: VisualDensity.compact,
+            onPressed: locked || qty <= 1 ? null : () => setState(() => line.qtyField.text = '${qty - 1}'),
+            icon: const Icon(Icons.remove, size: 16),
+          ),
+          SizedBox(width: 36, child: Text('$qty', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+          IconButton.outlined(
+            visualDensity: VisualDensity.compact,
+            onPressed: locked || (available != null && qty >= available) ? null : () => setState(() => line.qtyField.text = '${qty + 1}'),
+            icon: const Icon(Icons.add, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              key: ValueKey('unit-${line.hashCode}'),
+              controller: line.priceField,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Preço un.', prefixText: 'R\$ ', isDense: true),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(brl(qty * line.unitPrice), style: const TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: 4),
+        Row(children: [
+          Expanded(
+            child: Text(
+              short
+                  ? 'Só $available disponível'
+                  : available != null
+                      ? '$available disponível · reserva ao salvar'
+                      : 'Sem controle de saldo',
+              style: TextStyle(fontSize: 12, color: short ? Wq.danger : context.wqMuted),
+            ),
+          ),
+          if (line.serverIndex == null)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('Passa pela produção', style: TextStyle(fontSize: 12, color: context.wqMuted)),
+              Switch(value: !line.ready, onChanged: (value) => setState(() => line.ready = !value)),
+            ]),
+        ]),
+      ]),
     );
   }
 

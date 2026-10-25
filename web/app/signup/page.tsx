@@ -107,7 +107,8 @@ export default function SignupPage() {
         ref: partnerCode || undefined,
       })
       if (data?.requiresEmailVerification) {
-        toast.success("Conta criada — confira seu e-mail para confirmar")
+        toast.success("Conta criada. Digite o código que enviamos para o seu e-mail.")
+        if (data?.devCode) toast.message(`Código (dev): ${data.devCode}`)
         router.push(`/verify-email?pending=1&email=${encodeURIComponent(form.email)}`)
         return
       }

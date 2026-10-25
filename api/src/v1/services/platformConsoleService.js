@@ -156,7 +156,28 @@ function presentNotice(doc) {
     minVersion: doc.minVersion || '',
     maxVersion: doc.maxVersion || '',
     active: doc.active !== false,
+    display: doc.display === 'modal' ? 'modal' : 'banner',
+    steps: (doc.steps || []).map((s) => ({
+      title: s.title || '',
+      body: s.body || '',
+      href: s.href || '',
+      cta: s.cta || '',
+    })),
+    createdAt: doc.createdAt || null,
   };
+}
+
+function cleanSteps(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((s) => ({
+      title: String(s?.title || '').trim().slice(0, 120),
+      body: String(s?.body || '').trim().slice(0, 600),
+      href: /^\/[a-z0-9/_?=&#-]*$/i.test(String(s?.href || '').trim()) ? String(s.href).trim() : '',
+      cta: String(s?.cta || '').trim().slice(0, 40),
+    }))
+    .filter((s) => s.title)
+    .slice(0, 6);
 }
 
 async function listNotices() {
@@ -184,6 +205,8 @@ async function createNotice(body = {}) {
     minVersion: String(body.minVersion || '').trim().slice(0, 32),
     maxVersion: String(body.maxVersion || '').trim().slice(0, 32),
     active: body.active !== false,
+    display: body.display === 'modal' ? 'modal' : 'banner',
+    steps: cleanSteps(body.steps),
   });
   await bustRuntimeCache();
   return presentNotice(doc);

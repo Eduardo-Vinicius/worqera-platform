@@ -22,6 +22,7 @@ import {
   Monitor,
   Star,
   HandCoins,
+  ShoppingBag,
   type LucideIcon,
 } from "lucide-react"
 
@@ -73,6 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
       { href: "/settings/setores", label: "Setores", icon: Layers, hideForSector: true },
       { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true },
+      { href: "/admin/produtos", label: "Produtos", icon: ShoppingBag, ownerAdminOnly: true, hideForSector: true },
       { href: "/settings/marcas", label: "Marcas", icon: Tag, hideForSector: true },
       { href: "/settings/acessorios", label: "Acessórios", icon: Package, hideForSector: true },
       { href: "/settings/equipe", label: "Equipe", icon: UsersRound, hideForSector: true },

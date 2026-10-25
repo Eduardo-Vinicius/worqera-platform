@@ -2,6 +2,15 @@
 
 ## 2026-10-25
 
+- **Checkout no pedido:** item `origin=stock` com `ready: true` nasce no setor final (`plannedSectorIds=[final]`), na criação e em `POST /orders/:id/items`. Pedido só com produtos prontos nasce `ready`; com `deliverNow: true` nasce `delivered` (deliveredAt, estoque baixa, sem e-mail de criado). Pedido misto ignora `deliverNow`.
+- **Produtos e venda no pedido para todas as lojas:** confirmado ponta a ponta com dono comum — `/products` (owner/admin escrevem, todos leem), item `origin=stock` no pedido reserva, entrega baixa, cancelamento devolve, bloqueia acima do disponível e exige variação.
+
+- **Verificação de e-mail obrigatória no cadastro:** `User.emailVerifyRequired` (só contas novas; antigas mantêm o aviso). Login devolve `403 EMAIL_NOT_VERIFIED` (`extras.email`, e reenvia sozinho se o código venceu). E-mail traz código de 6 dígitos + link (48 h). `POST /auth/verify-email` aceita `{token}` ou `{email, code}` e já devolve a sessão. 5 tentativas por código; reenvio a cada 60 s (`retryIn`, `throttled`). Refresh recusado enquanto não confirmar. Fora de produção: `devCode`/`devToken`. `errorHandler` passa `err.extras`.
+- **Prateleira (QW, só owner):** `GET /orders/shelf` (prontos não retirados: dias parado, a receber, link wa.me com texto de lembrete; 1º e 2º lembrete com textos diferentes) e `POST /orders/:id/shelf-remind` (`Order.shelfReminder {count, lastAt}`). Parado = 3+ dias.
+- **Avaliação no Google (QW):** `Shop.branding.reviewUrl` (https, normalizado). Vai no pedido público (`shop.reviewUrl`); o feedback com nota 4–5 devolve `reviewUrl`.
+
+- **Notícias:** `display: banner | modal` e `steps[]` (até 6; título, texto, tela interna, botão). Link que não começa com `/` é descartado. Vai no `/runtime/config`.
+
 - **Limite de IA:** 1.000 usos por mês no Business, só os que deram certo. Acabou, a IA para até o dia 1º e as respostas avisam `aiQuota.blocked`. O admin Worqera soma usos no mês ou muda o limite da loja.
 
 ## 2026-10-24

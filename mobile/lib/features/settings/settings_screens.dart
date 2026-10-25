@@ -39,6 +39,7 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
   final emailFrom = TextEditingController();
   final phone = TextEditingController();
   final address = TextEditingController();
+  final reviewUrl = TextEditingController();
   final singular = TextEditingController(text: 'peça');
   final plural = TextEditingController(text: 'peças');
   final primary = TextEditingController(text: '#7D26DE');
@@ -72,6 +73,7 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
       emailFrom.text = '${branding['emailFromName'] ?? branding['displayName'] ?? doc['name'] ?? ''}';
       phone.text = '${branding['phone'] ?? ''}';
       address.text = '${branding['address'] ?? ''}';
+      reviewUrl.text = '${branding['reviewUrl'] ?? ''}';
       singular.text = '${branding['itemLabel'] ?? 'peça'}';
       plural.text = '${branding['itemLabelPlural'] ?? 'peças'}';
       primary.text = '${branding['primaryColor'] ?? '#7D26DE'}';
@@ -110,6 +112,7 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
           'emailFromName': emailFrom.text.trim().isEmpty ? display.text.trim() : emailFrom.text.trim(),
           'phone': phone.text.trim(),
           'address': address.text.trim(),
+          'reviewUrl': reviewUrl.text.trim(),
           'primaryColor': primary.text.trim(),
           'accentColor': accent.text.trim(),
           'itemLabel': singular.text.trim(),
@@ -211,6 +214,15 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
               Text('Link do cliente: /p/o/ e um código por pedido.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
               TextField(controller: phone, decoration: const InputDecoration(labelText: 'Telefone')),
               TextField(controller: address, decoration: const InputDecoration(labelText: 'Endereço')),
+              TextField(
+                controller: reviewUrl,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Link de avaliação no Google',
+                  helperText: 'Quem dá nota 4 ou 5 recebe o convite para avaliar no Google.',
+                  helperMaxLines: 2,
+                ),
+              ),
             ]),
           ),
           const SizedBox(height: 12),

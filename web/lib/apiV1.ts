@@ -155,18 +155,59 @@ export async function resendOrderEmailV1(orderId: string, kind: "created" | "mov
   )
 }
 
-export async function verifyEmailV1(token: string) {
-  return v1Fetch<{ ok: boolean; email?: string }>("/auth/verify-email", {
+/** Confirms by link token or by e-mail + 6-digit code. Opens the session when it works. */
+export async function verifyEmailV1(input: { token: string } | { email: string; code: string }) {
+  const data = await v1Fetch<any>("/auth/verify-email", {
     method: "POST",
-    body: JSON.stringify({ token }),
+    body: JSON.stringify(input),
   })
+  if (data?.accessToken || data?.token) persistSession(data)
+  return data as { ok: boolean; email?: string; platformAdmin?: boolean }
 }
 
 export async function resendVerificationV1(email: string) {
-  return v1Fetch<{ ok: boolean; alreadyVerified?: boolean }>("/auth/resend-verification", {
+  return v1Fetch<{
+    ok: boolean
+    alreadyVerified?: boolean
+    throttled?: boolean
+    retryIn?: number
+    devCode?: string
+  }>("/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify({ email }),
   })
+}
+
+export type ShelfItem = {
+  id: string
+  code: string
+  clientName: string
+  clientPhone: string
+  readySince: string
+  days: number
+  stale: boolean
+  toCollect: number
+  total: number
+  reminders: number
+  lastReminderAt: string | null
+  whatsapp: { text: string; url: string } | null
+}
+
+export type Shelf = {
+  staleDays: number
+  summary: { count: number; toCollect: number; staleCount: number; staleToCollect: number; oldestDays: number }
+  items: ShelfItem[]
+}
+
+export async function getShelfV1() {
+  return v1Fetch<Shelf>("/orders/shelf")
+}
+
+export async function markShelfRemindedV1(orderId: string) {
+  return v1Fetch<{ ok: boolean; reminders: number; lastReminderAt: string }>(
+    `/orders/${encodeURIComponent(orderId)}/shelf-remind`,
+    { method: "POST" }
+  )
 }
 
 export async function meV1() {
@@ -608,6 +649,9 @@ export type PlatformNotice = {
   minVersion: string
   maxVersion: string
   active: boolean
+  display?: "banner" | "modal"
+  steps?: Array<{ title: string; body: string; href: string; cta: string }>
+  createdAt?: string | null
 }
 
 export async function listPlatformNoticesV1() {

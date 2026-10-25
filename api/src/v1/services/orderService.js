@@ -226,7 +226,7 @@ async function createOrder(shopId, userId, data, options = {}) {
 
   const STATUS_ENUM = new Set(['open', 'in_progress', 'ready', 'delivered', 'cancelled']);
   const rawStatus = String(data.status || '').trim().toLowerCase();
-  const status = STATUS_ENUM.has(rawStatus) ? rawStatus : 'open';
+  let status = STATUS_ENUM.has(rawStatus) ? rawStatus : 'open';
 
   // Resolve starting sector: explicit id, or departamento/slug/name (legacy UI), else first active
   let startSector = null;
@@ -283,7 +283,9 @@ async function createOrder(shopId, userId, data, options = {}) {
       [],
   };
 
+  const finalSector = allSectors.find((s) => s.isTerminal) || null;
   const itemsWithSectors = (normalized.items || []).map((it) => {
+    const readyNow = it.origin === 'stock' && it.ready && finalSector;
     const itemHints = hintsForServices(it.services);
     const hasItemFlow =
       (Array.isArray(it.plannedSectorIds) && it.plannedSectorIds.length > 0) ||
@@ -294,12 +296,9 @@ async function createOrder(shopId, userId, data, options = {}) {
           departamentosSelecionados: it.departamentosSelecionados,
         }
       : orderFlowFallback;
-    const itemPlanned = resolvePlannedSectorIds(
-      itemFlowData,
-      allSectors,
-      startSector,
-      itemHints
-    );
+    const itemPlanned = readyNow
+      ? [finalSector._id]
+      : resolvePlannedSectorIds(itemFlowData, allSectors, startSector, itemHints);
     const itemStart = itemPlanned[0] || startSector?._id || null;
     return {
       shoeModel: it.shoeModel,
@@ -358,6 +357,16 @@ async function createOrder(shopId, userId, data, options = {}) {
   const rollupId = computeRollupSectorId(itemsWithSectors, sectorsById);
   const rollupSector =
     (rollupId && allSectors.find((s) => String(s._id) === String(rollupId))) || startSector;
+
+  // Counter sale: every item is a shop product picked off the shelf.
+  const counterSale =
+    itemsWithSectors.length > 0 &&
+    Boolean(finalSector) &&
+    itemsWithSectors.every(
+      (it) => it.origin === 'stock' && String(it.currentSectorId) === String(finalSector._id)
+    );
+  if (counterSale && status === 'open') status = 'ready';
+  const deliverNow = counterSale && data.deliverNow === true;
 
   const hasTerminal = allSectors.some((s) => s.active !== false && s.isTerminal);
   if (!hasTerminal) {
@@ -446,13 +455,24 @@ async function createOrder(shopId, userId, data, options = {}) {
   });
 
   try {
-    const { reserveOrder } = require('./productService');
+    const { reserveOrder, commitOrder } = require('./productService');
     await reserveOrder(shopId, order, userId);
+    if (deliverNow) {
+      order.status = 'delivered';
+      order.deliveredAt = new Date();
+      await commitOrder(shopId, order, userId);
+    }
     if (typeof order.markModified === 'function') order.markModified('items');
     await order.save();
   } catch (err) {
     await Order.deleteOne({ _id: order._id, shopId });
     throw err;
+  }
+
+  if (deliverNow) {
+    const doc = order.toObject();
+    doc.emailNotify = { ok: true, queued: false, skipped: true, reason: 'counter-sale' };
+    return doc;
   }
 
   const awaitingPhotos = Boolean(order.photoNotify?.expected?.some((n) => Number(n) > 0));
@@ -1166,11 +1186,11 @@ async function addOrderItem(shopId, orderId, userId, body, options = {}) {
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
-  const { planned, allSectors, startSector, services } = await resolvePlannedForItemPayload(
-    shopId,
-    body,
-    null
-  );
+  const resolved = await resolvePlannedForItemPayload(shopId, body, null);
+  const { allSectors, startSector, services } = resolved;
+  const finalSector = allSectors.find((s) => s.isTerminal) || null;
+  const planned =
+    draft.origin === 'stock' && body.ready === true && finalSector ? [finalSector._id] : resolved.planned;
   const itemStart = planned[0] || startSector?._id || order.currentSectorId || null;
   order.items.push({
     shoeModel: String(draft.shoeModel).trim(),
@@ -1430,9 +1450,11 @@ async function submitPublicFeedback(code, { shopSlug, token, score, comment, tag
     createdAt: new Date(),
   };
   await order.save();
+  const reviewUrl = order.feedback.score >= 4 ? shop.branding?.reviewUrl || '' : '';
   return {
     ok: true,
     feedback: order.feedback,
+    reviewUrl,
   };
 }
 
@@ -2100,6 +2122,7 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
       primaryColor: shop.branding?.primaryColor || '',
       accentColor: shop.branding?.accentColor || '',
       phone: shop.branding?.phone || '',
+      reviewUrl: shop.branding?.reviewUrl || '',
     },
     clientName: clientDisplay,
     shoeModel: order.shoeModel,

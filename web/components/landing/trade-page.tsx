@@ -8,6 +8,7 @@ import { Header } from "@/components/landing/header"
 import { Footer, WhatsAppFab } from "@/components/landing/footer"
 import { useLanguage } from "@/components/landing/language-provider"
 import { getTradePage, TRADE_SLUGS, type TradeSlug } from "@/components/landing/trades-data"
+import { FeatureStrip } from "@/components/landing/feature-strip"
 import { useEffect, useState } from "react"
 
 export function TradeLanding({ slug }: { slug: TradeSlug }) {
@@ -134,6 +135,8 @@ export function TradeLanding({ slug }: { slug: TradeSlug }) {
             </div>
           </section>
         ) : null}
+
+        <FeatureStrip title={locale === "pt" ? `Além da fila, para ${page.trade.toLowerCase()}` : `Beyond the queue, for ${page.trade.toLowerCase()}`} />
 
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">

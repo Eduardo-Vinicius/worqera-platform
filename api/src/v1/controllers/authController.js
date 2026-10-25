@@ -103,7 +103,9 @@ exports.resetPassword = wrap(async (req, res) => {
 
 exports.verifyEmail = wrap(async (req, res) => {
   const token = req.body?.token || req.query?.token;
-  const result = await authService.verifyEmail(token);
+  const { email, code } = req.body || {};
+  const result = await authService.verifyEmail({ token, email, code });
+  setRefreshCookie(res, result.refreshToken);
   res.status(200).json(result);
 });
 

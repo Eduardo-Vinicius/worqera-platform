@@ -31,6 +31,7 @@ Problem Details:
 | `NOT_FOUND` | 404 | Recurso inexistente no shop |
 | `VALIDATION_ERROR` | 400 | Input inválido |
 | `CONFLICT` | 409 | Slug/código duplicado |
+| `EMAIL_NOT_VERIFIED` | 403 | Login de cadastro novo sem confirmar e-mail (`email`, `resent`) |
 
 ## Health
 
@@ -46,6 +47,8 @@ POST /auth/login                     # PLANEJADO
 POST /auth/refresh                   # PLANEJADO — cookie HttpOnly
 POST /auth/logout                    # PLANEJADO
 GET  /auth/me                        # PLANEJADO — user + memberships + subscription summary
+POST /auth/verify-email              # {token} ou {email, code}. Confirma e devolve a sessão (como o login)
+POST /auth/resend-verification       # {email}. Novo código + link; 60 s entre envios (retryIn, throttled)
 ```
 
 LEGADO: `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh-token` (sem shop/trial).
@@ -209,6 +212,9 @@ POST /quotes/{id}/suggest            # 3 textos (Direto, Leve, Curto) + waUrl. a
 POST /quotes/{id}/win                # reabre o pedido recusado na fila; sem pedido devolve prefill para Novo pedido
 DELETE /quotes/{id}                  # dono/admin
 POST /orders/{id}/refuse-quote       # reason, reasonNote, followUpAt. Pedido vira cancelled + quoteRefusal; libera estoque
+POST /orders  items[].ready          # produto da loja (origin=stock) já pronto: nasce no setor final. deliverNow=true + só produtos prontos = nasce entregue
+GET  /orders/shelf                   # owner. Prontos não retirados: days, stale (3+), toCollect, whatsapp {text,url}, summary
+POST /orders/{id}/shelf-remind       # owner. Registra o lembrete (shelfReminder.count/lastAt)
 ```
 
 ## IA (Business)

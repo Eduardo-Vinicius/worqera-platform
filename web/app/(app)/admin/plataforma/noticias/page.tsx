@@ -25,7 +25,143 @@ const EMPTY = {
   platform: "all",
   minVersion: "",
   maxVersion: "",
+  display: "modal",
 }
+
+type Step = { title: string; body: string; href: string; cta: string }
+
+const EMPTY_STEP: Step = { title: "", body: "", href: "", cta: "" }
+
+type ReleaseTemplate = { id: string; label: string; title: string; body: string; steps: Step[] }
+
+const PRODUCTS_TEMPLATE: ReleaseTemplate = {
+  id: "produtos",
+  label: "Produtos e venda no pedido",
+  title: "Agora a loja vende produto no mesmo pedido",
+  body:
+    "Palmilha, cadarço, produto de limpeza, peça. Cadastre o que a loja vende em Produtos e coloque no pedido junto com o serviço. O estoque reserva, baixa na entrega e volta se cancelar. O item do cliente continua igualzinho.",
+  steps: [
+    {
+      title: "Cadastre seus produtos",
+      body: "Em Configuração → Produtos (dono e admin): nome, preço e quantidade. Tem tamanho ou cor? Adicione as variações, cada uma com o próprio saldo.",
+      href: "/admin/produtos",
+      cta: "Abrir Produtos",
+    },
+    {
+      title: "Produtos da loja no pedido",
+      body: "No pedido, logo abaixo do item do cliente, tem Produtos da loja. Busque o produto, toque e ele entra com preço e quantidade (+ e −). Dá para ajustar o preço.",
+      href: "/pedidos/novo",
+      cta: "Fazer um pedido",
+    },
+    {
+      title: "Serviço e produto juntos",
+      body: "Limpeza do tênis e cadarço novo no mesmo pedido, no mesmo total. O produto já entra pronto no kanban, sem passar pela produção.",
+      href: "",
+      cta: "",
+    },
+    {
+      title: "Venda de balcão em segundos",
+      body: "Só vendeu um produto? Adicione, marque Cliente já levou e crie. O pedido nasce entregue, o estoque baixa e entra no caixa de hoje.",
+      href: "/pedidos/novo",
+      cta: "Fazer uma venda",
+    },
+    {
+      title: "O estoque se mexe sozinho",
+      body: "Salvou o pedido, o saldo fica reservado. Entregou, sai do estoque. Cancelou ou o cliente não fechou, volta para a prateleira.",
+      href: "",
+      cta: "",
+    },
+    {
+      title: "Saldo sempre à vista",
+      body: "Em Produtos: disponível, reservado, valor em estoque, o que está abaixo do mínimo e o relatório para baixar.",
+      href: "/admin/produtos",
+      cta: "Ver o estoque",
+    },
+  ],
+}
+
+const WEEK_TEMPLATE: ReleaseTemplate = {
+  id: "semana",
+  label: "Novidades da semana",
+  title: "Novidades na Worqera",
+  body:
+    "Separamos o que chegou esta semana para deixar o dia mais leve: dinheiro parado à vista, avaliação no Google, o detalhe do pedido organizado e produtos no pedido.",
+  steps: [
+    {
+      title: "Na prateleira",
+      body: "Só o dono vê, na Visão geral: pedidos prontos que o cliente não buscou, há quantos dias e quanto falta receber. Um toque em Lembrar abre o WhatsApp com o texto pronto.",
+      href: "/dashboard",
+      cta: "Ver a prateleira",
+    },
+    {
+      title: "Avaliação no Google",
+      body: "Cole o link do Google em Empresa. Quem der nota 4 ou 5 no pedido recebe o convite para avaliar sua loja no Google.",
+      href: "/settings/empresa",
+      cta: "Colocar o link",
+    },
+    {
+      title: "Pedido organizado no kanban",
+      body: "O detalhe do pedido agora vem em seções: valor, itens, ações, fila, fotos, cliente e histórico. Tudo no mesmo lugar de antes, mais fácil de achar.",
+      href: "/kanban",
+      cta: "Abrir o kanban",
+    },
+    {
+      title: "Produtos no pedido",
+      body: "Cadastre o que a loja vende em Produtos e adicione no pedido em Produtos da loja. Venda de balcão sai entregue na hora.",
+      href: "/admin/produtos",
+      cta: "Abrir Produtos",
+    },
+    {
+      title: "Quem não fechou vira retorno",
+      body: "No pedido, Ações → Cliente não fechou. O cliente entra em Orçamentos com o dia de ligar e a mensagem pronta.",
+      href: "/orcamentos",
+      cta: "Ver Orçamentos",
+    },
+  ],
+}
+
+/** Ready-made announcement for the Orçamentos + IA release. */
+const QUOTES_TEMPLATE: ReleaseTemplate = {
+  id: "orcamentos",
+  label: "Orçamentos e IA",
+  title: "Orçamentos: quem não fechou agora tem lugar",
+  body:
+    "O cliente não fechou? Agora ele não some. O pedido sai da fila, entra em Orçamentos com o motivo e o dia de ligar, e você recupera a venda com um toque.",
+  steps: [
+    {
+      title: "Cliente não fechou",
+      body: "No kanban, abra o pedido e toque em Ações → Cliente não fechou. Escolha o motivo (preço, prazo, vai pensar) e o dia de ligar de novo.",
+      href: "/kanban",
+      cta: "Abrir o kanban",
+    },
+    {
+      title: "Ligar hoje",
+      body: "Em Orçamentos, a lista Ligar hoje mostra primeiro quem está atrasado e vale mais. WhatsApp com texto pronto, Ligar, Adiar e Fechou em cada linha.",
+      href: "/orcamentos",
+      cta: "Ver Orçamentos",
+    },
+    {
+      title: "Quadro do funil",
+      body: "Na aba Quadro, arraste entre Novo, Em contato, Retorno, Recuperado e Perdido. No topo: quanto está na mesa e quanto já voltou no mês.",
+      href: "/orcamentos?view=board",
+      cta: "Abrir o quadro",
+    },
+    {
+      title: "Fechou? Volta para a fila",
+      body: "Tocou em Fechou, o pedido volta para o setor onde estava. Orçamento do balcão abre o Novo pedido com o cliente já preenchido.",
+      href: "",
+      cta: "",
+    },
+    {
+      title: "IA no Business",
+      body: "No Business, a IA escreve o resumo do dia, os textos para retomar o orçamento, a resposta das avaliações e o texto do laudo para o cliente. São 1.000 usos por mês.",
+      href: "/dashboard",
+      cta: "Ver o resumo do dia",
+    },
+  ],
+}
+
+const RELEASE_TEMPLATES: ReleaseTemplate[] = [PRODUCTS_TEMPLATE, WEEK_TEMPLATE, QUOTES_TEMPLATE]
 
 function formatWhen(value?: string | null) {
   if (!value) return ""
@@ -38,7 +174,11 @@ export default function PlatformNoticesPage() {
   const [allowed, setAllowed] = useState(false)
   const [notices, setNotices] = useState<PlatformNotice[]>([])
   const [form, setForm] = useState(EMPTY)
+  const [steps, setSteps] = useState<Step[]>([])
   const [busy, setBusy] = useState(false)
+
+  const setStep = (index: number, key: keyof Step, value: string) =>
+    setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, [key]: value } : s)))
 
   const load = async () => {
     const me = await meV1()
@@ -76,8 +216,11 @@ export default function PlatformNoticesPage() {
         minVersion: form.minVersion.trim(),
         maxVersion: form.maxVersion.trim(),
         active: true,
+        display: form.display === "modal" ? "modal" : "banner",
+        steps: form.display === "modal" ? steps.filter((s) => s.title.trim()) : [],
       })
       setForm(EMPTY)
+      setSteps([])
       toast.success("Notícia publicada")
       await load()
     } catch (err: any) {
@@ -91,7 +234,7 @@ export default function PlatformNoticesPage() {
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Notícias"
-        subtitle="Aparece na home de quem bater com plataforma, versão, região e vigência"
+        subtitle="Novidades no centro da tela (com tour) ou faixa no topo, para as empresas que baterem com plataforma, versão e vigência"
       />
       <div className="mx-auto grid w-full max-w-[1100px] gap-4 px-2.5 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {!allowed ? <p className="text-sm text-[var(--wq-text-muted)]">Sem acesso.</p> : null}
@@ -100,6 +243,49 @@ export default function PlatformNoticesPage() {
             <section className="space-y-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
               <h2 className="text-sm font-semibold">Nova notícia</h2>
               <div className="space-y-1.5">
+                <p className="text-xs text-[var(--wq-text-muted)]">Comece por um modelo pronto (dá para editar antes de publicar):</p>
+                <div className="flex flex-wrap gap-2">
+                  {RELEASE_TEMPLATES.map((tpl) => (
+                    <Button
+                      key={tpl.id}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-[10px]"
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, title: tpl.title, body: tpl.body, display: "modal" }))
+                        setSteps(tpl.steps)
+                      }}
+                    >
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Como aparece</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "modal", label: "Quadro no centro", hint: "Novidades com tour, uma vez" },
+                    { id: "banner", label: "Faixa no topo", hint: "Aviso curto, fecha" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => set("display", opt.id)}
+                      className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                        form.display === opt.id
+                          ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)]"
+                          : "border-[var(--wq-border)]"
+                      }`}
+                    >
+                      <span className="block font-medium">{opt.label}</span>
+                      <span className="block text-xs text-[var(--wq-text-muted)]">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="notice-title">Título</Label>
                 <Input id="notice-title" value={form.title} onChange={(e) => set("title", e.target.value)} className="rounded-[10px]" />
               </div>
@@ -107,6 +293,41 @@ export default function PlatformNoticesPage() {
                 <Label htmlFor="notice-body">Texto</Label>
                 <Textarea id="notice-body" value={form.body} onChange={(e) => set("body", e.target.value)} className="min-h-24 rounded-[10px]" />
               </div>
+              {form.display === "modal" ? (
+                <div className="space-y-2 rounded-xl border border-[var(--wq-border)] p-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Tour (até 6 passos)</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={steps.length >= 6}
+                      onClick={() => setSteps((prev) => [...prev, { ...EMPTY_STEP }])}
+                    >
+                      + Passo
+                    </Button>
+                  </div>
+                  {steps.length === 0 ? (
+                    <p className="text-xs text-[var(--wq-text-muted)]">Sem passos, aparece só o título e o texto.</p>
+                  ) : null}
+                  {steps.map((s, i) => (
+                    <div key={i} className="space-y-1.5 rounded-lg bg-[var(--wq-paper)] p-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[var(--wq-brand)]">{i + 1}</span>
+                        <Input value={s.title} onChange={(e) => setStep(i, "title", e.target.value)} placeholder="Título do passo" className="h-9 rounded-[10px]" />
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setSteps((prev) => prev.filter((_, j) => j !== i))}>
+                          Tirar
+                        </Button>
+                      </div>
+                      <Textarea value={s.body} onChange={(e) => setStep(i, "body", e.target.value)} placeholder="O que mudou e onde clicar" className="min-h-16 rounded-[10px]" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input value={s.href} onChange={(e) => setStep(i, "href", e.target.value)} placeholder="Tela: /orcamentos" className="h-9 rounded-[10px]" />
+                        <Input value={s.cta} onChange={(e) => setStep(i, "cta", e.target.value)} placeholder="Botão: Ver agora" className="h-9 rounded-[10px]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="notice-start">Começa</Label>
@@ -184,6 +405,7 @@ export default function PlatformNoticesPage() {
                       </div>
                       {notice.body ? <p className="text-sm text-[var(--wq-text-muted)]">{notice.body}</p> : null}
                       <p className="text-xs text-[var(--wq-text-muted)]">
+                        {notice.display === "modal" ? `Quadro no centro · ${notice.steps?.length || 0} passos · ` : "Faixa · "}
                         {notice.platform} · {notice.region || "todas as regiões"}
                         {notice.minVersion ? ` · min ${notice.minVersion}` : ""}
                         {notice.maxVersion ? ` · max ${notice.maxVersion}` : ""}

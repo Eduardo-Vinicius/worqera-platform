@@ -21,6 +21,8 @@ const shopSchema = new mongoose.Schema(
       phone: { type: String, default: '' },
       address: { type: String, default: '' },
       logoUrl: { type: String, default: '' },
+      /** Google (or other) review link offered to customers who rate 4 or 5. */
+      reviewUrl: { type: String, default: '' },
       primaryColor: { type: String, default: '' },
       accentColor: { type: String, default: '' },
       /** Noun for the physical item on the order (peça, tênis, roupa…). */

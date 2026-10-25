@@ -16,6 +16,23 @@ const platformNoticeSchema = new mongoose.Schema(
     minVersion: { type: String, default: '' },
     maxVersion: { type: String, default: '' },
     active: { type: Boolean, default: true },
+    /** banner = strip on top of the app; modal = "Novidades" card in the center with a tour. */
+    display: { type: String, enum: ['banner', 'modal'], default: 'banner' },
+    /** Tour steps shown inside the modal. `href` is the screen it opens (e.g. /orcamentos). */
+    steps: {
+      type: [
+        new mongoose.Schema(
+          {
+            title: { type: String, default: '' },
+            body: { type: String, default: '' },
+            href: { type: String, default: '' },
+            cta: { type: String, default: '' },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

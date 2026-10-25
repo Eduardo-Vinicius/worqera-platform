@@ -21,6 +21,7 @@ function normalizeItemsFromPayload(data) {
       variantId: it.variantId || null,
       quantity: it.quantity,
       unitPrice: it.unitPrice,
+      ready: it.ready === true,
       plannedSectorIds: Array.isArray(it.plannedSectorIds) ? it.plannedSectorIds : undefined,
       departamentosSelecionados:
         it.departamentosSelecionados ||

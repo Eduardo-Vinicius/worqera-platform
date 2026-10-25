@@ -254,7 +254,7 @@ export default function ProductsAdminPage() {
   if (!shopLabel) {
     return (
       <div className="space-y-6">
-        <AppHeader title="Catálogo" subtitle="Escolha a oficina" />
+        <AppHeader title="Produtos" subtitle="Escolha a oficina" />
         <ul className="divide-y divide-[var(--wq-border)] overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
           {shops.length === 0 ? (
             <li className="px-4 py-8 text-sm text-[var(--wq-text-muted)]">Nenhuma oficina.</li>
@@ -283,8 +283,8 @@ export default function ProductsAdminPage() {
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
-        title="Catálogo"
-        subtitle={shopLabel}
+        title="Produtos"
+        subtitle="O que a loja vende. No pedido, em Produtos da loja: reserva ao salvar, baixa na entrega."
         actions={
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" className="rounded-[10px]" disabled={exporting} onClick={() => void downloadReport()}>
@@ -337,8 +337,10 @@ export default function ProductsAdminPage() {
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] px-6 py-16 text-center">
-            <p className="font-semibold">Nenhum produto no catálogo</p>
-            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">Cadastre o que a loja vende ou mantém em estoque. O pedido do cliente continua como hoje.</p>
+            <p className="font-semibold">Nenhum produto cadastrado</p>
+            <p className="mt-1 text-sm text-[var(--wq-text-muted)]">
+              Cadastre o que a loja vende: palmilha, cadarço, produto de limpeza, peça. Depois, no pedido, adicione em Produtos da loja. O item do cliente continua igual.
+            </p>
             <Button
               type="button"
               className="mt-4 rounded-[10px] bg-[var(--wq-action)] text-white"

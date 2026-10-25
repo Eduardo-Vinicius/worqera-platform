@@ -123,6 +123,9 @@ Rebuild PRD web+api → smoke mobile CdT → Meta Cloud API (opcional, hoje wa.m
 | QW-43 | Status Pack banner + copy Empresa | **feito** |
 | QW-44 | Starter Kits (`POST …/apply-starter-kit`) | **feito** |
 | QW-45 | Renomear setor inline + copiar link `/p` | **feito** |
+| QW-46 | Na prateleira (owner): prontos parados + a receber + lembrar | **feito** |
+| QW-47 | Avaliação no Google após nota 4–5 | **feito** |
+| QW-48 | Cadastro exige confirmar e-mail (código 6 dígitos + link) | **feito** |
 
 ## Propostas SaaS (backlog priorizado)
 

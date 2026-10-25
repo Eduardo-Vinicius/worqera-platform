@@ -18,6 +18,24 @@ function generatePartnerCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function normalizeReviewUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  let url;
+  try {
+    url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    url = null;
+  }
+  if (!url || url.protocol !== 'https:' || raw.length > 500) {
+    const err = new Error('Link de avaliação inválido (use o link https do Google)');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  return url.toString();
+}
+
 function normalizeHexColor(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -123,6 +141,7 @@ async function patchCurrentShop(shopId, updates) {
     if (b.phone != null) shop.branding.phone = b.phone;
     if (b.address != null) shop.branding.address = b.address;
     if (b.logoUrl != null) shop.branding.logoUrl = String(b.logoUrl || '').trim();
+    if (b.reviewUrl != null) shop.branding.reviewUrl = normalizeReviewUrl(b.reviewUrl);
     if (b.primaryColor != null) shop.branding.primaryColor = normalizeHexColor(b.primaryColor);
     if (b.accentColor != null) shop.branding.accentColor = normalizeHexColor(b.accentColor);
     if (b.itemLabel != null) shop.branding.itemLabel = String(b.itemLabel || '').trim().slice(0, 40);

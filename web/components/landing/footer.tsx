@@ -4,6 +4,9 @@ import Link from "next/link"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { useLanguage } from "@/components/landing/language-provider"
 import { MessageCircle } from "lucide-react"
+import { getFeature, type FeatureSlug } from "@/components/landing/features-data"
+
+const FOOTER_FEATURES: FeatureSlug[] = ["kanban", "orcamentos", "whatsapp", "financeiro", "ia"]
 
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
@@ -30,7 +33,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-[var(--border)] bg-[var(--surface)] py-10 sm:py-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 sm:px-6 md:flex-row md:items-end md:justify-between">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,1fr)_auto]">
         <div className="flex items-start gap-3">
           <WorqeraLogo className="mt-0.5 h-7 w-7" />
           <div>
@@ -40,28 +43,55 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-5 text-sm text-[var(--muted-foreground)]">
-          <Link href="/sapataria" className="hover:text-[var(--ink)]">
-            {locale === "pt" ? "Sapataria" : "Footwear"}
-          </Link>
-          <Link href="/lavanderia" className="hover:text-[var(--ink)]">
-            {locale === "pt" ? "Lavanderia" : "Laundry"}
-          </Link>
-          <Link href="/assistencia" className="hover:text-[var(--ink)]">
-            {locale === "pt" ? "Assistência" : "Repair"}
-          </Link>
-          <Link href="/signup" className="hover:text-[var(--ink)]">
-            {locale === "pt" ? "Testar grátis" : "Try free"}
-          </Link>
-          <Link href="/login" className="hover:text-[var(--ink)]">
-            {locale === "pt" ? "Entrar" : "Sign in"}
-          </Link>
-          <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--ink)]">
-            WhatsApp
-          </a>
+        <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-sm text-[var(--muted-foreground)] sm:grid-cols-3 sm:gap-x-16">
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-[var(--ink)] uppercase">
+              {locale === "pt" ? "Recursos" : "Features"}
+            </p>
+            <Link href="/recursos" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Todos os recursos" : "All features"}
+            </Link>
+            {FOOTER_FEATURES.map((slug) => (
+              <Link key={slug} href={`/recursos/${slug}`} className="hover:text-[var(--ink)]">
+                {getFeature(slug, locale).name}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-[var(--ink)] uppercase">
+              {locale === "pt" ? "Ramos" : "Trades"}
+            </p>
+            <Link href="/sapataria" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Sapataria" : "Footwear"}
+            </Link>
+            <Link href="/lavanderia" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Lavanderia" : "Laundry"}
+            </Link>
+            <Link href="/assistencia" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Assistência" : "Repair"}
+            </Link>
+            <Link href="/#ramos" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Todos os ramos" : "All trades"}
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-[var(--ink)] uppercase">Worqera</p>
+            <Link href="/signup" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Testar grátis" : "Try free"}
+            </Link>
+            <Link href="/login" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Entrar" : "Sign in"}
+            </Link>
+            <Link href="/#pricing" className="hover:text-[var(--ink)]">
+              {locale === "pt" ? "Preço" : "Pricing"}
+            </Link>
+            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--ink)]">
+              WhatsApp
+            </a>
+          </div>
         </div>
 
-        <p className="text-xs text-[var(--muted-foreground)]">
+        <p className="border-t border-[var(--border)] pt-6 text-xs text-[var(--muted-foreground)] md:col-span-2">
           © {new Date().getFullYear()} Worqera. {t.footer.rights}
         </p>
       </div>

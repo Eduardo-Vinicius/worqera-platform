@@ -2,6 +2,16 @@
 
 ## 2026-10-25
 
+- **Produtos:** entra em Mais → Configuração e no menu lateral (dono e admin).
+- **Pedido completo:** item do cliente igual; seção "Produtos da loja" com botão Produto (folha de busca com variações e saldo), linhas com − / +, preço, total, "Passa pela produção". Só produto: "Cliente já levou — entregar agora" esconde o prazo e cria entregue.
+- **Novidades:** botões do tour abrem Produtos, Novo pedido e Empresa.
+
+- **Confirmar e-mail:** tela `/verify` com código de 6 dígitos e reenviar (60 s). Cadastro e login de conta não confirmada levam para ela; confirmar entra direto no onboarding.
+- **Na prateleira (só owner):** card na Visão geral com prontos parados, a receber e botão Lembrar (WhatsApp).
+- **Empresa:** campo do link de avaliação no Google.
+
+- **Novidades:** a notícia em quadro central abre uma vez no aparelho, com tour. Os passos que apontam para Orçamentos, Kanban ou Início abrem a tela.
+
 - **Limite de IA:** Plano mostra os usos do mês. Resumo do dia, orçamento e avaliação avisam quando está acabando ou acabou, com o atalho para falar com a Worqera.
 
 ## 2026-10-24

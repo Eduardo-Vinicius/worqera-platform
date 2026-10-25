@@ -13,6 +13,7 @@ export function Header({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: 
 
   const navItems = [
     { label: t.nav.product, href: "/#produto" },
+    { label: t.nav.features, href: "/recursos" },
     { label: t.nav.clients, href: "/#clientes" },
     { label: t.nav.trades, href: "/#ramos" },
     { label: t.nav.pricing, href: "/#pricing" },

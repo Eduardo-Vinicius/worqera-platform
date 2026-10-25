@@ -3,7 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { loginV1 } from "@/lib/apiV1"
+import { ApiV1Error, loginV1 } from "@/lib/apiV1"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,6 +42,13 @@ export default function LoginPage() {
           })
         }
       } catch (first) {
+        if ((first as ApiV1Error)?.code === "EMAIL_NOT_VERIFIED") {
+          toast.message("Falta confirmar o e-mail", {
+            description: "Digite o código que enviamos para entrar.",
+          })
+          window.location.href = `/verify-email?pending=1&email=${encodeURIComponent(email.trim())}`
+          return
+        }
         const msg = String((first as Error)?.message || "")
         if (/failed to fetch|networkerror|load failed/i.test(msg)) {
           throw new Error(

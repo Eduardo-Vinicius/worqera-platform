@@ -11,6 +11,12 @@ const userSchema = new mongoose.Schema(
     emailVerifiedAt: { type: Date, default: null },
     emailVerifyTokenHash: { type: String, default: null },
     emailVerifyExpires: { type: Date, default: null },
+    /** Set on self signup: login stays blocked until the e-mail is confirmed. Older accounts keep the soft warning. */
+    emailVerifyRequired: { type: Boolean, default: false },
+    /** 6-digit code sent with the link, for the app and for typing on the web. */
+    emailVerifyCodeHash: { type: String, default: null },
+    emailVerifyAttempts: { type: Number, default: 0 },
+    emailVerifySentAt: { type: Date, default: null },
     /** Incremented when the password changes. Older JWTs are rejected. Logout does not bump this. */
     tokenVersion: { type: Number, default: 0 },
     lastLocation: {

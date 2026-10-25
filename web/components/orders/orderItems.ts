@@ -28,6 +28,8 @@ export type OrderItemDraft = {
   variantId?: string
   quantity?: number
   unitPrice?: number
+  /** Shop product picked off the shelf: starts in the final sector, no production. */
+  ready?: boolean
 }
 
 export type CreatePedidoItemPayload = {
@@ -42,6 +44,7 @@ export type CreatePedidoItemPayload = {
   variantId?: string
   quantity?: number
   unitPrice?: number
+  ready?: boolean
 }
 
 export type OrderItemPatch = {
@@ -56,6 +59,7 @@ export type OrderItemPatch = {
   variantId?: string
   quantity?: number
   unitPrice?: number
+  ready?: boolean
 }
 
 let draftIdCounter = 0
@@ -139,11 +143,35 @@ export function mapItemsToCreatePayload(items: OrderItemDraft[]): CreatePedidoIt
           variantId: item.variantId || undefined,
           quantity: Math.max(1, Number(item.quantity) || 1),
           unitPrice: Number(item.unitPrice) || 0,
+          ready: item.ready !== false,
         }
       : item.origin === "brought"
         ? { origin: "brought" as const }
         : {}),
   }))
+}
+
+/** Index of every item the customer brought (the shop products live in their own list). */
+export function clientItemIndexes(items: OrderItemDraft[]): number[] {
+  return items.map((item, index) => (item.origin === "stock" ? -1 : index)).filter((index) => index >= 0)
+}
+
+export function stockItemIndexes(items: OrderItemDraft[]): number[] {
+  return items.map((item, index) => (item.origin === "stock" ? index : -1)).filter((index) => index >= 0)
+}
+
+export function stockLineDraft(fields: { productId: string; variantId?: string; label: string; unitPrice: number }): OrderItemDraft {
+  return {
+    ...emptyOrderItemDraft(),
+    origin: "stock",
+    productId: fields.productId,
+    variantId: fields.variantId || "",
+    sneaker: fields.label,
+    quantity: 1,
+    unitPrice: fields.unitPrice,
+    ready: true,
+    flowOptionIds: [],
+  }
 }
 
 export function validateOrderItems(items: OrderItemDraft[]): Record<string, string> {
@@ -155,8 +183,12 @@ export function validateOrderItems(items: OrderItemDraft[]): Record<string, stri
     return errors
   }
 
-  if (touched.some((item) => !isItemFilled(item))) {
-    errors.items = "Cada item preenchido deve ter modelo e ao menos um serviço"
+  const incomplete = touched.find((item) => !isItemFilled(item))
+  if (incomplete) {
+    errors.items =
+      incomplete.origin === "stock"
+        ? "Escolha o produto da loja no item"
+        : "Cada item preenchido deve ter modelo e ao menos um serviço"
   }
 
   return errors
@@ -172,14 +204,22 @@ export type CreateReviewPair = {
 /** Resumo do que vai ser criado. Foto em falta não bloqueia. */
 export function summarizeCreateReview(items: OrderItemDraft[]) {
   const filled = filterFilledItems(items)
-  const pairs: CreateReviewPair[] = filled.map((item, index) => ({
-    label: filled.length > 1 ? `Item ${index + 1}` : "Item",
+  const brought = filled.filter((item) => item.origin !== "stock")
+  const pairs: CreateReviewPair[] = brought.map((item, index) => ({
+    label: brought.length > 1 ? `Item ${index + 1}` : "Item",
     model: [item.brand.trim(), item.sneaker.trim()].filter(Boolean).join(" · "),
     services: item.selectedServices.map((service) => service.name).filter(Boolean).join(", "),
     photoCount: item.photos.length,
   }))
+  const products = filled
+    .filter((item) => item.origin === "stock")
+    .map((item) => {
+      const qty = Math.max(1, Number(item.quantity) || 1)
+      return { label: item.sneaker, quantity: qty, total: qty * (Number(item.unitPrice) || 0) }
+    })
   return {
     pairs,
+    products,
     missingPhoto: pairs.some((pair) => pair.photoCount === 0),
   }
 }
@@ -192,6 +232,16 @@ export function serializeItemsForDraft(items: OrderItemDraft[]) {
     selectedServices: item.selectedServices,
     notes: item.notes,
     flowOptionIds: item.flowOptionIds || ["atendimento"],
+    ...(item.origin === "stock" && item.productId
+      ? {
+          origin: "stock" as const,
+          productId: item.productId,
+          variantId: item.variantId || "",
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          unitPrice: Number(item.unitPrice) || 0,
+          ready: item.ready !== false,
+        }
+      : {}),
   }))
 }
 
@@ -202,7 +252,26 @@ function draftFromStored(item: {
   selectedServices?: SelectedService[]
   notes?: string
   flowOptionIds?: string[]
+  origin?: string
+  productId?: string
+  variantId?: string
+  quantity?: number
+  unitPrice?: number
+  ready?: boolean
 }): OrderItemDraft {
+  if (item?.origin === "stock" && typeof item.productId === "string" && item.productId) {
+    return {
+      ...stockLineDraft({
+        productId: item.productId,
+        variantId: typeof item.variantId === "string" ? item.variantId : "",
+        label: typeof item.sneaker === "string" ? item.sneaker : "",
+        unitPrice: Number(item.unitPrice) || 0,
+      }),
+      id: typeof item.id === "string" && item.id.length > 0 ? item.id : newOrderItemId(),
+      quantity: Math.max(1, Number(item.quantity) || 1),
+      ready: item.ready !== false,
+    }
+  }
   return {
     id: typeof item?.id === "string" && item.id.length > 0 ? item.id : newOrderItemId(),
     sneaker: typeof item?.sneaker === "string" ? item.sneaker : "",
@@ -218,13 +287,7 @@ function draftFromStored(item: {
 }
 
 export function migrateDraftToItems(draft: {
-  items?: Array<{
-    id?: string
-    sneaker?: string
-    selectedServices?: SelectedService[]
-    notes?: string
-    flowOptionIds?: string[]
-  }>
+  items?: Array<Parameters<typeof draftFromStored>[0]>
   formData?: { sneaker?: string }
   selectedServices?: SelectedService[]
   selectedFlowOptions?: string[]

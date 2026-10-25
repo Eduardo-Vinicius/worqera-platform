@@ -37,6 +37,7 @@ export default function EmpresaPage() {
     emailFromName: "",
     phone: "",
     address: "",
+    reviewUrl: "",
     logoUrl: "",
     primaryColor: "",
     accentColor: "",
@@ -78,6 +79,7 @@ export default function EmpresaPage() {
       emailFromName: doc?.branding?.emailFromName || "",
       phone: doc?.branding?.phone || "",
       address: doc?.branding?.address || "",
+      reviewUrl: doc?.branding?.reviewUrl || "",
       logoUrl: doc?.branding?.logoUrl || "",
       primaryColor: doc?.branding?.primaryColor || "",
       accentColor: doc?.branding?.accentColor || "",
@@ -168,6 +170,7 @@ export default function EmpresaPage() {
           emailFromName: form.emailFromName || form.displayName || form.name,
           phone: form.phone,
           address: form.address,
+          reviewUrl: form.reviewUrl.trim(),
           logoUrl: form.logoUrl,
           primaryColor: primary,
           accentColor: accent,
@@ -411,6 +414,13 @@ export default function EmpresaPage() {
               )}
               {field("address", "Endereço", form.address, (v) =>
                 setForm((f) => ({ ...f, address: v }))
+              )}
+              {field(
+                "reviewUrl",
+                "Link de avaliação no Google",
+                form.reviewUrl,
+                (v) => setForm((f) => ({ ...f, reviewUrl: v })),
+                "Quem dá nota 4 ou 5 no pedido recebe o convite para avaliar no Google. No Perfil da Empresa no Google, toque em “Pedir avaliações” e copie o link."
               )}
             </section>
 

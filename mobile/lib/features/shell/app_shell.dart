@@ -16,8 +16,11 @@ import '../lookup/simple_lists.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../ops/ops_screens.dart';
+import '../products/products_screen.dart';
+import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
+import 'release_notes.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.session, required this.api, required this.theme, required this.navigationShell});
@@ -61,10 +64,33 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> loadChrome() async {
+    List notices = const [];
     try {
       final config = await widget.api.dio.get('/runtime/config', queryParameters: {'platform': 'ios'});
-      flags.apply(Map<String, dynamic>.from(config.data as Map));
+      final body = Map<String, dynamic>.from(config.data as Map);
+      flags.apply(body);
+      notices = body['notices'] is List ? body['notices'] as List : const [];
     } catch (_) {}
+    if (mounted && widget.session.shopId.isNotEmpty && !widget.session.isSector) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showReleaseNotesIfAny(context, notices, onOpen: (href) {
+          if (href.startsWith('/orcamentos')) {
+            openPage('quotes', QuotesScreen(api: widget.api, session: widget.session));
+          } else if (href.startsWith('/kanban')) {
+            context.go('/kanban');
+          } else if (href.startsWith('/dashboard')) {
+            context.go('/home');
+          } else if (href.startsWith('/admin/produtos') && widget.session.isAdmin) {
+            openPage('produtos', ProductsScreen(api: widget.api));
+          } else if (href.startsWith('/pedidos/novo')) {
+            context.push('/orders/new');
+          } else if (href.startsWith('/settings/empresa') && widget.session.seesShopSetup) {
+            openPage('empresa', EmpresaScreen(api: widget.api));
+          }
+        });
+      });
+    }
     try {
       final sub = await widget.api.dio.get('/billing/subscription');
       final body = Map<String, dynamic>.from(sub.data as Map);
@@ -403,6 +429,7 @@ class _Drawer extends StatelessWidget {
               _item(context, Icons.apartment_outlined, 'Empresa', () => _open('empresa', EmpresaScreen(api: api))),
               _item(context, Icons.view_column_outlined, 'Setores', () => _open('setores', CatalogScreen(api: api, title: 'Setores', subtitle: 'Colunas do kanban', path: '/sectors', sector: true))),
               _item(context, Icons.build_outlined, 'Serviços', () => _open('servicos', CatalogScreen(api: api, title: 'Serviços', subtitle: 'O que entra no pedido', path: '/services', price: true))),
+              if (admin) _item(context, Icons.shopping_bag_outlined, 'Produtos', () => _open('produtos', ProductsScreen(api: api))),
               _item(context, Icons.sell_outlined, 'Marcas', () => _open('marcas', CatalogScreen(api: api, title: 'Marcas', subtitle: 'Catálogo usado no pedido', path: '/brands'))),
               _item(context, Icons.inventory_2_outlined, 'Acessórios', () => _open('acessorios', CatalogScreen(api: api, title: 'Acessórios', subtitle: 'Itens que acompanham o pedido', path: '/accessories'))),
               _item(context, Icons.group_outlined, 'Equipe', () => _open('equipe', TeamScreen(api: api))),

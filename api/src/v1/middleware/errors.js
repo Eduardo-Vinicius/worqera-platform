@@ -52,6 +52,7 @@ function errorHandler(err, req, res, next) {
     title: err.title || 'Internal Server Error',
     detail: err.detail || err.message || 'Unexpected error',
     code: err.code || 'INTERNAL_ERROR',
+    extras: err.extras || {},
   });
 }
 
