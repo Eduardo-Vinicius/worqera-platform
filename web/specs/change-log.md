@@ -2,6 +2,8 @@
 
 ## 2026-10-26
 
+- **Resumo do dia por papel:** dono/admin continuam vendo valores. Atendimento vê Atrasados em primeiro e só os valores do balcão (orçamento a ligar, receber na retirada, cobrar), sem "em jogo hoje" e sem prateleira. Conta de setor ganhou uma faixa enxuta no topo do kanban (`SectorBriefStrip`): frase do dia e números da própria fila (atrasados, vencem hoje, amanhã), sem valores. `DailyBrief` virou união por `audience`.
+
 - **Comunicação → WhatsApp → Proteção do número:** escolher quando a Worqera sugere mandar WhatsApp (pronto: seguro; criado: moderado; cada mudança de setor: alto volume, desligado por padrão), com dicas de balcão e link para o guia.
 
 - **Comunicação** (menu próprio, `/comunicacao`, abas por `?tab=`):

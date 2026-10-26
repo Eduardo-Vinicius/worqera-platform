@@ -109,11 +109,26 @@ Pacote C, em cima dos pacotes A e B de `2026-10-25-release-notes.md`. Tudo local
 - **Avisar → Melhorar com IA** (Business): reescreve a mensagem no tom da loja sem mexer no código, nos valores e no link.
 - Custo: 1 texto por uso, com cache (cobrança 6 h, cliente 1 dia), dentro dos 1.000 usos do Business.
 
+## 9. Resumo do dia certo para cada pessoa · 26/10
+
+| Quem | O que vê |
+|---|---|
+| Dono e admin | Tudo, com valores: "R$ X em jogo hoje", cobrar, prateleira. |
+| Atendimento | Atrasados primeiro e **os valores do balcão**: o orçamento de quem ligar, quanto receber na retirada e quanto cobrar dos entregues sem pagar. Não vê o total "em jogo hoje" nem a prateleira. |
+| Setor | Só a **própria fila**: atrasados (começando pelo mais antigo), vencem hoje, urgentes, amanhã. Sem valores e sem pedidos de outros setores. No site, aparece numa faixa no topo do kanban; no app, no Início. |
+
+- O que cada um não deve ver não fica só escondido na tela: a API nem manda (totais para o atendimento; qualquer valor para o setor).
+- Nas telas de pedido nada mudou: o atendimento continua vendo e editando os valores do pedido.
+- O contador de usos de IA só aparece para dono e admin.
+
+**Testar:** entrar com uma conta de atendimento → Visão geral (atrasados no topo, valores só nas ações, sem "em jogo hoje"). Entrar com uma conta de setor → Kanban (faixa no topo com a fila do setor).
+
 ---
 
 ## Verificado
 
 - API: 29 testes; teste em banco descartável do resumo do dia (valores, prioridades, texto sem IA) e das colunas Entregues/Recusados, incluindo a conta de setor e `?refused=1` (14 checks).
+- Resumo por papel: teste em banco descartável (15 checks): dono com valores; atendimento com os valores das ações e sem totais nem prateleira; setor só com a própria fila, sem valores; o cache de um papel não vaza para outro.
 - Site: typecheck. App: `flutter analyze` sem avisos.
 - **Não verificado:** telas logadas no navegador e no celular (abrir o kanban, o resumo e o quadro antes de anunciar).
 

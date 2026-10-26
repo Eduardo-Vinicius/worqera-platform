@@ -225,6 +225,8 @@ Sem `OPENAI_API_KEY`, sem Business ou acima do teto mensal: mesma resposta, com 
 
 ```
 GET  /dashboard/brief?refresh=1             # resumo do dia: números ao vivo + frase (IA no máx. a cada 3 h)
+                                            # brief.audience: owner (dono/admin, tudo) · team (atendimento, só valores por ação, sem "em jogo")
+                                            # · sector (só a fila dos setores da conta). aiQuota só para owner.
 GET  /metrics/insights?refresh=1            # leitura da semana; { locked: true } fora do Business
 POST /orders/{id}/customer-summary          # { text } salva o texto da equipe; sem body, a IA escreve (Business)
 POST /orders/{id}/feedback/reply-suggest    # 2 respostas para a avaliação

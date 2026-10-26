@@ -1419,24 +1419,41 @@ export type DailyBriefAction = {
   tone: "brand" | "ok" | "warn" | "danger" | "muted"
 }
 
-export type DailyBrief = {
+/** owner = dono/admin (com valores) · team = atendimento (sem valores) · sector = só a fila do setor. */
+export type DailyBriefAudience = "owner" | "team" | "sector"
+
+export type DailyBriefShopNumbers = {
+  ready: number
+  open: number
+  overdue: number
+  dueTomorrow: number
+  tomorrowBySector: Array<{ name: string; count: number }>
+  callToday: number
+  callOverdue: number
+  quotesOpenValue?: number
+}
+
+export type DailyBriefSectorNumbers = {
+  queue: number
+  overdue: number
+  dueToday: number
+  dueTomorrow: number
+  urgent: number
+  sectors: string[]
+}
+
+type DailyBriefBase = {
   day: string
   text: string
   tip?: string
   ai: boolean
   stake?: number
   actions?: DailyBriefAction[]
-  numbers: {
-    ready: number
-    open: number
-    overdue: number
-    dueTomorrow: number
-    tomorrowBySector: Array<{ name: string; count: number }>
-    callToday: number
-    callOverdue: number
-    quotesOpenValue: number
-  }
 }
+
+export type DailyBrief =
+  | (DailyBriefBase & { audience?: "owner" | "team"; numbers: DailyBriefShopNumbers })
+  | (DailyBriefBase & { audience: "sector"; numbers: DailyBriefSectorNumbers })
 
 export type AiQuota = {
   used: number

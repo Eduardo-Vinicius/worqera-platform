@@ -1,5 +1,9 @@
 # App celular
 
+## 2026-10-26
+
+- **Resumo do dia por papel:** dono/admin com valores; atendimento com Atrasados primeiro e só os valores do balcão (sem "em jogo hoje"); setor volta a ver o resumo no Início, só com a própria fila (Na fila, Atrasados, Hoje, Amanhã). Ícones novos para "hoje" e "urgente".
+
 ## 2026-10-25
 
 - **Kanban:** chips Entregues e Recusados depois dos setores (`closed_orders.dart`, `GET /kanban/closed`), lista com 7/14/30 dias, abre o pedido e o orçamento.

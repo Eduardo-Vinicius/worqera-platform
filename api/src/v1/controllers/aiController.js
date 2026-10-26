@@ -26,8 +26,16 @@ exports.quota = wrap(async (req, res) => {
 
 exports.brief = wrap(async (req, res) => {
   const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
-  const brief = await aiFeatures.dailyBrief(req.shopId, { aiAllowed: aiAllowed(req), refresh });
-  res.status(200).json({ brief, business: aiAllowed(req), aiQuota: await quotaOf(req) });
+  const audience = aiFeatures.briefAudience(req.membership);
+  const brief = await aiFeatures.dailyBrief(req.shopId, {
+    aiAllowed: aiAllowed(req),
+    refresh,
+    audience,
+    sectorIds: req.membership?.sectorIds || [],
+  });
+  // AI usage counters are a management number: only owner/admin get them.
+  const quota = audience === 'owner' ? await quotaOf(req) : null;
+  res.status(200).json({ brief, business: aiAllowed(req), aiQuota: quota });
 });
 
 exports.insights = wrap(async (req, res) => {

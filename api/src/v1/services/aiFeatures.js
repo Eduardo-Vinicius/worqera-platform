@@ -98,8 +98,13 @@ async function dailyMoney(shopId, now = new Date()) {
   };
 }
 
-/** Up to four things to do today, most money first. Same list with or without AI. */
-function dailyActions(n) {
+/**
+ * Up to four things to do today, most money first. Same list with or without AI.
+ * `team: true` (front desk) keeps the values they handle at the counter (quote to
+ * call about, balance at pickup, delivered unpaid) but drops the shelf, which is
+ * the owner's, and puts late orders first.
+ */
+function dailyActions(n, { team = false } = {}) {
   const m = n.money || {};
   const actions = [];
   if (n.callToday) {
@@ -112,9 +117,9 @@ function dailyActions(n) {
       detail: top
         ? [top.value ? formatMoney(top.value) : '', top.reason, n.callOverdue ? `${n.callOverdue} atrasado${n.callOverdue === 1 ? '' : 's'}` : '']
             .filter(Boolean)
-            .join(' · ')
+            .join(' · ') || 'Orçamento que não fechou'
         : 'Orçamentos que não fecharam',
-      value: m.callValue || 0,
+      value: m.callValue || top?.value || 0,
       href: '/orcamentos',
       tone: n.callOverdue ? 'warn' : 'brand',
     });
@@ -123,7 +128,7 @@ function dailyActions(n) {
     actions.push({
       id: 'ready',
       title: `Avisar ${plural(n.ready, 'pronto', 'prontos')}`,
-      detail: m.readyValue ? `${formatMoney(m.readyValue)} para receber na retirada` : 'Esperando retirada',
+      detail: m.readyValue ? `${formatMoney(m.readyValue)} para receber na retirada` : 'Esperando o cliente buscar',
       value: m.readyValue || 0,
       href: '/kanban',
       tone: 'ok',
@@ -139,7 +144,7 @@ function dailyActions(n) {
       tone: 'warn',
     });
   }
-  if (m.staleCount) {
+  if (!team && m.staleCount) {
     actions.push({
       id: 'shelf',
       title: `Lembrar ${plural(m.staleCount, 'parado', 'parados')} na prateleira`,
@@ -180,6 +185,10 @@ function dailyActions(n) {
       href: '/kanban',
       tone: 'muted',
     });
+  }
+  if (team) {
+    const late = actions.findIndex((a) => a.id === 'late');
+    if (late > 0) actions.unshift(...actions.splice(late, 1));
   }
   return actions.slice(0, 4);
 }
@@ -234,9 +243,9 @@ async function dailyNumbers(shopId, now = new Date()) {
   };
 }
 
-function dailyFallback(n) {
-  const stake = dailyStake(n);
-  const actions = dailyActions(n);
+function dailyFallback(n, { team = false } = {}) {
+  const stake = team ? 0 : dailyStake(n);
+  const actions = dailyActions(n, { team });
   if (stake > 0.009 && actions.length) {
     const lead = actions
       .slice(0, 2)
@@ -244,10 +253,16 @@ function dailyFallback(n) {
       .join(' e ');
     return `${formatMoney(stake)} em jogo hoje. Comece por ${lead}.`;
   }
+  const readyValue = team ? n.money?.readyValue || 0 : 0;
   const parts = [];
-  if (n.ready) parts.push(`${plural(n.ready, 'pedido pronto', 'pedidos prontos')} para avisar`);
+  if (team && n.overdue) parts.push(`${plural(n.overdue, 'pedido atrasado', 'pedidos atrasados')}`);
+  if (n.ready) {
+    parts.push(
+      `${plural(n.ready, 'pedido pronto', 'pedidos prontos')} para avisar${readyValue ? ` (${formatMoney(readyValue)} na retirada)` : ''}`
+    );
+  }
   if (n.callToday) parts.push(`${plural(n.callToday, 'orçamento', 'orçamentos')} para ligar`);
-  if (n.overdue) parts.push(`${plural(n.overdue, 'pedido atrasado', 'pedidos atrasados')}`);
+  if (!team && n.overdue) parts.push(`${plural(n.overdue, 'pedido atrasado', 'pedidos atrasados')}`);
   if (n.dueTomorrow) {
     const top = n.tomorrowBySector[0];
     parts.push(
@@ -265,65 +280,206 @@ const BRIEF_REFRESH_MS = 3 * 60 * 60 * 1000;
  * Daily brief for the home screen. The numbers are always live; the AI sentence
  * is written at most once every 3 hours (or on demand), so a busy day costs a few calls.
  */
-async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = new Date() } = {}) {
-  const day = saoPauloDayKey(now);
-  const numbers = await dailyNumbers(shopId, now);
+/** Who reads the brief: owner/admin see money; front desk sees the moves; a sector sees only its queue. */
+function briefAudience(membership) {
+  const role = String(membership?.role || '').toLowerCase();
+  if (role === 'sector') return 'sector';
+  if (role === 'atendimento') return 'team';
+  return 'owner';
+}
+
+/** Shared AI + cache step: one cached sentence per day and audience, refreshed at most every 3 hours. */
+async function writeBrief({ shopId, day, numbers, aiAllowed, refresh, now, fallback, prompt }) {
   const cached = await AiBrief.findOne({ shopId, kind: 'daily', day }).lean();
   const changed = !cached || JSON.stringify(cached.numbers) !== JSON.stringify(numbers);
   const stale = !cached || now - new Date(cached.updatedAt) > BRIEF_REFRESH_MS;
   const writeAi = aiAllowed && (refresh || !cached || !cached.ai || (changed && stale));
-
-  const actions = dailyActions(numbers);
-  const stake = dailyStake(numbers);
-  const base = { day, numbers, actions, stake };
-
   if (!writeAi) {
-    if (cached?.ai && aiAllowed) return { ...base, text: cached.text, tip: cached.bullets?.[0] || '', ai: true };
-    return { ...base, text: dailyFallback(numbers), tip: '', ai: false };
+    if (cached?.ai && aiAllowed) return { text: cached.text, tip: cached.bullets?.[0] || '', ai: true };
+    return { text: fallback, tip: '', ai: false };
   }
-
-  let text = dailyFallback(numbers);
-  let tip = '';
-  let ai = false;
-  const name = await shopName(shopId);
-  const m = numbers.money || {};
-  const parsed = await chatJson({
-    shopId,
-    feature: 'daily_brief',
-    maxTokens: 600,
-    system:
-      'Você é o gerente da loja e prepara o dono para o dia. Português do Brasil, tom confiante e prático, sem emoji. ' +
-      'Use só os números e nomes recebidos, nunca invente. ' +
-      '"headline": 1 frase curta (até 140 caracteres) com o dinheiro em jogo e a primeira ação, citando nome e valor quando houver. ' +
-      '"tip": 1 frase curta com um conselho para hoje (ex.: o que falar na ligação, o que adiantar para amanhã), ou "" se não houver. ' +
-      'Responda JSON: {"headline":"...","tip":"..."}',
-    user: [
-      `Loja: ${name || 'a loja'}`,
-      `Dinheiro em jogo hoje: ${formatMoney(stake)}`,
-      `Orçamentos para ligar hoje: ${numbers.callToday} (atrasados: ${numbers.callOverdue}), valor ${formatMoney(m.callValue || 0)}`,
-      m.topCall ? `Primeiro da lista: ${m.topCall.name}, ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
-      `Prontos esperando retirada: ${numbers.ready}, ${formatMoney(m.readyValue || 0)} a receber`,
-      `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}`,
-      `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
-      `Atrasados: ${numbers.overdue}${m.oldestLate ? ` (mais antigo #${m.oldestLate.code}, ${m.oldestLate.days} dias)` : ''}`,
-      `Vencem amanhã: ${numbers.dueTomorrow}${numbers.tomorrowBySector.length ? ` (${numbers.tomorrowBySector.map((s) => `${s.name} ${s.count}`).join(', ')})` : ''}`,
-      `Pedidos sem preço: ${m.noPrice || 0}`,
-      `Pedidos abertos: ${numbers.open}`,
-    ].join('\n'),
-  });
+  const parsed = await chatJson({ shopId, feature: 'daily_brief', maxTokens: 600, system: prompt.system, user: prompt.user });
   const aiText = String(parsed?.headline || parsed?.text || '').trim();
-  if (aiText) {
-    text = aiText.slice(0, 220);
-    tip = String(parsed?.tip || '').trim().slice(0, 220);
-    ai = true;
-  }
-
+  const out = aiText
+    ? { text: aiText.slice(0, 220), tip: String(parsed?.tip || '').trim().slice(0, 220), ai: true }
+    : { text: fallback, tip: '', ai: false };
   await AiBrief.updateOne(
     { shopId, kind: 'daily', day },
-    { $set: { text, bullets: tip ? [tip] : [], ai, numbers } },
+    { $set: { text: out.text, bullets: out.tip ? [out.tip] : [], ai: out.ai, numbers } },
     { upsert: true }
   );
-  return { ...base, text, tip, ai };
+  return out;
+}
+
+const RULES =
+  'Português do Brasil, tom confiante e prático, sem emoji. Use só os números e nomes recebidos, nunca invente. ' +
+  'Responda JSON: {"headline":"...","tip":"..."}';
+
+/** A sector account's morning: its own queue only, no money. */
+async function sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now }) {
+  const ids = (sectorIds || []).map((id) => String(id)).filter(Boolean);
+  const oids = ids.map((id) => new mongoose.Types.ObjectId(id));
+  const sectors = await Sector.find({ shopId, _id: { $in: oids } }).select('name').lean();
+  const todayEnd = endOfSaoPauloDay(now);
+  const tomorrowEnd = new Date(todayEnd.getTime() + DAY);
+  const orders = oids.length
+    ? await Order.find({
+        shopId,
+        deletedAt: null,
+        status: { $in: OPEN },
+        $or: [{ 'items.currentSectorId': { $in: oids } }, { currentSectorId: { $in: oids } }],
+      })
+        .select('code clientName dueAt priority')
+        .lean()
+    : [];
+  const late = orders.filter((o) => o.dueAt && new Date(o.dueAt) < now).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+  const dueToday = orders.filter((o) => o.dueAt && new Date(o.dueAt) >= now && new Date(o.dueAt) <= todayEnd);
+  const dueTomorrow = orders.filter((o) => o.dueAt && new Date(o.dueAt) > todayEnd && new Date(o.dueAt) <= tomorrowEnd);
+  const urgent = orders.filter((o) => o.priority != null && Number(o.priority) <= 1);
+  const oldest = late[0];
+  const lateDays = oldest ? Math.max(1, Math.floor((now - new Date(oldest.dueAt)) / DAY)) : 0;
+  const numbers = {
+    queue: orders.length,
+    overdue: late.length,
+    dueToday: dueToday.length,
+    dueTomorrow: dueTomorrow.length,
+    urgent: urgent.length,
+    sectors: sectors.map((s) => s.name),
+  };
+
+  const actions = [];
+  if (late.length) {
+    actions.push({
+      id: 'late',
+      title: `Destravar ${plural(late.length, 'atrasado', 'atrasados')}`,
+      detail: `Comece pelo #${oldest.code}${oldest.clientName ? ` · ${firstName(oldest.clientName)}` : ''} · ${plural(lateDays, 'dia', 'dias')}`,
+      value: 0,
+      href: '/kanban',
+      tone: 'danger',
+    });
+  }
+  if (dueToday.length) {
+    actions.push({ id: 'today', title: `Terminar ${plural(dueToday.length, 'pedido', 'pedidos')} de hoje`, detail: 'Vencem até o fim do dia', value: 0, href: '/kanban', tone: 'warn' });
+  }
+  if (urgent.length) {
+    actions.push({ id: 'urgent', title: `${plural(urgent.length, 'urgente', 'urgentes')} na fila`, detail: 'Marcados com prioridade alta', value: 0, href: '/kanban', tone: 'brand' });
+  }
+  if (dueTomorrow.length) {
+    actions.push({ id: 'tomorrow', title: `Adiantar ${plural(dueTomorrow.length, 'pedido', 'pedidos')} de amanhã`, detail: 'Folga para não atrasar', value: 0, href: '/kanban', tone: 'muted' });
+  }
+
+  const where = sectors.length === 1 ? sectors[0].name : 'sua fila';
+  const fallback = !orders.length
+    ? `${where}: nada esperando agora.`
+    : late.length
+      ? `${where}: ${plural(orders.length, 'pedido', 'pedidos')}, ${plural(late.length, 'atrasado', 'atrasados')}. Comece pelo #${oldest.code}.`
+      : `${where}: ${plural(orders.length, 'pedido', 'pedidos')} e nada atrasado${dueToday.length ? `; ${dueToday.length} vence${dueToday.length > 1 ? 'm' : ''} hoje` : ''}.`;
+
+  const out = await writeBrief({
+    shopId,
+    day: `${saoPauloDayKey(now)}:sector:${ids.slice().sort().join(',')}`,
+    numbers,
+    aiAllowed: aiAllowed && orders.length > 0,
+    refresh,
+    now,
+    fallback,
+    prompt: {
+      system:
+        'Você é o líder do setor e prepara a equipe da bancada para o dia. ' + RULES +
+        ' "headline": 1 frase curta (até 140 caracteres) com o que fazer primeiro, citando o código do pedido quando houver. ' +
+        '"tip": 1 frase curta para o setor render hoje, ou "".',
+      user: [
+        `Setor: ${sectors.map((s) => s.name).join(', ') || 'fila'}`,
+        `Pedidos na fila: ${orders.length}`,
+        `Atrasados: ${late.length}${oldest ? ` (mais antigo #${oldest.code}, ${lateDays} dias)` : ''}`,
+        `Vencem hoje: ${dueToday.length}`,
+        `Vencem amanhã: ${dueTomorrow.length}`,
+        `Urgentes: ${urgent.length}`,
+      ].join('\n'),
+    },
+  });
+  return { day: saoPauloDayKey(now), audience: 'sector', numbers, actions: actions.slice(0, 4), stake: 0, ...out };
+}
+
+async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', sectorIds = [] } = {}) {
+  if (audience === 'sector') return sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now });
+
+  const withMoney = audience === 'owner';
+  const day = saoPauloDayKey(now);
+  const full = await dailyNumbers(shopId, now);
+  const m = full.money || {};
+  // Front desk gets only the values they handle per order; totals and the shelf stay out of the payload.
+  const numbers = withMoney
+    ? full
+    : {
+        ...full,
+        quotesOpenValue: undefined,
+        money: {
+          topCall: m.topCall,
+          readyValue: m.readyValue,
+          unpaidCount: m.unpaidCount,
+          unpaidValue: m.unpaidValue,
+          oldestLate: m.oldestLate,
+          noPrice: m.noPrice,
+        },
+      };
+  const actions = dailyActions(numbers, { team: !withMoney });
+  const stake = withMoney ? dailyStake(numbers) : 0;
+  const name = await shopName(shopId);
+  const late = `Atrasados: ${full.overdue}${m.oldestLate ? ` (mais antigo #${m.oldestLate.code}, ${m.oldestLate.days} dias)` : ''}`;
+  const tomorrow = `Vencem amanhã: ${full.dueTomorrow}${full.tomorrowBySector.length ? ` (${full.tomorrowBySector.map((s) => `${s.name} ${s.count}`).join(', ')})` : ''}`;
+
+  const prompt = withMoney
+    ? {
+        system:
+          'Você é o gerente da loja e prepara o dono para o dia. ' + RULES +
+          ' "headline": 1 frase curta (até 140 caracteres) com o dinheiro em jogo e a primeira ação, citando nome e valor quando houver. ' +
+          '"tip": 1 frase curta com um conselho para hoje (ex.: o que falar na ligação, o que adiantar para amanhã), ou "" se não houver.',
+        user: [
+          `Loja: ${name || 'a loja'}`,
+          `Dinheiro em jogo hoje: ${formatMoney(stake)}`,
+          `Orçamentos para ligar hoje: ${full.callToday} (atrasados: ${full.callOverdue}), valor ${formatMoney(m.callValue || 0)}`,
+          m.topCall ? `Primeiro da lista: ${m.topCall.name}, ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
+          `Prontos esperando retirada: ${full.ready}, ${formatMoney(m.readyValue || 0)} a receber`,
+          `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}`,
+          `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
+          late,
+          tomorrow,
+          `Pedidos sem preço: ${m.noPrice || 0}`,
+          `Pedidos abertos: ${full.open}`,
+        ].join('\n'),
+      }
+    : {
+        system:
+          'Você é o gerente da loja e prepara o atendimento do balcão para o dia. ' +
+          'Fale de valores só quando ajudam numa ação (o valor do orçamento na ligação, o que receber na retirada, o que cobrar); ' +
+          'nunca some o faturamento nem diga "dinheiro em jogo". Atrasados vêm primeiro. ' + RULES +
+          ' "headline": 1 frase curta (até 140 caracteres) com a primeira coisa a fazer: o que destravar, quem avisar ou quem ligar. ' +
+          '"tip": 1 frase curta para o balcão render hoje, ou "".',
+        user: [
+          `Loja: ${name || 'a loja'}`,
+          late,
+          `Prontos esperando o cliente: ${full.ready}, ${formatMoney(m.readyValue || 0)} para receber na retirada`,
+          `Orçamentos para ligar hoje: ${full.callToday} (atrasados: ${full.callOverdue})`,
+          m.topCall ? `Primeiro da lista: ${m.topCall.name}, orçamento de ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
+          `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
+          tomorrow,
+          `Pedidos sem preço: ${m.noPrice || 0}`,
+          `Pedidos abertos: ${full.open}`,
+        ].join('\n'),
+      };
+
+  const out = await writeBrief({
+    shopId,
+    day: withMoney ? day : `${day}:team`,
+    numbers,
+    aiAllowed,
+    refresh,
+    now,
+    fallback: dailyFallback(numbers, { team: !withMoney }),
+    prompt,
+  });
+  return { day, audience: withMoney ? 'owner' : 'team', numbers, actions, stake, ...out };
 }
 
 function weekKey(now = new Date()) {
@@ -522,6 +678,7 @@ async function suggestReviewReply(shopId, orderId, { aiAllowed = false } = {}) {
 
 module.exports = {
   dailyBrief,
+  briefAudience,
   dailyNumbers,
   dailyFallback,
   weeklyInsights,

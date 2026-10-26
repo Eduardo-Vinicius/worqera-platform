@@ -204,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w700))),
-                  if (!widget.session.isSector) DailyBriefCard(api: widget.api, session: widget.session),
+                  DailyBriefCard(api: widget.api, session: widget.session),
                   if (widget.session.role == 'owner') ShelfCard(api: widget.api, session: widget.session),
                   if (showChecklist) ...[
                     WqCard(

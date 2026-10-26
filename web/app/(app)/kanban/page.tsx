@@ -78,6 +78,7 @@ import { laudoSaveMessage, type LaudoNotice } from "@/components/orders/laudoNot
 import { RefuseQuoteDialog } from "@/components/quotes/RefuseQuoteDialog"
 import { OrderDetailHeader } from "@/components/kanban/OrderDetailHeader"
 import { CLOSED_META, ClosedColumn, ClosedColumns, useClosedOrders, type ClosedKind } from "@/components/kanban/ClosedColumns"
+import { SectorBriefStrip } from "@/components/ai/DailyBriefCard"
 import type { ClosedCard } from "@/lib/apiV1"
 import { NotifyClientDialog, type NotifyClientInfo } from "@/components/kanban/NotifyClientDialog"
 
@@ -1782,6 +1783,11 @@ export default function KanbanPage() {
                 <Button asChild className="mt-3 rounded-[10px] bg-[var(--wq-action)]">
                   <Link href="/pedidos/novo">Novo pedido</Link>
                 </Button>
+              </div>
+            ) : null}
+            {isSectorRole ? (
+              <div className="mb-3 shrink-0">
+                <SectorBriefStrip />
               </div>
             ) : null}
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>

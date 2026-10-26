@@ -2,6 +2,12 @@
 
 ## 2026-10-26
 
+- **Resumo do dia por papel** (`GET /dashboard/brief`, `aiFeatures.briefAudience`): agora devolve `brief.audience`.
+  - `owner` (dono e admin): como antes, com valores, "em jogo hoje", cobrança e prateleira.
+  - `team` (atendimento): atrasados primeiro e só os valores do balcão, por ação: o orçamento de quem ligar, o que receber na retirada e o que cobrar dos entregues sem pagar. Sem `stake` ("em jogo hoje"), sem Prateleira e sem totais (`callValue`, `staleValue`, `quotesOpenValue` não vão no retorno). IA com prompt próprio (valores só quando ajudam na ação) e cache próprio (`day:team`).
+  - `sector` (antes bloqueado): só a fila dos setores da conta (`queue`, `overdue`, `dueToday`, `dueTomorrow`, `urgent`), começando pelo atrasado mais antigo; nada de valores nem pedidos de outros setores. Cache por setor (`day:sector:<ids>`).
+  - `aiQuota` só vai para dono/admin.
+
 - **Proteção do número:** `Shop.notifications.whatsapp.events {created, moved, ready}` (padrão criado e pronto ligados, mudança de setor desligada). `buildOrderWhatsAppSuggest` não sugere WhatsApp quando o evento está desligado; mover para o setor final continua como "pronto". `PATCH /shops/current` aceita `notifications.whatsapp.events`.
 
 - **IA — análises novas** (`services/aiInsights.js`; números no servidor, IA só escreve; sem Business = texto pronto):

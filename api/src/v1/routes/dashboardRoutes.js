@@ -14,7 +14,7 @@ router.get('/sectors', ...guard, dashboardController.sectors);
 router.get(
   '/brief',
   ...guard,
-  requireRole('owner', 'admin', 'atendimento'),
+  requireRole('owner', 'admin', 'atendimento', 'sector'),
   require('../controllers/aiController').brief
 );
 

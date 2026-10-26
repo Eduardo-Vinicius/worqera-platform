@@ -124,12 +124,29 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
   Widget build(BuildContext context) {
     if (hidden) return const SizedBox.shrink();
     final n = brief?['numbers'] is Map ? brief!['numbers'] as Map : const {};
-    final chips = [
-      ('Prontos', n['ready'] ?? 0, '/kanban', Wq.success),
-      ('Ligar hoje', n['callToday'] ?? 0, null, Wq.brand),
-      ('Atrasados', n['overdue'] ?? 0, '/kanban', const Color(0xFFE11D48)),
-      ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
-    ];
+    // A API já decide o que cada papel vê: dono/admin com valores, atendimento sem valores, setor só a própria fila.
+    final audience = '${brief?['audience'] ?? 'owner'}';
+    const late = Color(0xFFE11D48);
+    final List<(String, dynamic, String?, Color)> chips = audience == 'sector'
+        ? [
+            ('Na fila', n['queue'] ?? 0, '/kanban', context.wqInk),
+            ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
+            ('Hoje', n['dueToday'] ?? 0, '/kanban', Wq.brand),
+            ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
+          ]
+        : audience == 'team'
+            ? [
+                ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
+                ('Prontos', n['ready'] ?? 0, '/kanban', Wq.success),
+                ('Ligar hoje', n['callToday'] ?? 0, null, Wq.brand),
+                ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
+              ]
+            : [
+                ('Prontos', n['ready'] ?? 0, '/kanban', Wq.success),
+                ('Ligar hoje', n['callToday'] ?? 0, null, Wq.brand),
+                ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
+                ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
+              ];
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -159,7 +176,7 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
                   if (brief?['ai'] == true) ...[const SizedBox(width: 6), const Pill('IA', color: Wq.brand, filled: true)],
                 ]),
                 const SizedBox(height: 4),
-                if (((brief?['stake'] as num?) ?? 0) > 0)
+                if (audience == 'owner' && ((brief?['stake'] as num?) ?? 0) > 0)
                   Text.rich(TextSpan(children: [
                     TextSpan(text: brl(brief!['stake']), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: context.wqInk, letterSpacing: -0.5)),
                     TextSpan(text: '  em jogo hoje', style: TextStyle(fontSize: 14, color: context.wqMuted)),
@@ -237,6 +254,8 @@ class _BriefAction extends StatelessWidget {
     'late': Icons.alarm_outlined,
     'price': Icons.sell_outlined,
     'tomorrow': Icons.event_outlined,
+    'today': Icons.timer_outlined,
+    'urgent': Icons.local_fire_department_outlined,
   };
 
   Color _tone(BuildContext context) {
