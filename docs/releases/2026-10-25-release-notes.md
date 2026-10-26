@@ -89,7 +89,7 @@ Não há migração de banco. Os campos novos nascem com valor padrão. Não há
 **Testar:** abrir `/`, `/recursos`, `/recursos/orcamentos`, `/recursos/produtos`, trocar PT/EN e tema escuro, abrir no celular.
 
 ### 7. Produtos e estoque para todas as lojas
-- **Configuração → Produtos** (dono e admin), no site e no app. Antes só o admin Worqera via.
+- **Cadastros → Produtos** (dono e admin), no site e no app. Antes só o admin Worqera via.
 - Cadastro com variação, preço, saldo, mínimo e relatório.
 
 ### 8. Pedido completo: item do cliente + produto da loja (checkout)

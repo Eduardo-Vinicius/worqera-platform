@@ -2,6 +2,12 @@
 
 ## 2026-10-25
 
+- **Kanban:** chips Entregues e Recusados depois dos setores (`closed_orders.dart`, `GET /kanban/closed`), lista com 7/14/30 dias, abre o pedido e o orçamento.
+- **Menu:** Mais e menu lateral em Operação · Cadastros · Gestão · Administração; Equipe e acessos, Funcionários e Plano só para dono/admin; menu lateral ganhou Orçamentos.
+- **Pedido:** ficha no topo (nome, código, telefone e e-mail que abrem ligação/e-mail, setor, prazo, falta receber) com Avançar/Entregar, Avisar (`notify_client_sheet.dart`: mensagens prontas, WhatsApp/e-mail/copiar) e Não fechou.
+- **Resumo do dia:** valor em jogo, dica e as prioridades tocáveis.
+- **Novidades:** entrada com zoom, degradê animado, troca de passo deslizando, barra de progresso e "Bora usar".
+
 - **Produtos:** entra em Mais → Configuração e no menu lateral (dono e admin).
 - **Pedido completo:** item do cliente igual; seção "Produtos da loja" com botão Produto (folha de busca com variações e saldo), linhas com − / +, preço, total, "Passa pela produção". Só produto: "Cliente já levou — entregar agora" esconde o prazo e cria entregue.
 - **Novidades:** botões do tour abrem Produtos, Novo pedido e Empresa.

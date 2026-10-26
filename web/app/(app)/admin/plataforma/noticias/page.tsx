@@ -14,6 +14,8 @@ import {
   type PlatformNotice,
 } from "@/lib/apiV1"
 import { toast } from "sonner"
+import { Eye } from "lucide-react"
+import { ReleaseNotesDialog } from "@/components/shell/ReleaseNotesModal"
 
 const EMPTY = {
   title: "",
@@ -34,6 +36,99 @@ const EMPTY_STEP: Step = { title: "", body: "", href: "", cta: "" }
 
 type ReleaseTemplate = { id: string; label: string; title: string; body: string; steps: Step[] }
 
+/** Everything important shipped in October, in one tour. */
+const OCTOBER_TEMPLATE: ReleaseTemplate = {
+  id: "outubro",
+  label: "Tudo o que chegou em outubro",
+  title: "Sua Worqera ficou muito maior. Bora ver?",
+  body:
+    "Em poucas semanas chegaram orçamentos que voltam a vender, pedido com cara de ficha, produtos da loja no mesmo pedido, entregues e recusados à vista e um resumo que mostra quanto dinheiro está em jogo hoje. São 6 passos rápidos — cada um leva direto para a tela.",
+  steps: [
+    {
+      title: "Quem não fechou vira venda de novo",
+      body: "No pedido, toque em Não fechou: o cliente vai para Orçamentos com o motivo e o dia de ligar. A lista Ligar hoje mostra quem vale mais primeiro. Fechou? O pedido volta sozinho para a fila.",
+      href: "/orcamentos",
+      cta: "Abrir Orçamentos",
+    },
+    {
+      title: "O pedido virou ficha",
+      body: "Abra um card no kanban: nome, telefone e e-mail no topo, quanto falta receber e os botões Avançar, Entregar e Avisar. A mensagem para o cliente já vem pronta — WhatsApp, e-mail ou copiar.",
+      href: "/kanban",
+      cta: "Abrir o kanban",
+    },
+    {
+      title: "Venda produto no mesmo pedido",
+      body: "Cadastre o que a loja vende em Cadastros → Produtos. No pedido, adicione em Produtos da loja: o estoque reserva e baixa sozinho. Só vendeu um cadarço? Marque Cliente já levou e pronto.",
+      href: "/pedidos/novo",
+      cta: "Fazer um pedido",
+    },
+    {
+      title: "Entregues e Recusados à vista",
+      body: "No fim do kanban (e nos chips do celular) tem Entregues e Recusados. Veja o que saiu nos últimos dias e quem não fechou — com o motivo e o atalho para Orçamentos.",
+      href: "/kanban",
+      cta: "Ver no kanban",
+    },
+    {
+      title: "Quanto está em jogo hoje",
+      body: "A Visão geral soma orçamentos para ligar, prontos para receber e entregues sem pagar, e mostra as 4 prioridades do dia. O dono ainda vê a prateleira: prontos parados e o botão Lembrar.",
+      href: "/dashboard",
+      cta: "Ver o resumo do dia",
+    },
+    {
+      title: "Mais avaliações e IA no Business",
+      body: "Cole o link do Google em Empresa: quem dá nota 4 ou 5 é convidado a avaliar você. No Business, a IA escreve o resumo do dia, os textos de orçamento, o laudo para o cliente e a resposta das avaliações.",
+      href: "/settings/empresa",
+      cta: "Colocar o link do Google",
+    },
+  ],
+}
+
+const KANBAN_TEMPLATE: ReleaseTemplate = {
+  id: "kanban",
+  label: "Kanban turbinado e R$ em jogo",
+  title: "Seu kanban ficou mais rápido (e mais esperto)",
+  body:
+    "O pedido abre como uma ficha: cliente, telefone, valor e o próximo passo no topo. Entregues e recusados ficam à vista no fim do quadro. E a Visão geral agora mostra quanto dinheiro está em jogo hoje — e por onde começar.",
+  steps: [
+    {
+      title: "O pedido virou ficha",
+      body: "Abra qualquer card: nome, telefone e e-mail no topo, quanto falta receber e um botão grande para Avançar ou Entregar. Mover para outro setor é um toque.",
+      href: "/kanban",
+      cta: "Abrir o kanban",
+    },
+    {
+      title: "Avisar em 1 toque",
+      body: "Botão Avisar: a mensagem já vem pronta para o momento do pedido (pronto, atraso, andamento). Manda no WhatsApp, por e-mail ou copia e cola.",
+      href: "",
+      cta: "",
+    },
+    {
+      title: "Entregues e Recusados à vista",
+      body: "No fim do kanban tem duas colunas que abrem com um toque. Veja o que saiu nos últimos dias e quem não fechou — e leve direto para Orçamentos.",
+      href: "/kanban",
+      cta: "Ver no kanban",
+    },
+    {
+      title: "Quanto está em jogo hoje",
+      body: "A Visão geral soma orçamentos para ligar, prontos para receber e entregues sem pagar. Embaixo, as 4 prioridades do dia, cada uma com um botão.",
+      href: "/dashboard",
+      cta: "Ver o resumo",
+    },
+    {
+      title: "Orçamentos sem travar",
+      body: "O quadro de orçamentos arrasta liso, no computador e no celular. A lista Ligar hoje continua sendo o começo do dia.",
+      href: "/orcamentos?view=board",
+      cta: "Abrir o quadro",
+    },
+    {
+      title: "Menu mais limpo",
+      body: "Operação, Cadastros, Gestão e Administração. Equipe, funcionários e plano ficam no fim, só para dono e admin.",
+      href: "",
+      cta: "",
+    },
+  ],
+}
+
 const PRODUCTS_TEMPLATE: ReleaseTemplate = {
   id: "produtos",
   label: "Produtos e venda no pedido",
@@ -43,7 +138,7 @@ const PRODUCTS_TEMPLATE: ReleaseTemplate = {
   steps: [
     {
       title: "Cadastre seus produtos",
-      body: "Em Configuração → Produtos (dono e admin): nome, preço e quantidade. Tem tamanho ou cor? Adicione as variações, cada uma com o próprio saldo.",
+      body: "Em Cadastros → Produtos (dono e admin): nome, preço e quantidade. Tem tamanho ou cor? Adicione as variações, cada uma com o próprio saldo.",
       href: "/admin/produtos",
       cta: "Abrir Produtos",
     },
@@ -161,7 +256,7 @@ const QUOTES_TEMPLATE: ReleaseTemplate = {
   ],
 }
 
-const RELEASE_TEMPLATES: ReleaseTemplate[] = [PRODUCTS_TEMPLATE, WEEK_TEMPLATE, QUOTES_TEMPLATE]
+const RELEASE_TEMPLATES: ReleaseTemplate[] = [OCTOBER_TEMPLATE, KANBAN_TEMPLATE, PRODUCTS_TEMPLATE, WEEK_TEMPLATE, QUOTES_TEMPLATE]
 
 function formatWhen(value?: string | null) {
   if (!value) return ""
@@ -176,6 +271,7 @@ export default function PlatformNoticesPage() {
   const [form, setForm] = useState(EMPTY)
   const [steps, setSteps] = useState<Step[]>([])
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState(false)
 
   const setStep = (index: number, key: keyof Step, value: string) =>
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, [key]: value } : s)))
@@ -372,10 +468,34 @@ export default function PlatformNoticesPage() {
                   <Input id="notice-max" value={form.maxVersion} placeholder="2.0.0" onChange={(e) => set("maxVersion", e.target.value)} className="rounded-[10px]" />
                 </div>
               </div>
-              <Button type="button" className="rounded-[10px]" disabled={busy} onClick={() => void publish()}>
-                {busy ? "Publicando…" : "Publicar"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {form.display === "modal" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-[10px]"
+                    disabled={!form.title.trim()}
+                    onClick={() => setPreview(true)}
+                  >
+                    <Eye className="mr-1.5 h-4 w-4" /> Pré-visualizar
+                  </Button>
+                ) : null}
+                <Button type="button" className="rounded-[10px]" disabled={busy} onClick={() => void publish()}>
+                  {busy ? "Publicando…" : "Publicar"}
+                </Button>
+              </div>
             </section>
+            {preview ? (
+              <ReleaseNotesDialog
+                notice={{
+                  title: form.title.trim() || "Novidades",
+                  body: form.body.trim(),
+                  steps: steps.filter((s) => s.title.trim()),
+                }}
+                onClose={() => setPreview(false)}
+                onGo={(href) => toast.message(`O botão levaria para ${href}`)}
+              />
+            ) : null}
 
             <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
               <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">Publicadas</h2>

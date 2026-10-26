@@ -56,6 +56,8 @@ async function buildOrderWhatsAppSuggest(shopId, order, { templateKey, sectorNam
   const shop = await Shop.findById(shopId).lean();
   const wa = shop?.notifications?.whatsapp;
   if (!wa?.enabled) return null;
+  const events = { created: true, moved: false, ready: true, ...(wa.events || {}) };
+  if (key in events && events[key] === false) return null;
 
   let client = null;
   if (order.clientId) {

@@ -1,6 +1,20 @@
 # Worqera API — Change log
 
+## 2026-10-26
+
+- **Proteção do número:** `Shop.notifications.whatsapp.events {created, moved, ready}` (padrão criado e pronto ligados, mudança de setor desligada). `buildOrderWhatsAppSuggest` não sugere WhatsApp quando o evento está desligado; mover para o setor final continua como "pronto". `PATCH /shops/current` aceita `notifications.whatsapp.events`.
+
+- **IA — análises novas** (`services/aiInsights.js`; números no servidor, IA só escreve; sem Business = texto pronto):
+  - `GET /ai/receivables` (dono/admin): a receber por faixa (entregue sem pagar, pronto com saldo, em produção), idade (≤7, 8–30, +30 dias), até 25 cobranças em ordem de risco com mensagem que sobe o tom e link wa.me. A IA escreve `headline` e `plan[]`, com cache de 6 h por dia.
+  - `GET /ai/clients/:id/insight`: Raio-X do cliente (pedidos, gasto, ticket, saldo, intervalo de volta, serviços preferidos, nota, orçamentos, etiquetas). A IA escreve `summary` e `next`, com cache diário por cliente.
+  - `POST /ai/orders/:id/message {text}`: reescreve a mensagem ao cliente mantendo código e links. Fora do Business, devolve `locked`.
+- `AiBrief.kind` aceita `receivables` e `client`.
+
 ## 2026-10-25
+
+- **Kanban fechados:** `GET /kanban/closed?days=14` (1–90) → `{ delivered[], refused[] }`, um card por pedido (código, cliente, resumo dos itens, nota, valor; recusado com motivo, `quoteId`, etapa e retorno do orçamento). Conta de setor recebe vazio.
+- **Pedidos:** `GET /orders?refused=1` filtra `quoteRefusal.refusedAt`.
+- **Resumo do dia:** `dailyNumbers.money` (prontos a receber, parados 3+ dias, entregues sem pagar, valor para ligar, primeiro da lista, atrasado mais antigo, sem preço). Resposta ganha `stake`, `actions[]` (até 4, por valor) e `tip`. Prompt pede `{headline, tip}` com nomes e valores; sem IA, frase "R$ X em jogo hoje. Comece por…". Cache igual (3 h); a dica fica em `AiBrief.bullets[0]`.
 
 - **Checkout no pedido:** item `origin=stock` com `ready: true` nasce no setor final (`plannedSectorIds=[final]`), na criação e em `POST /orders/:id/items`. Pedido só com produtos prontos nasce `ready`; com `deliverNow: true` nasce `delivered` (deliveredAt, estoque baixa, sem e-mail de criado). Pedido misto ignora `deliverNow`.
 - **Produtos e venda no pedido para todas as lojas:** confirmado ponta a ponta com dono comum — `/products` (owner/admin escrevem, todos leem), item `origin=stock` no pedido reserva, entrega baixa, cancelamento devolve, bloqueia acima do disponível e exige variação.

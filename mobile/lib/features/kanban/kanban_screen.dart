@@ -4,7 +4,10 @@ import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
+import '../../design/ui.dart';
 import '../quotes/quote_kit.dart';
+import '../quotes/quotes_screen.dart';
+import 'closed_orders.dart';
 
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key, required this.api, required this.session, required this.openOrder});
@@ -24,6 +27,9 @@ class _KanbanScreenState extends State<KanbanScreen> {
   DateTime? entryDay;
   String? error;
   final query = TextEditingController();
+  Map<String, List<Map>>? closed;
+  String? closedView;
+  int closedDays = 14;
 
   @override
   void initState() {
@@ -44,10 +50,31 @@ class _KanbanScreenState extends State<KanbanScreen> {
           error = null;
         });
       }
+      await loadClosed();
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> loadClosed() async {
+    if (widget.session.isSector) return;
+    try {
+      final res = await widget.api.dio.get('/kanban/closed', queryParameters: {'days': closedDays});
+      final body = Map<String, dynamic>.from(res.data as Map);
+      List<Map> rows(String key) => (body[key] as List? ?? []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      if (mounted) setState(() => closed = {'delivered': rows('delivered'), 'refused': rows('refused')});
+    } catch (_) {}
+  }
+
+  void openQuote(String quoteId) {
+    final page = QuoteDetailScreen(api: widget.api, session: widget.session, quoteId: quoteId, onChanged: loadClosed);
+    final scope = ShellScope.maybeOf(context);
+    if (scope != null) {
+      scope.openPage('quote', page, stack: true);
+    } else {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
     }
   }
 
@@ -201,11 +228,34 @@ class _KanbanScreenState extends State<KanbanScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        itemCount: columns.length,
+                        itemCount: columns.length + (closed == null ? 0 : closedKinds.length),
                         separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (_, i) {
+                          if (i >= columns.length) {
+                            final kind = closedKinds[i - columns.length];
+                            final on = closedView == kind;
+                            final tone = closedTone(kind);
+                            return Material(
+                              color: on ? tone : tone.withValues(alpha: 0.08),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: tone.withValues(alpha: on ? 1 : 0.35))),
+                              child: InkWell(
+                                onTap: () => setState(() => closedView = on ? null : kind),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(closedIcon(kind), size: 16, color: on ? Colors.white : tone),
+                                    const SizedBox(width: 6),
+                                    Text(closedTitle(kind), style: TextStyle(color: on ? Colors.white : tone, fontWeight: FontWeight.w700)),
+                                    const SizedBox(width: 6),
+                                    Text('${closed![kind]?.length ?? 0}', style: TextStyle(color: on ? Colors.white70 : tone, fontSize: 12)),
+                                  ]),
+                                ),
+                              ),
+                            );
+                          }
                           final sector = sectorOf(columns[i]) ?? {};
-                          final selected = i == index;
+                          final selected = closedView == null && i == index;
                           final count = ordersOf(columns[i]).length;
                           final color = _hex(sector['color']);
                           return Material(
@@ -215,7 +265,10 @@ class _KanbanScreenState extends State<KanbanScreen> {
                               side: BorderSide(color: selected ? Wq.brand : context.wqLine),
                             ),
                             child: InkWell(
-                              onTap: () => setState(() => index = i),
+                              onTap: () => setState(() {
+                                index = i;
+                                closedView = null;
+                              }),
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -237,7 +290,23 @@ class _KanbanScreenState extends State<KanbanScreen> {
                         },
                       ),
                     ),
-                    if (widget.session.seesColumnMoney)
+                    if (closedView != null && closed != null)
+                      Expanded(
+                        child: ClosedOrdersList(
+                          kind: closedView!,
+                          cards: closed![closedView!] ?? const [],
+                          days: closedDays,
+                          onDays: (d) {
+                            setState(() => closedDays = d);
+                            loadClosed();
+                          },
+                          onOpenOrder: widget.openOrder,
+                          onOpenQuote: openQuote,
+                          onRefresh: loadClosed,
+                          showMoney: widget.session.seesMoney,
+                        ),
+                      ),
+                    if (closedView == null && widget.session.seesColumnMoney)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                         child: Align(
@@ -245,7 +314,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
                           child: Text('Total R\$ ${total.toStringAsFixed(2)} · A pagar R\$ ${pending.toStringAsFixed(2)}', style: const TextStyle(color: Wq.muted, fontSize: 12)),
                         ),
                       ),
-                    Expanded(
+                    if (closedView == null) Expanded(
                       child: RefreshIndicator(
                         onRefresh: load,
                         child: ListView.builder(

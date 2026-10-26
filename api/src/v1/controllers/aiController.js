@@ -101,5 +101,29 @@ exports.platformQuota = wrap(async (req, res) => {
   return res.status(200).json({ quota: await quotaFor(req.params.id) });
 });
 
+exports.receivables = wrap(async (req, res) => {
+  const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+  const insight = await require('../services/aiInsights').receivablesInsight(req.shopId, {
+    aiAllowed: aiAllowed(req),
+    refresh,
+  });
+  res.status(200).json({ receivables: insight, business: aiAllowed(req), aiQuota: await quotaOf(req) });
+});
+
+exports.clientInsight = wrap(async (req, res) => {
+  const insight = await require('../services/aiInsights').clientInsight(req.shopId, req.params.id, {
+    aiAllowed: aiAllowed(req),
+  });
+  res.status(200).json({ insight, business: aiAllowed(req), aiQuota: await quotaOf(req) });
+});
+
+exports.improveMessage = wrap(async (req, res) => {
+  const result = await require('../services/aiInsights').improveClientMessage(req.shopId, req.params.id, {
+    text: req.body?.text,
+    aiAllowed: aiAllowed(req),
+  });
+  res.status(200).json({ ...result, aiQuota: await quotaOf(req) });
+});
+
 exports.aiAllowed = aiAllowed;
 exports.quotaOf = quotaOf;

@@ -7,13 +7,12 @@ const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
 
-router.get(
-  '/quota',
-  auth,
-  shopContext,
-  subscriptionGate,
-  requireRole('owner', 'admin', 'atendimento'),
-  aiController.quota
-);
+const guard = [auth, shopContext, subscriptionGate];
+const team = requireRole('owner', 'admin', 'atendimento');
+
+router.get('/quota', ...guard, team, aiController.quota);
+router.get('/receivables', ...guard, requireRole('owner', 'admin'), aiController.receivables);
+router.get('/clients/:id/insight', ...guard, team, aiController.clientInsight);
+router.post('/orders/:id/message', ...guard, team, aiController.improveMessage);
 
 module.exports = router;

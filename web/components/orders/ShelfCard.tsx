@@ -56,7 +56,7 @@ export function ShelfCard() {
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+    <section id="prateleira" className="scroll-mt-24 overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
       <div className="flex items-start gap-3 px-4 pt-4 sm:px-5">
         <span
           className={cn(

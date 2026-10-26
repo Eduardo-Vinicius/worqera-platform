@@ -10,6 +10,7 @@ import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../quotes/quote_kit.dart';
 import 'label_screen.dart';
+import 'notify_client_sheet.dart';
 import 'public_order_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
@@ -155,6 +156,143 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     await openLink(link);
   }
 
+  String _id(dynamic raw) => raw is Map ? '${raw['_id'] ?? raw['id'] ?? ''}' : '${raw ?? ''}';
+
+  String get _currentSector => _id(order?['currentSectorId']);
+
+  bool get _atFinal =>
+      order?['status'] == 'ready' || targets.any((t) => '${t['id']}' == _currentSector && t['isTerminal'] == true);
+
+  Map? get _nextTarget {
+    final planned = ((order?['plannedSectorIds'] as List?) ?? const []).map(_id).toList();
+    final idx = planned.indexOf(_currentSector);
+    if (idx < 0 || idx + 1 >= planned.length) return null;
+    for (final t in targets) {
+      if ('${t['id']}' == planned[idx + 1]) return t;
+    }
+    return null;
+  }
+
+  Future<void> notifyClient() async {
+    final pricing = order?['pricing'] as Map?;
+    await showNotifyClientSheet(
+      context,
+      clientName: '${order?['clientName'] ?? ''}',
+      phone: '${order?['clientPhone'] ?? ''}',
+      email: '${order?['clientEmail'] ?? ''}',
+      code: '${order?['code'] ?? ''}',
+      link: publicOrderUrl(slug: widget.session.shopSlug, code: '${order?['code'] ?? ''}', token: '${order?['publicToken'] ?? ''}'),
+      shopName: widget.session.shopName,
+      status: '${order?['status'] ?? ''}',
+      dueAt: '${order?['dueAt'] ?? ''}',
+      remaining: num.tryParse('${pricing?['remaining'] ?? 0}') ?? 0,
+    );
+  }
+
+  Widget _header(BuildContext context, {required Map? pricing, required bool delivered, required bool canRefuse}) {
+    final name = '${order!['clientName'] ?? ''}'.trim();
+    final phone = '${order!['clientPhone'] ?? ''}';
+    final email = '${order!['clientEmail'] ?? ''}'.trim();
+    final initials = name.isEmpty ? '?' : name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
+    final due = DateTime.tryParse('${order!['dueAt'] ?? ''}');
+    final late = due != null && due.isBefore(DateTime.now()) && !delivered;
+    final total = num.tryParse('${pricing?['total'] ?? 0}') ?? 0;
+    final remaining = num.tryParse('${pricing?['remaining'] ?? 0}') ?? 0;
+    final next = _nextTarget;
+    final sectorName = targets.where((t) => '${t['id']}' == _currentSector).map((t) => '${t['name']}').firstOrNull;
+    return WqCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: Wq.brand.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+            child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w800, color: Wq.brand)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name.isEmpty ? 'Cliente' : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text('#${order!['code'] ?? ''}', style: TextStyle(color: context.wqMuted, fontFamily: 'monospace')),
+            ]),
+          ),
+          StatusChip(order!['status']),
+        ]),
+        const SizedBox(height: 10),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          ActionChip(
+            avatar: const Icon(Icons.phone_outlined, size: 16),
+            label: Text(phone.isEmpty ? 'Sem telefone' : maskPhone(phone)),
+            onPressed: phone.isEmpty ? null : () => openLink('tel:${phone.replaceAll(RegExp(r'\D'), '')}'),
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.mail_outline, size: 16),
+            label: Text(email.isEmpty ? 'Sem e-mail' : email, overflow: TextOverflow.ellipsis),
+            onPressed: email.isEmpty ? null : () => openLink('mailto:$email'),
+          ),
+          if (sectorName != null) Chip(label: Text(sectorName), visualDensity: VisualDensity.compact),
+          if (due != null)
+            Chip(
+              label: Text('${late ? 'Atrasado · ' : 'Prazo '}${dayLabel(order!['dueAt'])}', style: TextStyle(color: late ? Wq.danger : null)),
+              visualDensity: VisualDensity.compact,
+            ),
+        ]),
+        if (widget.session.seesMoney && pricing != null) ...[
+          const SizedBox(height: 10),
+          Text(total <= 0.009 ? 'VALOR' : remaining > 0.009 ? 'FALTA RECEBER' : 'TOTAL', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted)),
+          Text(
+            total <= 0.009 ? 'Pendente' : brl(remaining > 0.009 ? remaining : total),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: total > 0.009 && remaining > 0.009 ? const Color(0xFFB45309) : context.wqInk),
+          ),
+          if (total > 0.009) Text(remaining > 0.009 ? 'de ${brl(total)}' : 'Pago', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+        ],
+        const SizedBox(height: 12),
+        Row(children: [
+          if (!delivered && (_atFinal ? !widget.session.isSector : next != null)) ...[
+            Expanded(
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Wq.action, minimumSize: const Size.fromHeight(46)),
+                onPressed: _atFinal ? () => deliver(paid: false) : () => moveTo(next!),
+                icon: Icon(_atFinal ? Icons.inventory_2_outlined : Icons.arrow_forward, size: 18),
+                label: Text(_atFinal ? 'Entregar' : '${next!['name']}', overflow: TextOverflow.ellipsis),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: const Color(0xFF073018), minimumSize: const Size.fromHeight(46)),
+              onPressed: notifyClient,
+              icon: const Icon(Icons.chat_outlined, size: 18),
+              label: const Text('Avisar'),
+            ),
+          ),
+          if (canRefuse) ...[
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(foregroundColor: Wq.brand, minimumSize: const Size.fromHeight(46)),
+                onPressed: () async {
+                  final ok = await showRefuseQuoteSheet(
+                    context,
+                    api: widget.api,
+                    orderId: widget.orderId,
+                    code: '${order!['code'] ?? ''}',
+                    clientName: name,
+                  );
+                  if (ok) await load();
+                },
+                icon: const Icon(Icons.phone_disabled_outlined, size: 18),
+                label: const Text('Não fechou'),
+              ),
+            ),
+          ],
+        ]),
+      ]),
+    );
+  }
+
   String _photo(dynamic photo) {
     if (photo is Map) return fileUrl('${photo['url'] ?? photo['src'] ?? photo['key'] ?? ''}');
     return fileUrl('$photo');
@@ -197,14 +335,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
             const SizedBox(height: 10),
           ],
-          WqCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [StatusChip(order!['status']), const SizedBox(width: 8), if ('${order!['clientPhone'] ?? ''}'.isNotEmpty) Text('${order!['clientPhone']}', style: const TextStyle(color: Wq.muted))]),
-              if (dayLabel(order!['dueAt']).isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Prazo ${dayLabel(order!['dueAt'])}')),
-              if ('${order!['observacoes'] ?? order!['notes'] ?? ''}'.isNotEmpty)
-                Padding(padding: const EdgeInsets.only(top: 6), child: Text('${order!['observacoes'] ?? order!['notes']}')),
-            ]),
-          ),
+          _header(context, pricing: pricing, delivered: delivered, canRefuse: canRefuse),
+          if ('${order!['observacoes'] ?? order!['notes'] ?? ''}'.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            WqCard(child: Text('${order!['observacoes'] ?? order!['notes']}')),
+          ],
           if (widget.session.seesMoney && pricing != null) ...[
             const SizedBox(height: 10),
             WqCard(
@@ -231,29 +366,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 child: const Text('Etiqueta por par'),
               ),
             OutlinedButton(onPressed: sharePdf, child: const Text('Laudo PDF')),
-            OutlinedButton(onPressed: whatsApp, child: const Text('WhatsApp')),
             OutlinedButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PublicOrderScreen(api: widget.api, slug: widget.session.shopSlug, code: '${order!['code'] ?? ''}', token: '${order!['publicToken'] ?? ''}'))),
               child: const Text('Ver como cliente'),
             ),
-            if (!delivered) FilledButton(style: FilledButton.styleFrom(backgroundColor: Wq.success), onPressed: () => deliver(paid: false), child: const Text('Marcar entregue')),
+            if (!delivered && !_atFinal) OutlinedButton(onPressed: () => deliver(paid: false), child: const Text('Marcar entregue')),
             if (delivered) OutlinedButton(onPressed: reopen, child: const Text('Reabrir')),
-            if (canRefuse)
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(foregroundColor: Wq.brand),
-                onPressed: () async {
-                  final ok = await showRefuseQuoteSheet(
-                    context,
-                    api: widget.api,
-                    orderId: widget.orderId,
-                    code: '${order!['code'] ?? ''}',
-                    clientName: '${order!['clientName'] ?? ''}',
-                  );
-                  if (ok) await load();
-                },
-                icon: const Icon(Icons.phone_disabled_outlined, size: 18),
-                label: const Text('Cliente não fechou'),
-              ),
             if (!widget.session.isSector) TextButton(onPressed: trash, child: const Text('Lixeira', style: TextStyle(color: Wq.danger))),
           ]),
           const SizedBox(height: 16),

@@ -213,6 +213,8 @@ POST /quotes/{id}/win                # reabre o pedido recusado na fila; sem ped
 DELETE /quotes/{id}                  # dono/admin
 POST /orders/{id}/refuse-quote       # reason, reasonNote, followUpAt. Pedido vira cancelled + quoteRefusal; libera estoque
 POST /orders  items[].ready          # produto da loja (origin=stock) já pronto: nasce no setor final. deliverNow=true + só produtos prontos = nasce entregue
+GET  /kanban/closed?days=14          # entregues e recusados recentes (setor: vazio)
+GET  /orders?refused=1               # só pedidos com orçamento recusado
 GET  /orders/shelf                   # owner. Prontos não retirados: days, stale (3+), toCollect, whatsapp {text,url}, summary
 POST /orders/{id}/shelf-remind       # owner. Registra o lembrete (shelfReminder.count/lastAt)
 ```

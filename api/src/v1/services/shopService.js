@@ -173,6 +173,12 @@ async function patchCurrentShop(shopId, updates) {
       shop.notifications.whatsapp = shop.notifications.whatsapp || {};
       if (w.enabled != null) shop.notifications.whatsapp.enabled = Boolean(w.enabled);
       if (w.shopPhoneE164 != null) shop.notifications.whatsapp.shopPhoneE164 = w.shopPhoneE164;
+      if (w.events && typeof w.events === 'object') {
+        shop.notifications.whatsapp.events = shop.notifications.whatsapp.events || {};
+        for (const key of ['created', 'moved', 'ready']) {
+          if (typeof w.events[key] === 'boolean') shop.notifications.whatsapp.events[key] = w.events[key];
+        }
+      }
       if (w.templates && typeof w.templates === 'object') {
         shop.notifications.whatsapp.templates = {
           ...(shop.notifications.whatsapp.templates?.toObject?.() ||

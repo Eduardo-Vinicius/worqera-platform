@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const aiBriefSchema = new mongoose.Schema(
   {
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
-    kind: { type: String, enum: ['daily', 'weekly'], required: true },
+    kind: { type: String, enum: ['daily', 'weekly', 'receivables', 'client'], required: true },
     /** YYYY-MM-DD (daily) or the Monday of the week (weekly), São Paulo time. */
     day: { type: String, required: true },
     text: { type: String, default: '' },

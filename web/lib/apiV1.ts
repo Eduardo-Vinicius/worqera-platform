@@ -199,6 +199,94 @@ export type Shelf = {
   items: ShelfItem[]
 }
 
+export type ReceivableItem = {
+  id: string
+  code: string
+  clientName: string
+  phone: string
+  value: number
+  days: number
+  stage: "delivered" | "ready"
+  level: "ready" | "soft" | "firm" | "late"
+  text: string
+  waUrl: string
+}
+
+export type Receivables = {
+  total: number
+  atRisk: number
+  buckets: { delivered: number; deliveredCount: number; ready: number; readyCount: number; open: number; openCount: number }
+  aging: { upTo7: number; upTo30: number; over30: number }
+  items: ReceivableItem[]
+  headline: string
+  plan: string[]
+  ai: boolean
+}
+
+export async function getReceivablesV1(refresh = false) {
+  return v1Fetch<{ receivables: Receivables; business: boolean; aiQuota: AiQuota | null }>(
+    `/ai/receivables${refresh ? "?refresh=1" : ""}`
+  )
+}
+
+export type ClientInsight = {
+  numbers: {
+    name: string
+    visits: number
+    delivered: number
+    openNow: number
+    spent: number
+    avgTicket: number
+    owed: number
+    firstAt: string | null
+    lastAt: string | null
+    daysSinceLast: number | null
+    avgGap: number | null
+    topServices: Array<{ name: string; count: number }>
+    avgScore: number | null
+    quotes: { open: number; won: number; lost: number }
+    tags: string[]
+  }
+  summary: string
+  next: string
+  ai: boolean
+}
+
+export async function getClientInsightV1(clientId: string) {
+  return v1Fetch<{ insight: ClientInsight; business: boolean; aiQuota: AiQuota | null }>(
+    `/ai/clients/${encodeURIComponent(clientId)}/insight`
+  )
+}
+
+export async function improveClientMessageV1(orderId: string, text: string) {
+  return v1Fetch<{ text: string; ai: boolean; locked?: boolean; aiQuota: AiQuota | null }>(
+    `/ai/orders/${encodeURIComponent(orderId)}/message`,
+    { method: "POST", body: JSON.stringify({ text }) }
+  )
+}
+
+export type ClosedCard = {
+  id: string
+  code: string
+  clientName: string
+  clientPhone: string
+  summary: string
+  itemCount: number
+  feedbackScore: number | null
+  total?: number
+  remaining?: number
+  at: string
+  reason?: string | null
+  reasonLabel?: string
+  quoteId?: string | null
+  quoteStage?: string | null
+  followUpAt?: string | null
+}
+
+export async function getKanbanClosedV1(days = 14) {
+  return v1Fetch<{ days: number; delivered: ClosedCard[]; refused: ClosedCard[] }>(`/kanban/closed?days=${days}`)
+}
+
 export async function getShelfV1() {
   return v1Fetch<Shelf>("/orders/shelf")
 }
@@ -1322,10 +1410,22 @@ export async function refuseOrderQuoteV1(
   })
 }
 
+export type DailyBriefAction = {
+  id: string
+  title: string
+  detail: string
+  value: number
+  href: string
+  tone: "brand" | "ok" | "warn" | "danger" | "muted"
+}
+
 export type DailyBrief = {
   day: string
   text: string
+  tip?: string
   ai: boolean
+  stake?: number
+  actions?: DailyBriefAction[]
   numbers: {
     ready: number
     open: number

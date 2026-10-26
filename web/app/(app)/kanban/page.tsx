@@ -76,6 +76,10 @@ import { MoneyField } from "@/components/orders/MoneyField"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { laudoSaveMessage, type LaudoNotice } from "@/components/orders/laudoNotice"
 import { RefuseQuoteDialog } from "@/components/quotes/RefuseQuoteDialog"
+import { OrderDetailHeader } from "@/components/kanban/OrderDetailHeader"
+import { CLOSED_META, ClosedColumn, ClosedColumns, useClosedOrders, type ClosedKind } from "@/components/kanban/ClosedColumns"
+import type { ClosedCard } from "@/lib/apiV1"
+import { NotifyClientDialog, type NotifyClientInfo } from "@/components/kanban/NotifyClientDialog"
 
 type OrderCard = {
   _id?: string
@@ -923,7 +927,11 @@ export default function KanbanPage() {
   const [showAllOrderPhotos, setShowAllOrderPhotos] = useState(false)
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const [refuseOpen, setRefuseOpen] = useState(false)
+  const [notifyOpen, setNotifyOpen] = useState(false)
+  const [closedRefresh, setClosedRefresh] = useState(0)
+  const [closedView, setClosedView] = useState<ClosedKind | null>(null)
   const isSectorRole = membershipRole === "sector"
+  const closed = useClosedOrders(closedRefresh, Boolean(membershipRole) && !isSectorRole)
   const moneyTone = moneyVisibility(membershipRole)
   // Soma da coluna fica oculta por ora, inclusive para admin e dono.
   const showColumnMoney = false
@@ -1013,6 +1021,7 @@ export default function KanbanPage() {
       )
       setMembershipRole(String(res.role || localStorage.getItem("role") || "").toLowerCase())
       setColumns(cols)
+      setClosedRefresh((n) => n + 1)
       setActiveSectorId((prev) => {
         if (prev && cols.some((c: Column) => c.sector._id === prev)) return prev
         return cols[0]?.sector._id || null
@@ -1562,6 +1571,54 @@ export default function KanbanPage() {
     ? forwardTargets.filter((t) => !plannedIds.includes(t.id))
     : []
 
+  const openClosedCard = (card: ClosedCard) =>
+    void openDetail({ _id: card.id, id: card.id, code: card.code } as unknown as OrderCard)
+
+  // Drawer header: next step, quick move and the message to the client.
+  const detailCardKey = detail?.id ? (detailItemId ? `${String(detail.id)}:${detailItemId}` : String(detail.id)) : null
+  const detailAtFinal = terminalIds.has(detailCurrentSectorId) || detail?.status === "ready"
+  const detailNextTarget = (() => {
+    if (!detail || detailAtFinal) return null
+    const idx = plannedPathIds.indexOf(detailCurrentSectorId)
+    const nextId = idx >= 0 ? plannedPathIds[idx + 1] : plannedMoveTargets.find((t) => t.id !== detailCurrentSectorId)?.id
+    return nextId ? forwardTargets.find((t) => t.id === nextId) || null : null
+  })()
+  const detailMoveTargets = [...plannedMoveTargets, ...offPlanMoveTargets]
+    .filter((t, i, list) => list.findIndex((x) => x.id === t.id) === i)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((t) => ({ id: t.id, name: t.name, current: t.id === detailCurrentSectorId, terminal: Boolean(t.isTerminal) }))
+  const detailCardForDeliver = (): OrderCard | null => {
+    if (!detail?.id) return null
+    const found = findCard(detailCardKey || String(detail.id)) || findCard(String(detail.id))
+    if (found) return found
+    const pricing = readOrderPricing(detail)
+    return { _id: String(detail.id), id: String(detail.id), code: detail.code, paymentTotal: pricing.total, paymentRemaining: pricing.remaining } as unknown as OrderCard
+  }
+  const detailNotifyInfo: NotifyClientInfo | null = detail
+    ? {
+        orderId: detail.id ? String(detail.id) : undefined,
+        clientName: detailClientName || detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "",
+        phone: detailClientPhone || detail.clientPhone || detail.client?.phone || detail.client?.telefone || "",
+        email: detailClientEmail || "",
+        code: detail.code || "",
+        link: buildPublicOrderUrl(
+          typeof window !== "undefined" ? window.location.origin : "",
+          shopDoc?.slug || (typeof window !== "undefined" ? localStorage.getItem("shopSlug") || "" : ""),
+          detail.code || "",
+          detail.publicToken
+        ),
+        shopName:
+          shopDoc?.branding?.displayName ||
+          shopDoc?.name ||
+          (typeof window !== "undefined" ? localStorage.getItem("shopDisplayName") || localStorage.getItem("shopName") || "" : ""),
+        sectorName: sectorNameById.get(detailCurrentSectorId) || "",
+        status: detail.status || "",
+        dueAt: detail.dueAt || null,
+        remaining: readOrderPricing(detail).remaining,
+        templates: shopDoc?.notifications?.whatsapp?.templates,
+      }
+    : null
+
   const submitComment = async () => {
     if (!detail?.id || !commentDraft.trim()) return
     setCommenting(true)
@@ -1732,7 +1789,7 @@ export default function KanbanPage() {
             <div className="flex min-h-0 flex-1 flex-col space-y-3 md:hidden">
               <div className="flex shrink-0 gap-2 overflow-x-auto pb-1">
                 {columns.map((col) => {
-                  const active = col.sector._id === activeSectorId
+                  const active = !closedView && col.sector._id === activeSectorId
                   const visible = filterOrders(col.orders, filterLate, codeQuery, filterDate)
                   const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
                   const columnPending = visible.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
@@ -1740,7 +1797,10 @@ export default function KanbanPage() {
                     <button
                       key={col.sector._id}
                       type="button"
-                      onClick={() => setActiveSectorId(col.sector._id)}
+                      onClick={() => {
+                        setClosedView(null)
+                        setActiveSectorId(col.sector._id)
+                      }}
                       className={cn(
                         "flex shrink-0 flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-sm font-medium",
                         active
@@ -1766,8 +1826,43 @@ export default function KanbanPage() {
                     </button>
                   )
                 })}
+                {!isSectorRole && closed.data
+                  ? (["delivered", "refused"] as ClosedKind[]).map((kind) => {
+                      const meta = CLOSED_META[kind]
+                      const Icon = meta.icon
+                      const on = closedView === kind
+                      return (
+                        <button
+                          key={kind}
+                          type="button"
+                          onClick={() => setClosedView(on ? null : kind)}
+                          className={cn(
+                            "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium",
+                            on
+                              ? kind === "delivered"
+                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                : "border-rose-600 bg-rose-600 text-white"
+                              : cn(meta.rail, meta.tone)
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {meta.title}
+                          <span className="font-mono text-[11px]">{closed.data?.[kind].length ?? 0}</span>
+                        </button>
+                      )
+                    })
+                  : null}
               </div>
-              {activeColumn && (
+              {closedView && closed.data ? (
+                <ClosedColumn
+                  compact
+                  kind={closedView}
+                  cards={closed.data[closedView]}
+                  days={closed.days}
+                  onDays={closed.setDays}
+                  onOpenOrder={openClosedCard}
+                />
+              ) : activeColumn && (
                 <DroppableColumn
                   column={activeColumn}
                   filterLate={filterLate}
@@ -1784,7 +1879,7 @@ export default function KanbanPage() {
                   onNotifyReady={notifyReady}
                 />
               )}
-              {focusedCardId && (
+              {focusedCardId && !closedView && (
                 <div className="flex shrink-0 gap-2">
                   <Button
                     type="button"
@@ -1847,6 +1942,9 @@ export default function KanbanPage() {
                   onNotifyReady={notifyReady}
                 />
               ))}
+              {!isSectorRole ? (
+                <ClosedColumns closed={closed} onOpenOrder={openClosedCard} />
+              ) : null}
             </div>
 
             <DragOverlay>
@@ -1869,57 +1967,73 @@ export default function KanbanPage() {
       {detailOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setDetailOpen(false)}>
           <aside
-            className="flex h-full w-full max-w-lg flex-col bg-[var(--wq-paper)] text-[var(--wq-text)] shadow-2xl"
+            className="flex h-full w-full max-w-[580px] flex-col bg-[var(--wq-paper)] text-[var(--wq-text)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-[var(--wq-border)] bg-[var(--wq-surface)] px-5 pb-4 pt-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">Pedido</p>
-                  <p className="font-mono text-2xl font-semibold leading-tight">{detail?.code || "…"}</p>
-                  {detail ? (
-                    <p className="mt-0.5 truncate text-sm font-medium text-[var(--wq-text)]">
-                      {detail.clientName || detail.client?.nomeCompleto || detail.client?.name || "Cliente"}
-                    </p>
-                  ) : null}
-                </div>
+            {detail && !detailLoading ? (
+              <OrderDetailHeader
+                code={detail.code || "…"}
+                clientName={detail.clientName || detail.client?.nomeCompleto || detail.client?.name || ""}
+                phone={detail.clientPhone || detail.client?.phone || detail.client?.telefone || ""}
+                email={detailClientEmail}
+                sectorName={sectorNameById.get(detailCurrentSectorId) || ""}
+                statusLabel={detail.status ? DETAIL_STATUS_LABEL[detail.status] || detail.status : ""}
+                dueAt={detail.dueAt || null}
+                itemCount={(detail.items || []).length}
+                money={{
+                  visible: moneyTone !== "hidden",
+                  total: readOrderPricing(detail).total,
+                  remaining: readOrderPricing(detail).remaining,
+                }}
+                contact={{
+                  name: detailClientName,
+                  phone: detailClientPhone,
+                  email: detailClientEmail,
+                  onName: setDetailClientName,
+                  onPhone: setDetailClientPhone,
+                  onEmail: setDetailClientEmail,
+                  onSave: saveNotes,
+                  saving: savingNotes,
+                  editable: !isSectorRole,
+                }}
+                primary={
+                  detail.status === "delivered"
+                    ? null
+                    : detailAtFinal
+                      ? isSectorRole
+                        ? null
+                        : {
+                            label: "Entregar",
+                            kind: "deliver",
+                            busy: deliverBusy,
+                            onClick: () => {
+                              const card = detailCardForDeliver()
+                              if (card) requestDeliver(card)
+                            },
+                          }
+                      : detailNextTarget
+                        ? {
+                            label: `Avançar · ${detailNextTarget.name}`,
+                            kind: "advance",
+                            onClick: () => void requestMove(detailNextTarget.id, detailCardKey),
+                          }
+                        : null
+                }
+                onNotify={() => setNotifyOpen(true)}
+                onRefuse={!isSectorRole && detail.status !== "delivered" ? () => setRefuseOpen(true) : null}
+                moveTargets={isSectorRole || detail.status === "delivered" ? [] : detailMoveTargets}
+                onMove={(sectorId) => void requestMove(sectorId, detailCardKey)}
+                moving={moving}
+                onClose={() => setDetailOpen(false)}
+              />
+            ) : (
+              <div className="flex items-center justify-between border-b border-[var(--wq-border)] bg-[var(--wq-surface)] px-5 py-4">
+                <p className="font-mono text-xl font-semibold">{detail?.code || "…"}</p>
                 <button type="button" onClick={() => setDetailOpen(false)} className="rounded-lg p-2 hover:bg-[var(--wq-paper)]">
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              {detail ? (
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  {detailCurrentSectorId && sectorNameById.get(detailCurrentSectorId) ? (
-                    <span className="rounded-full bg-[var(--wq-brand)] px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                      {sectorNameById.get(detailCurrentSectorId)}
-                    </span>
-                  ) : null}
-                  {detail.status ? (
-                    <span className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)]">
-                      {DETAIL_STATUS_LABEL[detail.status] || detail.status}
-                    </span>
-                  ) : null}
-                  {detail.dueAt ? (
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-                        new Date(detail.dueAt).getTime() < Date.now()
-                          ? "border-rose-200 bg-rose-50 text-rose-700"
-                          : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
-                      )}
-                    >
-                      Prazo {new Date(detail.dueAt).toLocaleDateString("pt-BR")}
-                      {new Date(detail.dueAt).getTime() < Date.now() ? " · atrasado" : ""}
-                    </span>
-                  ) : null}
-                  {(detail.items || []).length > 1 ? (
-                    <span className="rounded-full border border-[var(--wq-border)] bg-[var(--wq-paper)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--wq-text-muted)]">
-                      {(detail.items || []).length} pares
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+            )}
 
             <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4">
               {detailLoading || !detail ? (
@@ -2063,7 +2177,7 @@ export default function KanbanPage() {
                       </div>
                       </DetailSection>
                     ) : null}
-                    <DetailSection title="Ações" icon={Zap}>
+                    <DetailSection title="Mais ações" icon={Zap}>
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
@@ -2094,46 +2208,6 @@ export default function KanbanPage() {
                         <Copy className="mr-1.5 h-3.5 w-3.5" />
                         Copiar link
                       </Button>
-                      {ENABLE_WA_ME ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="rounded-[10px]"
-                          onClick={() => {
-                            const phone =
-                              detail.clientPhone ||
-                              detail.client?.phone ||
-                              detail.client?.telefone ||
-                              ""
-                            const code = detail.code || ""
-                            const isReady = detail.status === "ready"
-                            const built = buildOrderWaFromShop({
-                              shop: shopDoc,
-                              phone,
-                              code,
-                              publicToken: detail.publicToken,
-                              clientName:
-                                detail.clientName ||
-                                detail.client?.nomeCompleto ||
-                                detail.client?.name ||
-                                "",
-                              sectorName:
-                                sectorNameById.get(detailCurrentSectorId) || "",
-                              templateKey: isReady ? "ready" : "publicLink",
-                              requireEnabled: false,
-                            })
-                            if (!built?.url) {
-                              toast.error("Cliente sem telefone válido")
-                              return
-                            }
-                            window.open(built.url, "_blank", "noopener,noreferrer")
-                          }}
-                        >
-                          <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
-                          WhatsApp
-                        </Button>
-                      ) : null}
                       <Button
                         type="button"
                         size="sm"
@@ -2212,17 +2286,6 @@ export default function KanbanPage() {
                         </Link>
                       </Button>
                     </div>
-                    {!isSectorRole && detail.id && detail.status !== "delivered" ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-2 w-full rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
-                        onClick={() => setRefuseOpen(true)}
-                      >
-                        <PhoneOff className="mr-1.5 h-4 w-4" />
-                        Cliente não fechou → Orçamentos
-                      </Button>
-                    ) : null}
                     </DetailSection>
 
                   <DetailSection
@@ -2418,8 +2481,8 @@ export default function KanbanPage() {
                   </DetailSection>
 
                   <DetailSection
-                    title="Cliente e prazo"
-                    icon={UserRound}
+                    title="Prazo, prioridade e observação"
+                    icon={StickyNote}
                     action={
                       detail.id && !isSectorRole ? (
                         <Link
@@ -2431,47 +2494,25 @@ export default function KanbanPage() {
                       ) : null
                     }
                   >
-                    <div className="space-y-2">
+                    <div className="mb-3 grid grid-cols-2 gap-2">
                       <Input
-                        value={detailClientName}
-                        onChange={(e) => setDetailClientName(e.target.value)}
-                        placeholder="Cliente"
+                        type="date"
+                        value={detailDueAt}
+                        onChange={(e) => setDetailDueAt(e.target.value)}
                         className="rounded-[10px] text-sm"
+                        aria-label="Prazo"
                       />
-                      <Input
-                        value={detailClientPhone}
-                        onChange={(e) => setDetailClientPhone(e.target.value)}
-                        placeholder="Telefone"
-                        className="rounded-[10px] text-sm"
-                      />
-                      <Input
-                        type="email"
-                        value={detailClientEmail}
-                        onChange={(e) => setDetailClientEmail(e.target.value)}
-                        placeholder="E-mail do cliente"
-                        className="rounded-[10px] text-sm"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <select
-                          className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2 text-sm"
-                          value={detailPriority}
-                          onChange={(e) => setDetailPriority(e.target.value)}
-                        >
-                          <option value="1">Prioridade alta</option>
-                          <option value="2">Prioridade média</option>
-                          <option value="3">Prioridade baixa</option>
-                        </select>
-                        <Input
-                          type="date"
-                          value={detailDueAt}
-                          onChange={(e) => setDetailDueAt(e.target.value)}
-                          className="rounded-[10px] text-sm"
-                        />
-                      </div>
+                      <select
+                        className="h-10 rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] px-2 text-sm"
+                        value={detailPriority}
+                        onChange={(e) => setDetailPriority(e.target.value)}
+                        aria-label="Prioridade"
+                      >
+                        <option value="1">Prioridade alta</option>
+                        <option value="2">Prioridade média</option>
+                        <option value="3">Prioridade baixa</option>
+                      </select>
                     </div>
-                  </DetailSection>
-
-                  <DetailSection title="Observação do pedido" icon={StickyNote}>
                     <p className="mb-2 text-xs text-[var(--wq-text-muted)]">
                       Anote o que o cliente pediu no telefone — fica no pedido para a equipe ver.
                     </p>
@@ -2616,6 +2657,8 @@ export default function KanbanPage() {
           </aside>
         </div>
       )}
+
+      <NotifyClientDialog open={notifyOpen} onOpenChange={setNotifyOpen} info={detailNotifyInfo} />
 
       <RefuseQuoteDialog
         open={refuseOpen}

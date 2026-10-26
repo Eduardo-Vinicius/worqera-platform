@@ -722,7 +722,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       faq: [
         { q: "Preciso usar estoque?", a: "Não. Sem produto cadastrado, o pedido fica igual ao de sempre e o bloco Produtos da loja nem aparece." },
         { q: "E se o produto precisa ser feito?", a: "Na linha do produto, marque Passa pela produção. Aí ele segue os setores como qualquer item." },
-        { q: "Quem pode cadastrar?", a: "O dono e o admin, em Configuração → Produtos. O atendimento vende no pedido; a conta de setor não vê." },
+        { q: "Quem pode cadastrar?", a: "O dono e o admin, em Cadastros → Produtos. O atendimento vende no pedido; a conta de setor não vê." },
         { q: "Tenho muitos produtos. Vocês ajudam?", a: "Sim. No Business, a Worqera importa o catálogo com você na implantação." },
       ],
     },
@@ -768,7 +768,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       faq: [
         { q: "Do I have to use stock?", a: "No. With no products registered, the order stays the same and the Shop products block does not even show." },
         { q: "What if the product has to be made?", a: "On the product line, tick Goes through production. Then it follows the sectors like any item." },
-        { q: "Who can register products?", a: "Owner and admin, under Settings → Products. Front desk sells on the order; sector accounts never see it." },
+        { q: "Who can register products?", a: "Owner and admin, under Catalog → Products. Front desk sells on the order; sector accounts never see it." },
         { q: "I have many products. Can you help?", a: "Yes. On Business, Worqera imports the catalog with you during onboarding." },
       ],
     },

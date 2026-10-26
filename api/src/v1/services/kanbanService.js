@@ -169,6 +169,85 @@ async function getKanban(shopId, membership) {
   };
 }
 
+const REFUSAL_LABEL = {
+  price: 'Preço',
+  thinking: 'Vai pensar',
+  deadline: 'Prazo',
+  other_shop: 'Foi em outro lugar',
+  no_need: 'Não precisa mais',
+  other: 'Outro',
+};
+
+/** Recently delivered and refused orders, for the collapsible columns at the end of the board. */
+async function getClosed(shopId, membership, { days = 14 } = {}) {
+  const role = String(membership?.role || '').toLowerCase();
+  const span = Math.min(Math.max(Number(days) || 14, 1), 90);
+  const since = new Date(Date.now() - span * 24 * 60 * 60 * 1000);
+  const hidePrices = role === 'sector';
+  const Quote = require('../models/Quote');
+
+  const [delivered, refused] = await Promise.all([
+    role === 'sector'
+      ? []
+      : Order.find({ shopId, deletedAt: null, status: 'delivered', deliveredAt: { $gte: since } })
+          .sort({ deliveredAt: -1 })
+          .limit(80)
+          .lean(),
+    role === 'sector'
+      ? []
+      : Order.find({ shopId, deletedAt: null, status: 'cancelled', updatedAt: { $gte: since } })
+          .sort({ updatedAt: -1 })
+          .limit(80)
+          .lean(),
+  ]);
+
+  const quoteIds = refused.map((o) => o.quoteRefusal?.quoteId).filter(Boolean);
+  const quotes = quoteIds.length
+    ? await Quote.find({ shopId, _id: { $in: quoteIds } }).select('stage followUpAt').lean()
+    : [];
+  const quoteById = new Map(quotes.map((q) => [String(q._id), q]));
+
+  const card = (order) => {
+    const items = effectiveItems(order);
+    const label = items
+      .map((it) => [it.brand, it.shoeModel].filter(Boolean).join(' '))
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(' · ');
+    return {
+      id: String(order._id),
+      code: order.code,
+      clientName: order.clientName || '',
+      clientPhone: order.clientPhone || '',
+      summary: label,
+      itemCount: items.length,
+      feedbackScore: order.feedback?.score || null,
+      ...(hidePrices
+        ? {}
+        : { total: roundMoney(order.pricing?.total), remaining: roundMoney(order.pricing?.remaining) }),
+    };
+  };
+
+  return {
+    days: span,
+    delivered: delivered.map((order) => ({ ...card(order), at: order.deliveredAt })),
+    refused: refused.map((order) => {
+      const quoteId = order.quoteRefusal?.quoteId ? String(order.quoteRefusal.quoteId) : null;
+      const quote = quoteId ? quoteById.get(quoteId) : null;
+      const reason = order.quoteRefusal?.reason || null;
+      return {
+        ...card(order),
+        at: order.quoteRefusal?.refusedAt || order.updatedAt,
+        reason,
+        reasonLabel: reason ? REFUSAL_LABEL[reason] || 'Outro' : 'Cancelado',
+        quoteId,
+        quoteStage: quote?.stage || null,
+        followUpAt: quote?.followUpAt || null,
+      };
+    }),
+  };
+}
+
 function roundMoney(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
@@ -486,6 +565,7 @@ async function moveOrder(shopId, orderId, membership, userId, body) {
 
 module.exports = {
   getKanban,
+  getClosed,
   moveOrder,
   moveOrderItem,
   canMoveAnywhere,

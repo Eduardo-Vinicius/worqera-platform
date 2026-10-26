@@ -143,6 +143,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/clientes') ||
       pathname.startsWith('/orcamentos') ||
+      pathname.startsWith('/comunicacao') ||
       pathname === '/pedidos' ||
       pathname.startsWith('/pedidos/');
     if (blocked) {
@@ -156,6 +157,8 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/admin') ||
       pathname.startsWith('/billing') ||
       pathname.startsWith('/tv-financeiro') ||
+      pathname.startsWith('/settings/equipe') ||
+      pathname.startsWith('/funcionarios') ||
       pathname.startsWith('/onboarding');
     if (blocked) {
       return NextResponse.redirect(new URL('/forbidden', request.url));

@@ -140,6 +140,9 @@ async function listOrders(shopId, query = {}) {
     }
   }
 
+  if (query.refused === '1' || query.refused === 'true') {
+    filter['quoteRefusal.refusedAt'] = { $ne: null };
+  }
   if (query.payment === 'due') {
     filter['pricing.remaining'] = { $gt: 0.009 };
   }

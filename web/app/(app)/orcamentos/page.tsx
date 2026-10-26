@@ -3,16 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  DndContext,
-  PointerSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import { CSS } from "@dnd-kit/utilities"
-import {
   CalendarClock,
   Check,
   KanbanSquare,
@@ -44,6 +34,7 @@ import {
 import { cn } from "@/lib/utils"
 import { NewQuoteDialog } from "@/components/quotes/NewQuoteDialog"
 import { QuoteDrawer, prefillOrderHref } from "@/components/quotes/QuoteDrawer"
+import { QuoteBoard } from "@/components/quotes/QuoteBoard"
 import {
   STAGES,
   STAGE_LABEL,
@@ -254,7 +245,7 @@ export default function OrcamentosPage() {
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando orçamentos
           </div>
         ) : view === "board" ? (
-          <Board quotes={quotes} onOpen={setOpenId} onMove={moveStage} />
+          <QuoteBoard quotes={quotes} onOpen={setOpenId} onMove={moveStage} />
         ) : quotes.length === 0 ? (
           <EmptyState
             today={view === "today" && !query}
@@ -570,123 +561,3 @@ function EmptyState({
   )
 }
 
-function Board({
-  quotes,
-  onOpen,
-  onMove,
-}: {
-  quotes: Quote[]
-  onOpen: (id: string) => void
-  onMove: (quote: Quote, stage: QuoteStage) => void
-}) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
-  const byStage = useMemo(() => {
-    const map: Record<QuoteStage, Quote[]> = { new: [], contact: [], followup: [], won: [], lost: [] }
-    for (const q of quotes) map[q.stage]?.push(q)
-    map.new.sort((a, b) => b.priority.score - a.priority.score)
-    map.contact.sort((a, b) => b.priority.score - a.priority.score)
-    map.followup.sort((a, b) => b.priority.score - a.priority.score)
-    return map
-  }, [quotes])
-
-  const onDragEnd = (event: DragEndEvent) => {
-    const stage = event.over?.id as QuoteStage | undefined
-    const quote = quotes.find((q) => q.id === event.active.id)
-    if (quote && stage) onMove(quote, stage)
-  }
-
-  return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-      <div className="-mx-2.5 flex snap-x gap-3 overflow-x-auto px-2.5 pb-4 sm:mx-0 sm:px-0">
-        {STAGES.map((s) => (
-          <Column key={s.id} stage={s.id} label={s.label} hint={s.hint} quotes={byStage[s.id]} onOpen={onOpen} />
-        ))}
-      </div>
-    </DndContext>
-  )
-}
-
-function Column({
-  stage,
-  label,
-  hint,
-  quotes,
-  onOpen,
-}: {
-  stage: QuoteStage
-  label: string
-  hint: string
-  quotes: Quote[]
-  onOpen: (id: string) => void
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage })
-  const total = quotes.reduce((sum, q) => sum + (q.value || 0), 0)
-  return (
-    <section
-      ref={setNodeRef}
-      className={cn(
-        "flex w-[82vw] max-w-[300px] shrink-0 snap-start flex-col rounded-2xl border bg-[var(--wq-paper)] transition sm:w-[280px]",
-        isOver ? "border-[var(--wq-brand)] ring-2 ring-[var(--wq-brand)]/20" : "border-[var(--wq-border)]"
-      )}
-    >
-      <header className="flex items-start justify-between gap-2 border-b border-[var(--wq-border)] px-3.5 py-3">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", stageTone(stage))}>{label}</span>
-            <span className="tabular-nums text-[var(--wq-text-muted)]">{quotes.length}</span>
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">{hint}</p>
-        </div>
-        <p className="text-xs font-semibold tabular-nums text-[var(--wq-text-muted)]">{total ? brl(total) : ""}</p>
-      </header>
-      <div className="flex min-h-40 flex-1 flex-col gap-2 p-2.5">
-        {quotes.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[var(--wq-border)] px-3 py-6 text-center text-xs text-[var(--wq-text-muted)]">
-            Arraste para cá
-          </p>
-        ) : (
-          quotes.map((q) => <BoardCard key={q.id} quote={q} onOpen={() => onOpen(q.id)} />)
-        )}
-      </div>
-    </section>
-  )
-}
-
-function BoardCard({ quote: q, onOpen }: { quote: Quote; onOpen: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: q.id })
-  const open = q.stage !== "won" && q.stage !== "lost"
-  return (
-    <button
-      ref={setNodeRef}
-      type="button"
-      onClick={onOpen}
-      style={{ transform: CSS.Translate.toString(transform) }}
-      {...attributes}
-      {...listeners}
-      className={cn(
-        "w-full touch-none rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-left shadow-[0_1px_0_rgba(15,23,42,0.04)] transition hover:border-[var(--wq-brand)]/40",
-        isDragging && "z-10 rotate-1 shadow-xl"
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="flex min-w-0 items-center gap-2 font-semibold">
-          {open ? <span className={cn("h-2 w-2 shrink-0 rounded-full", priorityDot(q.priority.level))} /> : null}
-          <span className="truncate">{q.name}</span>
-        </p>
-        <p className="shrink-0 text-sm font-semibold tabular-nums">{q.value ? brl(q.value) : ""}</p>
-      </div>
-      <p className="mt-1 line-clamp-2 text-xs text-[var(--wq-text-muted)]">{q.what || "Sem descrição"}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {q.reasonLabel ? (
-          <span className="rounded-md bg-[var(--wq-paper)] px-1.5 py-0.5 text-[11px] text-[var(--wq-text-muted)]">{q.reasonLabel}</span>
-        ) : null}
-        {open ? (
-          <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", followUpTone(q.followUp.state))}>
-            {followUpLabel(q)}
-          </span>
-        ) : null}
-        {q.orderCode ? <span className="font-mono text-[11px] text-[var(--wq-text-muted)]">#{q.orderCode}</span> : null}
-      </div>
-    </button>
-  )
-}

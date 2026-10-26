@@ -22,6 +22,7 @@ import {
 import { productSummaryV1 } from "@/lib/apiV1"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { WeeklyInsightsCard } from "@/components/ai/WeeklyInsightsCard"
+import { ReceivablesCard } from "@/components/ai/ReceivablesCard"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -236,6 +237,7 @@ export default function AdminFinanceiroPage() {
           })}
         </div>
 
+        <ReceivablesCard />
         <WeeklyInsightsCard />
 
         {error ? (

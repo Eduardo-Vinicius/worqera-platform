@@ -104,6 +104,22 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
     }
   }
 
+  void _openHref(String href) {
+    if (href.startsWith('/orcamentos')) {
+      final page = QuotesScreen(api: widget.api, session: widget.session);
+      final scope = ShellScope.maybeOf(context);
+      if (scope != null) {
+        scope.openPage('quotes', page, stack: true);
+      } else {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      }
+    } else if (href.startsWith('/pedidos')) {
+      context.go('/orders');
+    } else if (href.startsWith('/kanban')) {
+      context.go('/kanban');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (hidden) return const SizedBox.shrink();
@@ -143,10 +159,24 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
                   if (brief?['ai'] == true) ...[const SizedBox(width: 6), const Pill('IA', color: Wq.brand, filled: true)],
                 ]),
                 const SizedBox(height: 4),
+                if (((brief?['stake'] as num?) ?? 0) > 0)
+                  Text.rich(TextSpan(children: [
+                    TextSpan(text: brl(brief!['stake']), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: context.wqInk, letterSpacing: -0.5)),
+                    TextSpan(text: '  em jogo hoje', style: TextStyle(fontSize: 14, color: context.wqMuted)),
+                  ])),
                 Text(
                   brief == null ? 'Lendo a operação…' : '${brief!['text'] ?? ''}',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: context.wqInk),
                 ),
+                if ('${brief?['tip'] ?? ''}'.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Icon(Icons.lightbulb_outline, size: 15, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text('${brief!['tip']}', style: TextStyle(fontSize: 13, color: context.wqMuted))),
+                    ]),
+                  ),
                 AiQuotaNotice(quota: quota),
               ]),
             ),
@@ -157,6 +187,9 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
             ),
           ]),
         ),
+        for (final entry in ((brief?['actions'] as List?) ?? const []).whereType<Map>().toList().asMap().entries)
+          _BriefAction(index: entry.key, action: entry.value, onTap: () => _openHref('${entry.value['href'] ?? ''}')),
+        if (((brief?['actions'] as List?) ?? const []).isNotEmpty) const SizedBox(height: 8),
         Divider(height: 1, color: context.wqLine),
         Row(children: [
           for (final c in chips)
@@ -186,6 +219,77 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
             ),
         ]),
       ]),
+    );
+  }
+}
+
+class _BriefAction extends StatelessWidget {
+  const _BriefAction({required this.index, required this.action, required this.onTap});
+  final int index;
+  final Map action;
+  final VoidCallback onTap;
+
+  static const _icons = <String, IconData>{
+    'call': Icons.phone_in_talk_outlined,
+    'ready': Icons.inventory_2_outlined,
+    'unpaid': Icons.payments_outlined,
+    'shelf': Icons.warehouse_outlined,
+    'late': Icons.alarm_outlined,
+    'price': Icons.sell_outlined,
+    'tomorrow': Icons.event_outlined,
+  };
+
+  Color _tone(BuildContext context) {
+    switch ('${action['tone']}') {
+      case 'ok':
+        return Wq.success;
+      case 'warn':
+        return const Color(0xFFF59E0B);
+      case 'danger':
+        return const Color(0xFFE11D48);
+      case 'brand':
+        return Wq.brand;
+      default:
+        return context.wqMuted;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _tone(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      child: Material(
+        color: context.wqSurface,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border(left: BorderSide(color: tone, width: 3), top: BorderSide(color: context.wqLine), right: BorderSide(color: context.wqLine), bottom: BorderSide(color: context.wqLine)),
+            ),
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+            child: Row(children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                child: Icon(_icons['${action['id']}'] ?? Icons.arrow_forward, size: 16, color: tone),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${index + 1}. ${action['title'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, color: context.wqInk)),
+                  Text('${action['detail'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: context.wqMuted)),
+                ]),
+              ),
+              Icon(Icons.chevron_right, color: context.wqMuted),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

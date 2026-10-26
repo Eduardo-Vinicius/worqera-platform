@@ -25,9 +25,20 @@ Future<void> showReleaseNotesIfAny(
   seen.add('${notice['id']}');
   await _box.write(key: _seenKey, value: seen.join(','));
   if (!context.mounted) return;
-  final href = await showDialog<String>(
+  final href = await showGeneralDialog<String>(
     context: context,
-    builder: (_) => _ReleaseNotesDialog(notice: notice!),
+    barrierDismissible: true,
+    barrierLabel: 'Fechar',
+    barrierColor: Colors.black.withValues(alpha: 0.5),
+    transitionDuration: const Duration(milliseconds: 380),
+    pageBuilder: (_, _, _) => _ReleaseNotesDialog(notice: notice!),
+    transitionBuilder: (_, animation, _, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutBack, reverseCurve: Curves.easeIn);
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: ScaleTransition(scale: Tween(begin: 0.9, end: 1.0).animate(curved), child: child),
+      );
+    },
   );
   if (href != null && href.isNotEmpty) onOpen(href);
 }
@@ -40,8 +51,24 @@ class _ReleaseNotesDialog extends StatefulWidget {
   State<_ReleaseNotesDialog> createState() => _ReleaseNotesDialogState();
 }
 
-class _ReleaseNotesDialogState extends State<_ReleaseNotesDialog> {
+class _ReleaseNotesDialogState extends State<_ReleaseNotesDialog> with SingleTickerProviderStateMixin {
   int step = 0;
+  late final AnimationController _glow = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  Widget _swap(Widget child) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        transitionBuilder: (c, a) => FadeTransition(
+          opacity: a,
+          child: SlideTransition(position: Tween(begin: const Offset(0.06, 0), end: Offset.zero).animate(a), child: c),
+        ),
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -50,32 +77,71 @@ class _ReleaseNotesDialogState extends State<_ReleaseNotesDialog> {
     final title = '${current?['title'] ?? widget.notice['title'] ?? 'Novidades'}';
     final body = '${current?['body'] ?? widget.notice['body'] ?? ''}';
     final href = '${current?['href'] ?? ''}';
+    final last = steps.isNotEmpty && step == steps.length;
+    final progress = steps.isEmpty ? 1.0 : step / steps.length;
     return Dialog(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [WqTokens.brandDeep, WqTokens.brand, WqTokens.action], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        AnimatedBuilder(
+          animation: _glow,
+          builder: (context, child) => Container(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: const [WqTokens.brandDeep, WqTokens.brand, WqTokens.action],
+                begin: Alignment(-1 + _glow.value, -1),
+                end: Alignment(1, 1 - _glow.value),
+              ),
+            ),
+            child: child,
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(999)),
-              child: Text(
-                steps.isEmpty ? 'NOVIDADES' : step == 0 ? 'NOVIDADES · INÍCIO' : 'NOVIDADES · $step DE ${steps.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800),
-              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(last ? Icons.celebration : Icons.auto_awesome, size: 13, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  steps.isEmpty ? 'NOVIDADES' : step == 0 ? 'NOVIDADES · INÍCIO' : 'NOVIDADES · $step DE ${steps.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800),
+                ),
+              ]),
             ),
             const SizedBox(height: 10),
-            Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, height: 1.15, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+            _swap(Text(title, key: ValueKey('t$step'), style: const TextStyle(color: Colors.white, fontSize: 22, height: 1.15, fontWeight: FontWeight.w800, letterSpacing: -0.4))),
+            if (steps.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: progress),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOut,
+                builder: (_, value, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(value: value, minHeight: 4, backgroundColor: Colors.white.withValues(alpha: 0.25), color: Colors.white),
+                ),
+              ),
+            ],
           ]),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(body, style: TextStyle(fontSize: 15, height: 1.45, color: context.wqInk)),
+            _swap(Text(body, key: ValueKey('b$step'), style: TextStyle(fontSize: 15, height: 1.45, color: context.wqInk))),
+            if (last)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(color: Wq.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                  child: const Row(children: [
+                    Icon(Icons.check_circle, size: 16, color: Wq.success),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('Tudo pronto. Já está no ar para a sua equipe.', style: TextStyle(fontWeight: FontWeight.w700, color: Wq.success))),
+                  ]),
+                ),
+              ),
             if (step == 0 && steps.isNotEmpty) ...[
               const SizedBox(height: 12),
               for (var i = 0; i < steps.length; i++)
@@ -120,7 +186,7 @@ class _ReleaseNotesDialogState extends State<_ReleaseNotesDialog> {
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: Wq.action, minimumSize: const Size(0, 44)),
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Entendi'),
+                child: const Text('Bora usar'),
               ),
           ]),
         ),

@@ -63,6 +63,12 @@ const shopSchema = new mongoose.Schema(
           ready: { type: String, default: '' },
           publicLink: { type: String, default: '' },
         },
+        /** When the system offers a WhatsApp message. Fewer sends keep the shop number safe; "moved" starts off. */
+        events: {
+          created: { type: Boolean, default: true },
+          moved: { type: Boolean, default: false },
+          ready: { type: Boolean, default: true },
+        },
       },
       email: {
         /** Master switch for client order-status emails */

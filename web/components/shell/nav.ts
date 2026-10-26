@@ -23,6 +23,7 @@ import {
   Star,
   HandCoins,
   ShoppingBag,
+  MessagesSquare,
   type LucideIcon,
 } from "lucide-react"
 
@@ -69,30 +70,26 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Configuração",
+    title: "Comunicação",
     items: [
-      { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
-      { href: "/settings/setores", label: "Setores", icon: Layers, hideForSector: true },
+      { href: "/comunicacao", label: "WhatsApp e e-mail", icon: MessagesSquare, hideForSector: true },
+    ],
+  },
+  {
+    title: "Cadastros",
+    items: [
       { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true },
       { href: "/admin/produtos", label: "Produtos", icon: ShoppingBag, ownerAdminOnly: true, hideForSector: true },
       { href: "/settings/marcas", label: "Marcas", icon: Tag, hideForSector: true },
       { href: "/settings/acessorios", label: "Acessórios", icon: Package, hideForSector: true },
-      { href: "/settings/equipe", label: "Equipe", icon: UsersRound, hideForSector: true },
-      { href: "/funcionarios", label: "Funcionários", icon: UserCog, hideForSector: true },
-      { href: "/settings/tv", label: "TVs", icon: Tv, hideForSector: true, serviceKey: "tv" },
+      { href: "/settings/setores", label: "Setores", icon: Layers, hideForSector: true },
     ],
   },
   {
     title: "Gestão",
     items: [
-      {
-        href: "/billing",
-        label: "Plano",
-        icon: CreditCard,
-        ownerAdminOnly: true,
-        emphasize: true,
-      },
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true, serviceKey: "finance" },
+      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
       {
         href: "/tv-financeiro",
         label: "TV Financeiro",
@@ -101,7 +98,27 @@ export const NAV_SECTIONS: NavSection[] = [
         external: true,
         serviceKey: "finance",
       },
-      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
+    ],
+  },
+  {
+    title: "Administração",
+    items: [
+      { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
+      { href: "/settings/tv", label: "TVs", icon: Tv, hideForSector: true, serviceKey: "tv" },
+      { href: "/settings/equipe", label: "Equipe e acessos", icon: UsersRound, ownerAdminOnly: true },
+      { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
+      {
+        href: "/billing",
+        label: "Plano",
+        icon: CreditCard,
+        ownerAdminOnly: true,
+        emphasize: true,
+      },
+    ],
+  },
+  {
+    title: "Worqera",
+    items: [
       { href: "/admin/plataforma", label: "Visão geral", icon: Activity, platformOnly: true },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
       { href: "/admin/plataforma/parametros", label: "Parâmetros", icon: SlidersHorizontal, platformOnly: true },

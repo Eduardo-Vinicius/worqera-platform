@@ -26,10 +26,173 @@ async function shopName(shopId) {
   return shop?.branding?.displayName || shop?.name || '';
 }
 
+function money2(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+
+function firstName(name) {
+  return String(name || '').trim().split(/\s+/)[0] || '';
+}
+
+/** Money and names behind the brief: what is due, who to call, what is stuck. */
+async function dailyMoney(shopId, now = new Date()) {
+  const { toCollect, readySince, STALE_DAYS } = require('./shelfService');
+  const [readyOrders, deliveredUnpaid, oldestLate, noPrice, quotes] = await Promise.all([
+    Order.find({ shopId, deletedAt: null, status: 'ready' })
+      .select('pricing sectorHistory items.sectorHistory updatedAt')
+      .lean(),
+    Order.find({ shopId, deletedAt: null, status: 'delivered', 'pricing.remaining': { $gt: 0.009 } })
+      .select('pricing.remaining')
+      .lean(),
+    Order.findOne({ shopId, deletedAt: null, status: { $in: ['open', 'in_progress'] }, dueAt: { $lt: now } })
+      .sort({ dueAt: 1 })
+      .select('code clientName dueAt')
+      .lean(),
+    Order.countDocuments({ shopId, deletedAt: null, status: { $in: OPEN }, 'pricing.total': { $lte: 0.009 } }),
+    Quote.find({ shopId, stage: { $in: ['new', 'contact', 'followup'] } })
+      .select('name value reason followUpAt stage')
+      .lean(),
+  ]);
+
+  let readyValue = 0;
+  let staleCount = 0;
+  let staleValue = 0;
+  for (const order of readyOrders) {
+    const due = toCollect(order);
+    readyValue += due;
+    const days = Math.floor((now.getTime() - readySince(order).getTime()) / DAY);
+    if (days >= STALE_DAYS) {
+      staleCount += 1;
+      staleValue += due;
+    }
+  }
+
+  const toCall = quotes
+    .filter((q) => isDueToday(q, now))
+    .sort((a, b) => {
+      const ao = followUpState(a.followUpAt, now).state === 'overdue' ? 1 : 0;
+      const bo = followUpState(b.followUpAt, now).state === 'overdue' ? 1 : 0;
+      return bo - ao || (Number(b.value) || 0) - (Number(a.value) || 0);
+    });
+  const top = toCall[0] || null;
+
+  return {
+    readyValue: money2(readyValue),
+    staleCount,
+    staleValue: money2(staleValue),
+    unpaidCount: deliveredUnpaid.length,
+    unpaidValue: money2(deliveredUnpaid.reduce((sum, o) => sum + (Number(o.pricing?.remaining) || 0), 0)),
+    callValue: money2(toCall.reduce((sum, q) => sum + (Number(q.value) || 0), 0)),
+    topCall: top
+      ? { name: top.name, value: money2(top.value), reason: top.reason ? REASON_LABEL[top.reason] || '' : '' }
+      : null,
+    oldestLate: oldestLate
+      ? {
+          code: oldestLate.code,
+          client: oldestLate.clientName || '',
+          days: Math.max(1, Math.floor((now.getTime() - new Date(oldestLate.dueAt).getTime()) / DAY)),
+        }
+      : null,
+    noPrice,
+  };
+}
+
+/** Up to four things to do today, most money first. Same list with or without AI. */
+function dailyActions(n) {
+  const m = n.money || {};
+  const actions = [];
+  if (n.callToday) {
+    const top = m.topCall;
+    actions.push({
+      id: 'call',
+      title: top
+        ? `Ligar para ${firstName(top.name) || top.name}${n.callToday > 1 ? ` e mais ${n.callToday - 1}` : ''}`
+        : `Ligar para ${plural(n.callToday, 'cliente', 'clientes')}`,
+      detail: top
+        ? [top.value ? formatMoney(top.value) : '', top.reason, n.callOverdue ? `${n.callOverdue} atrasado${n.callOverdue === 1 ? '' : 's'}` : '']
+            .filter(Boolean)
+            .join(' · ')
+        : 'Orçamentos que não fecharam',
+      value: m.callValue || 0,
+      href: '/orcamentos',
+      tone: n.callOverdue ? 'warn' : 'brand',
+    });
+  }
+  if (n.ready) {
+    actions.push({
+      id: 'ready',
+      title: `Avisar ${plural(n.ready, 'pronto', 'prontos')}`,
+      detail: m.readyValue ? `${formatMoney(m.readyValue)} para receber na retirada` : 'Esperando retirada',
+      value: m.readyValue || 0,
+      href: '/kanban',
+      tone: 'ok',
+    });
+  }
+  if (m.unpaidCount) {
+    actions.push({
+      id: 'unpaid',
+      title: `Cobrar ${plural(m.unpaidCount, 'entregue sem pagar', 'entregues sem pagar')}`,
+      detail: `${formatMoney(m.unpaidValue)} em aberto`,
+      value: m.unpaidValue || 0,
+      href: '/pedidos?tab=entregue_aberto',
+      tone: 'warn',
+    });
+  }
+  if (m.staleCount) {
+    actions.push({
+      id: 'shelf',
+      title: `Lembrar ${plural(m.staleCount, 'parado', 'parados')} na prateleira`,
+      detail: `${formatMoney(m.staleValue)} · prontos há 3+ dias`,
+      value: m.staleValue || 0,
+      href: '/dashboard#prateleira',
+      tone: 'warn',
+    });
+  }
+  if (n.overdue) {
+    const late = m.oldestLate;
+    actions.push({
+      id: 'late',
+      title: `Destravar ${plural(n.overdue, 'atrasado', 'atrasados')}`,
+      detail: late ? `Mais antigo #${late.code}${late.client ? ` · ${firstName(late.client)}` : ''} · ${plural(late.days, 'dia', 'dias')}` : 'Passou do prazo',
+      value: 0,
+      href: '/kanban',
+      tone: 'danger',
+    });
+  }
+  if (m.noPrice) {
+    actions.push({
+      id: 'price',
+      title: `Dar preço a ${plural(m.noPrice, 'pedido', 'pedidos')}`,
+      detail: 'Sem valor, o laudo não sai',
+      value: 0,
+      href: '/pedidos',
+      tone: 'muted',
+    });
+  }
+  if (n.dueTomorrow) {
+    const topSector = n.tomorrowBySector[0];
+    actions.push({
+      id: 'tomorrow',
+      title: `Preparar ${plural(n.dueTomorrow, 'entrega', 'entregas')} de amanhã`,
+      detail: topSector ? `A maioria em ${topSector.name}` : 'Vencem amanhã',
+      value: 0,
+      href: '/kanban',
+      tone: 'muted',
+    });
+  }
+  return actions.slice(0, 4);
+}
+
+function dailyStake(n) {
+  const m = n.money || {};
+  return money2((m.callValue || 0) + (m.readyValue || 0) + (m.unpaidValue || 0));
+}
+
 async function dailyNumbers(shopId, now = new Date()) {
   const todayEnd = endOfSaoPauloDay(now);
   const tomorrowEnd = new Date(todayEnd.getTime() + DAY);
-  const [ready, open, overdue, dueTomorrow, quotes, sectors] = await Promise.all([
+  const [ready, open, overdue, dueTomorrow, quotes, sectors, money] = await Promise.all([
     Order.countDocuments({ shopId, deletedAt: null, status: 'ready' }),
     Order.countDocuments({ shopId, deletedAt: null, status: { $in: OPEN } }),
     Order.countDocuments({ shopId, deletedAt: null, status: { $in: ['open', 'in_progress'] }, dueAt: { $lt: now } }),
@@ -45,6 +208,7 @@ async function dailyNumbers(shopId, now = new Date()) {
       .select('stage followUpAt value')
       .lean(),
     Sector.find({ shopId }).select('name').lean(),
+    dailyMoney(shopId, now),
   ]);
   const sectorName = new Map(sectors.map((s) => [String(s._id), s.name]));
   const bySector = new Map();
@@ -66,10 +230,20 @@ async function dailyNumbers(shopId, now = new Date()) {
     callToday,
     callOverdue,
     quotesOpenValue: quotes.reduce((sum, q) => sum + (Number(q.value) || 0), 0),
+    money,
   };
 }
 
 function dailyFallback(n) {
+  const stake = dailyStake(n);
+  const actions = dailyActions(n);
+  if (stake > 0.009 && actions.length) {
+    const lead = actions
+      .slice(0, 2)
+      .map((a) => a.title.charAt(0).toLowerCase() + a.title.slice(1))
+      .join(' e ');
+    return `${formatMoney(stake)} em jogo hoje. Comece por ${lead}.`;
+  }
   const parts = [];
   if (n.ready) parts.push(`${plural(n.ready, 'pedido pronto', 'pedidos prontos')} para avisar`);
   if (n.callToday) parts.push(`${plural(n.callToday, 'orçamento', 'orçamentos')} para ligar`);
@@ -99,44 +273,57 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
   const stale = !cached || now - new Date(cached.updatedAt) > BRIEF_REFRESH_MS;
   const writeAi = aiAllowed && (refresh || !cached || !cached.ai || (changed && stale));
 
+  const actions = dailyActions(numbers);
+  const stake = dailyStake(numbers);
+  const base = { day, numbers, actions, stake };
+
   if (!writeAi) {
-    if (cached?.ai && aiAllowed) return { day, text: cached.text, ai: true, numbers };
-    return { day, text: dailyFallback(numbers), ai: false, numbers };
+    if (cached?.ai && aiAllowed) return { ...base, text: cached.text, tip: cached.bullets?.[0] || '', ai: true };
+    return { ...base, text: dailyFallback(numbers), tip: '', ai: false };
   }
 
   let text = dailyFallback(numbers);
+  let tip = '';
   let ai = false;
   const name = await shopName(shopId);
+  const m = numbers.money || {};
   const parsed = await chatJson({
     shopId,
     feature: 'daily_brief',
-    maxTokens: 500,
+    maxTokens: 600,
     system:
-      'Você é o gerente de uma loja de serviço e escreve o resumo da manhã para o dono. ' +
-      'Português do Brasil, direto, no máximo 2 frases curtas, sem emoji, sem inventar número. ' +
-      'Comece pelo que precisa de ação hoje. Responda JSON: {"text":"..."}',
+      'Você é o gerente da loja e prepara o dono para o dia. Português do Brasil, tom confiante e prático, sem emoji. ' +
+      'Use só os números e nomes recebidos, nunca invente. ' +
+      '"headline": 1 frase curta (até 140 caracteres) com o dinheiro em jogo e a primeira ação, citando nome e valor quando houver. ' +
+      '"tip": 1 frase curta com um conselho para hoje (ex.: o que falar na ligação, o que adiantar para amanhã), ou "" se não houver. ' +
+      'Responda JSON: {"headline":"...","tip":"..."}',
     user: [
       `Loja: ${name || 'a loja'}`,
-      `Pedidos prontos esperando aviso/retirada: ${numbers.ready}`,
-      `Pedidos abertos: ${numbers.open}`,
-      `Pedidos atrasados: ${numbers.overdue}`,
+      `Dinheiro em jogo hoje: ${formatMoney(stake)}`,
+      `Orçamentos para ligar hoje: ${numbers.callToday} (atrasados: ${numbers.callOverdue}), valor ${formatMoney(m.callValue || 0)}`,
+      m.topCall ? `Primeiro da lista: ${m.topCall.name}, ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
+      `Prontos esperando retirada: ${numbers.ready}, ${formatMoney(m.readyValue || 0)} a receber`,
+      `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}`,
+      `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
+      `Atrasados: ${numbers.overdue}${m.oldestLate ? ` (mais antigo #${m.oldestLate.code}, ${m.oldestLate.days} dias)` : ''}`,
       `Vencem amanhã: ${numbers.dueTomorrow}${numbers.tomorrowBySector.length ? ` (${numbers.tomorrowBySector.map((s) => `${s.name} ${s.count}`).join(', ')})` : ''}`,
-      `Orçamentos para ligar hoje: ${numbers.callToday} (atrasados: ${numbers.callOverdue})`,
-      `Valor em orçamentos abertos: ${formatMoney(numbers.quotesOpenValue)}`,
+      `Pedidos sem preço: ${m.noPrice || 0}`,
+      `Pedidos abertos: ${numbers.open}`,
     ].join('\n'),
   });
-  const aiText = String(parsed?.text || '').trim();
+  const aiText = String(parsed?.headline || parsed?.text || '').trim();
   if (aiText) {
-    text = aiText.slice(0, 400);
+    text = aiText.slice(0, 220);
+    tip = String(parsed?.tip || '').trim().slice(0, 220);
     ai = true;
   }
 
   await AiBrief.updateOne(
     { shopId, kind: 'daily', day },
-    { $set: { text, ai, numbers } },
+    { $set: { text, bullets: tip ? [tip] : [], ai, numbers } },
     { upsert: true }
   );
-  return { day, text, ai, numbers };
+  return { ...base, text, tip, ai };
 }
 
 function weekKey(now = new Date()) {

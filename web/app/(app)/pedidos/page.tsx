@@ -15,13 +15,14 @@ import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { formatBRL, moneyVisibility, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
-type StatusTab = "ativos" | "a_pagar" | "entregue_aberto" | "finalizados" | "todos" | "lixeira"
+type StatusTab = "ativos" | "a_pagar" | "entregue_aberto" | "finalizados" | "recusados" | "todos" | "lixeira"
 
 const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   ativos: "open,in_progress,ready",
   a_pagar: "open,in_progress,ready,delivered",
   entregue_aberto: "delivered",
   finalizados: "delivered",
+  recusados: "cancelled",
   todos: undefined,
   lixeira: undefined,
 }
@@ -91,13 +92,6 @@ export default function PedidosPage() {
     setIsOwner(role === "owner")
     setCanPurge(role === "owner" || role === "admin")
     setMoneyTone(moneyVisibility(role))
-    try {
-      const fromUrl = new URLSearchParams(window.location.search).get("q")?.trim()
-      if (fromUrl) {
-        setQ(fromUrl)
-        setTab("todos")
-      }
-    } catch {}
   }, [])
 
   const createDemo = async () => {
@@ -194,11 +188,29 @@ export default function PedidosPage() {
   )
 
   useEffect(() => {
-    runSearch({ tab: "ativos" })
+    let startTab: StatusTab = "ativos"
+    let startQ = ""
+    try {
+      const params = new URLSearchParams(window.location.search)
+      startQ = params.get("q")?.trim() || ""
+      const tabParam = params.get("tab") as StatusTab | null
+      if (tabParam && tabParam in STATUS_FILTER) startTab = tabParam
+      else if (params.get("refused") === "1") startTab = "recusados"
+      else if (params.get("status") === "delivered") startTab = "finalizados"
+      else if (startQ) startTab = "todos"
+    } catch {}
+    if (startQ) setQ(startQ)
+    setTab(startTab)
+    runSearch({ tab: startTab, q: startQ })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const typedOnce = useRef(false)
   useEffect(() => {
+    if (!typedOnce.current) {
+      typedOnce.current = true
+      return
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => runSearch({ q }), 320)
     return () => {
@@ -255,6 +267,7 @@ export default function PedidosPage() {
                     ["entregue_aberto", "Entregue sem pagar"],
                   ] as const)),
               ["finalizados", "Finalizados"],
+              ["recusados", "Recusados"],
               ["todos", "Todos"],
               ["lixeira", "Lixeira"],
             ] as const
@@ -404,7 +417,16 @@ export default function PedidosPage() {
                             </Badge>
                           )}
                           {order.status && (
-                            <Badge variant="outline">
+                            <Badge
+                              variant="outline"
+                              className={
+                                order.quoteRefusal?.refusedAt
+                                  ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+                                  : order.status === "delivered"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                    : undefined
+                              }
+                            >
                               {order.quoteRefusal?.refusedAt ? "Orçamento recusado" : statusLabel(order.status)}
                             </Badge>
                           )}

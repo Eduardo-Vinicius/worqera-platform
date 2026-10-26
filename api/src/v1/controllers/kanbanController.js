@@ -7,6 +7,11 @@ exports.getBoard = wrap(async (req, res) => {
   res.status(200).json(board);
 });
 
+exports.getClosed = wrap(async (req, res) => {
+  const closed = await kanbanService.getClosed(req.shopId, req.membership, { days: req.query.days });
+  res.status(200).json(closed);
+});
+
 exports.moveOrder = wrap(async (req, res) => {
   const order = await kanbanService.moveOrder(
     req.shopId,

@@ -134,6 +134,28 @@ Preços em `api/src/v1/lib/whatsappPricing.js`. Para mudar sem código, use as v
 
 ---
 
+### 2.5 Como não cair o número (resposta para os lojistas)
+
+O número cai por **denúncia e baixa qualidade**, não por usar a API oficial. Banimento em massa acontece com automação **não oficial**: apps de disparo e extensões que imitam o WhatsApp Web. A Worqera usa só a **WhatsApp Business Platform (Cloud API) da Meta**.
+
+**Na prática:**
+1. **Número verificado:** empresa verificada na Meta, nome de exibição aprovado, perfil completo (foto, endereço, horário).
+2. **Opt-in:** só cliente da loja que aceitou receber, marcado no balcão. Nunca lista comprada ou contato frio.
+3. **Utilidade primeiro:** pedido pronto, prazo e link do pedido (categoria utility) quase não geram denúncia.
+4. **Marketing com freio:** retomada de orçamento no máximo 2 vezes por cliente, com intervalo. Já está travado no código.
+5. **Saída fácil:** PARAR ou SAIR bloqueia na hora. Já está no webhook.
+6. **Aquecimento:** número novo começa com limite de 250 conversas iniciadas por dia. A Meta sobe sozinha para 1 mil, 10 mil e 100 mil conforme a qualidade. Não disparar tudo no primeiro dia.
+7. **Qualidade:** a Meta mostra verde, amarelo ou vermelho. No amarelo, cortar marketing e revisar textos. Se a Meta pausar, a Worqera pausa junto.
+8. **Coexistência:** a loja continua usando o WhatsApp Business no celular no mesmo número. Atendimento humano segue igual.
+
+**O que derruba:**
+- Disparo em massa para quem nunca comprou.
+- Insistir com quem não responde.
+- Link encurtado estranho ou texto todo em maiúsculas.
+- Trocar de número toda hora.
+
+Esse guia também está para a loja em **Comunicação → Sem bloqueio**.
+
 ## 3. O que ainda falta
 
 | Item | Por quê | Esforço |

@@ -8,6 +8,7 @@ const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate];
 
 router.get('/', ...guard, kanbanController.getBoard);
+router.get('/closed', ...guard, kanbanController.getClosed);
 router.post('/orders/:orderId/move', ...guard, kanbanController.moveOrder);
 router.post(
   '/orders/:orderId/items/:itemId/move',

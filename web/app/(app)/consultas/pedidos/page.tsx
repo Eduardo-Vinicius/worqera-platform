@@ -16,11 +16,12 @@ import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { formatBRL, moneyVisibility, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
-type StatusTab = "ativos" | "finalizados" | "todos"
+type StatusTab = "ativos" | "finalizados" | "recusados" | "todos"
 
 const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   ativos: "open,in_progress,ready",
   finalizados: "delivered",
+  recusados: "cancelled",
   todos: undefined,
 }
 
@@ -40,6 +41,8 @@ function statusLabel(status?: string) {
   switch (status) {
     case "delivered":
       return "Finalizado"
+    case "cancelled":
+      return "Recusado / cancelado"
     case "ready":
       return "Pronto"
     case "in_progress":
@@ -189,6 +192,7 @@ function ConsultasPedidosInner() {
             [
               ["ativos", "Ativos"],
               ["finalizados", "Finalizados"],
+              ["recusados", "Recusados"],
               ["todos", "Todos"],
             ] as const
           ).map(([id, label]) => (
@@ -289,7 +293,18 @@ function ConsultasPedidosInner() {
                             </Badge>
                           )}
                           {order.status && (
-                            <Badge variant="outline">{statusLabel(order.status)}</Badge>
+                            <Badge
+                              variant="outline"
+                              className={
+                                order.status === "cancelled"
+                                  ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+                                  : order.status === "delivered"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                    : undefined
+                              }
+                            >
+                              {order.quoteRefusal?.refusedAt ? "Orçamento recusado" : statusLabel(order.status)}
+                            </Badge>
                           )}
                         </div>
                         <p className="truncate text-sm text-[var(--wq-text-muted)]">

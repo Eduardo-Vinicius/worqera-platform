@@ -13,7 +13,7 @@ import {
 } from "@/lib/apiV1"
 import { DEFAULT_WA_TEMPLATES } from "@/lib/whatsapp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
-import { WhatsAppCloudCard } from "@/components/whatsapp/WhatsAppCloudCard"
+import Link from "next/link"
 import { VERTICAL_PRESETS, type ShopVertical } from "@/lib/itemNoun"
 import {
   BRAND_PRESETS,
@@ -22,7 +22,7 @@ import {
   syncBrandToStorage,
 } from "@/lib/shopBrand"
 import { toast } from "sonner"
-import { Copy, ImagePlus, Loader2, RefreshCw } from "lucide-react"
+import { ArrowRight, Copy, ImagePlus, Loader2, MessagesSquare, RefreshCw } from "lucide-react"
 
 export default function EmpresaPage() {
   const [loading, setLoading] = useState(false)
@@ -176,21 +176,6 @@ export default function EmpresaPage() {
           accentColor: accent,
           itemLabel: form.itemLabel || "peça",
           itemLabelPlural: form.itemLabelPlural || "peças",
-        },
-        notifications: {
-          email: {
-            enabled: form.emailEnabled,
-          },
-          whatsapp: {
-            enabled: form.waEnabled,
-            shopPhoneE164: form.waPhone,
-            templates: {
-              ready: form.tplReady,
-              moved: form.tplMoved,
-              created: form.tplCreated,
-              publicLink: form.tplLink,
-            },
-          },
         },
       })
       syncBrandToStorage({
@@ -647,70 +632,21 @@ export default function EmpresaPage() {
               </div>
             </section>
 
-            <section className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 sm:p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">
-                E-mail ao cliente
-              </h2>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.emailEnabled}
-                  onChange={(e) => setForm((f) => ({ ...f, emailEnabled: e.target.checked }))}
-                />
-                Enviar e-mails de status (criado / coluna / pronto)
-              </label>
-              <p className="text-xs text-[var(--wq-text-muted)]">
-                <strong>Criado:</strong> PDF do pedido em anexo + link público.{" "}
-                <strong>Pronto:</strong> aviso de retirada + pedido de avaliação no mesmo link.
-                Precisa de e-mail no cliente + SMTP na API. Sem SMTP, só loga no console (dev).
-                Colunas que disparam “avançou”: em{" "}
-                <a href="/settings/setores" className="underline">
-                  Setores
-                </a>
-                .
-              </p>
-            </section>
-
-            <WhatsAppCloudCard />
-
-            {ENABLE_WA_ME ? (
-            <section className="space-y-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 sm:p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">
-                Status Pack (cliente informado)
-              </h2>
-              <p className="text-sm text-[var(--wq-text-muted)]">
-                Pacote que diferencia o Worqera: etiqueta/QR → consulta pública → WhatsApp no
-                create/move/pronto. Ligue o WhatsApp abaixo e use os templates.
-              </p>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.waEnabled}
-                  onChange={(e) => setForm((f) => ({ ...f, waEnabled: e.target.checked }))}
-                />
-                Status Pack / WhatsApp (wa.me) ativo
-              </label>
-              {field("waPhone", "Telefone da loja (E.164 / BR)", form.waPhone, (v) =>
-                setForm((f) => ({ ...f, waPhone: v }))
-              )}
-              {field("tplReady", "Template pronto", form.tplReady, (v) =>
-                setForm((f) => ({ ...f, tplReady: v }))
-              )}
-              {field("tplMoved", "Template avançou setor", form.tplMoved, (v) =>
-                setForm((f) => ({ ...f, tplMoved: v }))
-              )}
-              {field("tplCreated", "Template criado", form.tplCreated, (v) =>
-                setForm((f) => ({ ...f, tplCreated: v }))
-              )}
-              {field("tplLink", "Template link público", form.tplLink, (v) =>
-                setForm((f) => ({ ...f, tplLink: v }))
-              )}
-              <p className="text-xs text-[var(--wq-text-muted)]">
-                Variáveis: {"{{code}} {{client}} {{link}} {{sector}} {{shop}}"}. Cloud API fica pra
-                depois — hoje é 1 clique wa.me.
-              </p>
-            </section>
-            ) : null}
+            <Link
+              href="/comunicacao"
+              className="group flex items-center gap-4 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-5 transition hover:border-[var(--wq-brand)]/40 sm:p-6"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#128C7E]">
+                <MessagesSquare className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-[var(--wq-text)]">WhatsApp, e-mail e mensagens</span>
+                <span className="block text-sm text-[var(--wq-text-muted)]">
+                  Agora ficam em Comunicação: WhatsApp oficial, e-mail ao cliente, modelos e automações.
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 text-[var(--wq-text-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--wq-brand)]" />
+            </Link>
 
             <Button
               type="submit"

@@ -1,6 +1,31 @@
 # Worqera Web — Change log
 
+## 2026-10-26
+
+- **Comunicação → WhatsApp → Proteção do número:** escolher quando a Worqera sugere mandar WhatsApp (pronto: seguro; criado: moderado; cada mudança de setor: alto volume, desligado por padrão), com dicas de balcão e link para o guia.
+
+- **Comunicação** (menu próprio, `/comunicacao`, abas por `?tab=`):
+  - WhatsApp: oficial (`WhatsAppCloudCard`) e "pelo celular da loja" (wa.me + telefone).
+  - E-mail: liga e desliga, e explica o que é enviado.
+  - Modelos: 4 textos com prévia estilo WhatsApp.
+  - Automações: o que sai sozinho e se está ligado.
+  - Sem bloqueio: `components/comunicacao/AntiBanGuide.tsx`.
+  - Os blocos de e-mail, WhatsApp oficial e Status Pack saíram de Empresa, que ganhou um atalho; o salvar de Empresa não envia mais `notifications`. Conta de setor não abre a página.
+- **IA:**
+  - Financeiro: `ReceivablesCard` (Cobrança inteligente: total, entregues sem pagar, prontos com saldo, barra de idade, lista com botão Cobrar).
+  - Cliente: `ClientInsightCard` (Raio-X: resumo, próximo passo, etiquetas, pedidos, gasto, ticket, volta a cada X dias).
+  - Avisar: botão "Melhorar com IA" no texto (Business).
+
 ## 2026-10-25
+
+- **Menu:** Operação · Cadastros · Gestão · Administração (Empresa, TVs, Equipe e acessos, Funcionários, Plano — os três últimos só dono/admin) · Worqera. Middleware bloqueia `/settings/equipe` e `/funcionarios` para atendimento.
+- **Kanban — detalhe:** `components/kanban/OrderDetailHeader.tsx` (cliente, telefone, e-mail, editar contato, valor a receber, Avançar/Entregar, Avisar, Não fechou, Mover para) e `NotifyClientDialog.tsx` (mensagens prontas por momento, WhatsApp/e-mail/copiar). Drawer 580 px; "Cliente e prazo" virou "Prazo, prioridade e observação"; "Ações" virou "Mais ações".
+- **Kanban — fechados no celular:** chips Entregues/Recusados depois dos setores abrem `ClosedColumn compact`; dados carregados uma vez por `useClosedOrders` (compartilhado com as faixas do desktop).
+- **Notícias:** modelo "Tudo o que chegou em outubro" (6 passos, primeiro da lista).
+- **Kanban — fechados:** `components/kanban/ClosedColumns.tsx` com faixas Entregues e Recusados (7/14/30 dias, abre/recolhe e lembra, abre o pedido, recusado abre no Orçamentos). Pedidos ganhou a aba Recusados e lê `?tab=`, `?refused=1`, `?status=delivered`.
+- **Orçamentos — quadro:** `components/quotes/QuoteBoard.tsx` com DragOverlay, Mouse/Touch/Keyboard sensors, colisão por ponteiro e "Soltar em…".
+- **Resumo do dia:** "R$ em jogo hoje", dica, 4 prioridades com ícone, cor e link (`DailyBrief.actions`, `stake`, `tip`). Prateleira tem âncora `#prateleira`.
+- **Novidades:** animações (zoom, degradê, confete, troca de passo, progresso; respeita reduzir movimento). `ReleaseNotesDialog` reaproveitável; Notícias ganhou Pré-visualizar e o modelo "Kanban turbinado e R$ em jogo".
 
 - **Produtos para todas as lojas:** "Produtos" entra no menu em Configuração (dono e admin), depois de Serviços. A página fala com a loja ("O que a loja vende…").
 - **Pedido completo (cliente + loja):** o bloco Item continua só para o que o cliente trouxe. Logo abaixo, "Produtos da loja" (aparece só com produto ativo): busca com Enter, toque adiciona (repetir soma +1), linha com variação, − / +, preço unitário, total e disponível; o + trava no saldo. Produto da prateleira nasce pronto no setor final; "Passa pela produção" segue os setores. Só produto no pedido = "Cliente já levou — entregar agora" (padrão ligado): sem prazo, nasce entregue, baixa o estoque, sem e-mail. Confirmação lista os produtos e não cobra foto deles. Rascunho guarda os produtos.
