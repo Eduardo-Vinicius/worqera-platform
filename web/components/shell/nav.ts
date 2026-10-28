@@ -68,6 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/clientes", label: "Clientes", icon: Users, hideForSector: true, serviceKey: "clients" },
       { href: "/consultas", label: "Consultas", icon: Search, serviceKey: "consultas" },
       { href: "/avaliacoes", label: "Avaliações", icon: Star, hideForSector: true, serviceKey: "reviews" },
+      { href: "/settings/tv", label: "Telas da loja", icon: Tv, hideForSector: true, serviceKey: "tv" },
     ],
   },
   {
@@ -106,7 +107,6 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Administração",
     items: [
       { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
-      { href: "/settings/tv", label: "TVs", icon: Tv, hideForSector: true, serviceKey: "tv" },
       { href: "/settings/equipe", label: "Equipe e acessos", icon: UsersRound, ownerAdminOnly: true },
       { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
       {

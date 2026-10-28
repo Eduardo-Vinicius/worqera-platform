@@ -2,6 +2,8 @@
 
 ## 2026-10-28
 
+- **Início → Telas da loja** (`tv_screens_card.dart`): toque copia o link da TV Cliente, Oficina ou Financeiro (dono/admin) para abrir no navegador da TV; atalho para a demonstração.
+
 - **Pedido com muitos itens:** abas em grade que nunca cortam (com marca de pronto e "+ Item N"), rodapé de cada item com anterior/próximo e "Adicionar mais um item", e a tela rola até o item escolhido. Com o teclado aberto, a barra de total some para sobrar espaço. Título com as etapas reais.
 - **Orçamentos:** cards do topo não estouram mais (altura pelo conteúdo, sem proporção fixa). Abas em 4 colunas com ícone. Nova aba **Recuperados** (`recovered_view.dart`): período, taxa, contatos e pessoas por lead, problema → como reverteu, quem recuperou e a lista.
 

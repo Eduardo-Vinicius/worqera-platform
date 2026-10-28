@@ -13,6 +13,7 @@ import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../settings/settings_screens.dart';
 import 'shelf_card.dart';
+import 'tv_screens_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.api, required this.session});
@@ -204,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w700))),
+                  TvScreensCard(session: widget.session),
                   DailyBriefCard(api: widget.api, session: widget.session),
                   if (widget.session.role == 'owner') ShelfCard(api: widget.api, session: widget.session),
                   if (showChecklist) ...[

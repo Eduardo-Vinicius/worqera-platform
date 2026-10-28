@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 import { ThemeToggle } from "./ThemeToggle"
 import { SystemOkBadge } from "./SystemOkBadge"
 import { FeedbackBell } from "./FeedbackBell"
+import { TvLauncher } from "./TvLauncher"
 import { cn } from "@/lib/utils"
 
 export function AppHeader({
@@ -15,6 +16,7 @@ export function AppHeader({
   showHealth = true,
   showInbox = true,
   showOrderJump = true,
+  showTvs = false,
 }: {
   title: string
   subtitle?: string
@@ -24,6 +26,8 @@ export function AppHeader({
   showInbox?: boolean
   /** Botão ⌘K que abre a busca e vai para /pedidos */
   showOrderJump?: boolean
+  /** "Telas da loja" button. Only Visão geral turns it on. */
+  showTvs?: boolean
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] backdrop-blur-md">
@@ -61,6 +65,7 @@ export function AppHeader({
               </kbd>
             </button>
           ) : null}
+          {showTvs ? <TvLauncher /> : null}
           {showInbox ? <FeedbackBell /> : null}
           {actions}
           {showTheme ? <ThemeToggle compact /> : null}

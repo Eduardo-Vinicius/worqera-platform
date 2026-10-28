@@ -10,6 +10,7 @@ import { SetupChecklist } from "@/components/shell/SetupChecklist"
 import { ReferralCard } from "@/components/shell/ReferralCard"
 import { DailyBriefCard } from "@/components/ai/DailyBriefCard"
 import { ShelfCard } from "@/components/orders/ShelfCard"
+import { TvScreensStrip } from "@/components/shell/TvScreensStrip"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -18,11 +19,9 @@ import {
   Clock3,
   KanbanSquare,
   Mail,
-  Monitor,
   Package,
   Plus,
   Search,
-  Tv,
   Users,
 } from "lucide-react"
 
@@ -164,8 +163,6 @@ export default function DashboardPage() {
     { href: "/kanban", label: "Kanban", icon: KanbanSquare },
     { href: "/consultas", label: "Consultas", icon: Search },
     { href: "/clientes", label: "Clientes", icon: Users },
-    { href: "/tv", label: "TV Cliente", icon: Tv, external: true, desktopOnly: true },
-    { href: "/tv-dashboard", label: "TV Oficina", icon: Monitor, external: true, desktopOnly: true },
   ]
 
   const nextActions = [
@@ -187,6 +184,7 @@ export default function DashboardPage() {
   return (
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
+        showTvs
         title="Visão geral"
         subtitle={
           shopName
@@ -233,6 +231,7 @@ export default function DashboardPage() {
 
         {!loading && !error && (
           <>
+            <TvScreensStrip />
             <DailyBriefCard />
             {isOwner ? <ShelfCard /> : null}
             <SetupChecklist openOrders={open} totalClients={clients} />
@@ -328,18 +327,14 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <nav aria-label="Atalhos" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <nav aria-label="Atalhos" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {shortcuts.map((s) => {
                 const Icon = s.icon
                 return (
                   <Link
                     key={s.href}
                     href={s.href}
-                    target={s.external ? "_blank" : undefined}
-                    rel={s.external ? "noopener noreferrer" : undefined}
                     className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                      s.desktopOnly ? "hidden sm:flex" : ""
-                    } ${
                       s.primary
                         ? "border-[var(--wq-brand)]/40 bg-[var(--wq-brand-soft)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]"
                         : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/50"

@@ -62,7 +62,7 @@ export function middleware(request: NextRequest) {
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname.startsWith('/verify-email') ||
-    (pathname === '/tv' && request.nextUrl.searchParams.get('demo') === '1')
+    ((pathname === '/tv' || pathname === '/tv-dashboard') && request.nextUrl.searchParams.get('demo') === '1')
   ) {
     if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
       const payload = decodeJwtPayload(token);

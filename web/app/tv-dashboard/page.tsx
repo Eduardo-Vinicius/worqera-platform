@@ -7,38 +7,52 @@ import {
   FLASH_MS,
   REFRESH_MS,
   detectIncreasedSectors,
+  dueTimestamp,
   filterHotSectors,
-  formatHoursInSector,
+  isHighPriority,
   isHotQuery,
-  isOverdue,
   normalizeStats,
   totalsBySector,
   type FloorSector,
 } from "@/lib/tvFloor"
+import { paintForBackground } from "@/lib/shopBrand"
+import { gridShape } from "@/components/tv/clientTvData"
+import { FloorSectorCard, orderFlag } from "@/components/tv/floor/FloorSectorCard"
+import { demoFloor } from "@/components/tv/floor/floorDemo"
 
-const QUIET_BEEP =
-  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="
+const BG = "#0A0A12"
+const CARD = "#151520"
+const QUIET_BEEP = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="
 
 function TvFloorFallback() {
   return (
-    <div className="flex h-[100dvh] items-center justify-center bg-[var(--wq-ink)] text-white">
+    <div className="flex h-[100dvh] items-center justify-center text-white" style={{ background: BG }}>
       <p className="text-xl text-white/60">Carregando TV Oficina…</p>
     </div>
   )
 }
 
-function gridColsClass(count: number) {
-  if (count <= 1) return "grid-cols-1"
-  if (count === 2) return "grid-cols-1 sm:grid-cols-2"
-  if (count === 3) return "grid-cols-1 sm:grid-cols-3"
-  if (count <= 4) return "grid-cols-2 lg:grid-cols-4"
-  if (count <= 6) return "grid-cols-2 lg:grid-cols-3"
-  return "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
+/** How many orders fit in each sector card without scrolling (nobody scrolls a TV). */
+function rowsPerCard(gridRows: number) {
+  if (gridRows <= 1) return 8
+  if (gridRows === 2) return 4
+  return 3
 }
 
+function endOfToday(now: number) {
+  const d = new Date(now)
+  d.setHours(23, 59, 59, 999)
+  return d.getTime()
+}
+
+/**
+ * TV Oficina: the production floor at a glance. Sized in vmin with solid colors so it
+ * stays sharp on 720p TV browsers; late orders jump out in red, the queue is never scrolled.
+ */
 function TvFloorInner() {
   const searchParams = useSearchParams()
   const hot = isHotQuery(searchParams)
+  const demo = searchParams.get("demo") === "1"
   const [sectors, setSectors] = useState<FloorSector[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
@@ -57,27 +71,30 @@ function TvFloorInner() {
 
   const load = useCallback(async () => {
     try {
-      const raw = await getSetoresEstatisticasService({ forceRefresh: true })
-      const next = normalizeStats(raw)
+      const next = demo ? demoFloor() : normalizeStats(await getSetoresEstatisticasService({ forceRefresh: true }))
       setSectors(next)
       setError("")
       setFetchedAt(Date.now())
     } catch (err) {
       console.error("Erro ao buscar estatísticas de setores:", err)
-      setError("Não foi possível atualizar a fila por setor.")
+      setError("Reconectando…")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [demo])
 
   useEffect(() => {
+    if (demo) {
+      setBrandName("Sua loja")
+      return
+    }
     ;(async () => {
       try {
         const { getShopCurrentV1 } = await import("@/lib/apiV1")
         const shop = await getShopCurrentV1()
         const doc = shop?.shop || shop
         const cfg = doc?.tvSettings?.floor || {}
-        if (cfg.refreshMs) setRefreshMs(Number(cfg.refreshMs) || REFRESH_MS)
+        if (cfg.refreshMs) setRefreshMs(Math.max(5000, Number(cfg.refreshMs) || REFRESH_MS))
         if (cfg.title) setFloorTitle(String(cfg.title))
         setBrandName(doc?.branding?.displayName || doc?.name || "")
         setLogoUrl(doc?.branding?.logoUrl || "")
@@ -87,7 +104,7 @@ function TvFloorInner() {
         // defaults
       }
     })()
-  }, [])
+  }, [demo])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -109,7 +126,20 @@ function TvFloorInner() {
   }, [])
 
   const visible = useMemo(() => filterHotSectors(sectors, hot, now), [sectors, hot, now])
+  // More than 12 sectors: rotate pages instead of shrinking cards.
+  const [page, setPage] = useState(0)
+  const pageCount = Math.max(1, Math.ceil(visible.length / 12))
+  useEffect(() => {
+    if (pageCount <= 1) {
+      setPage(0)
+      return
+    }
+    const t = setInterval(() => setPage((p) => (p + 1) % pageCount), 12_000)
+    return () => clearInterval(t)
+  }, [pageCount])
+  const onScreen = visible.slice((page % pageCount) * 12, (page % pageCount) * 12 + 12)
 
+  // A sector whose queue grew lights up for a moment, with a quiet beep.
   useEffect(() => {
     const totals = totalsBySector(visible)
     const prev = prevTotalsRef.current
@@ -118,7 +148,6 @@ function TvFloorInner() {
     if (isFirst || reduceMotion) return
     const increased = detectIncreasedSectors(prev, totals)
     if (increased.length === 0) return
-
     setFlashIds(increased)
     if (!audioRef.current) {
       audioRef.current = new Audio(QUIET_BEEP)
@@ -126,7 +155,7 @@ function TvFloorInner() {
     }
     audioRef.current.play().catch(() => {})
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
-    flashTimerRef.current = setTimeout(() => setFlashIds([]), FLASH_MS)
+    flashTimerRef.current = setTimeout(() => setFlashIds([]), Math.max(FLASH_MS, 2500))
   }, [visible, reduceMotion])
 
   useEffect(() => {
@@ -135,119 +164,135 @@ function TvFloorInner() {
     }
   }, [])
 
-  const clock = new Date(now).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
+  const all = visible.flatMap((s) => s.orders)
+  const total = visible.reduce((sum, s) => sum + s.count, 0)
+  const late = all.filter((o) => orderFlag(o, now).flag === "late").length
+  const today = all.filter((o) => {
+    const due = dueTimestamp(o)
+    return due != null && due >= now && due <= endOfToday(now)
+  }).length
+  const urgent = all.filter((o) => isHighPriority(o.priority)).length
+
+  const shape = gridShape(onScreen.length)
+  const limit = rowsPerCard(shape.rows)
+  const clock = new Date(now).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
   const secondsAgo = Math.max(0, Math.floor((now - fetchedAt) / 1000))
+  const brandOnBg = paintForBackground(brandPrimary, BG, 4.5)
+
+  const vars = {
+    "--tv-title": "clamp(1.4rem, 4.6vmin, 6.5rem)",
+    "--tv-label": "clamp(1rem, 3vmin, 4rem)",
+    "--tv-small": "clamp(0.85rem, 2.2vmin, 3rem)",
+    "--tv-tiny": "clamp(0.75rem, 1.8vmin, 2.4rem)",
+    "--tv-count": shape.cols <= 3 ? "9vmin" : "7vmin",
+    "--tv-order": shape.cols <= 3 && shape.rows <= 2 ? "4.2vmin" : "3.4vmin",
+    background: BG,
+  } as React.CSSProperties
+
+  const kpis = [
+    { label: "Na produção", value: total, color: "#FFFFFF", bg: CARD },
+    { label: "Atrasados", value: late, color: late ? "#FFFFFF" : "#8A8AA0", bg: late ? "#BE123C" : CARD },
+    { label: "Vencem hoje", value: today, color: today ? "#1A1300" : "#8A8AA0", bg: today ? "#F59E0B" : CARD },
+    { label: "Urgentes", value: urgent, color: urgent ? "#FFFFFF" : "#8A8AA0", bg: urgent ? "#6D28D9" : CARD },
+  ]
 
   return (
-    <div className="box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[var(--wq-ink)] px-4 py-3 text-white sm:px-6 sm:py-4 md:px-8 md:py-5">
-      <header className="mb-3 flex shrink-0 items-center justify-between gap-4 sm:mb-4">
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-2.5">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-7 w-auto object-contain sm:h-8" />
-            ) : null}
-            <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandPrimary }}>
+    <div className="tv-root box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden px-[2.6vmin] py-[2.2vmin] text-white" style={vars}>
+      <header className="flex shrink-0 items-center justify-between gap-[3vmin]">
+        <div className="flex min-w-0 items-center gap-[2vmin]">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="h-[8vmin] w-auto max-w-[20vmin] shrink-0 rounded-[1.2vmin] bg-white object-contain p-[0.7vmin]" />
+          ) : null}
+          <div className="min-w-0">
+            <p className="truncate font-semibold" style={{ fontSize: "var(--tv-small)", color: brandOnBg }}>
               {brandName || "Worqera"}
             </p>
+            <h1 className="truncate font-bold leading-tight tracking-tight" style={{ fontSize: "var(--tv-title)" }}>
+              {floorTitle}
+              {hot ? <span className="ml-[1.4vmin] align-middle text-[#FB7185]" style={{ fontSize: "var(--tv-label)" }}>· só o que pega fogo</span> : null}
+            </h1>
           </div>
-          <h1 className="truncate text-2xl font-semibold sm:text-3xl md:text-4xl">{floorTitle}</h1>
-          <p className="mt-0.5 text-sm text-white/55">
-            Fila por setor
-            {hot ? " · fila quente" : ""}
-          </p>
         </div>
-        <div className="shrink-0 text-right font-mono text-xl tabular-nums sm:text-2xl md:text-3xl">
-          {clock}
-          <p className="font-sans text-xs text-white/45 sm:text-sm">há {secondsAgo}s</p>
+
+        <div className="flex shrink-0 items-stretch gap-[1.2vmin]">
+          {kpis.map((k) => (
+            <div key={k.label} className="min-w-[13vmin] rounded-[1.4vmin] px-[1.8vmin] py-[1vmin] text-center" style={{ background: k.bg }}>
+              <p className="tv-code font-bold leading-none" style={{ fontSize: "var(--tv-title)", color: k.color }}>
+                {k.value}
+              </p>
+              <p className="mt-[0.4vmin] font-semibold" style={{ fontSize: "var(--tv-tiny)", color: k.bg === CARD ? "#A9A9BC" : k.color }}>
+                {k.label}
+              </p>
+            </div>
+          ))}
+          <div className="flex min-w-[15vmin] flex-col items-end justify-center pl-[1vmin]">
+            <p className="tv-code font-bold leading-none" style={{ fontSize: "var(--tv-title)" }}>
+              {clock}
+            </p>
+            <p className="mt-[0.6vmin] font-medium text-[#8A8AA0]" style={{ fontSize: "var(--tv-tiny)" }}>
+              {error || `há ${secondsAgo}s`}
+            </p>
+          </div>
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {error && (
-          <p className="mb-2 shrink-0 text-sm text-[var(--wq-warn)]" role="status">
-            {error}
-          </p>
-        )}
-
+      <main className="mt-[2vmin] flex min-h-0 flex-1 flex-col overflow-hidden">
         {loading && sectors.length === 0 ? (
-          <p className="m-auto text-xl text-white/60">Carregando setores…</p>
-        ) : visible.length === 0 ? (
-          <p className="m-auto text-xl text-white/60">
-            {hot ? "Nenhum pedido atrasado ou de alta prioridade" : "Nenhum setor cadastrado"}
+          <p className="m-auto font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-label)" }}>
+            Carregando setores…
           </p>
+        ) : visible.length === 0 ? (
+          <div className="m-auto text-center">
+            <p className="font-bold" style={{ fontSize: "var(--tv-title)" }}>
+              {hot ? "Nada atrasado nem urgente agora" : "Nenhum setor cadastrado"}
+            </p>
+            <p className="mt-[1vmin] font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-label)" }}>
+              {hot ? "Bom trabalho, time!" : "Cadastre os setores em Configurações."}
+            </p>
+          </div>
         ) : (
           <div
-            className={`grid min-h-0 flex-1 gap-3 overflow-hidden ${gridColsClass(visible.length)}`}
-            style={{ gridAutoRows: "minmax(0, 1fr)" }}
+            className="grid min-h-0 flex-1 gap-[1.6vmin]"
+            style={{
+              gridTemplateColumns: `repeat(${shape.cols}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${shape.rows}, minmax(0, 1fr))`,
+            }}
           >
-            {visible.map((sector) => {
-              const flashing = flashIds.includes(sector.id)
-              return (
-                <article
-                  key={sector.id}
-                  className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border bg-white/5 p-3 sm:p-4 ${
-                    flashing
-                      ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]"
-                      : "border-white/10"
-                  } ${reduceMotion ? "" : "transition-[box-shadow,border-color] duration-300"}`}
-                >
-                  <div className="mb-2 flex shrink-0 items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div
-                        className="mb-1.5 h-1 w-10 rounded-full"
-                        style={{ backgroundColor: sector.color }}
-                        aria-hidden="true"
-                      />
-                      <h2 className="truncate text-base font-semibold sm:text-lg md:text-xl">
-                        {sector.name}
-                      </h2>
-                    </div>
-                    <p
-                      className="shrink-0 font-mono text-3xl font-semibold tabular-nums leading-none sm:text-4xl md:text-5xl"
-                      style={{ color: sector.color }}
-                    >
-                      {sector.count}
-                    </p>
-                  </div>
-
-                  <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5">
-                    {sector.orders.length === 0 && (
-                      <li className="text-sm text-white/40">Fila vazia</li>
-                    )}
-                    {sector.orders.map((order) => {
-                      const overdue = isOverdue(order, now)
-                      return (
-                        <li
-                          key={order.id}
-                          className="flex items-baseline justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5"
-                        >
-                          <span className="font-mono text-base tracking-wide sm:text-lg md:text-xl">
-                            {order.code}
-                          </span>
-                          <span
-                            className={`shrink-0 text-xs font-semibold tabular-nums sm:text-sm ${
-                              overdue
-                                ? `text-[var(--wq-warn)] ${reduceMotion ? "" : "animate-pulse"}`
-                                : "text-white/55"
-                            }`}
-                          >
-                            {formatHoursInSector(order.hoursInSector)}
-                          </span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </article>
-              )
-            })}
+            {onScreen.map((sector) => (
+              <FloorSectorCard
+                key={sector.id}
+                sector={sector}
+                now={now}
+                limit={limit}
+                flashing={flashIds.includes(sector.id)}
+                countColor={paintForBackground(sector.color, CARD, 3)}
+              />
+            ))}
           </div>
         )}
       </main>
+
+      <footer className="mt-[1.6vmin] flex shrink-0 items-center gap-[2.4vmin] text-[#8A8AA0]" style={{ fontSize: "var(--tv-tiny)" }}>
+        <span className="flex items-center gap-[0.8vmin]">
+          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#E11D48]" /> Atrasado ou parado há 24h+
+        </span>
+        <span className="flex items-center gap-[0.8vmin]">
+          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#F59E0B]" /> Vence hoje
+        </span>
+        <span className="flex items-center gap-[0.8vmin]">
+          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#7C3AED]" /> Urgente
+        </span>
+        <span className="ml-auto">Mais antigos e atrasados primeiro · Worqera</span>
+      </footer>
+
+      <style>{`
+        .tv-root { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: geometricPrecision; }
+        .tv-code { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+        .tv-blink { animation: tvBlink 1.6s ease-in-out infinite; }
+        @keyframes tvBlink { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+        @media (prefers-reduced-motion: reduce) { .tv-blink { animation: none !important; } }
+      `}</style>
     </div>
   )
 }

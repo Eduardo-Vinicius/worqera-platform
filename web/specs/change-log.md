@@ -2,6 +2,9 @@
 
 ## 2026-10-28
 
+- **Telas da loja fáceis de achar:** na Visão geral, botão **Telas da loja** no topo (`TvLauncher`: Abrir, Copiar link, demonstração e Configurar) e a faixa com as TVs (`TvScreensStrip`). No menu lateral, **Telas da loja** em Operação, abrindo a página das TVs com os cartões no topo (antes era "TVs" em Administração). TV Financeiro só para dono/admin. Os atalhos de TV escondidos no fim da Visão geral saíram. Lista única em `components/shell/tvScreens.ts`.
+- **TV Oficina (`/tv-dashboard`) refeita:** mesmo padrão nítido da TV Cliente (vmin, cores sólidas). No topo: Na produção, Atrasados (vermelho), Vencem hoje (amarelo) e Urgentes (roxo), além do relógio. Cada setor tem faixa na cor do setor, número grande da fila e os pedidos que precisam de mão primeiro (atrasados, urgentes, vencem hoje, mais tempo parado), com etiqueta "Atrasado 1d", "Parado 26h", "Vence hoje" ou "Urgente". Nada rola na TV: o que não cabe vira "+N na fila"; com mais de 12 setores, as páginas giram. Setor que recebe pedido acende com bipe baixo (como antes). `?hot=1` continua mostrando só o que pega fogo. `/tv-dashboard?demo=1` mostra uma demonstração sem dados reais. Componentes em `components/tv/floor/`.
+
 - **Pedido com muitos itens (celular/tablet):** as abas dos itens agora quebram em grade (2, 3 ou 4 por linha) em vez de rolar de lado escondido, com número, "pronto" ou "falta modelo ou serviço", e um botão "+ Item N" sempre visível. No fim de cada item: "Item X de N", ← anterior / próximo → e "Adicionar mais um item", sem precisar subir a tela.
 - **Orçamentos no celular:** as 4 abas (Ligar hoje, Quadro, Todos, Recuperados) cabem lado a lado, com ícone em cima e o texto embaixo. Recuperados reorganizado para tela estreita (período em 3 botões, cards sem estourar, motivo e como reverteu em etiquetas, detalhe quebrando linha). O diálogo "Como recuperou?" rola com o botão fixo embaixo.
 

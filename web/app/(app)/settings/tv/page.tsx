@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { getShopCurrentV1, patchShopCurrentV1 } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { Loader2, ExternalLink } from "lucide-react"
+import { TvScreensStrip } from "@/components/shell/TvScreensStrip"
 
 export default function TvSettingsPage() {
   const [loading, setLoading] = useState(false)
@@ -78,8 +79,8 @@ export default function TvSettingsPage() {
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
-        title="TVs"
-        subtitle={`Painéis da ${shopLabel || "empresa"} — Cliente, Oficina e Financeiro (admin)`}
+        title="Telas da loja"
+        subtitle={`TVs da ${shopLabel || "empresa"}: abra na TV e ajuste o que aparece`}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
@@ -121,7 +122,8 @@ export default function TvSettingsPage() {
           </div>
         }
       />
-      <div className="mx-auto max-w-[900px] px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-[900px] space-y-6 px-5 py-6 md:px-8">
+        <TvScreensStrip />
         {fetching ? (
           <p className="flex items-center gap-2 text-sm text-[var(--wq-text-muted)]">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
