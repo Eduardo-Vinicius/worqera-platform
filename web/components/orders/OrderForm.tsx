@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Minus, Search, ShoppingBag, Upload, X, Plus } from "lucide-react"
+import { Check, Loader2, Minus, Search, ShoppingBag, Upload, X, Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -487,16 +487,24 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     setActiveItemIndex((cur) => (cur > itemIndex ? cur - 1 : cur))
   }
 
+  const scrollToItemBlock = () =>
+    requestAnimationFrame(() => {
+      document.getElementById("wq-item-block")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+
+  const goToItem = (index: number) => {
+    setActiveItemIndex(index)
+    scrollToItemBlock()
+  }
+
   const addItem = () => {
     setItems((prev) => {
       const next = [...prev, emptyOrderItemDraft()]
       setActiveItemIndex(next.length - 1)
       return next
     })
-    toast.message("Novo item — preencha modelo, serviços e fotos")
-    requestAnimationFrame(() => {
-      document.getElementById("wq-item-block")?.scrollIntoView({ behavior: "smooth", block: "start" })
-    })
+    toast.message("Novo item: preencha modelo, serviços e fotos")
+    scrollToItemBlock()
   }
 
   const sectorsForItem = (item: OrderItemDraft) => {
@@ -1594,27 +1602,50 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 {errors.items && <p className="text-sm text-destructive">{errors.items}</p>}
 
                 {clientIndexes.length > 1 ? (
-                  <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4" role="tablist" aria-label="Itens do pedido">
                     {clientIndexes.map((idx, position) => {
                       const it = items[idx]
-                      const label = [it.brand, it.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ") || `Item ${position + 1}`
+                      const label = [it.brand, it.sneaker].map((part) => part?.trim()).filter(Boolean).join(" · ") || "Sem modelo"
                       const active = idx === activeClientIndex
+                      const done = Boolean(it.sneaker?.trim()) && (it.selectedServices || []).length > 0
                       return (
                         <button
                           key={it.id}
                           type="button"
-                          onClick={() => setActiveItemIndex(idx)}
-                          className={`h-10 max-w-[12rem] shrink-0 truncate rounded-lg border px-3 text-sm font-medium transition ${
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => goToItem(idx)}
+                          className={`flex h-12 min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left text-sm transition ${
                             active
                               ? "border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white"
-                              : "border-[var(--wq-border)] bg-[var(--wq-paper)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
+                              : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text)] hover:border-[var(--wq-brand)]/40"
                           }`}
                           title={label}
                         >
-                          {label}
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                              active ? "bg-white/25 text-white" : done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+                            }`}
+                          >
+                            {done && !active ? <Check className="h-3.5 w-3.5" /> : position + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold">Item {position + 1}</span>
+                            <span className={`block truncate text-[11px] ${active ? "text-white/80" : "text-[var(--wq-text-muted)]"}`}>
+                              {done ? label : "Falta modelo ou serviço"}
+                            </span>
+                          </span>
                         </button>
                       )
                     })}
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="flex h-12 items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--wq-brand)]/50 bg-[var(--wq-brand-soft)] text-sm font-semibold text-[var(--wq-brand-text)] hover:border-[var(--wq-brand)]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Item {clientIndexes.length + 1}
+                    </button>
                   </div>
                 ) : null}
 
@@ -1866,6 +1897,42 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           </div>
                         ) : null}
                       </div>
+
+                      {(() => {
+                        const position = clientIndexes.indexOf(itemIndex)
+                        const prev = position > 0 ? clientIndexes[position - 1] : null
+                        const next = position < clientIndexes.length - 1 ? clientIndexes[position + 1] : null
+                        return (
+                          <div className="flex flex-col gap-2 border-t border-[var(--wq-border)] pt-3 sm:flex-row sm:items-center">
+                            {clientIndexes.length > 1 ? (
+                              <p className="text-xs font-medium text-[var(--wq-text-muted)] sm:mr-auto">
+                                Item {position + 1} de {clientIndexes.length}
+                              </p>
+                            ) : null}
+                            <div className="grid grid-cols-2 gap-2 sm:flex">
+                              {prev != null ? (
+                                <Button type="button" variant="outline" className="h-11 rounded-[10px]" onClick={() => goToItem(prev)}>
+                                  ← Item {position}
+                                </Button>
+                              ) : null}
+                              {next != null ? (
+                                <Button type="button" variant="outline" className="h-11 rounded-[10px]" onClick={() => goToItem(next)}>
+                                  Item {position + 2} →
+                                </Button>
+                              ) : null}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-11 rounded-[10px] border-dashed border-[var(--wq-brand)]/50 bg-[var(--wq-brand-soft)] font-semibold text-[var(--wq-brand-text)] sm:ml-auto"
+                              onClick={addItem}
+                            >
+                              <Plus className="mr-1.5 h-4 w-4" />
+                              Adicionar mais um item
+                            </Button>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })()}

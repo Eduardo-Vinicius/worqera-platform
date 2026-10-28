@@ -38,16 +38,16 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <p className="text-sm text-[var(--wq-text-muted)]">Quem voltou, por que tinha recusado e o que fez fechar.</p>
-        <div className="inline-flex rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-0.5">
+        <div className="grid grid-cols-3 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-0.5 sm:inline-flex">
           {SPANS.map((d) => (
             <button
               key={d}
               type="button"
               onClick={() => setDays(d)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-semibold",
+                "rounded-md px-2.5 py-1.5 text-xs font-semibold",
                 days === d ? "bg-[var(--wq-brand)] text-white" : "text-[var(--wq-text-muted)]"
               )}
             >
@@ -61,10 +61,10 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
         {cards.map((c) => {
           const Icon = c.icon
           return (
-            <div key={c.label} className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3.5">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">{c.label}</p>
-                <Icon className={cn("h-4 w-4", c.tone)} />
+            <div key={c.label} className="min-w-0 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-3 sm:px-4 sm:py-3.5">
+              <div className="flex items-start justify-between gap-1.5">
+                <p className="min-w-0 text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-[var(--wq-text-muted)] sm:text-[11px]">{c.label}</p>
+                <Icon className={cn("h-4 w-4 shrink-0", c.tone)} />
               </div>
               <p className={cn("mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums sm:text-3xl", c.tone)}>{c.value}</p>
               <p className="mt-1 truncate text-xs text-[var(--wq-text-muted)]">{c.hint}</p>
@@ -146,7 +146,7 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
             <ul className="divide-y divide-[var(--wq-border)]">
               {report.items.map((it) => (
                 <li key={it.id}>
-                  <button type="button" onClick={() => onOpen(it.id)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[var(--wq-paper)]">
+                  <button type="button" onClick={() => onOpen(it.id)} className="flex w-full min-w-0 items-start gap-3 px-3 py-3 text-left hover:bg-[var(--wq-paper)] sm:px-4">
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                       <Trophy className="h-4 w-4" />
                     </span>
@@ -158,14 +158,23 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
                         </span>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">{it.value ? brl(it.value) : ""}</span>
                       </span>
-                      <span className="block truncate text-xs text-[var(--wq-text-muted)]">
-                        {[it.reasonLabel && `Problema: ${it.reasonLabel}`, it.howLabel && `Reverteu: ${it.howLabel}`, `${it.contacts} contato${it.contacts === 1 ? "" : "s"}`, it.people.length ? it.people.join(", ") : ""]
+                      <span className="mt-0.5 flex flex-wrap gap-1">
+                        {it.reasonLabel ? (
+                          <span className="rounded-full bg-[var(--wq-paper)] px-2 py-0.5 text-[11px] text-[var(--wq-text-muted)]">{it.reasonLabel}</span>
+                        ) : null}
+                        {it.howLabel ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            {it.howLabel}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-[var(--wq-text-muted)] [overflow-wrap:anywhere]">
+                        {[`${it.contacts} contato${it.contacts === 1 ? "" : "s"}`, it.people.length ? it.people.join(", ") : "", relativeTime(it.at)]
                           .filter(Boolean)
                           .join(" · ")}
                       </span>
-                      {it.note ? <span className="block truncate text-xs italic text-[var(--wq-text-muted)]">{it.note}</span> : null}
+                      {it.note ? <span className="block text-xs italic text-[var(--wq-text-muted)] [overflow-wrap:anywhere]">{it.note}</span> : null}
                     </span>
-                    <span className="shrink-0 text-[11px] text-[var(--wq-text-muted)]">{relativeTime(it.at)}</span>
                   </button>
                 </li>
               ))}

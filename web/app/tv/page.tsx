@@ -1,142 +1,35 @@
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { apiFetch, getOrdersService } from "@/lib/apiService"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getShopCurrentV1 } from "@/lib/apiV1"
+import { contrastRatio, paintForBackground, resolveBrandColors } from "@/lib/shopBrand"
+import { demoTiles, gridShape, loadTiles, paginate, type Tile } from "@/components/tv/clientTvData"
+import { TvOrderCard } from "@/components/tv/TvOrderCard"
+import { TvReadyPanel } from "@/components/tv/TvReadyPanel"
+import { TvCelebration } from "@/components/tv/TvCelebration"
+import { TvShopQr } from "@/components/tv/TvShopQr"
 
 const DEFAULT_REFRESH_MS = 18_000
 const DEFAULT_CAROUSEL_MS = 8_000
 const DEFAULT_TILES = 8
+const READY_PER_PAGE = 8
+const CELEBRATION_MS = 7_000
+const BG = "#0A0A12"
+const CARD = "#151520"
 
-type OrderRow = {
-  id?: string
-  _id?: string
-  code?: string
-  codigo?: string
-  status?: string
-  currentSectorId?: string | { _id?: string; id?: string; name?: string }
-  currentSector?: { name?: string }
-  setorAtual?: string
+/** Code size by grid density, in vmin so it scales with the TV instead of being stretched. */
+function codeSize(cols: number) {
+  if (cols <= 1) return "16vmin"
+  if (cols === 2) return "12vmin"
+  if (cols === 3) return "9.5vmin"
+  return "7.6vmin"
 }
 
-type Tile = {
-  id: string
-  code: string
-  label: string
-  kind: "open" | "progress" | "ready"
-}
-
-function slug(value: string) {
-  return String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-}
-
-function isReadyStatus(status: string) {
-  const s = slug(status)
-  if (!s) return false
-  if (s === "ready") return true
-  if (/entregue|delivered|cancel/.test(s)) return false
-  return /pronto|retir|aguardando retirada|finaliz/.test(s)
-}
-
-function isOpenStatus(status: string) {
-  const s = slug(status)
-  return s === "open" || /^(aberto|receb|orc|aprova|a fazer|inici|backlog|criado)/.test(s)
-}
-
-function isExcludedStatus(status: string) {
-  const s = slug(status)
-  if (!s) return false
-  if (/entregue|delivered|cancelad/.test(s)) return true
-  if (s === "cancelled" || s === "delivered") return true
-  return false
-}
-
-function isClientRelevant(status: string) {
-  const raw = String(status || "").trim()
-  if (!raw) return true
-  if (isExcludedStatus(raw)) return false
-  const s = slug(raw)
-  if (s === "open" || s === "in_progress" || s === "ready") return true
-  if (isReadyStatus(raw) || isOpenStatus(raw)) return true
-  return /andamento|process|lavag|pint|sapat|costur|acab|atendimento/.test(s)
-}
-
-function formatSectorLabel(name: string) {
-  const trimmed = name.trim()
-  if (!trimmed) return ""
-  const s = slug(trimmed)
-  if (/final|retir/.test(s)) return "Pronto pra retirar"
-  if (/^em\s/.test(s)) return trimmed
-  return `Em ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`
-}
-
-function sectorNameFromOrder(order: OrderRow, sectors: Record<string, string>) {
-  const populated = order.currentSector?.name
-  if (populated) return populated
-  const nested = order.currentSectorId
-  if (nested && typeof nested === "object" && nested.name) return nested.name
-  const id =
-    typeof nested === "object"
-      ? String(nested._id || nested.id || "")
-      : String(nested || order.setorAtual || "")
-  return (id && sectors[id]) || ""
-}
-
-function humanLabel(status: string, sectorName: string) {
-  if (isReadyStatus(status)) return "Pronto pra retirar"
-  if (sectorName) {
-    const fromSector = formatSectorLabel(sectorName)
-    if (fromSector) return fromSector
-  }
-  const raw = String(status || "").trim()
-  const match = raw.match(/^([^–\-]+)\s*[-–]/)
-  if (match && !/^(open|in_progress|ready)$/i.test(match[1].trim())) {
-    return formatSectorLabel(match[1].trim())
-  }
-  if (isOpenStatus(raw)) return "Recebido"
-  if (raw && !/^(open|in_progress|ready)$/i.test(raw)) return raw
-  return "Em andamento"
-}
-
-function tileKind(status: string): Tile["kind"] {
-  if (isReadyStatus(status)) return "ready"
-  if (isOpenStatus(status)) return "open"
-  return "progress"
-}
-
-function kindRank(kind: Tile["kind"]) {
-  if (kind === "ready") return 0
-  if (kind === "progress") return 1
-  return 2
-}
-
-function paginate<T>(items: T[], size: number) {
-  if (items.length === 0) return [] as T[][]
-  const pages: T[][] = []
-  for (let i = 0; i < items.length; i += size) pages.push(items.slice(i, i + size))
-  return pages
-}
-
-async function loadSectorNames() {
-  try {
-    const json = await apiFetch("/sectors")
-    const list = json?.sectors || json?.data || []
-    const map: Record<string, string> = {}
-    for (const sector of Array.isArray(list) ? list : []) {
-      const id = String(sector?._id || sector?.id || "")
-      const name = String(sector?.name || sector?.nome || "")
-      if (id && name) map[id] = name
-    }
-    return map
-  } catch {
-    return {} as Record<string, string>
-  }
-}
-
+/**
+ * TV Cliente: what the customer sees on the shop's TV.
+ * Everything is sized in vmin with solid colors (no blur, no gradients), so text
+ * stays sharp on 720p TV browsers that upscale the page to 4K panels.
+ */
 export default function TvClientePage() {
   const [tiles, setTiles] = useState<Tile[]>([])
   const [error, setError] = useState("")
@@ -152,60 +45,72 @@ export default function TvClientePage() {
   const [brandName, setBrandName] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [showLogo, setShowLogo] = useState(true)
-  const [brandPrimary, setBrandPrimary] = useState("#7D26DE")
+  const [primary, setPrimary] = useState("#7D26DE")
+  const [accent, setAccent] = useState("#0D9488")
+  const [reviewUrl, setReviewUrl] = useState("")
+  const [phone, setPhone] = useState("")
+  const [celebrating, setCelebrating] = useState<string | null>(null)
+  const queue = useRef<string[]>([])
+  const knownReady = useRef<Set<string> | null>(null)
+  /** null until mounted: the URL is read on the client only. */
+  const [demo, setDemo] = useState<boolean | null>(null)
+  useEffect(() => {
+    setDemo(new URLSearchParams(window.location.search).get("demo") === "1")
+  }, [])
 
   const load = useCallback(async () => {
     try {
-      const [raw, sectors] = await Promise.all([
-        getOrdersService({ forceRefresh: true }),
-        loadSectorNames(),
-      ])
-      const list = Array.isArray(raw) ? (raw as OrderRow[]) : []
-      const next = list
-        .filter((order) => isClientRelevant(order.status || ""))
-        .map((order) => {
-          const status = order.status || ""
-          const id = String(order.id || order._id || order.code || order.codigo || "")
-          return {
-            id,
-            code: String(order.code || order.codigo || id || "—"),
-            label: humanLabel(status, sectorNameFromOrder(order, sectors)),
-            kind: tileKind(status),
-          } satisfies Tile
-        })
-        .filter((tile) => tile.id)
-        .sort((a, b) => kindRank(a.kind) - kindRank(b.kind))
+      const next = demo ? demoTiles() : await loadTiles()
+      const readyNow = new Set(next.filter((t) => t.kind === "ready").map((t) => t.id))
+      // Celebrate only orders that turned ready while the TV was on, not the ones already waiting.
+      if (knownReady.current) {
+        for (const tile of next) {
+          if (tile.kind === "ready" && !knownReady.current.has(tile.id)) queue.current.push(tile.code)
+        }
+      }
+      knownReady.current = readyNow
       setTiles(next)
       setError("")
       setFetchedAt(Date.now())
     } catch (err) {
       console.error("Erro ao buscar pedidos para TV cliente:", err)
-      setError("Não foi possível atualizar os pedidos.")
+      setError("Reconectando…")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [demo])
 
   useEffect(() => {
+    if (demo === null) return
+    if (demo) {
+      setBrandName("Sua loja")
+      setReviewUrl("https://worqera.com")
+      // Shows the "pedido pronto" moment a few seconds after opening the demo.
+      const t = setTimeout(() => queue.current.push("0683"), 4000)
+      return () => clearTimeout(t)
+    }
     ;(async () => {
       try {
         const shop = await getShopCurrentV1()
         const doc = shop?.shop || shop
         const cfg = doc?.tvSettings?.client || {}
-        if (cfg.refreshMs) setRefreshMs(Number(cfg.refreshMs) || DEFAULT_REFRESH_MS)
-        if (cfg.carouselMs) setCarouselMs(Number(cfg.carouselMs) || DEFAULT_CAROUSEL_MS)
-        if (cfg.tilesPerPage) setTilesPerPage(Number(cfg.tilesPerPage) || DEFAULT_TILES)
+        if (cfg.refreshMs) setRefreshMs(Math.max(5000, Number(cfg.refreshMs) || DEFAULT_REFRESH_MS))
+        if (cfg.carouselMs) setCarouselMs(Math.max(3000, Number(cfg.carouselMs) || DEFAULT_CAROUSEL_MS))
+        if (cfg.tilesPerPage) setTilesPerPage(Math.min(12, Math.max(2, Number(cfg.tilesPerPage) || DEFAULT_TILES)))
         if (cfg.title) setTitle(String(cfg.title))
         if (cfg.showLogo === false) setShowLogo(false)
         setBrandName(doc?.branding?.displayName || doc?.name || "")
         setLogoUrl(doc?.branding?.logoUrl || "")
-        const { resolveBrandColors } = await import("@/lib/shopBrand")
-        setBrandPrimary(resolveBrandColors(doc?.branding).primary)
+        setReviewUrl(String(doc?.branding?.reviewUrl || ""))
+        setPhone(String(doc?.branding?.phone || ""))
+        const colors = resolveBrandColors(doc?.branding)
+        setPrimary(colors.primary)
+        setAccent(colors.accent)
       } catch {
         // keep defaults
       }
     })()
-  }, [])
+  }, [demo])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -216,152 +121,184 @@ export default function TvClientePage() {
   }, [])
 
   useEffect(() => {
+    if (demo === null) return
     load()
     const interval = setInterval(load, refreshMs)
     return () => clearInterval(interval)
-  }, [load, refreshMs])
+  }, [load, refreshMs, demo])
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
   }, [])
 
-  const pages = useMemo(() => paginate(tiles, tilesPerPage), [tiles, tilesPerPage])
+  // One celebration at a time, from the queue.
+  useEffect(() => {
+    if (celebrating) {
+      const t = setTimeout(() => setCelebrating(null), CELEBRATION_MS)
+      return () => clearTimeout(t)
+    }
+    const t = setInterval(() => {
+      const next = queue.current.shift()
+      if (next) setCelebrating(next)
+    }, 500)
+    return () => clearInterval(t)
+  }, [celebrating])
+
+  const ready = useMemo(() => tiles.filter((t) => t.kind === "ready"), [tiles])
+  const inProgress = useMemo(
+    () => tiles.filter((t) => t.kind !== "ready").sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "progress" ? -1 : 1)),
+    [tiles]
+  )
+  const progressPages = useMemo(() => paginate(inProgress, tilesPerPage), [inProgress, tilesPerPage])
+  const readyPages = useMemo(() => paginate(ready, READY_PER_PAGE), [ready])
+  const steps = Math.max(progressPages.length, readyPages.length, 1)
 
   useEffect(() => {
-    if (pageIndex >= pages.length) setPageIndex(0)
-  }, [pageIndex, pages.length])
+    if (pageIndex >= steps) setPageIndex(0)
+  }, [pageIndex, steps])
 
   useEffect(() => {
-    if (reduceMotion || pages.length <= 1) return
-    const interval = setInterval(() => {
-      setPageIndex((current) => (current + 1) % pages.length)
-    }, carouselMs)
+    if (steps <= 1) return
+    const interval = setInterval(() => setPageIndex((current) => (current + 1) % steps), carouselMs)
     return () => clearInterval(interval)
-  }, [pages.length, reduceMotion, carouselMs])
+  }, [steps, carouselMs])
 
-  const clock = new Date(now).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
+  const progressPage = progressPages.length ? pageIndex % progressPages.length : 0
+  const readyPage = readyPages.length ? pageIndex % readyPages.length : 0
+  const visible = progressPages[progressPage] || []
+  const shape = gridShape(visible.length)
+
+  const onAccent = contrastRatio("#FFFFFF", accent) >= 3 ? "#FFFFFF" : "#0A0A12"
+  const barColor = paintForBackground(primary, CARD, 3)
+  const brandOnBg = paintForBackground(primary, BG, 4.5)
+  const clock = new Date(now).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+  const todayRaw = new Date(now).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
+  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1)
   const secondsAgo = Math.max(0, Math.floor((now - fetchedAt) / 1000))
-  const visible = pages[pageIndex] || []
+
+  const vars = {
+    "--tv-title": "clamp(1.4rem, 5vmin, 7rem)",
+    "--tv-label": "clamp(1rem, 3vmin, 4rem)",
+    "--tv-small": "clamp(0.85rem, 2.2vmin, 3rem)",
+    "--tv-tiny": "clamp(0.75rem, 1.8vmin, 2.4rem)",
+    "--tv-code": codeSize(shape.cols),
+    "--tv-code-xl": "13vmin",
+    background: BG,
+  } as React.CSSProperties
 
   return (
-    <div className="box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[var(--wq-ink)] px-4 py-3 text-white sm:px-6 sm:py-4 md:px-8 md:py-5">
-      <header className="mb-3 flex shrink-0 items-end justify-between gap-4 sm:mb-4">
-        <div className="min-w-0">
-          {showLogo ? (
-            <div className="mb-1 flex items-center gap-2.5">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="h-7 w-auto object-contain sm:h-8" />
-              ) : null}
-              <p className="truncate text-xs font-medium sm:text-sm" style={{ color: brandPrimary }}>
+    <div className="tv-root box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden px-[3vmin] py-[2.6vmin] text-white" style={vars}>
+      <header className="flex shrink-0 items-center justify-between gap-[3vmin]">
+        <div className="flex min-w-0 items-center gap-[2.2vmin]">
+          {showLogo && logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="h-[9vmin] w-auto max-w-[22vmin] shrink-0 rounded-[1.2vmin] bg-white object-contain p-[0.8vmin]" />
+          ) : null}
+          <div className="min-w-0">
+            {showLogo ? (
+              <p className="truncate font-semibold" style={{ fontSize: "var(--tv-small)", color: brandOnBg }}>
                 {brandName || "Worqera"}
               </p>
-            </div>
-          ) : (
-            <p className="text-xs text-white/50">Worqera</p>
-          )}
-          <h1 className="truncate text-2xl font-semibold sm:text-3xl md:text-4xl">{title}</h1>
-          {tiles.length > 0 ? (
-            <p className="mt-1 text-sm text-white/50">
-              {tilesPerPage} por tela
-              {pages.length > 1
-                ? ` · ${pageIndex + 1}/${pages.length}`
-                : ` · ${tiles.length} pedido${tiles.length === 1 ? "" : "s"}`}
+            ) : null}
+            <h1 className="truncate font-bold leading-tight tracking-tight" style={{ fontSize: "var(--tv-title)" }}>
+              {title}
+            </h1>
+            <p className="truncate font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-small)" }}>
+              Procure o número do seu pedido na tela
             </p>
-          ) : null}
+          </div>
         </div>
-        <div className="shrink-0 text-right font-mono text-xl tabular-nums sm:text-2xl md:text-3xl">
-          {clock}
-          <p className="font-sans text-xs text-white/45 sm:text-sm">há {secondsAgo}s</p>
+        <div className="shrink-0 text-right">
+          <p className="tv-code font-bold leading-none" style={{ fontSize: "var(--tv-title)" }}>
+            {clock}
+          </p>
+          <p className="mt-[0.6vmin] font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-tiny)" }}>
+            {today}
+          </p>
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {error && (
-          <p className="mb-2 shrink-0 text-sm text-amber-200" role="status">
-            {error}
-          </p>
-        )}
+      <main className="mt-[2.4vmin] grid min-h-0 flex-1 gap-[2.2vmin]" style={{ gridTemplateColumns: "minmax(0, 0.82fr) minmax(0, 1.5fr)" }}>
+        <TvReadyPanel tiles={readyPages[readyPage] || []} page={readyPage} pages={readyPages.length} accent={accent} onAccent={onAccent} />
 
-        {loading && tiles.length === 0 ? (
-          <p className="m-auto text-xl text-white/60">Carregando pedidos…</p>
-        ) : tiles.length === 0 ? (
-          <p className="m-auto text-xl text-white/60">Nenhum pedido em andamento</p>
-        ) : (
-          <>
-            <div
-              key={pageIndex}
-              className={`grid min-h-0 flex-1 gap-3 overflow-hidden sm:gap-4 ${
-                visible.length <= 2
-                  ? "grid-cols-1 sm:grid-cols-2"
-                  : visible.length <= 4
-                    ? "grid-cols-2"
-                    : "grid-cols-2 xl:grid-cols-3"
-              } ${
-                reduceMotion
-                  ? ""
-                  : "motion-safe:animate-[tvFade_500ms_ease] motion-reduce:animate-none"
-              }`}
-              style={{ gridAutoRows: "minmax(0, 1fr)" }}
-            >
-              {visible.map((tile) => (
-                <article
-                  key={tile.id}
-                  className={`flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-2xl border px-4 py-4 text-center sm:px-6 sm:py-5 ${
-                    tile.kind === "ready"
-                      ? "border-[var(--wq-action)]/50 bg-[var(--wq-action)]/15"
-                      : "border-white/10 bg-white/5"
-                  }`}
-                >
-                  <p
-                    className={`font-mono text-4xl font-semibold tracking-wide sm:text-5xl md:text-6xl lg:text-7xl ${
-                      tile.kind === "ready" ? "text-teal-100" : "text-white"
-                    }`}
-                  >
-                    {tile.code}
-                  </p>
-                  <p
-                    className={`mt-2 text-lg sm:mt-3 sm:text-2xl md:text-3xl ${
-                      tile.kind === "ready" ? "text-teal-50" : "text-white/80"
-                    }`}
-                  >
-                    {tile.label}
-                  </p>
-                </article>
-              ))}
-            </div>
-
-            {pages.length > 1 && (
-              <div className="mt-3 flex shrink-0 items-center justify-center gap-2.5 sm:mt-4" aria-hidden="true">
-                {pages.map((_, index) => (
+        <section className="flex min-h-0 flex-col">
+          <div className="mb-[1.4vmin] flex shrink-0 items-baseline justify-between gap-[1vmin]">
+            <p className="font-bold uppercase tracking-[0.14em] text-[#C9C9D6]" style={{ fontSize: "var(--tv-label)" }}>
+              Em andamento
+            </p>
+            {progressPages.length > 1 ? (
+              <div className="flex items-center gap-[0.8vmin]" aria-hidden>
+                {progressPages.map((_, i) => (
                   <span
-                    key={index}
-                    className={`h-2 rounded-full ${
-                      index === pageIndex ? "w-7 bg-white" : "w-2 bg-white/30"
-                    } ${reduceMotion ? "" : "transition-[width,background-color] duration-500"}`}
+                    key={i}
+                    className="block h-[1vmin] rounded-full transition-[width] duration-500"
+                    style={{ width: i === progressPage ? "4vmin" : "1vmin", background: i === progressPage ? "#FFFFFF" : "#3A3A4E" }}
                   />
                 ))}
               </div>
-            )}
-          </>
-        )}
+            ) : null}
+          </div>
+
+          {loading && !tiles.length ? (
+            <p className="m-auto font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-label)" }}>
+              Carregando pedidos…
+            </p>
+          ) : visible.length ? (
+            <div
+              key={`p${progressPage}`}
+              className="tv-fade grid min-h-0 flex-1 gap-[1.6vmin]"
+              style={{
+                gridTemplateColumns: `repeat(${shape.cols}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${shape.rows}, minmax(0, 1fr))`,
+              }}
+            >
+              {visible.map((tile) => (
+                <TvOrderCard key={tile.id} tile={tile} accent={barColor} compact={shape.cols >= 4} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center rounded-[2vmin] text-center" style={{ background: CARD }}>
+              <p className="font-bold" style={{ fontSize: "var(--tv-title)" }}>
+                {ready.length ? "Tudo pronto por aqui!" : "Nenhum pedido em andamento"}
+              </p>
+              <p className="mt-[1vmin] font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-label)" }}>
+                Cuidado de verdade com o seu tênis.
+              </p>
+            </div>
+          )}
+        </section>
       </main>
 
+      <footer className="mt-[2vmin] flex shrink-0 items-center justify-between gap-[2vmin]">
+        <div className="min-w-0">
+          <p className="truncate font-semibold" style={{ fontSize: "var(--tv-label)" }}>
+            {tiles.length
+              ? `${tiles.length} ${tiles.length === 1 ? "pedido sendo cuidado" : "pedidos sendo cuidados"} agora${ready.length ? ` · ${ready.length} ${ready.length === 1 ? "pronto" : "prontos"}` : ""}`
+              : "Sua vez está chegando"}
+          </p>
+          <p className="mt-[0.4vmin] truncate font-medium text-[#8A8AA0]" style={{ fontSize: "var(--tv-tiny)" }}>
+            {error ? error : `Atualizado há ${secondsAgo}s`} · Worqera
+          </p>
+        </div>
+        <TvShopQr reviewUrl={reviewUrl} phone={phone} />
+      </footer>
+
+      {celebrating ? (
+        <TvCelebration code={celebrating} shopName={brandName} accent={accent} onAccent={onAccent} reduceMotion={reduceMotion} />
+      ) : null}
+
       <style>{`
-        @keyframes tvFade {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        .tv-root { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: geometricPrecision; }
+        .tv-code { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+        .tv-fade { animation: tvFade 600ms ease both; }
+        .tv-pop { animation: tvPop 700ms cubic-bezier(.2,1.4,.4,1) both; }
+        .tv-confetti { animation-name: tvFall; animation-timing-function: linear; animation-iteration-count: infinite; }
+        @keyframes tvFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes tvPop { 0% { opacity: 0; transform: scale(.7); } 100% { opacity: 1; transform: none; } }
+        @keyframes tvFall { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(115vh) rotate(540deg); } }
         @media (prefers-reduced-motion: reduce) {
-          @keyframes tvFade {
-            from { opacity: 1; transform: none; }
-            to { opacity: 1; transform: none; }
-          }
+          .tv-fade, .tv-pop, .tv-confetti { animation: none !important; }
         }
       `}</style>
     </div>

@@ -762,14 +762,137 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     }
   }
 
+  final _itemSectionKey = GlobalKey();
+
+  void _scrollToItem() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _itemSectionKey.currentContext;
+      if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.02);
+    });
+  }
+
+  void goToItem(int index) {
+    FocusScope.of(context).unfocus();
+    setState(() => itemIndex = index);
+    _scrollToItem();
+  }
+
   void addItem() {
+    FocusScope.of(context).unfocus();
     setState(() {
       final draft = _ItemDraft();
       items.add(draft);
       itemIndex = items.length - 1;
       _applyDefaultFlow();
     });
-    wqToast(context, 'Novo item — preencha modelo, serviços e fotos');
+    wqToast(context, 'Novo item: preencha modelo, serviços e fotos');
+    _scrollToItem();
+  }
+
+  /// Item tabs that wrap (never cut off), with "done" marks and the add button always in reach.
+  Widget _itemTabs(BuildContext context, List<int> clientIdx) {
+    return LayoutBuilder(builder: (context, box) {
+      final cols = box.maxWidth >= 700 ? 4 : box.maxWidth >= 460 ? 3 : 2;
+      final width = (box.maxWidth - (cols - 1) * 8) / cols;
+      return Wrap(spacing: 8, runSpacing: 8, children: [
+        for (var position = 0; position < clientIdx.length; position++)
+          Builder(builder: (_) {
+            final index = clientIdx[position];
+            final it = items[index];
+            final active = index == itemIndex;
+            final done = it.filled;
+            final label = [it.brand.text.trim(), it.model.text.trim()].where((part) => part.isNotEmpty).join(' · ');
+            return SizedBox(
+              width: width,
+              height: 52,
+              child: Material(
+                color: active ? Wq.brand : context.wqSurface,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => goToItem(index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: active ? Wq.brand : context.wqLine),
+                    ),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: active ? Colors.white24 : (done ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7)),
+                        child: done && !active
+                            ? const Icon(Icons.check, size: 14, color: Color(0xFF065F46))
+                            : Text('${position + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: active ? Colors.white : const Color(0xFF78350F))),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Item ${position + 1}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, color: active ? Colors.white : context.wqInk)),
+                          Text(
+                            done ? (label.isEmpty ? 'Pronto' : label) : 'Falta modelo ou serviço',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: active ? Colors.white70 : context.wqMuted),
+                          ),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            );
+          }),
+        SizedBox(
+          width: width,
+          height: 52,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Wq.brand,
+              side: BorderSide(color: Wq.brand.withValues(alpha: 0.5)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: addItem,
+            icon: const Icon(Icons.add),
+            label: Text('Item ${clientIdx.length + 1}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ]);
+    });
+  }
+
+  /// End of the item card: where am I, previous/next, and add another without scrolling back up.
+  Widget _itemFooter(BuildContext context, List<int> clientIdx) {
+    final position = clientIdx.indexOf(itemIndex);
+    final prev = position > 0 ? clientIdx[position - 1] : null;
+    final next = position >= 0 && position < clientIdx.length - 1 ? clientIdx[position + 1] : null;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Divider(height: 1, color: context.wqLine),
+      const SizedBox(height: 10),
+      if (clientIdx.length > 1) ...[
+        Text('Item ${position + 1} de ${clientIdx.length}', style: TextStyle(color: context.wqMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Row(children: [
+          if (prev != null)
+            Expanded(child: OutlinedButton(onPressed: () => goToItem(prev), child: Text('← Item $position'))),
+          if (prev != null && next != null) const SizedBox(width: 8),
+          if (next != null)
+            Expanded(child: OutlinedButton(onPressed: () => goToItem(next), child: Text('Item ${position + 2} →'))),
+        ]),
+        const SizedBox(height: 8),
+      ],
+      OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          foregroundColor: Wq.brand,
+          side: BorderSide(color: Wq.brand.withValues(alpha: 0.5)),
+          backgroundColor: Wq.brand.withValues(alpha: 0.08),
+        ),
+        onPressed: addItem,
+        icon: const Icon(Icons.add),
+        label: const Text('Adicionar mais um item', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
+    ]);
   }
 
   void removeItem(int index) {
@@ -1106,13 +1229,17 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         automaticallyImplyLeading: false,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(editing ? 'Editar pedido' : 'Novo pedido'),
-          Text(editing ? 'Cliente, itens e pagamento' : '1 Cliente · 2 Item · 3 Pagamento', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(
+            editing ? 'Cliente, itens e pagamento' : ['Cliente', 'Item', if (showProducts) 'Produtos', 'Pagamento'].asMap().entries.map((e) => '${e.key + 1} ${e.value}').join(' · '),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
         ]),
         actions: [
           if (!editing) TextButton(onPressed: clearDraft, child: const Text('Limpar')),
         ],
       ),
-      bottomNavigationBar: Material(
+      // While typing, the keyboard already takes half the screen: hide the totals bar.
+      bottomNavigationBar: MediaQuery.of(context).viewInsets.bottom > 0 ? null : Material(
         color: context.wqSurface,
         child: SafeArea(
           top: false,
@@ -1191,26 +1318,14 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     ),
                 ],
                 const SizedBox(height: 18),
-                _section(context, _step('Item'), 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
-                if (clientIdx.length > 1)
-                  SizedBox(
-                    height: 42,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: clientIdx.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (_, position) {
-                        final index = clientIdx[position];
-                        final label = [items[index].brand.text.trim(), items[index].model.text.trim()].where((part) => part.isNotEmpty).join(' · ');
-                        final selected = index == itemIndex;
-                        return ChoiceChip(
-                          label: Text(label.isEmpty ? 'Item ${position + 1}' : label),
-                          selected: selected,
-                          onSelected: (_) => setState(() => itemIndex = index),
-                        );
-                      },
-                    ),
-                  ),
+                KeyedSubtree(
+                  key: _itemSectionKey,
+                  child: _section(context, _step('Item'), 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
+                ),
+                if (clientIdx.length > 1) ...[
+                  _itemTabs(context, clientIdx),
+                  const SizedBox(height: 10),
+                ],
                 _box(context, [
                   Row(children: [
                     Expanded(child: Text('Item ${clientIdx.indexOf(itemIndex) + 1}${_itemTitle(item)}', style: const TextStyle(fontWeight: FontWeight.w800))),
@@ -1292,6 +1407,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                       itemBuilder: (_, index) => _photoTile(item, index),
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  _itemFooter(context, clientIdx),
                 ]),
                 if (showProducts) ...[
                   const SizedBox(height: 18),

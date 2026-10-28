@@ -208,7 +208,7 @@ export default function OrcamentosPage() {
         <SummaryStrip summary={summary} onToday={() => setView("today")} onRecovered={() => setView("recovered")} />
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="inline-flex w-full rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 md:w-auto">
+          <div className="grid w-full grid-cols-4 gap-1 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 md:inline-flex md:w-auto">
             {VIEWS.map((v) => {
               const Icon = v.icon
               const active = view === v.id
@@ -218,18 +218,18 @@ export default function OrcamentosPage() {
                   type="button"
                   onClick={() => setView(v.id)}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition md:flex-none",
+                    "relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold leading-tight transition sm:flex-row sm:gap-1.5 sm:px-3.5 sm:py-2 sm:text-sm sm:font-medium",
                     active
                       ? "bg-[var(--wq-brand)] text-white shadow-sm"
                       : "text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  {v.label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="max-w-full truncate">{v.label}</span>
                   {v.id === "today" && summary?.todayCount ? (
                     <span
                       className={cn(
-                        "ml-0.5 rounded-full px-1.5 text-[11px] font-bold tabular-nums",
+                        "absolute right-1 top-0.5 rounded-full px-1.5 text-[10px] font-bold tabular-nums sm:static sm:ml-0.5 sm:text-[11px]",
                         active ? "bg-white/25 text-white" : "bg-rose-500 text-white"
                       )}
                     >

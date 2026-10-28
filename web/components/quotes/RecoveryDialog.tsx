@@ -70,7 +70,7 @@ export function RecoveryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : null)}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-emerald-600" />
@@ -138,7 +138,7 @@ export function RecoveryDialog({
           />
         </div>
 
-        <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-col-reverse gap-2 border-t border-[var(--wq-border)] bg-[var(--wq-surface)] px-6 py-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
             Cancelar
           </Button>

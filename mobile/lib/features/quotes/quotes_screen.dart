@@ -10,6 +10,7 @@ import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../ai/ai_widgets.dart';
 import 'quote_kit.dart';
+import 'recovered_view.dart';
 
 /// Orçamentos: quem ligar hoje, o funil e o histórico de cada cliente que não fechou.
 class QuotesScreen extends StatefulWidget {
@@ -78,9 +79,62 @@ class _QuotesScreenState extends State<QuotesScreen> {
   void setView(String next) {
     setState(() {
       view = next;
-      loading = true;
+      loading = next != 'recovered';
     });
-    load();
+    if (next != 'recovered') load();
+  }
+
+  /// Four tabs that always fit: icon over a short label on narrow phones.
+  Widget _tabs(BuildContext context) {
+    final today = (summary['todayCount'] ?? 0) as num;
+    final tabs = <(String, IconData, String)>[
+      ('today', Icons.phone_in_talk_outlined, 'Hoje'),
+      ('board', Icons.view_kanban_outlined, 'Quadro'),
+      ('all', Icons.list, 'Todos'),
+      ('recovered', Icons.emoji_events_outlined, 'Recuperados'),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(12), border: Border.all(color: context.wqLine)),
+      child: Row(children: [
+        for (final t in tabs)
+          Expanded(
+            child: Material(
+              color: view == t.$1 ? Wq.brand : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(9),
+                onTap: () => setView(t.$1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Stack(clipBehavior: Clip.none, children: [
+                      Icon(t.$2, size: 20, color: view == t.$1 ? Colors.white : context.wqMuted),
+                      if (t.$1 == 'today' && today > 0)
+                        Positioned(
+                          right: -10,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(99)),
+                            child: Text('$today', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                    ]),
+                    const SizedBox(height: 2),
+                    Text(
+                      t.$3,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: view == t.$1 ? Colors.white : context.wqMuted),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
   }
 
   void onSearch(String value) {
@@ -179,23 +233,17 @@ class _QuotesScreenState extends State<QuotesScreen> {
           children: [
             _summary(context),
             const SizedBox(height: 14),
-            SegmentedButton<String>(
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment(value: 'today', icon: const Icon(Icons.phone_in_talk_outlined, size: 18), label: Text('Hoje${(summary['todayCount'] ?? 0) > 0 ? ' ${summary['todayCount']}' : ''}')),
-                const ButtonSegment(value: 'board', icon: Icon(Icons.view_kanban_outlined, size: 18), label: Text('Quadro')),
-                const ButtonSegment(value: 'all', icon: Icon(Icons.list, size: 18), label: Text('Todos')),
-              ],
-              selected: {view},
-              onSelectionChanged: (s) => setView(s.first),
-            ),
+            _tabs(context),
             const SizedBox(height: 12),
-            TextField(
-              controller: search,
-              onChanged: onSearch,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Nome, telefone ou código'),
-            ),
+            if (view == 'recovered')
+              RecoveredView(api: widget.api, onOpen: openQuote)
+            else
+              TextField(
+                controller: search,
+                onChanged: onSearch,
+                textInputAction: TextInputAction.search,
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Nome, telefone ou código'),
+              ),
             if (view == 'board') ...[
               const SizedBox(height: 12),
               SizedBox(
@@ -215,7 +263,9 @@ class _QuotesScreenState extends State<QuotesScreen> {
               ),
             ],
             const SizedBox(height: 12),
-            if (loading)
+            if (view == 'recovered')
+              const SizedBox.shrink()
+            else if (loading)
               const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: CircularProgressIndicator()))
             else if (error != null)
               Padding(padding: const EdgeInsets.only(top: 32), child: Text(error!, textAlign: TextAlign.center))
@@ -237,20 +287,23 @@ class _QuotesScreenState extends State<QuotesScreen> {
       ('Recuperado 30d', money0(summary['wonValue30d'] ?? 0), '${summary['wonCount30d'] ?? 0} voltaram', Wq.success),
       ('Recuperação', '${summary['recoveryRate'] ?? 0}%', 'últimos 30 dias', Wq.action),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 1.9,
-      children: [
+    // Cards size to their content (no fixed ratio), so big text or small phones never overflow.
+    return LayoutBuilder(builder: (context, box) {
+      final w = (box.maxWidth - 8) / 2;
+      return Wrap(spacing: 8, runSpacing: 8, children: [
         for (final c in cards)
-          WqCard(
+          SizedBox(
+            width: w,
+            child: WqCard(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            onTap: c.$1 == 'Ligar hoje' ? () => setView('today') : null,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(c.$1.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: context.wqMuted)),
+            onTap: c.$1 == 'Ligar hoje'
+                ? () => setView('today')
+                : c.$1 == 'Recuperado 30d'
+                    ? () => setView('recovered')
+                    : null,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(c.$1.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: context.wqMuted)),
+              const SizedBox(height: 4),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -259,8 +312,9 @@ class _QuotesScreenState extends State<QuotesScreen> {
               Text(c.$3, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
             ]),
           ),
-      ],
-    );
+          ),
+      ]);
+    });
   }
 
   Widget _empty(BuildContext context) {

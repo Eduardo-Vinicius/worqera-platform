@@ -96,6 +96,11 @@ export default function TvSettingsPage() {
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-[10px]">
+              <Link href="/tv?demo=1" target="_blank">
+                <ExternalLink className="mr-1 h-3.5 w-3.5" /> Demonstração
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-[10px]">
               <Link
                 href="/tv-dashboard"
                 target="_blank"

@@ -61,7 +61,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/invite/') ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
-    pathname.startsWith('/verify-email')
+    pathname.startsWith('/verify-email') ||
+    (pathname === '/tv' && request.nextUrl.searchParams.get('demo') === '1')
   ) {
     if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
       const payload = decodeJwtPayload(token);

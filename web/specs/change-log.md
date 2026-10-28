@@ -2,6 +2,11 @@
 
 ## 2026-10-28
 
+- **Pedido com muitos itens (celular/tablet):** as abas dos itens agora quebram em grade (2, 3 ou 4 por linha) em vez de rolar de lado escondido, com número, "pronto" ou "falta modelo ou serviço", e um botão "+ Item N" sempre visível. No fim de cada item: "Item X de N", ← anterior / próximo → e "Adicionar mais um item", sem precisar subir a tela.
+- **Orçamentos no celular:** as 4 abas (Ligar hoje, Quadro, Todos, Recuperados) cabem lado a lado, com ícone em cima e o texto embaixo. Recuperados reorganizado para tela estreita (período em 3 botões, cards sem estourar, motivo e como reverteu em etiquetas, detalhe quebrando linha). O diálogo "Como recuperou?" rola com o botão fixo embaixo.
+
+- **TV Cliente (`/tv`) refeita:** tamanhos em `vmin` e cores sólidas (sem blur, gradiente nem texto pequeno), então fica nítida em TV 720p esticada para 4K. Painel **Pronto pra retirar** em destaque na cor da loja, com os maiores números; **Em andamento** em cards com o número, a etapa ("Em lavagem") e uma trilha Recebido → Produção → Pronto. Quando um pedido fica pronto com a TV ligada, aparece em tela cheia "Pedido pronto! 0685 · Pode retirar no balcão", com confete (respeita reduzir movimento). Rodapé com "N pedidos sendo cuidados agora" e QR (link do Google se houver, senão WhatsApp da loja). `/tv?demo=1` mostra uma demonstração sem dados reais (aberta, sem login) e tem botão em Configurações → TVs. Componentes em `components/tv/`. Só número e etapa aparecem na tela: nada de nome ou valor.
+
 - **Gestão → Atendimento** (`/admin/atendimento`, dono/admin): relatório por quem abriu, com período (7 dias a 1 ano), cards (pedidos, % com "Aberto por", nota do atendimento, recuperados), tabela por pessoa com "Ver pedidos" e exportação CSV/Excel. Lista "Pedidos em andamento sem Aberto por" com escolha e Salvar na linha. Métricas → Atendimento leva para o relatório.
 - **Corrigido:** editar "Aberto por" no formulário do pedido não chegava à API (`updateOrderService` descartava o campo). Agora passa `openedByEmployeeId`.
 - **Kanban:** no detalhe do pedido, "Aberto por" virou um seletor; em pedido sem ninguém aparece em destaque ("quem? ▾").

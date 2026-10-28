@@ -2,6 +2,9 @@
 
 ## 2026-10-28
 
+- **Pedido com muitos itens:** abas em grade que nunca cortam (com marca de pronto e "+ Item N"), rodapé de cada item com anterior/próximo e "Adicionar mais um item", e a tela rola até o item escolhido. Com o teclado aberto, a barra de total some para sobrar espaço. Título com as etapas reais.
+- **Orçamentos:** cards do topo não estouram mais (altura pelo conteúdo, sem proporção fixa). Abas em 4 colunas com ícone. Nova aba **Recuperados** (`recovered_view.dart`): período, taxa, contatos e pessoas por lead, problema → como reverteu, quem recuperou e a lista.
+
 - **Novo pedido:** "Aberto por" no topo (`opened_by_bar.dart`), último usado já marcado (guardado no aparelho), "+ Cadastrar" para dono/admin. Etapas numeradas com Produtos da loja como etapa 3 e contador; "Aberto por" na confirmação.
 - **Pedido:** "Aberto por" e selo Recuperado no cabeçalho. **Kanban:** selos Recuperado e "Conferir entrega".
 - **Orçamentos:** "Como recuperou?" (`showRecoverySheet`) ao marcar Recuperado, na lista e na ficha.
