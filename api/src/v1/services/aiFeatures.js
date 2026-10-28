@@ -154,6 +154,16 @@ function dailyActions(n, { team = false } = {}) {
       tone: 'warn',
     });
   }
+  if (!team && n.check?.count) {
+    actions.push({
+      id: 'check',
+      title: `Conferir ${plural(n.check.count, 'pronto antigo', 'prontos antigos')}`,
+      detail: `Talvez já tenham saído · o mais antigo há ${plural(n.check.oldestDays, 'dia', 'dias')}`,
+      value: 0,
+      href: '/dashboard#prateleira',
+      tone: 'brand',
+    });
+  }
   if (n.overdue) {
     const late = m.oldestLate;
     actions.push({
@@ -163,6 +173,23 @@ function dailyActions(n, { team = false } = {}) {
       value: 0,
       href: '/kanban',
       tone: 'danger',
+    });
+  }
+  if (!team && (n.restock?.late || n.restock?.order)) {
+    const r = n.restock;
+    actions.push({
+      id: 'restock',
+      title: r.late
+        ? `${r.topName || 'Produto'} atrasado no fornecedor`
+        : `Pedir ${r.topName || plural(r.order, 'produto', 'produtos')} ao fornecedor`,
+      detail: r.late
+        ? `Era para ter chegado${r.lateDays ? ` há ${plural(r.lateDays, 'dia', 'dias')}` : ''}`
+        : [r.order > 1 ? `${r.order} na hora de pedir` : 'Hora de pedir', r.topLead ? `chega em ~${r.topLead} dias` : '']
+            .filter(Boolean)
+            .join(' · '),
+      value: 0,
+      href: '/admin/produtos#repor',
+      tone: r.late ? 'danger' : 'warn',
     });
   }
   if (m.noPrice) {
@@ -401,12 +428,35 @@ async function sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now }) {
   return { day: saoPauloDayKey(now), audience: 'sector', numbers, actions: actions.slice(0, 4), stake: 0, ...out };
 }
 
+/** Owner-only signals: ready orders to check at the counter and products to reorder. Never blocks the brief. */
+async function ownerExtras(shopId, now) {
+  const [check, restock] = await Promise.all([
+    require('./shelfService').checkCount(shopId, now).catch(() => ({ count: 0, oldestDays: 0 })),
+    require('./restockService').restockReport(shopId, now).catch(() => null),
+  ]);
+  const top = restock?.late?.[0] || restock?.order?.[0] || null;
+  return {
+    check,
+    restock: restock
+      ? {
+          order: restock.counts.order,
+          late: restock.counts.late,
+          coming: restock.counts.coming,
+          topName: top?.name || '',
+          topLead: top?.leadTimeDays || 0,
+          lateDays: restock.late?.[0]?.daysLeft != null ? Math.abs(restock.late[0].daysLeft) : 0,
+        }
+      : null,
+  };
+}
+
 async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', sectorIds = [] } = {}) {
   if (audience === 'sector') return sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now });
 
   const withMoney = audience === 'owner';
   const day = saoPauloDayKey(now);
   const full = await dailyNumbers(shopId, now);
+  if (withMoney) Object.assign(full, await ownerExtras(shopId, now));
   const m = full.money || {};
   // Front desk gets only the values they handle per order; totals and the shelf stay out of the payload.
   const numbers = withMoney

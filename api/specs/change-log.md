@@ -1,5 +1,18 @@
 # Worqera API — Change log
 
+## 2026-10-28
+
+- `GET /metrics/attendance` também devolve `totals.serviceScore`, `serviceScoreCount`, `recoveries` e `missing[]` (até 40 pedidos em andamento sem "Aberto por", para corrigir no relatório).
+
+- **"Aberto por"** (`services/openedBy.js`): `Order.openedByEmployeeId` + `openedByName` (nome guardado). `Employee.attends` ("Atende no balcão"), `cargo` e `notes` agora são salvos. Formulário que manda a chave vazia com atendentes cadastrados recebe 400 `OPENED_BY_REQUIRED`; quem não manda a chave (app antigo, importação) segue como "Não informado". Trocar no PATCH registra comentário. `GET /orders?openedBy=&recovered=1`.
+- **Recuperação:** `POST /quotes/:id/win` aceita `{ how, realReason, note, helperEmployeeIds }` e grava `Quote.recovery` (como reverteu, problema real, pessoas que atuaram a partir do histórico + ajudantes, contatos, valor). `PATCH stage=won` passa pelo mesmo caminho. `Order.recovered` é marcado ao reabrir o recusado e no pedido aberto com `fromQuoteId`. Card do kanban: `recovered`, `shelfCheck`, `openedByName`.
+- **`GET /quotes/recovered?days=`:** resumo, problema → como reverteu, por pessoa e lista. Atendimento recebe sem totais. `GET /metrics/finance` ganhou `recovered { count, value }` do período.
+- **Atendimento:** `feedback.serviceScore` (1–5, opcional) nas rotas públicas de avaliação; o pedido público traz `attendedBy` (primeiro nome). `GET /metrics/attendance` por quem abriu: pedidos, vendido, ticket, nota de atendimento, recuperações e cobertura do "Aberto por". `GET /alerts/feedback?openedBy=` e `summary.serviceAvg`.
+- **Repor estoque** (`services/restockService.js`): `Product.leadTimeDays` e `restock { qty, variantId, orderedAt, expectedAt, note, byName }`. Hora de pedir = disponível ≤ max(mínimo, uso diário de 60 dias × prazo). Rotas `GET /products/restock`, `POST /products/:id/restock`, `POST .../restock/arrived`, `DELETE .../restock`.
+- **Conferir prontos:** `Order.shelfCheck`, `POST /orders/:id/shelf-check` (dono, admin, atendimento). `/orders/shelf` traz `check`, `maybeGone` (7+ dias) e `summary.checkCount`; entregar limpa a marca.
+- **Resumo do dia (dono/admin):** ações novas `check` ("Conferir N prontos antigos") e `restock` ("Pedir Solado X ao fornecedor" / atrasado).
+- Índices: `Order {shopId, openedByEmployeeId, createdAt}`, `Order {shopId, recovered.at}`, `Quote {shopId, stage, wonAt}`.
+
 ## 2026-10-26
 
 - **Resumo do dia por papel** (`GET /dashboard/brief`, `aiFeatures.briefAudience`): agora devolve `brief.audience`.

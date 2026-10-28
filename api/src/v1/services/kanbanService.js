@@ -322,6 +322,9 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
         ? order.plannedSectorIds.map((s) => String(s._id || s))
         : [],
     reopened: Boolean(order.reopenedAt),
+    recovered: Boolean(order.recovered?.at),
+    shelfCheck: Boolean(order.shelfCheck?.flaggedAt),
+    openedByName: order.openedByName || '',
     pricePending: (Number(order?.pricing?.total) || 0) <= 0.009,
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),

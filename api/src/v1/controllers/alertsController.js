@@ -32,6 +32,7 @@ exports.feedback = wrap(async (req, res) => {
     page: req.query.page,
     limit: req.query.limit,
     score: req.query.score,
+    openedBy: req.query.openedBy,
   });
   res.status(200).json(data);
 });

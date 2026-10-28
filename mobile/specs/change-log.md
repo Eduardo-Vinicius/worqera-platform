@@ -1,5 +1,13 @@
 # App celular
 
+## 2026-10-28
+
+- **Novo pedido:** "Aberto por" no topo (`opened_by_bar.dart`), último usado já marcado (guardado no aparelho), "+ Cadastrar" para dono/admin. Etapas numeradas com Produtos da loja como etapa 3 e contador; "Aberto por" na confirmação.
+- **Pedido:** "Aberto por" e selo Recuperado no cabeçalho. **Kanban:** selos Recuperado e "Conferir entrega".
+- **Orçamentos:** "Como recuperou?" (`showRecoverySheet`) ao marcar Recuperado, na lista e na ficha.
+- **Produtos:** card Repor estoque (`restock_card.dart`) com Pedi / Chegou / cancelar e o campo Prazo do fornecedor.
+- **Início → Prateleira:** menu por pedido com Lembrar, Conferir e Já entregue (pergunta se recebeu). Resumo do dia abre Produtos na ação de repor.
+
 ## 2026-10-26
 
 - **Resumo do dia por papel:** dono/admin com valores; atendimento com Atrasados primeiro e só os valores do balcão (sem "em jogo hoje"); setor volta a ver o resumo no Início, só com a própria fila (Na fila, Atrasados, Hoje, Amanhã). Ícones novos para "hoje" e "urgente".

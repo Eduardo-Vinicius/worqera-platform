@@ -158,6 +158,7 @@ GET /dashboard/sectors               # LIVE — counts by sector (+ ?includeOrde
 GET /metrics/departments
 GET /metrics/employees
 GET /metrics/employees/performance
+GET /metrics/attendance              # por "Aberto por": orders, sold, ticket, serviceScore (média + n), recoveries; totals.coverage
 GET /metrics/delays
 GET /metrics/summary
 GET /metrics/finance
@@ -172,7 +173,20 @@ Query (EN): `period`, `startDate`, `endDate`, `limit`, `servicesLimit`
 ```
 GET /public/orders/{code}            # LIVE — status resumido sem auth (link antigo)
 GET /public/track/{token}            # LIVE — mesmo status, só pelo token opaco
-POST /public/track/{token}/feedback  # LIVE — avaliação sem slug na URL
+POST /public/track/{token}/feedback  # LIVE — avaliação sem slug na URL. serviceScore 1–5 opcional ("Como foi o atendimento?")
+```
+
+O pedido público traz `attendedBy` (primeiro nome de quem abriu) e `feedback.serviceScore`.
+
+## Funcionários e "Aberto por"
+
+```
+GET  /employees?active=true&attends=true   # quem aparece em "Aberto por"
+POST /employees                      # name, attends, cargo, observacoes (atendimento também pode, pelo "+ Cadastrar")
+POST /orders  openedByEmployeeId     # chave presente e vazia com atendentes cadastrados → 400 OPENED_BY_REQUIRED
+                                     # id inválido/inativo → 400 INVALID_OPENED_BY. Sem a chave (app antigo) = "Não informado"
+PATCH /orders/{id}  openedByEmployeeId  # troca registra comentário "Aberto por: A → B"
+GET  /orders?openedBy={employeeId}&recovered=1
 ```
 
 ## Catálogo (TOP-01)
@@ -194,7 +208,13 @@ GET /products/summary                # vendido, reservado, valor em estoque
 GET/PATCH/DELETE /products/{id}
 POST /products/{id}/adjust           # quantity + reason; variantId se houver variação
 GET /products/{id}/movements
+GET  /products/restock               # dono/admin. { order[], coming[], late[], counts }: reorderPoint, daysOfStock, dailyUse, daysLeft
+POST /products/{id}/restock          # "Pedi ao fornecedor": qty, expectedAt (padrão hoje + leadTimeDays), variantId se houver variação
+POST /products/{id}/restock/arrived  # qty (padrão o pedido): ajuste "Chegou do fornecedor" e limpa
+DELETE /products/{id}/restock        # cancela
 ```
+
+`leadTimeDays` no produto (0–365). Hora de pedir = disponível ≤ max(minQty, uso por dia nos últimos 60 dias × leadTimeDays).
 
 Item de pedido `origin=stock` reserva ao criar, baixa em `delivered`, estorna em cancelamento, exclusão ou reabertura. `origin=brought` não mexe no saldo.
 
@@ -210,6 +230,10 @@ PATCH /quotes/{id}                   # stage, followUpAt, reason, reasonNote, no
 POST /quotes/{id}/activity           # kind call | whatsapp | note. call/whatsapp contam contato; new → contact
 POST /quotes/{id}/suggest            # 3 textos (Direto, Leve, Curto) + waUrl. ai=true só com OPENAI_API_KEY
 POST /quotes/{id}/win                # reabre o pedido recusado na fila; sem pedido devolve prefill para Novo pedido
+                                     # body opcional: how (discount|deadline|new_offer|follow_up|explained|other), realReason, note, helperEmployeeIds
+                                     # grava quote.recovery {how, realReason, people, contacts, value} e Order.recovered
+GET  /quotes/recovered?days=30|90|365  # summary, byReason (problema → como reverteu), byHow, byPerson, items. Atendimento: sem totais
+POST /orders  fromQuoteId            # pedido aberto pelo prefill de um orçamento recuperado sem pedido: marca recovered
 DELETE /quotes/{id}                  # dono/admin
 POST /orders/{id}/refuse-quote       # reason, reasonNote, followUpAt. Pedido vira cancelled + quoteRefusal; libera estoque
 POST /orders  items[].ready          # produto da loja (origin=stock) já pronto: nasce no setor final. deliverNow=true + só produtos prontos = nasce entregue
@@ -217,6 +241,8 @@ GET  /kanban/closed?days=14          # entregues e recusados recentes (setor: va
 GET  /orders?refused=1               # só pedidos com orçamento recusado
 GET  /orders/shelf                   # owner. Prontos não retirados: days, stale (3+), toCollect, whatsapp {text,url}, summary
 POST /orders/{id}/shelf-remind       # owner. Registra o lembrete (shelfReminder.count/lastAt)
+POST /orders/{id}/shelf-check        # dono/admin/atendimento. { on } marca "Conferir" num pronto; entregar limpa
+                                     # /orders/shelf traz check, maybeGone (7+ dias) e summary.checkCount
 ```
 
 ## IA (Business)

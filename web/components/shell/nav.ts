@@ -24,6 +24,7 @@ import {
   HandCoins,
   ShoppingBag,
   MessagesSquare,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -90,6 +91,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true, serviceKey: "finance" },
       { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
+      { href: "/admin/atendimento", label: "Atendimento", icon: UserCheck, ownerAdminOnly: true, serviceKey: "metrics" },
       {
         href: "/tv-financeiro",
         label: "TV Financeiro",

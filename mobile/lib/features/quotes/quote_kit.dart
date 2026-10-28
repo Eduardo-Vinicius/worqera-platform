@@ -300,3 +300,100 @@ Future<bool> showRefuseQuoteSheet(
   if (done == true && context.mounted) wqToast(context, '#$code foi para Orçamentos');
   return done == true;
 }
+
+const recoveryHows = <(String, String)>[
+  ('discount', 'Desconto'),
+  ('deadline', 'Prazo melhor'),
+  ('new_offer', 'Nova proposta'),
+  ('follow_up', 'Insistiu / retornou'),
+  ('explained', 'Explicou o serviço'),
+  ('other', 'Outro'),
+];
+
+/// "Como recuperou?" — o problema de verdade, como reverteu e quem ajudou.
+/// Devolve o corpo do POST /quotes/:id/win, ou null se cancelou.
+Future<Map<String, dynamic>?> showRecoverySheet(BuildContext context, {required WorqeraApi api, required Map quote}) async {
+  List<Map<String, String>> employees = [];
+  try {
+    final res = await api.dio.get('/employees', queryParameters: {'active': 'true'});
+    final raw = res.data is Map ? (res.data as Map)['employees'] : null;
+    employees = [
+      for (final row in (raw is List ? raw : const []).whereType<Map>())
+        {'id': '${row['id'] ?? row['_id'] ?? ''}', 'name': '${row['name'] ?? ''}'},
+    ];
+  } catch (_) {}
+  final acted = <String>{
+    for (final a in ((quote['activity'] as List?) ?? const []).whereType<Map>())
+      if (['call', 'whatsapp', 'note', 'reply'].contains('${a['kind']}') && '${a['byName'] ?? ''}'.isNotEmpty) '${a['byName']}',
+  };
+  String? realReason = quote['reason'] == null ? null : '${quote['reason']}';
+  String? how;
+  final helpers = <String>{
+    for (final e in employees)
+      if (acted.map((n) => n.toLowerCase()).contains(e['name']!.toLowerCase())) e['id']!,
+  };
+  final note = TextEditingController();
+  if (!context.mounted) return null;
+  final result = await showModalBottomSheet<Map<String, dynamic>>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) {
+        Widget title(String text) => Padding(
+              padding: const EdgeInsets.only(top: 14, bottom: 6),
+              child: Text(text, style: TextStyle(fontSize: 11, letterSpacing: 1.1, fontWeight: FontWeight.w800, color: ctx.wqMuted)),
+            );
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Como recuperou ${'${quote['name'] ?? ''}'.split(' ').first}?', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('Fica no orçamento e entra na análise de Recuperados.', style: TextStyle(color: ctx.wqMuted)),
+              title('1. O PROBLEMA ERA'),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final r in quoteReasons)
+                  ChoiceChip(label: Text(r.$2), selected: realReason == r.$1, onSelected: (_) => setSheet(() => realReason = r.$1)),
+              ]),
+              title('2. COMO REVERTEU'),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final h in recoveryHows)
+                  ChoiceChip(label: Text(h.$2), selected: how == h.$1, onSelected: (_) => setSheet(() => how = h.$1)),
+              ]),
+              title('3. QUEM AJUDOU'),
+              if (employees.isEmpty)
+                Text('Sem funcionários cadastrados. Conta quem registrou contatos.', style: TextStyle(color: ctx.wqMuted, fontSize: 13))
+              else
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final e in employees)
+                    FilterChip(
+                      label: Text(e['name']!),
+                      selected: helpers.contains(e['id']),
+                      onSelected: (on) => setSheet(() => on ? helpers.add(e['id']!) : helpers.remove(e['id'])),
+                    ),
+                ]),
+              if (acted.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 6), child: Text('No histórico: ${acted.join(', ')}', style: TextStyle(color: ctx.wqMuted, fontSize: 12))),
+              const SizedBox(height: 12),
+              TextField(controller: note, maxLength: 500, decoration: const InputDecoration(labelText: 'Detalhe (opcional)', hintText: 'Ex.: dei 10% e prometi para sexta')),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF059669), minimumSize: const Size.fromHeight(48)),
+                onPressed: () => Navigator.pop(ctx, <String, dynamic>{
+                  'how': how,
+                  'realReason': realReason,
+                  'note': note.text.trim(),
+                  'helperEmployeeIds': helpers.toList(),
+                }),
+                icon: const Icon(Icons.emoji_events_outlined),
+                label: const Text('Marcar recuperado'),
+              ),
+            ]),
+          ),
+        );
+      },
+    ),
+  );
+  note.dispose();
+  return result;
+}

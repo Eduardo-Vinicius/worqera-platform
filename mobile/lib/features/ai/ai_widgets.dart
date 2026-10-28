@@ -7,6 +7,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../products/products_screen.dart';
 import '../quotes/quote_kit.dart';
 import '../quotes/quotes_screen.dart';
 
@@ -110,6 +111,14 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
       final scope = ShellScope.maybeOf(context);
       if (scope != null) {
         scope.openPage('quotes', page, stack: true);
+      } else {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      }
+    } else if (href.startsWith('/admin/produtos')) {
+      final page = ProductsScreen(api: widget.api);
+      final scope = ShellScope.maybeOf(context);
+      if (scope != null) {
+        scope.openPage('produtos', page, stack: true);
       } else {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
       }
@@ -256,6 +265,8 @@ class _BriefAction extends StatelessWidget {
     'tomorrow': Icons.event_outlined,
     'today': Icons.timer_outlined,
     'urgent': Icons.local_fire_department_outlined,
+    'check': Icons.flag_outlined,
+    'restock': Icons.local_shipping_outlined,
   };
 
   Color _tone(BuildContext context) {

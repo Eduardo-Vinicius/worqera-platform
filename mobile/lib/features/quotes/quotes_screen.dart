@@ -134,12 +134,16 @@ class _QuotesScreenState extends State<QuotesScreen> {
         if (mounted) wqToast(context, days == 1 ? 'Volta amanhã' : 'Volta em $days dias');
       });
 
-  Future<void> win(Map q) => quick(q, 'win', () async {
-        final res = await widget.api.dio.post('/quotes/${q['id']}/win', data: {});
+  Future<void> win(Map q) async {
+    final body = await showRecoverySheet(context, api: widget.api, quote: q);
+    if (body == null) return;
+    await quick(q, 'win', () async {
+        final res = await widget.api.dio.post('/quotes/${q['id']}/win', data: body);
         final order = (res.data as Map)['order'];
         if (!mounted) return;
         wqToast(context, order is Map ? 'Recuperado! #${order['code']} voltou para a fila' : 'Recuperado! Abra o pedido pelo Novo pedido');
       });
+  }
 
   Future<void> move(Map q, String next) async {
     if (next == 'won') return win(q);
@@ -442,12 +446,18 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
         apply(res.data);
       });
 
-  Future<void> win() => run(() async {
-        final res = await widget.api.dio.post('/quotes/${widget.quoteId}/win', data: {});
+  Future<void> win() async {
+    final current = quote;
+    if (current == null) return;
+    final body = await showRecoverySheet(context, api: widget.api, quote: current);
+    if (body == null) return;
+    await run(() async {
+        final res = await widget.api.dio.post('/quotes/${widget.quoteId}/win', data: body);
         apply(res.data);
         final order = (res.data as Map)['order'];
         if (mounted) wqToast(context, order is Map ? 'Recuperado! #${order['code']} voltou para a fila' : 'Recuperado! Abra o pedido pelo Novo pedido');
       });
+  }
 
   Future<void> sendOfficial() => run(() async {
         final res = await widget.api.dio.post('/quotes/${widget.quoteId}/whatsapp', data: {});

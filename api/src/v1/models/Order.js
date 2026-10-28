@@ -78,6 +78,8 @@ const orderItemSchema = new mongoose.Schema(
 const orderFeedbackSchema = new mongoose.Schema(
   {
     score: { type: Number, min: 1, max: 5, required: true },
+    /** "Como foi o atendimento?" — optional, tied to openedBy for the attendance metrics. */
+    serviceScore: { type: Number, min: 1, max: 5, default: null },
     comment: { type: String, default: '', trim: true, maxlength: 2000 },
     /** What mattered most: qualidade | prazo | atendimento | acabamento */
     tags: { type: [String], default: [] },
@@ -157,12 +159,27 @@ const orderSchema = new mongoose.Schema(
       refusedAt: { type: Date, default: null },
       reason: { type: String, default: null },
     },
+    /** Set when a refused order comes back through Orçamentos (kept after delivery). */
+    recovered: {
+      quoteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quote', default: null },
+      at: { type: Date, default: null },
+      how: { type: String, default: null },
+      byName: { type: String, default: '' },
+    },
     /** Reminders sent while the order waits on the shelf (ready, not picked up). */
     shelfReminder: {
       count: { type: Number, default: 0 },
       lastAt: { type: Date, default: null },
     },
+    /** "Conferir": someone suspects a ready order already left the shop. */
+    shelfCheck: {
+      flaggedAt: { type: Date, default: null },
+      byName: { type: String, default: '' },
+    },
     assigneeEmployeeId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    /** Who served the client at the counter. Name is a snapshot so history survives renames. */
+    openedByEmployeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', default: null },
+    openedByName: { type: String, default: '' },
     pdfUrl: { type: String, default: null },
     /**
      * When the create request includes photos that upload afterwards.
@@ -193,5 +210,7 @@ orderSchema.index({ shopId: 1, status: 1 });
 orderSchema.index({ shopId: 1, status: 1, createdAt: -1 });
 orderSchema.index({ shopId: 1, deletedAt: 1, createdAt: -1 });
 orderSchema.index({ shopId: 1, clientName: 1 });
+orderSchema.index({ shopId: 1, openedByEmployeeId: 1, createdAt: -1 });
+orderSchema.index({ shopId: 1, 'recovered.at': -1 });
 
 module.exports = mongoose.models.Order || mongoose.model('Order', orderSchema);

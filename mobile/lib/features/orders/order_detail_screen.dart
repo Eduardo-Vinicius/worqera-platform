@@ -215,6 +215,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name.isEmpty ? 'Cliente' : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               Text('#${order!['code'] ?? ''}', style: TextStyle(color: context.wqMuted, fontFamily: 'monospace')),
+              if ('${order!['openedByName'] ?? ''}'.isNotEmpty)
+                Text('Aberto por ${order!['openedByName']}', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              if (order!['recovered'] is Map)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Wq.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+                    child: const Text('Recuperado', style: TextStyle(color: Wq.success, fontSize: 11, fontWeight: FontWeight.w800)),
+                  ),
+                ),
             ]),
           ),
           StatusChip(order!['status']),

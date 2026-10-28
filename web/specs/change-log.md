@@ -1,5 +1,23 @@
 # Worqera Web — Change log
 
+## 2026-10-28
+
+- **Gestão → Atendimento** (`/admin/atendimento`, dono/admin): relatório por quem abriu, com período (7 dias a 1 ano), cards (pedidos, % com "Aberto por", nota do atendimento, recuperados), tabela por pessoa com "Ver pedidos" e exportação CSV/Excel. Lista "Pedidos em andamento sem Aberto por" com escolha e Salvar na linha. Métricas → Atendimento leva para o relatório.
+- **Corrigido:** editar "Aberto por" no formulário do pedido não chegava à API (`updateOrderService` descartava o campo). Agora passa `openedByEmployeeId`.
+- **Kanban:** no detalhe do pedido, "Aberto por" virou um seletor; em pedido sem ninguém aparece em destaque ("quem? ▾").
+- **Pedidos:** filtro "Aberto por" (chips, também via `?openedBy=`) e "aberto por Ana" na linha.
+
+- **Novo pedido:** barra **Aberto por** no topo (`OpenedByBar`): chips de quem atende, o último usado no aparelho já vem marcado, dono/admin cadastram na hora. Obrigatório só quando a loja tem atendentes. Etapas numeradas sem pular: `1 Cliente · 2 Item · 3 Produtos da loja · 4 Pagamento` (sem produtos, Pagamento volta a ser 3). Produtos da loja com contador ("2 itens · R$ 40,00" / "Nenhum") no título, no resumo lateral, na barra de baixo e na confirmação.
+- **Funcionários:** opção "Atende no balcão" e selo na lista; setor fica opcional para quem atende.
+- **Orçamentos → Recuperado:** diálogo "Como recuperou?" (`RecoveryDialog`): problema real, como reverteu, quem ajudou, detalhe. Vale no botão Fechou, na etapa, na lista e no quadro. Nova visão **Recuperados** (`RecoveredView`): taxa, contatos até fechar, pessoas por lead, problema → como reverteu, ranking e lista. Pedido aberto pelo prefill leva `fromQuote`.
+- **Kanban:** selos **Recuperado** e **Conferir** no card; no detalhe, "Aberto por" e o selo de recuperado no cabeçalho, e o botão "Conferir: será que já saiu?" em prontos.
+- **Pedidos:** aba Recuperados (`?recovered=1`).
+- **Financeiro:** mini card **Recuperado** (tênis que voltaram no período), leva a Orçamentos → Recuperados.
+- **Métricas → Atendimento** (`AttendanceCard`): por quem abriu, pedidos, vendido, ticket, nota de atendimento e recuperações.
+- **Página do pedido do cliente:** "Como foi o atendimento?" (estrelas, opcional) com "Você foi atendido por Ana". **Avaliações:** filtro "Atendido por" e média do atendimento.
+- **Produtos:** card **Repor estoque** (`RestockCard`, âncora `#repor`): Atrasado / Hora de pedir / A caminho, com "Pedi ao fornecedor", "Chegou" e cancelar. Campo "Prazo do fornecedor (dias)" no cadastro e no detalhe.
+- **Prateleira:** "Conferir" e "Já entregue" (pergunta se recebeu o saldo) em cada pronto, chip "N para conferir". Resumo do dia ganhou as ações Conferir e Repor.
+
 ## 2026-10-26
 
 - **Resumo do dia por papel:** dono/admin continuam vendo valores. Atendimento vê Atrasados em primeiro e só os valores do balcão (orçamento a ligar, receber na retirada, cobrar), sem "em jogo hoje" e sem prateleira. Conta de setor ganhou uma faixa enxuta no topo do kanban (`SectorBriefStrip`): frase do dia e números da própria fila (atrasados, vencem hoje, amanhã), sem valores. `DailyBrief` virou união por `audience`.

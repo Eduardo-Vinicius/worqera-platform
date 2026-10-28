@@ -396,6 +396,14 @@ class _KanbanScreenState extends State<KanbanScreen> {
               if (card['pricePending'] == true) const Padding(padding: EdgeInsets.only(left: 8), child: Text('Pendente valor', style: TextStyle(color: Wq.warn, fontSize: 12, fontWeight: FontWeight.w700))),
             ]),
             Text('${card['clientName'] ?? ''}', style: TextStyle(color: context.wqInk)),
+            if (card['recovered'] == true || card['shelfCheck'] == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(spacing: 6, runSpacing: 4, children: [
+                  if (card['recovered'] == true) const Pill('Recuperado', color: Color(0xFF059669)),
+                  if (card['shelfCheck'] == true) const Pill('Conferir entrega', color: Color(0xFF0284C7)),
+                ]),
+              ),
             if (card['services'] is List)
               for (final service in (card['services'] as List).whereType<Map>())
                 Padding(

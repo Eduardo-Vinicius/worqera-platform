@@ -11,6 +11,8 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
+import '../quotes/quote_kit.dart' show Pill;
+import 'opened_by_bar.dart';
 import 'success_screen.dart';
 
 const _maxPhotos = 10;
@@ -165,6 +167,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   int itemIndex = 0;
   int serverItemCount = 0;
   double openedTotal = 0;
+  String? openedById;
+  String openedByName = '';
+  String? openedByInitial;
+  int attendantCount = 0;
+  String? openedByError;
 
   bool get editing => widget.orderId != null && widget.orderId!.isNotEmpty;
   _ItemDraft get current => items[itemIndex.clamp(0, items.length - 1)];
@@ -179,6 +186,24 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       stockIndexes.isNotEmpty &&
       stockIndexes.every((i) => items[i].ready) &&
       !clientIndexes.any((i) => items[i].touched);
+
+  bool get showProducts => catalog.isNotEmpty || stockIndexes.isNotEmpty;
+
+  /// Etapas numeradas sem pular: sem produtos cadastrados, Pagamento volta a ser a 3.
+  String _step(String title) {
+    final steps = ['Cliente', 'Item', if (showProducts) 'Produtos da loja', 'Pagamento'];
+    return '${steps.indexOf(title) + 1}';
+  }
+
+  int get stockUnits {
+    var n = 0;
+    for (final i in stockIndexes) {
+      n += items[i].quantity;
+    }
+    return n;
+  }
+
+  String get stockCounter => stockUnits == 0 ? 'nenhum' : '$stockUnits ${stockUnits == 1 ? 'item' : 'itens'} · ${brl(stockSum)}';
 
   double get stockSum {
     var sum = 0.0;
@@ -341,6 +366,10 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     final res = await widget.api.dio.get('/orders/${widget.orderId}');
     final order = Map<String, dynamic>.from(res.data as Map);
     orderStatus = '${order['status'] ?? 'open'}';
+    final openedId = '${order['openedByEmployeeId'] ?? ''}';
+    openedById = openedId.isEmpty ? null : openedId;
+    openedByInitial = openedById;
+    openedByName = '${order['openedByName'] ?? ''}';
     final loadedClient = _client(order);
     if ('${loadedClient['id']}'.isEmpty && '${order['clientId'] ?? ''}'.isNotEmpty) {
       loadedClient['id'] = '${order['clientId']}';
@@ -466,6 +495,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   List<_ItemDraft> get filledItems => items.where((item) => item.filled).toList();
 
   String? validate() {
+    if (!editing && attendantCount > 0 && (openedById == null || openedById!.isEmpty)) {
+      openedByError = 'Marque quem abriu o pedido';
+      return openedByError;
+    }
+    openedByError = null;
     if (editing && orderStatus == 'delivered') {
       return 'Pedido entregue: reabra no kanban antes de alterar.';
     }
@@ -762,6 +796,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       'dataPrevistaEntrega': _iso(due),
       'dueAt': _iso(due),
       'departamento': 'atendimento',
+      if (!editing || openedById != openedByInitial) 'openedByEmployeeId': openedById,
       'acessorios': accessories,
       'garantia': {'ativa': warranty, 'preco': warrantyPrice, 'duracao': warranty ? '3 meses' : ''},
       'pricing': {
@@ -912,6 +947,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         });
         final body = Map<String, dynamic>.from(created.data as Map);
         id = '${body['id'] ?? body['_id']}';
+        unawaited(rememberOpenedBy(widget.session, openedById));
         final withPhotos = filledItems.asMap().entries.where((entry) => entry.value.photos.any((photo) => photo.file != null)).toList();
         if (withPhotos.isNotEmpty) {
           final api = widget.api;
@@ -975,6 +1011,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             const SizedBox(height: 4),
             Text('O pedido só entra no kanban depois desta confirmação.', style: TextStyle(color: ctx.wqMuted)),
             const SizedBox(height: 12),
+            if (openedByName.isNotEmpty) Text('Aberto por $openedByName', style: TextStyle(color: ctx.wqMuted, fontWeight: FontWeight.w700)),
             Text('${client?['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
             if ('${client?['phone'] ?? ''}'.isNotEmpty) Text('${client?['phone']}', style: TextStyle(color: ctx.wqMuted)),
             const SizedBox(height: 8),
@@ -995,7 +1032,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _box(ctx, [
-                  Text('Produtos da loja', style: TextStyle(color: ctx.wqMuted, fontSize: 12)),
+                  Text('Produtos da loja · $stockCounter', style: TextStyle(color: ctx.wqMuted, fontSize: 12)),
                   for (final index in stockIndexes)
                     Row(children: [
                       Expanded(child: Text('${items[index].quantity > 1 ? '${items[index].quantity}× ' : ''}${items[index].model.text.trim()}', style: const TextStyle(fontWeight: FontWeight.w700))),
@@ -1101,7 +1138,21 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
                 if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w700))),
-                _section(context, '1', 'Cliente', 'Nome e telefone. E-mail só se for enviar o laudo.', trailing: TextButton(onPressed: openNewClient, child: const Text('+ Novo'))),
+                OpenedByBar(
+                  api: widget.api,
+                  session: widget.session,
+                  value: openedById,
+                  currentName: openedByName,
+                  preselect: !editing,
+                  error: openedByError,
+                  onLoaded: (count) => setState(() => attendantCount = count),
+                  onChanged: (id, name) => setState(() {
+                    openedById = id;
+                    openedByName = name;
+                    openedByError = null;
+                  }),
+                ),
+                _section(context, _step('Cliente'), 'Cliente', 'Nome e telefone. E-mail só se for enviar o laudo.', trailing: TextButton(onPressed: openNewClient, child: const Text('+ Novo'))),
                 if (client != null)
                   _box(context, [
                     Row(children: [
@@ -1140,7 +1191,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     ),
                 ],
                 const SizedBox(height: 18),
-                _section(context, '2', 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
+                _section(context, _step('Item'), 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
                 if (clientIdx.length > 1)
                   SizedBox(
                     height: 42,
@@ -1242,11 +1293,11 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     ),
                   ],
                 ]),
-                if (catalog.isNotEmpty || stockIndexes.isNotEmpty) ...[
+                if (showProducts) ...[
                   const SizedBox(height: 18),
                   _section(
                     context,
-                    '',
+                    _step('Produtos da loja'),
                     'Produtos da loja',
                     'Vendeu algo junto? Cadarço, palmilha, produto de limpeza.',
                     trailing: FilledButton.tonalIcon(
@@ -1255,14 +1306,17 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                       label: const Text('Produto'),
                     ),
                   ),
-                  if (stockIndexes.isEmpty)
-                    Text('Nenhum produto neste pedido.', style: TextStyle(color: context.wqMuted, fontSize: 13))
-                  else ...[
-                    for (final index in stockIndexes) _stockLine(context, index),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text('Produtos: ${brl(stockSum)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Pill(
+                      stockUnits == 0 ? 'Nenhum produto neste pedido' : 'Produtos da loja · $stockCounter',
+                      color: stockUnits == 0 ? context.wqMuted : Wq.brand,
+                      filled: stockUnits > 0,
                     ),
+                  ),
+                  if (stockIndexes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    for (final index in stockIndexes) _stockLine(context, index),
                   ],
                 ],
                 const SizedBox(height: 18),
@@ -1278,7 +1332,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                   OutlinedButton(onPressed: addAccessory, child: const Text('Adicionar')),
                 ]),
                 const SizedBox(height: 18),
-                _section(context, '3', 'Pagamento', 'Sem valor, o laudo fica em espera.'),
+                _section(context, _step('Pagamento'), 'Pagamento', 'Sem valor, o laudo fica em espera.'),
                 if (counterSale)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,

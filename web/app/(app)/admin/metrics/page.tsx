@@ -35,6 +35,7 @@ import {
   type MetricsResumo,
 } from "@/lib/apiService"
 import { AppHeader } from "@/components/shell/AppHeader"
+import { AttendanceCard } from "@/components/metrics/AttendanceCard"
 
 const PERIOD_OPTIONS: Array<{ value: MetricsPeriodo; label: string }> = [
   { value: "7d", label: "7 dias" },
@@ -385,6 +386,8 @@ export default function AdminMetricsPage() {
             </CardContent>
           </Card>
         </div>
+
+        <AttendanceCard periodo={periodo} />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">

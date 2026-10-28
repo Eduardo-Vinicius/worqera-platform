@@ -45,6 +45,11 @@ exports.finance = wrap(async (req, res) => {
   res.status(200).json({ success: true, data });
 });
 
+exports.attendance = wrap(async (req, res) => {
+  const data = await metricsService.getAttendance(req.shopId, buildFilters(req.query));
+  res.status(200).json(data);
+});
+
 exports.employeePerformance = wrap(async (req, res) => {
   const data = await metricsService.getEmployeePerformance(
     req.shopId,

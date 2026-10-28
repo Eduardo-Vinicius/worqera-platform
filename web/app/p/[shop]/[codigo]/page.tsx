@@ -42,6 +42,7 @@ function PublicOrderByShopInner() {
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState("")
   const [score, setScore] = useState(0)
+  const [serviceScore, setServiceScore] = useState(0)
   const [tags, setTags] = useState<string[]>([])
   const [comment, setComment] = useState("")
   const [sending, setSending] = useState(false)
@@ -105,14 +106,14 @@ function PublicOrderByShopInner() {
     setFbMsg("")
     try {
       if (trackToken) {
-        await submitPublicFeedbackByTokenV1(trackToken, { score, comment, tags })
+        await submitPublicFeedbackByTokenV1(trackToken, { score, serviceScore: serviceScore || null, comment, tags })
       } else {
-        await submitPublicFeedbackV1(shop, code, { score, comment, tags }, token)
+        await submitPublicFeedbackV1(shop, code, { score, serviceScore: serviceScore || null, comment, tags }, token)
       }
       setData((d: any) => ({
         ...d,
         canFeedback: false,
-        feedback: { score, comment, tags, createdAt: new Date().toISOString() },
+        feedback: { score, serviceScore: serviceScore || null, comment, tags, createdAt: new Date().toISOString() },
       }))
       setFbMsg(
         score >= 4 && reviewUrl ? "" : "Obrigado! Sua opinião ajuda a oficina a melhorar."
@@ -292,6 +293,27 @@ function PublicOrderByShopInner() {
                     </p>
                   ) : null}
 
+                  <p className="mt-4 text-sm font-semibold">Como foi o atendimento?</p>
+                  <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">
+                    {data.attendedBy ? `Você foi atendido por ${data.attendedBy}. ` : ""}Opcional
+                  </p>
+                  <div className="mt-2 flex gap-1" role="radiogroup" aria-label="Nota do atendimento">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={serviceScore === n}
+                        onClick={() => setServiceScore(serviceScore === n ? 0 : n)}
+                        className="text-2xl leading-none transition active:scale-90"
+                        style={{ color: n <= serviceScore ? colors.primary : "var(--wq-border)" }}
+                        title={SCORE_LABELS[n]}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+
                   <p className="mt-4 text-xs font-medium text-[var(--wq-text-muted)]">
                     O que mais pesou? (opcional)
                   </p>
@@ -368,6 +390,9 @@ function PublicOrderByShopInner() {
                       ? ` · ${SCORE_LABELS[data.feedback.score]}`
                       : ""}
                   </p>
+                  {data.feedback.serviceScore ? (
+                    <p className="mt-0.5 text-xs text-[var(--wq-text-muted)]">Atendimento: {data.feedback.serviceScore}/5</p>
+                  ) : null}
                   {Array.isArray(data.feedback.tags) && data.feedback.tags.length > 0 ? (
                     <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
                       {data.feedback.tags.join(" · ")}

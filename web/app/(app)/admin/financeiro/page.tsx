@@ -279,6 +279,19 @@ export default function AdminFinanceiroPage() {
                     {formatCurrency(caixa?.aReceberProntos || 0)}
                   </p>
                 </div>
+                <Link
+                  href="/orcamentos?view=recovered"
+                  className="rounded-xl border border-emerald-300/60 bg-emerald-50/80 px-3 py-2 transition hover:border-emerald-500 dark:border-emerald-800 dark:bg-emerald-950/30"
+                  title="Pedidos recusados que voltaram por Orçamentos neste período"
+                >
+                  <p className="text-[10px] uppercase tracking-wide text-emerald-800 dark:text-emerald-300">Recuperado</p>
+                  <p className="text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {formatCurrency(data?.recovered?.value || 0)}
+                  </p>
+                  <p className="text-[10px] text-emerald-800/80 dark:text-emerald-300/80">
+                    {data?.recovered?.count || 0} tênis {(data?.recovered?.count || 0) === 1 ? "voltou" : "voltaram"}
+                  </p>
+                </Link>
               </div>
             </div>
 

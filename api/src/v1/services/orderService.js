@@ -102,6 +102,8 @@ async function listOrders(shopId, query = {}) {
   }
   if (query.sectorId) filter.currentSectorId = query.sectorId;
   if (query.employeeId) filter.assigneeEmployeeId = query.employeeId;
+  if (query.openedBy && mongoose.isValidObjectId(String(query.openedBy))) filter.openedByEmployeeId = query.openedBy;
+  if (query.recovered === '1' || query.recovered === 'true') filter['recovered.at'] = { $ne: null };
   if (query.code) {
     const code = String(query.code).trim();
     // Exact/prefix preferred for shop codes (0001 or 3191-26)
@@ -200,9 +202,25 @@ async function assertBasicOrderCap(shopId) {
   throw err;
 }
 
+/** Order opened from a recovered quote with no order behind it (counter quote). Never blocks the order. */
+async function recoveredFromQuote(shopId, quoteId) {
+  if (!quoteId || !mongoose.isValidObjectId(String(quoteId))) return null;
+  const Quote = require('../models/Quote');
+  const quote = await Quote.findOne({ _id: quoteId, shopId, stage: 'won' }).select('wonAt wonOrderId recovery').lean();
+  if (!quote || quote.wonOrderId) return null;
+  return {
+    quoteId: quote._id,
+    at: quote.wonAt || new Date(),
+    how: quote.recovery?.how || null,
+    byName: quote.recovery?.byName || '',
+  };
+}
+
 async function createOrder(shopId, userId, data, options = {}) {
   await assertBasicOrderCap(shopId);
   data = data || {};
+  const openedBy = await require('./openedBy').resolveOpenedBy(shopId, data);
+  const recoveredFrom = await recoveredFromQuote(shopId, data.fromQuoteId);
   let clientName = data.clientName || data.clienteNome || '';
   let clientPhone = data.clientPhone || data.telefone || null;
   let clientEmail = data.clientEmail || data.email || null;
@@ -453,6 +471,8 @@ async function createOrder(shopId, userId, data, options = {}) {
     dueAt: data.dueAt || data.dataPrevistaEntrega || null,
     notes: data.notes || data.observacoes || null,
     assigneeEmployeeId: data.assigneeEmployeeId || data.employeeId || null,
+    ...(openedBy ? { openedByEmployeeId: openedBy.id, openedByName: openedBy.name } : {}),
+    ...(recoveredFrom ? { recovered: recoveredFrom } : {}),
     createdByUserId: userId,
     ...(photoNotify ? { photoNotify } : {}),
   });
@@ -470,6 +490,12 @@ async function createOrder(shopId, userId, data, options = {}) {
   } catch (err) {
     await Order.deleteOne({ _id: order._id, shopId });
     throw err;
+  }
+  if (recoveredFrom) {
+    await require('../models/Quote').updateOne(
+      { _id: recoveredFrom.quoteId, shopId },
+      { $set: { wonOrderId: order._id } }
+    );
   }
 
   if (deliverNow) {
@@ -981,6 +1007,19 @@ async function patchOrder(shopId, id, userId, updates) {
   if (updates.servicos != null) {
     order.services = updates.servicos.map(mapService);
   }
+  const openedBy = await require('./openedBy').resolveOpenedBy(shopId, updates);
+  if (openedBy && String(openedBy.id || '') !== String(order.openedByEmployeeId || '')) {
+    const before = order.openedByName || 'Não informado';
+    order.openedByEmployeeId = openedBy.id;
+    order.openedByName = openedBy.name;
+    order.comments = order.comments || [];
+    order.comments.push({
+      text: `Aberto por: ${before} → ${openedBy.name || 'Não informado'}`,
+      authorUserId: userId || null,
+      authorName: '',
+      createdAt: new Date(),
+    });
+  }
 
   // Blind items[] replace removed — use item endpoints or itemPatches merge
   if (Array.isArray(updates.items)) {
@@ -1057,6 +1096,7 @@ async function patchOrder(shopId, id, userId, updates) {
   if (becomingDelivered) {
     order.deliveredAt = updates.deliveredAt ? new Date(updates.deliveredAt) : new Date();
     order.reopenedAt = null;
+    order.shelfCheck = { flaggedAt: null, byName: '' };
     const { commitOrder } = require('./productService');
     await commitOrder(shopId, order, userId);
     order.markModified('items');
@@ -1385,7 +1425,7 @@ async function reopenOrder(shopId, id, userId, body = {}) {
   return order.toObject();
 }
 
-async function submitPublicFeedback(code, { shopSlug, token, score, comment, tags } = {}) {
+async function submitPublicFeedback(code, { shopSlug, token, score, serviceScore, comment, tags } = {}) {
   const normalizedCode = String(code || '').trim();
   const normalizedToken = String(token || '').trim();
   if (!normalizedCode || !shopSlug || !normalizedToken) {
@@ -1446,8 +1486,10 @@ async function submitPublicFeedback(code, { shopSlug, token, score, comment, tag
     throw err;
   }
 
+  const service = Number(serviceScore);
   order.feedback = {
     score: Math.round(n),
+    serviceScore: Number.isFinite(service) && service >= 1 && service <= 5 ? Math.round(service) : null,
     comment: String(comment || '').trim().slice(0, 2000),
     tags: cleanTags,
     createdAt: new Date(),
@@ -1971,7 +2013,7 @@ async function getPublicOrderByToken(token) {
   return getPublicOrderByCode(found.code, { shopSlug: shop.slug, token: normalizedToken });
 }
 
-async function submitPublicFeedbackByToken(token, { score, comment, tags } = {}) {
+async function submitPublicFeedbackByToken(token, { score, serviceScore, comment, tags } = {}) {
   const normalizedToken = String(token || '').trim();
   const found = await Order.findOne({ publicToken: normalizedToken, deletedAt: null })
     .select('code shopId')
@@ -1994,6 +2036,7 @@ async function submitPublicFeedbackByToken(token, { score, comment, tags } = {})
     shopSlug: shop.slug,
     token: normalizedToken,
     score,
+    serviceScore,
     comment,
     tags,
   });
@@ -2136,9 +2179,12 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     dueAt: order.dueAt,
     updatedAt: order.updatedAt,
     customerSummary: order.customerSummary?.text || '',
+    /** First name only: the client sees who served them, not the full name. */
+    attendedBy: String(order.openedByName || '').trim().split(/\s+/)[0] || '',
     feedback: order.feedback?.score
       ? {
           score: order.feedback.score,
+          serviceScore: order.feedback.serviceScore || null,
           comment: order.feedback.comment || '',
           tags: Array.isArray(order.feedback.tags) ? order.feedback.tags : [],
           createdAt: order.feedback.createdAt,

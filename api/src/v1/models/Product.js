@@ -24,6 +24,17 @@ const productSchema = new mongoose.Schema(
     onHand: { type: Number, default: 0 },
     reserved: { type: Number, default: 0 },
     variants: { type: [variantSchema], default: [] },
+    /** Days the supplier takes to deliver (e.g. soles: 30–40). Drives "hora de pedir". */
+    leadTimeDays: { type: Number, default: 0, min: 0, max: 365 },
+    /** Open order with the supplier; cleared when it arrives or is cancelled. */
+    restock: {
+      qty: { type: Number, default: 0 },
+      variantId: { type: mongoose.Schema.Types.ObjectId, default: null },
+      orderedAt: { type: Date, default: null },
+      expectedAt: { type: Date, default: null },
+      note: { type: String, default: '', maxlength: 300 },
+      byName: { type: String, default: '' },
+    },
   },
   { timestamps: true }
 );

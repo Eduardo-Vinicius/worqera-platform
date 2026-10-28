@@ -10,6 +10,10 @@ function qtyOf(n) {
   return q > 0 ? q : 0;
 }
 
+function leadDays(n) {
+  return Math.min(365, Math.max(0, Math.floor(Number(n) || 0)));
+}
+
 function availableOf(onHand, reserved) {
   return (Number(onHand) || 0) - (Number(reserved) || 0);
 }
@@ -50,6 +54,17 @@ function presentProduct(doc) {
     reserved,
     available: availableOf(onHand, reserved),
     low: doc.trackStock !== false && availableOf(onHand, reserved) <= (Number(doc.minQty) || 0),
+    leadTimeDays: Number(doc.leadTimeDays) || 0,
+    restock: doc.restock?.orderedAt
+      ? {
+          qty: Number(doc.restock.qty) || 0,
+          variantId: doc.restock.variantId ? String(doc.restock.variantId) : null,
+          orderedAt: doc.restock.orderedAt,
+          expectedAt: doc.restock.expectedAt || null,
+          note: doc.restock.note || '',
+          byName: doc.restock.byName || '',
+        }
+      : null,
     variants,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -99,6 +114,7 @@ async function createProduct(shopId, body) {
     price: money(body.price),
     trackStock: body.trackStock !== false,
     minQty: Math.max(0, Math.floor(Number(body.minQty) || 0)),
+    leadTimeDays: leadDays(body.leadTimeDays),
     active: body.active !== false,
     onHand: variants.length ? 0 : Math.max(0, Math.floor(Number(body.onHand) || 0)),
     reserved: 0,
@@ -132,6 +148,7 @@ async function patchProduct(shopId, id, body) {
   if (body.price != null) doc.price = money(body.price);
   if (body.trackStock != null) doc.trackStock = Boolean(body.trackStock);
   if (body.minQty != null) doc.minQty = Math.max(0, Math.floor(Number(body.minQty) || 0));
+  if (body.leadTimeDays != null) doc.leadTimeDays = leadDays(body.leadTimeDays);
   if (body.active != null) doc.active = Boolean(body.active);
   if (Array.isArray(body.variants)) {
     const reserved = (doc.variants || []).some((row) => (row.reserved || 0) > 0) || (doc.reserved || 0) > 0;

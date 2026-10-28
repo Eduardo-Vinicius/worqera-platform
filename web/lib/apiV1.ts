@@ -191,11 +191,16 @@ export type ShelfItem = {
   reminders: number
   lastReminderAt: string | null
   whatsapp: { text: string; url: string } | null
+  /** Someone flagged it "Conferir": maybe it already left the shop. */
+  check: { flaggedAt: string; byName: string } | null
+  /** Ready for a week or more. */
+  maybeGone: boolean
 }
 
 export type Shelf = {
   staleDays: number
-  summary: { count: number; toCollect: number; staleCount: number; staleToCollect: number; oldestDays: number }
+  checkDays: number
+  summary: { count: number; toCollect: number; staleCount: number; staleToCollect: number; oldestDays: number; checkCount: number }
   items: ShelfItem[]
 }
 
@@ -265,6 +270,65 @@ export async function improveClientMessageV1(orderId: string, text: string) {
   )
 }
 
+export type Attendant = { id: string; name: string; cargo?: string }
+
+/** Funcionários ativos marcados "Atende no balcão" — a lista do "Aberto por". */
+export async function listAttendantsV1() {
+  const res = await v1Fetch<{ employees: Array<{ id?: string; _id?: string; name: string; cargo?: string }> }>(
+    "/employees?active=true&attends=true"
+  )
+  return (res.employees || []).map((e) => ({ id: String(e.id || e._id || ""), name: e.name, cargo: e.cargo || "" }))
+}
+
+export async function listActiveEmployeesV1() {
+  const res = await v1Fetch<{ employees: Array<{ id?: string; _id?: string; name: string; attends?: boolean }> }>(
+    "/employees?active=true"
+  )
+  return (res.employees || []).map((e) => ({ id: String(e.id || e._id || ""), name: e.name, attends: e.attends === true }))
+}
+
+export async function createAttendantV1(name: string) {
+  const e = await v1Fetch<{ id?: string; _id?: string; name: string }>("/employees", {
+    method: "POST",
+    body: JSON.stringify({ name, attends: true, active: true }),
+  })
+  return { id: String(e.id || e._id || ""), name: e.name } as Attendant
+}
+
+export type AttendanceRow = {
+  employeeId: string | null
+  name: string
+  orders: number
+  delivered: number
+  cancelled: number
+  sold: number
+  ticket: number
+  serviceScore: number | null
+  serviceScoreCount: number
+  recoveries: number
+}
+
+export type AttendanceReport = {
+  period: { start: string; end: string; label: string }
+  totals: {
+    orders: number
+    informed: number
+    coverage: number
+    attendants: number
+    serviceScore?: number | null
+    serviceScoreCount?: number
+    recoveries?: number
+  }
+  rows: AttendanceRow[]
+  /** Open orders still without "Aberto por" — fix them from the report. */
+  missing?: Array<{ id: string; code: string; clientName: string; status: string; createdAt: string }>
+}
+
+/** Métricas → Atendimento (dono/admin). */
+export async function getAttendanceV1(periodo: string) {
+  return v1Fetch<AttendanceReport>(`/metrics/attendance?periodo=${encodeURIComponent(periodo)}`)
+}
+
 export type ClosedCard = {
   id: string
   code: string
@@ -289,6 +353,13 @@ export async function getKanbanClosedV1(days = 14) {
 
 export async function getShelfV1() {
   return v1Fetch<Shelf>("/orders/shelf")
+}
+
+export async function setShelfCheckV1(orderId: string, on = true) {
+  return v1Fetch<{ ok: boolean; check: { flaggedAt: string; byName: string } | null }>(
+    `/orders/${encodeURIComponent(orderId)}/shelf-check`,
+    { method: "POST", body: JSON.stringify({ on }) }
+  )
 }
 
 export async function markShelfRemindedV1(orderId: string) {
@@ -527,12 +598,15 @@ export async function listFeedbackV1(opts?: {
   limit?: number
   /** Comma-separated scores, e.g. "1,2,3" */
   score?: string
+  /** Employee id from "Aberto por". */
+  openedBy?: string
 }) {
   const q = new URLSearchParams()
   if (opts?.period) q.set("period", opts.period)
   if (opts?.page) q.set("page", String(opts.page))
   if (opts?.limit) q.set("limit", String(opts.limit))
   if (opts?.score) q.set("score", opts.score)
+  if (opts?.openedBy) q.set("openedBy", opts.openedBy)
   const qs = q.toString()
   return v1Fetch<{
     period: string
@@ -545,6 +619,8 @@ export async function listFeedbackV1(opts?: {
       count: number
       distribution: Record<"1" | "2" | "3" | "4" | "5", number> | Record<number, number>
       topTags: Array<{ tag: string; count: number }>
+      serviceAvg?: number | null
+      serviceCount?: number
     }
     items: Array<{
       id: string
@@ -552,6 +628,8 @@ export async function listFeedbackV1(opts?: {
       clientName: string
       status?: string
       score?: number
+      serviceScore?: number | null
+      openedByName?: string
       comment?: string
       tags?: string[]
       createdAt?: string | null
@@ -1016,7 +1094,7 @@ export async function getPublicOrderByTokenV1(token: string) {
 
 export async function submitPublicFeedbackByTokenV1(
   token: string,
-  body: { score: number; comment?: string; tags?: string[] }
+  body: { score: number; serviceScore?: number | null; comment?: string; tags?: string[] }
 ) {
   return v1Fetch(`/public/track/${encodeURIComponent(token)}/feedback`, {
     method: "POST",
@@ -1048,7 +1126,7 @@ export async function getPublicOrderV1(
 export async function submitPublicFeedbackV1(
   shopSlug: string,
   code: string,
-  body: { score: number; comment?: string; tags?: string[]; t?: string; token?: string },
+  body: { score: number; serviceScore?: number | null; comment?: string; tags?: string[]; t?: string; token?: string },
   token?: string | null
 ) {
   const t = String(token || body.t || body.token || "").trim()
@@ -1212,8 +1290,57 @@ export async function listProductsV1() {
     reserved?: number
     available?: number
     low?: boolean
+    leadTimeDays?: number
+    restock?: ProductRestock | null
     variants?: Array<{ id: string; name: string; sku?: string; price: number | null; onHand: number; reserved: number; available: number }>
   }> }>("/products")
+}
+
+export type ProductRestock = {
+  qty: number
+  variantId: string | null
+  orderedAt: string
+  expectedAt: string | null
+  note: string
+  byName: string
+}
+
+export type RestockRow = {
+  id: string
+  name: string
+  available: number
+  minQty: number
+  leadTimeDays: number
+  variants: Array<{ id: string; name: string; available: number }>
+  restock: ProductRestock | null
+  state: "order" | "coming" | "late"
+  reorderPoint: number
+  daysOfStock: number | null
+  daysLeft: number | null
+  dailyUse: number | null
+}
+
+export type RestockReport = {
+  order: RestockRow[]
+  coming: RestockRow[]
+  late: RestockRow[]
+  counts: { order: number; coming: number; late: number }
+}
+
+export async function getRestockV1() {
+  return v1Fetch<RestockReport>("/products/restock")
+}
+
+export async function orderRestockV1(id: string, body: { qty: number; expectedAt?: string | null; note?: string; variantId?: string }) {
+  return v1Fetch(`/products/${encodeURIComponent(id)}/restock`, { method: "POST", body: JSON.stringify(body) })
+}
+
+export async function restockArrivedV1(id: string, qty?: number) {
+  return v1Fetch(`/products/${encodeURIComponent(id)}/restock/arrived`, { method: "POST", body: JSON.stringify(qty ? { qty } : {}) })
+}
+
+export async function cancelRestockV1(id: string) {
+  return v1Fetch(`/products/${encodeURIComponent(id)}/restock`, { method: "DELETE" })
 }
 
 export async function createProductV1(body: Record<string, unknown>) {
@@ -1291,6 +1418,18 @@ export type Quote = {
   wonAt: string | null
   lostAt: string | null
   wonOrderId: string | null
+  recovery?: {
+    how: string | null
+    howLabel: string
+    realReason: QuoteReason | null
+    realReasonLabel: string
+    note: string
+    people: string[]
+    contacts: number
+    value: number
+    at: string
+    byName: string
+  } | null
   priority: { level: "high" | "medium" | "low" | "none"; score: number; hint: string }
   activity: QuoteActivity[]
   createdAt: string
@@ -1389,11 +1528,45 @@ export async function suggestQuoteMessageV1(id: string) {
   }>(`/quotes/${encodeURIComponent(id)}/suggest`, { method: "POST", body: "{}" })
 }
 
-export async function winQuoteV1(id: string) {
+export type RecoveryInput = {
+  how?: import("./recovery").RecoveryHow | null
+  realReason?: QuoteReason | null
+  note?: string
+  helperEmployeeIds?: string[]
+}
+
+export async function winQuoteV1(id: string, recovery: RecoveryInput = {}) {
   return v1Fetch<{ quote: Quote; order: any | null; prefill: QuotePrefill | null }>(
     `/quotes/${encodeURIComponent(id)}/win`,
-    { method: "POST", body: "{}" }
+    { method: "POST", body: JSON.stringify(recovery) }
   )
+}
+
+export type RecoveredReport = {
+  days: number
+  summary: { count: number; value: number; rate: number; avgContacts: number; avgPeople: number; lost: number }
+  byReason: Array<{ reason: QuoteReason | "none"; label: string; count: number; topHow: string; topHowLabel: string; hows: Array<{ how: string; label: string; count: number }> }>
+  byHow: Array<{ how: string; label: string; count: number; value: number }>
+  byPerson: Array<{ name: string; count: number; value: number }>
+  items: Array<{
+    id: string
+    name: string
+    orderCode: string
+    wonOrderId: string | null
+    value: number
+    reasonLabel: string
+    howLabel: string
+    note: string
+    people: string[]
+    contacts: number
+    byName: string
+    at: string
+  }>
+  showsTotals: boolean
+}
+
+export async function getRecoveredV1(days = 30) {
+  return v1Fetch<RecoveredReport>(`/quotes/recovered?days=${days}`)
 }
 
 export async function deleteQuoteV1(id: string) {

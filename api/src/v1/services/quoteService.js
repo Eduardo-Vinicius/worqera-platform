@@ -8,6 +8,8 @@ const User = require('../models/User');
 const {
   OPEN_STAGES,
   REASON_LABEL,
+  RECOVERY_HOW,
+  RECOVERY_HOW_LABEL,
   normalizeStage,
   normalizeReason,
   followUpState,
@@ -85,6 +87,20 @@ function serializeQuote(q, { now = new Date(), withActivity = true } = {}) {
     wonAt: q.wonAt || null,
     lostAt: q.lostAt || null,
     wonOrderId: q.wonOrderId ? String(q.wonOrderId) : null,
+    recovery: q.recovery?.at
+      ? {
+          how: q.recovery.how || null,
+          howLabel: q.recovery.how ? RECOVERY_HOW_LABEL[q.recovery.how] || '' : '',
+          realReason: q.recovery.realReason || null,
+          realReasonLabel: q.recovery.realReason ? REASON_LABEL[q.recovery.realReason] || '' : '',
+          note: q.recovery.note || '',
+          people: q.recovery.people || [],
+          contacts: Number(q.recovery.contacts) || 0,
+          value: Number(q.recovery.value) || 0,
+          at: q.recovery.at,
+          byName: q.recovery.byName || '',
+        }
+      : null,
     priority: quotePriority(q, now),
     activity: withActivity ? activity : activity.slice(0, 1),
     createdAt: q.createdAt,
@@ -285,8 +301,8 @@ async function patchQuote(shopId, id, userId, body = {}) {
   if (body.stage != null) {
     const stage = normalizeStage(body.stage, '');
     if (!stage) throw fail(400, 'Etapa inválida');
-    if (stage === 'won' && quote.orderId) {
-      return winQuote(shopId, id, userId);
+    if (stage === 'won' && normalizeStage(quote.stage) !== 'won') {
+      return winQuote(shopId, id, userId, body.recovery || {});
     }
     if (applyStage(quote, stage, now)) {
       quote.activity.push({
@@ -364,7 +380,7 @@ async function suggestMessages(shopId, id, { aiAllowed = false } = {}) {
   };
 }
 
-async function reopenRefusedOrder(shopId, order, userId, byName) {
+async function reopenRefusedOrder(shopId, order, userId, byName, recovery = {}) {
   const { hydrateItemsIfEmpty } = require('./orderItems');
   const { ensureItemSectors, buildSectorsById, allItemsInTerminal, computeRollupSectorId } =
     require('./itemSectors');
@@ -402,6 +418,7 @@ async function reopenRefusedOrder(shopId, order, userId, byName) {
     note: 'Cliente voltou — orçamento recuperado',
     action: 'reopen',
   });
+  order.recovered = { quoteId: recovery.quoteId || null, at: now, how: recovery.how || null, byName: byName || '' };
   order.markModified('items');
   const { reserveOrder } = require('./productService');
   await reserveOrder(shopId, order, userId);
@@ -410,25 +427,61 @@ async function reopenRefusedOrder(shopId, order, userId, byName) {
   return order;
 }
 
-async function winQuote(shopId, id, userId) {
+/**
+ * Who acted on the lead: everyone who logged a contact, a note or the win, plus
+ * the helpers picked in the dialog. Names, so history survives renames.
+ */
+function recoveryPeople(quote, helperNames, byName) {
+  const set = new Set();
+  for (const a of quote.activity || []) {
+    if (['call', 'whatsapp', 'note', 'reply'].includes(a.kind) && a.byName) set.add(a.byName.trim());
+  }
+  for (const n of helperNames) if (n) set.add(String(n).trim());
+  if (byName) set.add(byName.trim());
+  return [...set].filter(Boolean).slice(0, 20);
+}
+
+async function winQuote(shopId, id, userId, body = {}) {
   const quote = await loadQuote(shopId, id);
   const byName = await actorName(userId);
   const now = new Date();
   let order = null;
 
+  const how = RECOVERY_HOW.includes(String(body.how)) ? String(body.how) : null;
+  const realReason = normalizeReason(body.realReason) || normalizeReason(quote.reason) || null;
+  const helperIds = (Array.isArray(body.helperEmployeeIds) ? body.helperEmployeeIds : [])
+    .map(String)
+    .filter(isId)
+    .slice(0, 10);
+  const helpers = helperIds.length
+    ? await require('../models/Employee').find({ _id: { $in: helperIds }, shopId }).select('name').lean()
+    : [];
+
   if (quote.orderId) {
     order = await Order.findOne({ _id: quote.orderId, shopId, deletedAt: null });
     if (order && order.status === 'cancelled') {
-      order = await reopenRefusedOrder(shopId, order, userId, byName);
+      order = await reopenRefusedOrder(shopId, order, userId, byName, { quoteId: quote._id, how });
     }
   }
 
   applyStage(quote, 'won', now);
   quote.wonOrderId = order?._id || quote.wonOrderId || null;
   quote.followUpAt = null;
+  quote.recovery = {
+    how,
+    realReason,
+    note: String(body.note || '').trim().slice(0, 500),
+    helperEmployeeIds: helpers.map((h) => h._id),
+    people: recoveryPeople(quote, helpers.map((h) => h.name), byName),
+    contacts: Number(quote.contactCount) || 0,
+    value: Number(order?.pricing?.total) || Number(quote.value) || 0,
+    at: now,
+    byName,
+  };
+  const howText = how ? ` · ${RECOVERY_HOW_LABEL[how]}` : '';
   quote.activity.push({
     kind: 'won',
-    text: order ? `Recuperado — pedido #${order.code} voltou para a fila` : 'Recuperado',
+    text: (order ? `Recuperado — pedido #${order.code} voltou para a fila` : 'Recuperado') + howText,
     stage: 'won',
     byUserId: userId || null,
     byName,
@@ -558,7 +611,113 @@ async function refuseOrderQuote(shopId, orderId, userId, body = {}) {
   return { order: serializeOrder(order.toObject()), quote: serializeQuote(quote.toObject(), { now }) };
 }
 
+/**
+ * Recuperados: what the problem was, how it was turned around and who did it.
+ * `showsTotals: false` (front desk) keeps each order's value but drops sums.
+ */
+async function recoveredReport(shopId, { days = 30, showsTotals = true, now = new Date() } = {}) {
+  const span = [30, 90, 365].includes(Number(days)) ? Number(days) : 30;
+  const since = new Date(now.getTime() - span * DAY);
+  const [won, lost] = await Promise.all([
+    Quote.find({ shopId, stage: 'won', wonAt: { $gte: since } }).sort({ wonAt: -1 }).lean(),
+    Quote.countDocuments({ shopId, stage: 'lost', lostAt: { $gte: since } }),
+  ]);
+  const round = (n) => Math.round(n * 100) / 100;
+  const valueOf = (q) => Number(q.recovery?.value) || Number(q.value) || 0;
+  const peopleOf = (q) => {
+    if (q.recovery?.people?.length) return q.recovery.people;
+    const last = (q.activity || []).filter((a) => a.kind === 'won').pop();
+    return last?.byName ? [last.byName] : [];
+  };
+
+  const reasons = new Map();
+  const hows = new Map();
+  const people = new Map();
+  let value = 0;
+  let contacts = 0;
+  let peopleSum = 0;
+  for (const q of won) {
+    const v = valueOf(q);
+    value += v;
+    contacts += Number(q.recovery?.contacts ?? q.contactCount) || 0;
+    const who = peopleOf(q);
+    peopleSum += who.length;
+
+    const reason = q.recovery?.realReason || normalizeReason(q.reason) || 'none';
+    const how = q.recovery?.how || 'unknown';
+    const r = reasons.get(reason) || { reason, count: 0, hows: new Map() };
+    r.count += 1;
+    r.hows.set(how, (r.hows.get(how) || 0) + 1);
+    reasons.set(reason, r);
+
+    const h = hows.get(how) || { how, count: 0, value: 0 };
+    h.count += 1;
+    h.value += v;
+    hows.set(how, h);
+
+    for (const name of who) {
+      const p = people.get(name) || { name, count: 0, value: 0 };
+      p.count += 1;
+      p.value += v;
+      people.set(name, p);
+    }
+  }
+
+  const howLabel = (how) => RECOVERY_HOW_LABEL[how] || 'Sem registro';
+  const money = (n) => (showsTotals ? round(n) : 0);
+  const count = won.length;
+  return {
+    days: span,
+    showsTotals,
+    summary: {
+      count,
+      value: money(value),
+      rate: count + lost ? Math.round((count / (count + lost)) * 100) : 0,
+      avgContacts: count ? Math.round((contacts / count) * 10) / 10 : 0,
+      avgPeople: count ? Math.round((peopleSum / count) * 10) / 10 : 0,
+      lost,
+    },
+    byReason: [...reasons.values()]
+      .sort((a, b) => b.count - a.count)
+      .map((r) => {
+        const list = [...r.hows.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([how, n]) => ({ how, label: howLabel(how), count: n }));
+        return {
+          reason: r.reason,
+          label: REASON_LABEL[r.reason] || 'Sem motivo',
+          count: r.count,
+          topHow: list[0]?.how || '',
+          topHowLabel: list[0]?.label || '',
+          hows: list,
+        };
+      }),
+    byHow: [...hows.values()]
+      .sort((a, b) => b.count - a.count)
+      .map((h) => ({ how: h.how, label: howLabel(h.how), count: h.count, value: money(h.value) })),
+    byPerson: [...people.values()]
+      .sort((a, b) => b.count - a.count || b.value - a.value)
+      .slice(0, 15)
+      .map((p) => ({ name: p.name, count: p.count, value: money(p.value) })),
+    items: won.slice(0, 100).map((q) => ({
+      id: String(q._id),
+      name: q.name || '',
+      orderCode: q.orderCode || '',
+      wonOrderId: q.wonOrderId ? String(q.wonOrderId) : null,
+      value: round(valueOf(q)),
+      reasonLabel: REASON_LABEL[q.recovery?.realReason || normalizeReason(q.reason)] || '',
+      howLabel: q.recovery?.how ? howLabel(q.recovery.how) : '',
+      note: q.recovery?.note || '',
+      people: peopleOf(q),
+      contacts: Number(q.recovery?.contacts ?? q.contactCount) || 0,
+      byName: q.recovery?.byName || '',
+      at: q.wonAt,
+    })),
+  };
+}
+
 module.exports = {
+  recoveredReport,
   listQuotes,
   getQuote,
   createQuote,

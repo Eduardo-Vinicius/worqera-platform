@@ -16,6 +16,18 @@ const REASON_LABEL = {
   other: 'Outro',
 };
 
+/** How a refused quote was turned around. */
+const RECOVERY_HOW = ['discount', 'deadline', 'new_offer', 'follow_up', 'explained', 'other'];
+
+const RECOVERY_HOW_LABEL = {
+  discount: 'Desconto',
+  deadline: 'Prazo melhor',
+  new_offer: 'Nova proposta',
+  follow_up: 'Insistiu / retornou',
+  explained: 'Explicou o serviço',
+  other: 'Outro',
+};
+
 const REASON_WEIGHT = {
   thinking: 20,
   price: 15,
@@ -139,6 +151,8 @@ module.exports = {
   OPEN_STAGES,
   REASONS,
   REASON_LABEL,
+  RECOVERY_HOW,
+  RECOVERY_HOW_LABEL,
   normalizeStage,
   normalizeReason,
   followUpState,

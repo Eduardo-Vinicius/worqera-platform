@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-25 (Produtos no menu de Configuração; item "Da loja" no pedido; site `/recursos`)
+**Atualizado:** 2026-10-28 ("Aberto por" no pedido e etapas numeradas; Recuperados em Orçamentos e no Financeiro; Métricas → Atendimento; Repor estoque; Conferir prontos)
 
 ## Em uma frase
 
@@ -26,7 +26,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item** |
 | Financeiro `/admin/financeiro` | LIVE (owner/admin; líquido em destaque; produtos só no admin Worqera) |
 | Produtos `/admin/produtos` | LIVE (menu Configuração, dono/admin; pedido com item "Da loja") |
-| Orçamentos `/orcamentos` | LIVE (menu Operação; Ligar hoje · Quadro · Todos; Cliente não fechou no kanban e no pedido) |
+| Orçamentos `/orcamentos` | LIVE (menu Operação; Ligar hoje · Quadro · Todos · Recuperados; "Como recuperou?" ao fechar; Cliente não fechou no kanban e no pedido) |
 | IA Business | LIVE com `OPENAI_API_KEY` (resumo do dia, leitura da semana, texto do cliente, resposta de avaliação, orçamento) |
 | WhatsApp oficial `/settings/empresa` | PRONTO, desligado até `META_*` na API ([setup](../../docs/ops/ia-e-whatsapp-setup.md)) |
 | TV Financeiro `/tv-financeiro` | LIVE (owner/admin; meta 2× YTD) |

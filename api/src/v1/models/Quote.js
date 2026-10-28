@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { STAGES, REASONS } = require('../lib/quotePriority');
+const { STAGES, REASONS, RECOVERY_HOW } = require('../lib/quotePriority');
 
 const activitySchema = new mongoose.Schema(
   {
@@ -38,6 +38,19 @@ const quoteSchema = new mongoose.Schema(
     wonAt: { type: Date, default: null },
     lostAt: { type: Date, default: null },
     wonOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
+    /** How the refusal was turned around — filled in the "Como recuperou?" dialog. */
+    recovery: {
+      how: { type: String, enum: [...RECOVERY_HOW, null], default: null },
+      realReason: { type: String, enum: [...REASONS, null], default: null },
+      note: { type: String, default: '', maxlength: 500 },
+      helperEmployeeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
+      /** Everyone who acted: history authors plus the helpers picked in the dialog. */
+      people: { type: [String], default: [] },
+      contacts: { type: Number, default: 0 },
+      value: { type: Number, default: 0 },
+      at: { type: Date, default: null },
+      byName: { type: String, default: '' },
+    },
     activity: { type: [activitySchema], default: [] },
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
@@ -48,5 +61,6 @@ quoteSchema.index({ shopId: 1, stage: 1, followUpAt: 1 });
 quoteSchema.index({ shopId: 1, createdAt: -1 });
 quoteSchema.index({ shopId: 1, clientId: 1 });
 quoteSchema.index({ shopId: 1, orderId: 1 });
+quoteSchema.index({ shopId: 1, stage: 1, wonAt: -1 });
 
 module.exports = mongoose.models.Quote || mongoose.model('Quote', quoteSchema);

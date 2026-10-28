@@ -191,6 +191,8 @@ export interface Funcionario {
   telefone?: string;
   cargo?: string;
   observacoes?: string;
+  /** Aparece em "Aberto por" no cadastro do pedido. */
+  attends?: boolean;
   ativo: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -301,6 +303,8 @@ export interface MetricsFinanceiro {
   topServicos: MetricsFinanceiroTopServico[];
   evolucaoDiaria: MetricsFinanceiroEvolucaoDiaria[];
   caixaHoje?: MetricsFinanceiroCaixaHoje;
+  /** Pedidos recusados que voltaram por Orçamentos no período. */
+  recovered?: { count: number; value: number };
 }
 
 export interface MetricsFuncionariosPedidos {
@@ -643,6 +647,7 @@ export async function createFuncionarioService(data: {
   telefone?: string;
   cargo?: string;
   observacoes?: string;
+  attends?: boolean;
   ativo?: boolean;
 }) {
   const response = await fetch(`${API_BASE_URL}/employees`, {
@@ -1057,9 +1062,12 @@ export async function updateOrderService(
       expenses?: number;
     };
     sendLaudo?: boolean;
+    /** "Aberto por": employee id; null clears it. */
+    openedByEmployeeId?: string | null;
   }
 ) {
   const body: Record<string, unknown> = {};
+  if (orderData.openedByEmployeeId !== undefined) body.openedByEmployeeId = orderData.openedByEmployeeId;
   if (orderData.modeloTenis != null || orderData.shoeModel != null) {
     body.shoeModel = orderData.shoeModel ?? orderData.modeloTenis;
   }
@@ -1319,6 +1327,8 @@ export async function getPedidosConsultaService(params: {
   trash?: string;
   q?: string;
   payment?: string;
+  recovered?: string;
+  openedBy?: string;
   limit?: number;
   lastKey?: string;
 } = {}, opts: { forceRefresh?: boolean } = {}) {

@@ -9,6 +9,8 @@ const { buildPublicOrderUrl, ensureOrderPublicToken } = require('../utils/public
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STALE_DAYS = 3;
+/** Ready this long: worth checking at the counter whether it already left without being marked. */
+const CHECK_DAYS = 7;
 
 function money(value) {
   const n = Number(value);
@@ -64,7 +66,7 @@ async function listShelf(shopId, { now = new Date() } = {}) {
   const [shop, orders] = await Promise.all([
     Shop.findById(shopId).select('name slug branding').lean(),
     Order.find({ shopId, status: 'ready', deletedAt: null })
-      .select('code clientName clientPhone pricing sectorHistory items.sectorHistory updatedAt publicToken shelfReminder')
+      .select('code clientName clientPhone pricing sectorHistory items.sectorHistory updatedAt publicToken shelfReminder shelfCheck')
       .lean(),
   ]);
   const shopName = shop?.branding?.displayName || shop?.name || 'loja';
@@ -90,6 +92,8 @@ async function listShelf(shopId, { now = new Date() } = {}) {
       total: money(order.pricing?.total),
       reminders: Number(order.shelfReminder?.count) || 0,
       lastReminderAt: order.shelfReminder?.lastAt || null,
+      check: order.shelfCheck?.flaggedAt ? { flaggedAt: order.shelfCheck.flaggedAt, byName: order.shelfCheck.byName || '' } : null,
+      maybeGone: days >= CHECK_DAYS,
       whatsapp: order.clientPhone ? { text, url: buildWaMeUrl(order.clientPhone, text) } : null,
     });
   }
@@ -104,7 +108,9 @@ async function listShelf(shopId, { now = new Date() } = {}) {
       staleCount: stale.length,
       staleToCollect: money(stale.reduce((sum, it) => sum + it.toCollect, 0)),
       oldestDays: items[0]?.days || 0,
+      checkCount: items.filter((it) => it.check || it.maybeGone).length,
     },
+    checkDays: CHECK_DAYS,
     items,
   };
 }
@@ -126,4 +132,39 @@ async function markReminded(shopId, orderId) {
   return { ok: true, reminders: order.shelfReminder.count, lastReminderAt: order.shelfReminder.lastAt };
 }
 
-module.exports = { listShelf, markReminded, readySince, toCollect, STALE_DAYS };
+/** Flag (or unflag) a ready order as "Conferir": maybe it already left the shop. */
+async function setShelfCheck(shopId, orderId, { on = true } = {}, byName = '') {
+  const order = await Order.findOneAndUpdate(
+    { _id: orderId, shopId, status: 'ready', deletedAt: null },
+    { $set: on ? { 'shelfCheck.flaggedAt': new Date(), 'shelfCheck.byName': byName } : { 'shelfCheck.flaggedAt': null, 'shelfCheck.byName': '' } },
+    { new: true }
+  )
+    .select('shelfCheck')
+    .lean();
+  if (!order) {
+    const err = new Error('Só dá para conferir pedido pronto');
+    err.status = 404;
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  return { ok: true, check: order.shelfCheck?.flaggedAt ? { flaggedAt: order.shelfCheck.flaggedAt, byName: order.shelfCheck.byName || '' } : null };
+}
+
+/** Owner brief: ready orders flagged or sitting for a week. */
+async function checkCount(shopId, now = new Date()) {
+  const orders = await Order.find({ shopId, status: 'ready', deletedAt: null })
+    .select('sectorHistory items.sectorHistory updatedAt shelfCheck')
+    .lean();
+  let n = 0;
+  let oldest = 0;
+  for (const o of orders) {
+    const days = Math.floor((now.getTime() - readySince(o).getTime()) / DAY_MS);
+    if (o.shelfCheck?.flaggedAt || days >= CHECK_DAYS) {
+      n += 1;
+      oldest = Math.max(oldest, days);
+    }
+  }
+  return { count: n, oldestDays: oldest };
+}
+
+module.exports = { listShelf, markReminded, setShelfCheck, checkCount, readySince, toCollect, STALE_DAYS, CHECK_DAYS };

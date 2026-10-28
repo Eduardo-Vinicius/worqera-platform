@@ -60,6 +60,7 @@ import { laudoSaveMessage } from "./laudoNotice"
 import { MoneyField } from "./MoneyField"
 import { AccessoryPicker } from "./AccessoryPicker"
 import { BrandField } from "./BrandField"
+import { OpenedByBar, rememberOpenedBy } from "./OpenedByBar"
 
 export type OrderFormMode = "create" | "edit"
 
@@ -142,6 +143,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const openedTotal = useRef(0);
   const laudoAnswer = useRef<boolean | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>("open");
+  const [openedBy, setOpenedBy] = useState<{ id: string | null; name: string }>({ id: null, name: "" })
+  const openedByInitial = useRef<string | null>(null)
+  const [attendantCount, setAttendantCount] = useState(0)
+  const fromQuoteId = useRef<string | null>(null)
   const [formData, setFormData] = useState({
     clientId: "",
     expectedDate: "",
@@ -189,6 +194,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         const order = await getPedidoService(orderId)
         if (cancelled) return
         setOrderStatus(String(order?.status || "open"))
+        const openedId = order?.openedByEmployeeId ? String(order.openedByEmployeeId) : null
+        openedByInitial.current = openedId
+        setOpenedBy({ id: openedId, name: String(order?.openedByName || "") })
         setFormData({
           clientId: String(order?.clientId || order?.clienteId || ""),
           expectedDate: order?.dueAt
@@ -339,6 +347,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     const prefillName = params.get("clientName") || ""
     const prefillPhone = params.get("clientPhone") || ""
     const prefillObs = params.get("obs") || ""
+    fromQuoteId.current = params.get("fromQuote") || null
     if (prefillObs) setFormData((prev) => ({ ...prev, observations: prev.observations || prefillObs }))
     if (prefillId) {
       setFormData((prev) => ({ ...prev, clientId: prefillId }))
@@ -923,6 +932,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
+    if (!isEdit && attendantCount > 0 && !openedBy.id) {
+      newErrors.openedBy = "Marque quem abriu o pedido"
+    }
+
     if (!formData.clientId || (!selectedClient && !clientNameOverride)) {
       newErrors.clientId = "Cliente é obrigatório"
     }
@@ -995,6 +1008,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       acessorios: selectedAccessories,
       garantia: garantiaData,
       pricing,
+      ...(openedBy.id !== openedByInitial.current ? { openedByEmployeeId: openedBy.id } : {}),
     })
 
     let fresh = await getPedidoService(orderId)
@@ -1194,6 +1208,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         prioridade: Number(prioridade),
         garantia: garantiaData,
         acessorios: selectedAccessories,
+        openedByEmployeeId: openedBy.id,
+        ...(fromQuoteId.current ? { fromQuoteId: fromQuoteId.current } : {}),
         // v1 business status (not sector/column name — that lives in currentSectorId)
         status: "open",
         photoCounts: filledItems.map(
@@ -1202,6 +1218,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       };
 
       const createdPedidoResponse = await createPedidoService(payload);
+      rememberOpenedBy(openedBy.id)
 
       const itemsWithPhotos = filledItems
         .map((item, index) => ({
@@ -1313,6 +1330,13 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       : catalog
     return list.slice(0, 8)
   })()
+  const showProducts = catalog.length > 0 || stockIndexes.length > 0
+  const stepTitles = ["Cliente", "Item", ...(showProducts ? ["Produtos da loja"] : []), "Pagamento"]
+  const stepOf = (title: string) => String(stepTitles.indexOf(title) + 1)
+  const stockUnits = stockLines.reduce((sum, line) => sum + Math.max(1, Number(line.item.quantity) || 1), 0)
+  const stockCounter = stockUnits
+    ? `${stockUnits} ${stockUnits === 1 ? "item" : "itens"} · ${formatBRL(stockTotal)}`
+    : "Nenhum"
   const itemsServicesTotal = servicesSum(items)
   const remaining = Math.max(0, totalPrice - signalValue)
   const createReview = summarizeCreateReview(items)
@@ -1360,7 +1384,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         subtitle={
           isEdit
             ? "Altere cliente, itens, partida e pagamento"
-            : "1 Cliente · 2 Item · 3 Pagamento"
+            : stepTitles.map((title, index) => `${index + 1} ${title}`).join(" · ")
         }
         actions={
           <Button asChild variant="outline" size="sm" className="h-9 rounded-[10px]">
@@ -1373,10 +1397,26 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
             <div className="space-y-6 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 sm:space-y-8 sm:p-5 md:p-6">
+              <OpenedByBar
+                value={openedBy.id}
+                currentName={openedBy.name}
+                preselect={!isEdit}
+                error={errors.openedBy}
+                onLoaded={setAttendantCount}
+                onChange={(id, name) => {
+                  setOpenedBy({ id, name })
+                  setErrors((prev) => {
+                    if (!prev.openedBy) return prev
+                    const next = { ...prev }
+                    delete next.openedBy
+                    return next
+                  })
+                }}
+              />
               {/* Block 1 — Cliente */}
               <section className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <StepHeading step="1" title="Cliente" hint="Nome e telefone. E-mail só se for enviar o laudo." />
+                  <StepHeading step={stepOf("Cliente")} title="Cliente" hint="Nome e telefone. E-mail só se for enviar o laudo." />
                   <button
                     type="button"
                     className="shrink-0 pt-1 text-sm font-medium text-[var(--wq-brand-text)] underline-offset-2 hover:underline"
@@ -1538,7 +1578,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               {/* Block 2 — Itens */}
               <section id="wq-item-block" className="scroll-mt-24 space-y-3 border-t border-[var(--wq-border)] pt-6 sm:space-y-4">
                 <div className="flex items-start justify-between gap-2">
-                  <StepHeading step="2" title="Item" hint="Marca, modelo, serviços, setores e fotos." />
+                  <StepHeading step={stepOf("Item")} title="Item" hint="Marca, modelo, serviços, setores e fotos." />
                   <Button
                     type="button"
                     variant="outline"
@@ -1831,21 +1871,25 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 })()}
               </section>
 
-              {catalog.length > 0 || stockIndexes.length > 0 ? (
+              {showProducts ? (
                 <section className="space-y-3 border-t border-[var(--wq-border)] pt-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="flex items-center gap-1.5 text-sm font-semibold text-[var(--wq-text)]">
-                        <ShoppingBag className="h-4 w-4 text-[var(--wq-brand-text)]" />
-                        Produtos da loja
-                      </p>
-                      <p className="text-xs text-[var(--wq-text-muted)]">
-                        Vendeu algo junto? Cadarço, palmilha, produto de limpeza. Entra no mesmo pedido e no mesmo total.
-                      </p>
-                    </div>
-                    {stockLines.length ? (
-                      <p className="shrink-0 text-sm font-semibold tabular-nums text-[var(--wq-text)]">{formatBRL(stockTotal)}</p>
-                    ) : null}
+                    <StepHeading
+                      step={stepOf("Produtos da loja")}
+                      title="Produtos da loja"
+                      hint="Vendeu algo junto? Cadarço, palmilha, produto de limpeza. Entra no mesmo pedido e no mesmo total."
+                    />
+                    <span
+                      className={
+                        stockUnits
+                          ? "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--wq-brand)] px-2.5 py-1 text-xs font-semibold tabular-nums text-white"
+                          : "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--wq-border)] px-2.5 py-1 text-xs text-[var(--wq-text-muted)]"
+                      }
+                      aria-live="polite"
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                      {stockCounter}
+                    </span>
                   </div>
 
                   <div className="relative">
@@ -2020,7 +2064,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               </section>
 
               <section className="space-y-4 border-t border-[var(--wq-border)] pt-6">
-                <StepHeading step="3" title="Pagamento" hint="Prazo, sinal e garantia. O total sai dos serviços." />
+                <StepHeading step={stepOf("Pagamento")} title="Pagamento" hint="Prazo, sinal e garantia. O total sai dos serviços." />
 
                 {counterSale ? (
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--wq-action)]/40 bg-[var(--wq-action)]/5 p-3">
@@ -2306,6 +2350,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               <div className="sticky top-20 space-y-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-[var(--wq-text-muted)]">Resumo</p>
                 <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--wq-text-muted)]">Aberto por</span>
+                    <span className={openedBy.name ? "truncate font-semibold" : "text-[var(--wq-text-muted)]"}>
+                      {openedBy.name || (attendantCount > 0 ? "Marque acima" : "—")}
+                    </span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-[var(--wq-text-muted)]">Total</span>
                     <span className="font-semibold">{totalPrice > 0.009 ? `R$ ${getTotalPrice().toFixed(2)}` : "A definir"}</span>
@@ -2319,9 +2369,15 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <span className="font-semibold">R$ {remaining.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--wq-text-muted)]">Itens</span>
-                    <span className="font-semibold">{items.length}</span>
+                    <span className="text-[var(--wq-text-muted)]">Itens do cliente</span>
+                    <span className="font-semibold">{clientIndexes.length}</span>
                   </div>
+                  {showProducts ? (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[var(--wq-text-muted)]">Produtos da loja</span>
+                      <span className={stockUnits ? "font-semibold tabular-nums" : "text-[var(--wq-text-muted)]"}>{stockCounter}</span>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="pt-1">{renderSubmitButton()}</div>
               </div>
@@ -2335,8 +2391,10 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   Total R$ {getTotalPrice().toFixed(2)} · Sinal R$ {signalValue.toFixed(2)}
                 </p>
                 <p className="truncate">
-                  Restante R$ {remaining.toFixed(2)} · {items.length}{" "}
-                  {items.length === 1 ? "item" : "itens"}
+                  Restante R$ {remaining.toFixed(2)} · {clientIndexes.length}{" "}
+                  {clientIndexes.length === 1 ? "item" : "itens"}
+                  {stockUnits ? ` · ${stockUnits} ${stockUnits === 1 ? "produto" : "produtos"}` : ""}
+                  {openedBy.name ? ` · ${openedBy.name}` : ""}
                 </p>
               </div>
               <div className="w-full sm:w-auto sm:shrink-0 [&_button]:h-11 [&_button]:w-full sm:[&_button]:w-auto">
@@ -2394,6 +2452,12 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 text-sm">
+                {openedBy.name ? (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[var(--wq-text-muted)]">Aberto por</span>
+                    <span className="font-medium">{openedBy.name}</span>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-xs text-[var(--wq-text-muted)]">Cliente</p>
                   <p className="font-medium text-[var(--wq-text)]">{confirmClientName || "—"}</p>
@@ -2416,7 +2480,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                   ))}
                   {createReview.products.length ? (
                     <div className="rounded-xl border border-[var(--wq-border)] px-3 py-2">
-                      <p className="text-xs text-[var(--wq-text-muted)]">Produtos da loja</p>
+                      <p className="text-xs text-[var(--wq-text-muted)]">Produtos da loja · {stockCounter}</p>
                       {createReview.products.map((product, index) => (
                         <p key={`${product.label}-${index}`} className="flex justify-between gap-3">
                           <span className="font-medium text-[var(--wq-text)]">

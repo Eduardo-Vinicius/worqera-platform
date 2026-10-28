@@ -234,6 +234,7 @@ export function adaptEmployee(raw: any) {
     telefone: raw.phone || raw.telefone || null,
     active: raw.active !== false && raw.ativo !== false,
     ativo: raw.active !== false && raw.ativo !== false,
+    setorId: String(raw.setorId || raw.sectorId || ""),
   };
 }
 

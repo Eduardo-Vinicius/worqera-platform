@@ -83,6 +83,52 @@ const OCTOBER_TEMPLATE: ReleaseTemplate = {
   ],
 }
 
+const RECOVERY_TEMPLATE: ReleaseTemplate = {
+  id: "recuperacao",
+  label: "Aberto por, recuperados e repor estoque",
+  title: "Agora dá para medir quem atende, quem recupera e o que falta",
+  body:
+    "Quem abriu cada pedido, como cada cliente que recusou voltou, quanto isso rendeu no Financeiro, a nota do atendimento e o aviso para pedir o solado antes de acabar. São 6 passos rápidos.",
+  steps: [
+    {
+      title: "Aberto por, logo no topo do pedido",
+      body: "Toque no nome de quem está atendendo. O último já vem marcado no aparelho, então quase sempre é zero toque. Produtos da loja virou a etapa 3, com o número de itens à vista. Cadastre quem atende em Funcionários → Atende no balcão.",
+      href: "/pedidos/novo",
+      cta: "Fazer um pedido",
+    },
+    {
+      title: "Recuperou? Conte como",
+      body: "Ao marcar Recuperado em Orçamentos, diga o problema de verdade, como reverteu (desconto, prazo, nova proposta…) e quem ajudou. O pedido volta para a fila com o selo Recuperado no kanban.",
+      href: "/orcamentos",
+      cta: "Abrir Orçamentos",
+    },
+    {
+      title: "Recuperados: o que funciona",
+      body: "A nova aba mostra a taxa de recuperação, quantos contatos até fechar, quantas pessoas atuaram, o que mais reverte cada motivo e quem mais recupera. No Financeiro, o card Recuperado soma os tênis que voltaram no período.",
+      href: "/orcamentos?view=recovered",
+      cta: "Ver Recuperados",
+    },
+    {
+      title: "Como foi o atendimento?",
+      body: "Na página do pedido, o cliente dá estrelas para o atendimento e vê quem o atendeu. Em Métricas → Atendimento: pedidos, vendido, ticket e nota de cada pessoa. Em Avaliações, filtre por quem atendeu.",
+      href: "/admin/metrics",
+      cta: "Ver Atendimento",
+    },
+    {
+      title: "Solado que demora? O sistema lembra",
+      body: "Em Produtos, informe o prazo do fornecedor (ex.: 35 dias). Pelo que sai por dia, a Worqera avisa a hora de pedir antes de acabar. Marque Pedi ao fornecedor e, quando chegar, Chegou: o estoque soma sozinho.",
+      href: "/admin/produtos#repor",
+      cta: "Abrir Repor estoque",
+    },
+    {
+      title: "Pronto antigo? Confira e finalize",
+      body: "Na prateleira da Visão geral, pedidos prontos há uma semana aparecem para conferir: talvez já tenham saído. Marque Conferir ou toque em Já entregue e diga se recebeu o saldo.",
+      href: "/dashboard#prateleira",
+      cta: "Ver a prateleira",
+    },
+  ],
+}
+
 const KANBAN_TEMPLATE: ReleaseTemplate = {
   id: "kanban",
   label: "Kanban turbinado e R$ em jogo",
@@ -256,7 +302,7 @@ const QUOTES_TEMPLATE: ReleaseTemplate = {
   ],
 }
 
-const RELEASE_TEMPLATES: ReleaseTemplate[] = [OCTOBER_TEMPLATE, KANBAN_TEMPLATE, PRODUCTS_TEMPLATE, WEEK_TEMPLATE, QUOTES_TEMPLATE]
+const RELEASE_TEMPLATES: ReleaseTemplate[] = [RECOVERY_TEMPLATE, OCTOBER_TEMPLATE, KANBAN_TEMPLATE, PRODUCTS_TEMPLATE, WEEK_TEMPLATE, QUOTES_TEMPLATE]
 
 function formatWhen(value?: string | null) {
   if (!value) return ""

@@ -22,6 +22,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  Flag,
   History,
   KanbanSquare,
   Mail,
@@ -55,7 +56,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1, resendOrderEmailV1 } from "@/lib/apiV1"
+import { addOrderCommentV1, deleteOrderV1, getKanbanV1, getShopCurrentV1, moveKanbanOrderItemV1, moveKanbanOrderV1, resendOrderEmailV1, setShelfCheckV1, listAttendantsV1, type Attendant } from "@/lib/apiV1"
 import {
   getPedidoService,
   generateOrderPDFService,
@@ -107,6 +108,8 @@ type OrderCard = {
   plannedSectorIds?: string[]
   currentSectorId?: string
   reopened?: boolean
+  recovered?: boolean
+  shelfCheck?: boolean
   feedbackScore?: number | null
   status?: string
   itemInTerminal?: boolean
@@ -174,6 +177,10 @@ type DetailOrder = {
   dueAt?: string
   notes?: string
   status?: string
+  openedByName?: string
+  openedByEmployeeId?: string | null
+  recovered?: { how?: string | null; byName?: string } | null
+  shelfCheck?: { flaggedAt: string; byName: string } | null
   comments?: Array<{
     id?: string
     text?: string
@@ -632,6 +639,17 @@ function KanbanCardBody({
               Reaberto
             </Badge>
           )}
+          {order.recovered && (
+            <Badge className="border-0 bg-emerald-100 text-[10px] font-semibold text-emerald-900" title="Cliente tinha recusado e voltou">
+              Recuperado
+            </Badge>
+          )}
+          {order.shelfCheck && (
+            <Badge className="border-0 bg-sky-100 text-[10px] font-semibold text-sky-900" title="Conferir se já foi entregue">
+              <Flag className="mr-0.5 h-2.5 w-2.5" />
+              Conferir
+            </Badge>
+          )}
           {order.hasPhotos === false && (
             <Badge className="border-0 bg-amber-100 text-[10px] font-semibold text-amber-900">
               Sem foto
@@ -933,6 +951,26 @@ export default function KanbanPage() {
   const [closedView, setClosedView] = useState<ClosedKind | null>(null)
   const isSectorRole = membershipRole === "sector"
   const closed = useClosedOrders(closedRefresh, Boolean(membershipRole) && !isSectorRole)
+  const [attendants, setAttendants] = useState<Attendant[]>([])
+  const [openedBySaving, setOpenedBySaving] = useState(false)
+  useEffect(() => {
+    if (!membershipRole || isSectorRole) return
+    listAttendantsV1().then(setAttendants).catch(() => setAttendants([]))
+  }, [membershipRole, isSectorRole])
+  const pickOpenedBy = async (employeeId: string) => {
+    if (!detail?.id) return
+    setOpenedBySaving(true)
+    try {
+      await updateOrderService(String(detail.id), { openedByEmployeeId: employeeId })
+      const name = attendants.find((a) => a.id === employeeId)?.name || ""
+      setDetail((prev) => (prev ? { ...prev, openedByEmployeeId: employeeId, openedByName: name } : prev))
+      toast.success(`Aberto por ${name}`)
+    } catch (err: any) {
+      toast.error(err?.message || "Não salvou quem abriu")
+    } finally {
+      setOpenedBySaving(false)
+    }
+  }
   const moneyTone = moneyVisibility(membershipRole)
   // Soma da coluna fica oculta por ora, inclusive para admin e dono.
   const showColumnMoney = false
@@ -1985,6 +2023,18 @@ export default function KanbanPage() {
                 sectorName={sectorNameById.get(detailCurrentSectorId) || ""}
                 statusLabel={detail.status ? DETAIL_STATUS_LABEL[detail.status] || detail.status : ""}
                 dueAt={detail.dueAt || null}
+                openedByName={detail.openedByName || ""}
+                openedByPicker={
+                  !isSectorRole && attendants.length
+                    ? {
+                        value: detail.openedByEmployeeId ? String(detail.openedByEmployeeId) : null,
+                        options: attendants,
+                        saving: openedBySaving,
+                        onPick: (id) => void pickOpenedBy(id),
+                      }
+                    : null
+                }
+                recovered={detail.recovered || null}
                 itemCount={(detail.items || []).length}
                 money={{
                   visible: moneyTone !== "hidden",
@@ -2185,6 +2235,27 @@ export default function KanbanPage() {
                     ) : null}
                     <DetailSection title="Mais ações" icon={Zap}>
                     <div className="grid grid-cols-2 gap-2">
+                      {detail.status === "ready" && !isSectorRole && detail.id ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className={cn("col-span-2 rounded-[10px]", detail.shelfCheck && "border-sky-600 bg-sky-50 text-sky-900")}
+                          onClick={async () => {
+                            try {
+                              const res = await setShelfCheckV1(String(detail.id), !detail.shelfCheck)
+                              setDetail((prev) => (prev ? { ...prev, shelfCheck: res.check } : prev))
+                              toast.message(res.check ? "Marcado para conferir: talvez já tenha saído" : "Conferido: segue na prateleira")
+                              void load()
+                            } catch (err: any) {
+                              toast.error(err?.message || "Não marcou")
+                            }
+                          }}
+                        >
+                          <Flag className="mr-1.5 h-3.5 w-3.5" />
+                          {detail.shelfCheck ? "Conferido, ainda está aqui" : "Conferir: será que já saiu?"}
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         size="sm"

@@ -14,6 +14,7 @@ router.get('/export.csv', ...guard, requireRole('owner'), orderController.export
 router.get('/export', ...guard, requireRole('owner'), orderController.exportCsv);
 router.get('/shelf', ...guard, requireRole('owner'), orderController.shelf);
 router.post('/:id/shelf-remind', ...guard, requireRole('owner'), orderController.shelfRemind);
+router.post('/:id/shelf-check', ...guard, requireRole('owner', 'admin', 'atendimento'), orderController.shelfCheck);
 router.post(
   '/demo',
   ...guard,

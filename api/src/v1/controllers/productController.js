@@ -52,6 +52,27 @@ exports.report = wrap(async (req, res) => {
   res.status(200).send(csv);
 });
 
+const restock = () => require('../services/restockService');
+
+exports.restock = wrap(async (req, res) => {
+  res.status(200).json(await restock().restockReport(req.shopId));
+});
+
+exports.restockOrder = wrap(async (req, res) => {
+  const product = await restock().orderRestock(req.shopId, req.params.id, req.body || {}, req.auth?.userId);
+  res.status(200).json({ product });
+});
+
+exports.restockArrived = wrap(async (req, res) => {
+  const product = await restock().restockArrived(req.shopId, req.params.id, req.body || {}, req.auth?.userId);
+  res.status(200).json({ product });
+});
+
+exports.restockCancel = wrap(async (req, res) => {
+  const product = await restock().cancelRestock(req.shopId, req.params.id);
+  res.status(200).json({ product });
+});
+
 exports.summary = wrap(async (req, res) => {
   const summary = await productService.financeSnapshot(req.shopId);
   res.status(200).json({ summary });

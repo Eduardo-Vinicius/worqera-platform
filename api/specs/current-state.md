@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-10-24 (IA e WhatsApp oficial no Business; orçamentos; planos Basic 97 · Pro 197 · Business 697, fundador 499)
+**Atualizado:** 2026-10-28 ("Aberto por" e métricas de atendimento; recuperação de orçamento com análise; repor estoque com prazo do fornecedor; conferir prontos)
 
 ## Em uma frase
 
@@ -16,10 +16,10 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Platform | `/platform/shops` list/get/patch (suspend, +trial) |
 | Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |
 | Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready. Com `photoCounts`, o e-mail espera o upload de cada item |
-| Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary) |
-| Services / clients / employees | CRUD |
-| Products | `/products` CRUD, ajuste e `/products/summary`. Dono e admin da oficina. Item `origin=stock` reserva, baixa na entrega e estorna no cancelamento |
-| Quotes | `/quotes` funil (novo, contato, retorno, recuperado, perdido) + `POST /orders/:id/refuse-quote`. Prioridade no servidor; texto de WhatsApp por modelo ou IA (`OPENAI_API_KEY`) |
+| Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary, `serviceAvg`, `?openedBy=`) |
+| Services / clients / employees | CRUD. Funcionário `attends` = aparece em "Aberto por" (`Order.openedByEmployeeId/openedByName`); `GET /metrics/attendance` |
+| Products | `/products` CRUD, ajuste e `/products/summary`. Dono e admin da oficina. Item `origin=stock` reserva, baixa na entrega e estorna no cancelamento. `leadTimeDays` + `/products/restock` (hora de pedir, a caminho, atrasado) |
+| Quotes | `/quotes` funil (novo, contato, retorno, recuperado, perdido) + `POST /orders/:id/refuse-quote`. Prioridade no servidor; texto de WhatsApp por modelo ou IA (`OPENAI_API_KEY`). `win` grava `recovery` e `Order.recovered`; `GET /quotes/recovered` |
 | IA | `aiService` (chave, modelo, custo, `AiUsage`, teto) + `/dashboard/brief`, `/metrics/insights`, `customer-summary`, `reply-suggest`. Só Business |
 | WhatsApp oficial | `/whatsapp`, `/webhooks/whatsapp`, `WhatsAppMessage`. Inerte sem `META_*`. Ver [ia-e-whatsapp-setup](../../docs/ops/ia-e-whatsapp-setup.md) |
 | Billing | `/billing/*` + webhook HMAC. Catálogo Basic 9700 · Pro 19700 · Business 69700 centavos (fundador 49900 por 12 meses). Criar pedido no `WORQERA_BASIC` recusa a partir do 101º do mês (America/Sao_Paulo) |

@@ -6,7 +6,7 @@ import { Download, Star } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { API_V1, feedbackExportCsvUrl, listFeedbackV1 } from "@/lib/apiV1"
+import { API_V1, feedbackExportCsvUrl, listAttendantsV1, listFeedbackV1, type Attendant } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 import { ReviewReply } from "@/components/ai/ReviewReply"
 import { toast } from "sonner"
@@ -45,6 +45,12 @@ export default function AvaliacoesPage() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [data, setData] = useState<Awaited<ReturnType<typeof listFeedbackV1>> | null>(null)
+  const [attendants, setAttendants] = useState<Attendant[]>([])
+  const [openedBy, setOpenedBy] = useState("")
+
+  useEffect(() => {
+    listAttendantsV1().then(setAttendants).catch(() => setAttendants([]))
+  }, [])
 
   const scoreParam = scoreFilter === "all" ? undefined : scoreFilter
 
@@ -56,6 +62,7 @@ export default function AvaliacoesPage() {
         page,
         limit: 30,
         score: scoreParam,
+        openedBy: openedBy || undefined,
       })
       setData(res)
     } catch (err: any) {
@@ -64,7 +71,7 @@ export default function AvaliacoesPage() {
     } finally {
       setLoading(false)
     }
-  }, [period, page, scoreParam])
+  }, [period, page, scoreParam, openedBy])
 
   useEffect(() => {
     void load()
@@ -178,6 +185,26 @@ export default function AvaliacoesPage() {
           ))}
         </div>
 
+        {attendants.length ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">Atendido por</span>
+            {[{ id: "", name: "Todos" }, ...attendants].map((a) => (
+              <Button
+                key={a.id || "all"}
+                size="sm"
+                variant={openedBy === a.id ? "default" : "outline"}
+                className="h-8 rounded-full"
+                onClick={() => {
+                  setPage(1)
+                  setOpenedBy(a.id)
+                }}
+              >
+                {a.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+
         {loading && !data ? (
           <p className="text-sm text-[var(--wq-text-muted)]">Carregando…</p>
         ) : null}
@@ -199,6 +226,13 @@ export default function AvaliacoesPage() {
                   </p>
                 </div>
               </div>
+              <p className="mt-3 text-sm text-[var(--wq-text-muted)]">
+                Atendimento:{" "}
+                <span className="font-semibold text-[var(--wq-text)]">
+                  {summary.serviceAvg != null ? `${summary.serviceAvg.toFixed(1)}★` : "—"}
+                </span>
+                {summary.serviceCount ? ` · ${summary.serviceCount} nota${summary.serviceCount === 1 ? "" : "s"}` : " · ainda sem notas"}
+              </p>
               {summary.topTags?.length ? (
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {summary.topTags.map((t) => (
@@ -274,6 +308,12 @@ export default function AvaliacoesPage() {
                     </div>
                     <p className="mt-1 truncate text-sm text-[var(--wq-text)]">
                       {f.clientName || "Cliente"}
+                      {f.openedByName ? (
+                        <span className="text-[var(--wq-text-muted)]"> · atendido por {f.openedByName}</span>
+                      ) : null}
+                      {f.serviceScore ? (
+                        <span className="text-[var(--wq-text-muted)]"> · atendimento {f.serviceScore}★</span>
+                      ) : null}
                     </p>
                   </div>
                   {f.createdAt ? (

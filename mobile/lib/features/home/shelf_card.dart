@@ -51,6 +51,48 @@ class _ShelfCardState extends State<ShelfCard> {
     }
   }
 
+  Future<void> toggleCheck(Map item) async {
+    final on = item['check'] == null;
+    try {
+      final res = await widget.api.dio.post('/orders/${item['id']}/shelf-check', data: {'on': on});
+      final body = Map<String, dynamic>.from(res.data as Map);
+      if (!mounted) return;
+      setState(() => item['check'] = body['check']);
+      wqToast(context, on ? '#${item['code']} marcado para conferir no balcão' : '#${item['code']} conferido: segue aqui');
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    }
+  }
+
+  Future<void> deliver(Map item) async {
+    final due = ((item['toCollect'] as num?) ?? 0).toDouble();
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('#${item['code']} já foi entregue?'),
+        content: Text(due > 0 ? 'Faltava receber ${brl(due)}. O cliente pagou?' : 'O pedido sai da prateleira e vai para Entregues.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Ainda está aqui')),
+          if (due > 0) TextButton(onPressed: () => Navigator.pop(ctx, 'unpaid'), child: const Text('Sem pagar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'paid'), child: Text(due > 0 ? 'Recebi' : 'Finalizar')),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    try {
+      await widget.api.dio.patch('/orders/${item['id']}', data: {
+        'status': 'delivered',
+        'deliveredAt': DateTime.now().toUtc().toIso8601String(),
+        if (choice == 'paid' && due > 0) 'pricing': {'deposit': item['total'], 'remaining': 0},
+      });
+      if (!mounted) return;
+      wqToast(context, choice == 'paid' ? '#${item['code']} finalizado como entregue' : '#${item['code']} entregue · ${brl(due)} em Entregue sem pagar');
+      await load();
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    }
+  }
+
   String daysLabel(int days) {
     if (days <= 0) return 'pronto hoje';
     if (days == 1) return 'há 1 dia';
@@ -95,6 +137,18 @@ class _ShelfCardState extends State<ShelfCard> {
                 Text('NA PRATELEIRA · SÓ VOCÊ VÊ', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted)),
                 const SizedBox(height: 4),
                 Text(headline, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: context.wqInk)),
+                if (((summary['checkCount'] as num?) ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(children: [
+                      const Icon(Icons.flag_outlined, size: 15, color: Color(0xFF0284C7)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text('${summary['checkCount']} para conferir: talvez já tenham saído',
+                            style: const TextStyle(color: Color(0xFF0369A1), fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ]),
+                  ),
               ]),
             ),
           ]),
@@ -120,7 +174,12 @@ class _ShelfCardState extends State<ShelfCard> {
         for (final item in visible)
           ListTile(
             dense: true,
-            title: Text('#${item['code']} · ${'${item['clientName'] ?? ''}'.isEmpty ? 'Cliente' : item['clientName']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+            title: Row(children: [
+              Expanded(
+                child: Text('#${item['code']} · ${'${item['clientName'] ?? ''}'.isEmpty ? 'Cliente' : item['clientName']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              if (item['check'] != null) const Icon(Icons.flag, size: 15, color: Color(0xFF0284C7)),
+            ]),
             subtitle: Text(
               [
                 daysLabel((item['days'] as num?)?.toInt() ?? 0),
@@ -129,13 +188,20 @@ class _ShelfCardState extends State<ShelfCard> {
               ].join(' · '),
               style: TextStyle(color: item['stale'] == true ? const Color(0xFFB45309) : context.wqMuted, fontSize: 12),
             ),
-            trailing: item['whatsapp'] is Map
-                ? TextButton.icon(
-                    onPressed: () => remind(item),
-                    icon: const Icon(Icons.chat_outlined, size: 16),
-                    label: Text(((item['reminders'] as num?) ?? 0) > 0 ? 'De novo' : 'Lembrar'),
-                  )
-                : Text('sem telefone', style: TextStyle(fontSize: 11, color: context.wqMuted)),
+            trailing: PopupMenuButton<String>(
+              tooltip: 'Ações',
+              onSelected: (value) {
+                if (value == 'remind') remind(item);
+                if (value == 'check') toggleCheck(item);
+                if (value == 'deliver') deliver(item);
+              },
+              itemBuilder: (_) => [
+                if (item['whatsapp'] is Map)
+                  PopupMenuItem(value: 'remind', child: Text(((item['reminders'] as num?) ?? 0) > 0 ? 'Lembrar de novo' : 'Lembrar no WhatsApp')),
+                PopupMenuItem(value: 'check', child: Text(item['check'] == null ? 'Conferir: será que já saiu?' : 'Conferido, ainda está aqui')),
+                const PopupMenuItem(value: 'deliver', child: Text('Já entregue')),
+              ],
+            ),
           ),
         if (items.length > 3)
           TextButton(

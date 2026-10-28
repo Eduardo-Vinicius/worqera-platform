@@ -11,6 +11,7 @@ const guard = [...base, requireRole('owner', 'admin', 'atendimento')];
 
 router.get('/', ...guard, quoteController.list);
 router.post('/', ...guard, quoteController.create);
+router.get('/recovered', ...guard, quoteController.recovered);
 router.get('/:id', ...guard, quoteController.get);
 router.patch('/:id', ...guard, quoteController.patch);
 router.post('/:id/activity', ...guard, quoteController.activity);

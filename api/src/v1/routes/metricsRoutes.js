@@ -11,6 +11,7 @@ const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin'
 router.get('/departments', ...guard, metricsController.departments);
 router.get('/employees', ...guard, metricsController.employees);
 router.get('/employees/performance', ...guard, metricsController.employeePerformance);
+router.get('/attendance', ...guard, metricsController.attendance);
 router.get('/delays', ...guard, metricsController.delays);
 router.get('/summary', ...guard, metricsController.summary);
 router.get('/finance', ...guard, metricsController.finance);

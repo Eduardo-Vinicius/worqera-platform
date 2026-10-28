@@ -4,6 +4,7 @@ import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import 'restock_card.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key, required this.api});
@@ -20,6 +21,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   final description = TextEditingController();
   final onHand = TextEditingController(text: '0');
   final minQty = TextEditingController(text: '0');
+  final leadTime = TextEditingController();
+  int restockKey = 0;
   final variantsText = TextEditingController();
   final delta = TextEditingController(text: '1');
   final reason = TextEditingController();
@@ -47,6 +50,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     description.dispose();
     onHand.dispose();
     minQty.dispose();
+    leadTime.dispose();
     variantsText.dispose();
     delta.dispose();
     reason.dispose();
@@ -71,6 +75,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         products = _rows(res.data, 'products');
         error = null;
         loading = false;
+        restockKey++;
       });
     } catch (err) {
       if (!mounted) return;
@@ -108,6 +113,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         'trackStock': trackStock,
         'onHand': trackStock ? int.tryParse(onHand.text) ?? 0 : 0,
         'minQty': int.tryParse(minQty.text) ?? 0,
+        'leadTimeDays': int.tryParse(leadTime.text) ?? 0,
         'variants': variants,
       });
       name.clear();
@@ -116,6 +122,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       price.text = '0';
       onHand.text = '0';
       variantsText.clear();
+      leadTime.clear();
       await load();
       if (mounted) wqToast(context, 'Produto cadastrado');
     } catch (err) {
@@ -213,6 +220,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+                RestockCard(api: widget.api, refreshKey: restockKey, onChanged: () async {
+                  final res = await widget.api.dio.get('/products');
+                  if (mounted) setState(() => products = _rows(res.data, 'products'));
+                }),
                 WqCard(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     const Text('Novo produto', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -226,6 +237,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(controller: price, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Preço')),
                     TextField(controller: sku, decoration: const InputDecoration(labelText: 'SKU')),
                     TextField(controller: minQty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Mínimo')),
+                    TextField(
+                      controller: leadTime,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Prazo do fornecedor (dias)', helperText: 'Ex.: solado 35. Avisa a hora de pedir antes de acabar.'),
+                    ),
                     TextField(controller: description, decoration: const InputDecoration(labelText: 'Descrição')),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
@@ -268,7 +284,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Text(
                               product['trackStock'] == false
                                   ? '${brl(product['price'])} · sob encomenda'
-                                  : '${brl(product['price'])} · ${product['available'] ?? 0} disponível · ${product['reserved'] ?? 0} reservado${product['low'] == true ? ' · abaixo do mínimo' : ''}',
+                                  : '${brl(product['price'])} · ${product['available'] ?? 0} disponível · ${product['reserved'] ?? 0} reservado${product['low'] == true ? ' · abaixo do mínimo' : ''}${(product['leadTimeDays'] ?? 0) != 0 ? ' · fornecedor ${product['leadTimeDays']} dias' : ''}${product['restock'] is Map ? ' · a caminho' : ''}',
                               style: const TextStyle(color: Wq.muted, fontSize: 12),
                             ),
                           ]),

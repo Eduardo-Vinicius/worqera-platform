@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BadgeDollarSign,
   CalendarClock,
+  Flag,
   Flame,
   Lightbulb,
   Loader2,
@@ -16,6 +17,7 @@ import {
   Sparkles,
   Tag,
   Timer,
+  Truck,
   Warehouse,
   type LucideIcon,
 } from "lucide-react"
@@ -33,6 +35,8 @@ const ACTION_ICON: Record<string, LucideIcon> = {
   tomorrow: CalendarClock,
   today: Timer,
   urgent: Flame,
+  check: Flag,
+  restock: Truck,
 }
 
 type Chip = { label: string; value: number; href: string; tone: "" | "ok" | "warn" | "brand" }

@@ -444,7 +444,21 @@ async function getFinance(shopId, filters = {}) {
     topServices: buildTopServicos(filtrados, Number(filters.servicesLimit || filters.limitServicos) || 10),
     dailyEvolution: buildEvolucaoDiaria(filtrados),
     today: buildCaixaHoje(orders),
+    recovered: buildRecovered(orders, periodo),
   };
+}
+
+/** "Tênis recuperado": refused orders that came back through Orçamentos in the period. */
+function buildRecovered(orders, periodo) {
+  let count = 0;
+  let value = 0;
+  for (const o of orders) {
+    if (o.deletedAt || o.status === 'cancelled') continue;
+    if (!isInsidePeriod(parseData(o.recovered?.at), periodo)) continue;
+    count += 1;
+    value += orderTotal(o);
+  }
+  return { count, value: Math.round(value * 100) / 100 };
 }
 
 async function getEmployeePerformance(shopId, limit = DEFAULT_FUNC_LIMIT, filters = {}) {
@@ -500,7 +514,112 @@ async function getOverview(shopId, options = {}) {
   return { summary, delays, finance, employees };
 }
 
+/**
+ * Atendimento: per person who opened orders ("Aberto por") — orders, value sold,
+ * average ticket, the client's attendance score and quotes they helped recover.
+ * Orders without "Aberto por" are grouped as "Não informado".
+ */
+async function getAttendance(shopId, filters = {}) {
+  const periodo = resolvePeriodo(filters);
+  const Quote = require('../models/Quote');
+  const [orders, quotes, employees] = await Promise.all([
+    Order.find({ shopId, deletedAt: null, createdAt: { $gte: periodo.start, $lte: periodo.end } })
+      .select('openedByEmployeeId openedByName status pricing feedback')
+      .lean(),
+    Quote.find({ shopId, stage: 'won', wonAt: { $gte: periodo.start, $lte: periodo.end } }).select('recovery').lean(),
+    Employee.find({ shopId, attends: true }).select('name active').lean(),
+  ]);
+
+  const rows = new Map();
+  const row = (key, name) => {
+    if (!rows.has(key)) {
+      rows.set(key, { employeeId: key === 'none' ? null : key, name, orders: 0, sold: 0, soldCount: 0, delivered: 0, cancelled: 0, scoreSum: 0, scoreCount: 0, recoveries: 0 });
+    }
+    return rows.get(key);
+  };
+  for (const e of employees) if (e.active !== false) row(String(e._id), e.name);
+
+  for (const o of orders) {
+    const key = o.openedByEmployeeId ? String(o.openedByEmployeeId) : 'none';
+    const r = row(key, o.openedByName || (key === 'none' ? 'Não informado' : 'Ex-funcionário'));
+    r.orders += 1;
+    if (o.status === 'cancelled') r.cancelled += 1;
+    else {
+      r.sold += orderTotal(o);
+      r.soldCount += 1;
+    }
+    if (o.status === 'delivered') r.delivered += 1;
+    const s = Number(o.feedback?.serviceScore);
+    if (s >= 1 && s <= 5) {
+      r.scoreSum += s;
+      r.scoreCount += 1;
+    }
+  }
+
+  const byName = new Map([...rows.values()].map((r) => [r.name.trim().toLowerCase(), r]));
+  for (const q of quotes) {
+    for (const name of q.recovery?.people || []) {
+      const r = byName.get(String(name).trim().toLowerCase());
+      if (r) r.recoveries += 1;
+    }
+  }
+
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const list = [...rows.values()]
+    .map((r) => ({
+      employeeId: r.employeeId,
+      name: r.name,
+      orders: r.orders,
+      delivered: r.delivered,
+      cancelled: r.cancelled,
+      sold: round2(r.sold),
+      ticket: r.soldCount ? round2(r.sold / r.soldCount) : 0,
+      serviceScore: r.scoreCount ? Math.round((r.scoreSum / r.scoreCount) * 10) / 10 : null,
+      serviceScoreCount: r.scoreCount,
+      recoveries: r.recoveries,
+    }))
+    .filter((r) => r.orders > 0 || r.employeeId)
+    .sort((a, b) => (a.employeeId === null) - (b.employeeId === null) || b.orders - a.orders || b.sold - a.sold);
+
+  const informed = orders.filter((o) => o.openedByEmployeeId).length;
+  const scored = orders.filter((o) => Number(o.feedback?.serviceScore) >= 1);
+  // Orders still in the shop without "Aberto por": the admin can fix them from the report.
+  const missing = await Order.find({
+    shopId,
+    deletedAt: null,
+    openedByEmployeeId: null,
+    status: { $in: ['open', 'in_progress', 'ready'] },
+  })
+    .sort({ createdAt: -1 })
+    .limit(40)
+    .select('code clientName status createdAt')
+    .lean();
+  return {
+    period: periodInfo(periodo),
+    totals: {
+      orders: orders.length,
+      informed,
+      coverage: orders.length ? Math.round((informed / orders.length) * 100) : 0,
+      attendants: employees.filter((e) => e.active !== false).length,
+      serviceScore: scored.length
+        ? Math.round((scored.reduce((sum, o) => sum + Number(o.feedback.serviceScore), 0) / scored.length) * 10) / 10
+        : null,
+      serviceScoreCount: scored.length,
+      recoveries: quotes.length,
+    },
+    rows: list,
+    missing: missing.map((o) => ({
+      id: String(o._id),
+      code: o.code,
+      clientName: o.clientName || '',
+      status: o.status,
+      createdAt: o.createdAt,
+    })),
+  };
+}
+
 module.exports = {
+  getAttendance,
   getDepartmentDistribution,
   getEmployeeDistribution,
   getDelays,

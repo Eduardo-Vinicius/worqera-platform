@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { formatBRL } from "@/lib/orderMoney"
 import { cn } from "@/lib/utils"
+import { RECOVERY_HOW_LABEL } from "@/lib/recovery"
 
 export type HeaderMoveTarget = { id: string; name: string; current: boolean; terminal?: boolean }
 
@@ -17,6 +18,15 @@ export type OrderDetailHeaderProps = {
   sectorName?: string
   statusLabel?: string
   dueAt?: string | null
+  openedByName?: string
+  /** When set, "Aberto por" becomes a picker (fix current orders in one tap). */
+  openedByPicker?: {
+    value: string | null
+    options: Array<{ id: string; name: string }>
+    saving: boolean
+    onPick: (id: string) => void
+  } | null
+  recovered?: { how?: string | null; byName?: string } | null
   itemCount: number
   money: { visible: boolean; total: number; remaining: number }
   contact: {
@@ -67,7 +77,48 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold tracking-tight">{props.clientName || "Cliente"}</h2>
-          <p className="font-mono text-sm text-[var(--wq-text-muted)]">#{props.code}</p>
+          <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-sm text-[var(--wq-text-muted)]">
+            #{props.code}
+            {props.openedByPicker && props.openedByPicker.options.length ? (
+              <label
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-sans text-xs",
+                  props.openedByPicker.value
+                    ? "border-[var(--wq-border)]"
+                    : "border-amber-300 bg-amber-50 font-semibold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                )}
+              >
+                {props.openedByPicker.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                Aberto por
+                <select
+                  className="max-w-[140px] bg-transparent font-semibold text-[var(--wq-text)] outline-none"
+                  value={props.openedByPicker.value || ""}
+                  disabled={props.openedByPicker.saving}
+                  onChange={(e) => e.target.value && props.openedByPicker?.onPick(e.target.value)}
+                  aria-label="Quem abriu o pedido"
+                >
+                  {!props.openedByPicker.value ? <option value="">quem? ▾</option> : null}
+                  {props.openedByPicker.value && !props.openedByPicker.options.some((o) => o.id === props.openedByPicker?.value) ? (
+                    <option value={props.openedByPicker.value}>{props.openedByName || "—"}</option>
+                  ) : null}
+                  {props.openedByPicker.options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : props.openedByName ? (
+              <span className="font-sans">· Aberto por {props.openedByName}</span>
+            ) : null}
+          </p>
+          {props.recovered ? (
+            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+              Recuperado
+              {props.recovered.how ? ` · ${RECOVERY_HOW_LABEL[props.recovered.how] || props.recovered.how}` : ""}
+              {props.recovered.byName ? ` · ${props.recovered.byName}` : ""}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"

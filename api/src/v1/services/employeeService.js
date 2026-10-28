@@ -5,7 +5,12 @@ async function listEmployees(shopId, query = {}) {
   if (query.sectorId) filter.sectorId = query.sectorId;
   if (query.active === 'true' || query.active === true) filter.active = true;
   else if (query.active === 'false' || query.active === false) filter.active = false;
+  if (query.attends === 'true' || query.attends === true) filter.attends = true;
   return Employee.find(filter).sort({ name: 1 }).lean();
+}
+
+function text(value, max) {
+  return String(value ?? '').trim().slice(0, max);
 }
 
 async function getEmployee(shopId, id) {
@@ -26,6 +31,9 @@ async function createEmployee(shopId, data) {
     sectorId: data.sectorId || data.setorId || null,
     phone: data.phone || data.telefone || null,
     email: data.email || null,
+    cargo: text(data.cargo, 80),
+    notes: text(data.notes ?? data.observacoes, 500),
+    attends: data.attends != null ? Boolean(data.attends) : Boolean(data.atende),
     active: data.active != null ? Boolean(data.active) : data.ativo != null ? Boolean(data.ativo) : true,
   });
   return employee.toObject();
@@ -47,6 +55,11 @@ async function patchEmployee(shopId, id, updates) {
     employee.phone = updates.phone || updates.telefone;
   }
   if (updates.email != null) employee.email = updates.email;
+  if (updates.cargo != null) employee.cargo = text(updates.cargo, 80);
+  if (updates.notes != null || updates.observacoes != null) employee.notes = text(updates.notes ?? updates.observacoes, 500);
+  if (updates.attends != null || updates.atende != null) {
+    employee.attends = Boolean(updates.attends != null ? updates.attends : updates.atende);
+  }
   if (updates.active != null || updates.ativo != null) {
     employee.active = updates.active != null ? Boolean(updates.active) : Boolean(updates.ativo);
   }

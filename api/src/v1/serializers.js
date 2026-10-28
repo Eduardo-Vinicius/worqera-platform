@@ -152,6 +152,19 @@ function serializeOrder(order, { hidePrices = false } = {}) {
     clientId,
     client: order.clientId && typeof order.clientId === 'object' ? serializeClient(order.clientId) : undefined,
     assigneeEmployeeId: order.assigneeEmployeeId || null,
+    openedByEmployeeId: order.openedByEmployeeId ? String(order.openedByEmployeeId) : null,
+    openedByName: order.openedByName || '',
+    recovered: order.recovered?.at
+      ? {
+          quoteId: order.recovered.quoteId ? String(order.recovered.quoteId) : null,
+          at: order.recovered.at,
+          how: order.recovered.how || null,
+          byName: order.recovered.byName || '',
+        }
+      : null,
+    shelfCheck: order.shelfCheck?.flaggedAt
+      ? { flaggedAt: order.shelfCheck.flaggedAt, byName: order.shelfCheck.byName || '' }
+      : null,
     priority: order.priority || null,
     notes: order.notes || null,
     comments: Array.isArray(order.comments)
@@ -198,6 +211,7 @@ function serializeOrder(order, { hidePrices = false } = {}) {
     feedback: order.feedback?.score
       ? {
           score: order.feedback.score,
+          serviceScore: order.feedback.serviceScore || null,
           comment: order.feedback.comment || '',
           tags: Array.isArray(order.feedback.tags) ? order.feedback.tags : [],
           createdAt: order.feedback.createdAt || null,
@@ -216,6 +230,9 @@ function serializeEmployee(employee) {
     name: employee.name,
     phone: employee.phone || null,
     email: employee.email || null,
+    cargo: employee.cargo || '',
+    observacoes: employee.notes || '',
+    attends: employee.attends === true,
     active: employee.active !== false,
     sectorId: employee.sectorId || null,
     sectorIds: employee.sectorId ? [employee.sectorId] : employee.sectorIds || [],

@@ -10,12 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { getPedidosConsultaService } from "@/lib/apiService"
-import { createDemoOrderV1, deleteOrderV1, exportOrdersCsvV1, listSectorsV1, purgeOrderV1, restoreOrderV1 } from "@/lib/apiV1"
+import { createDemoOrderV1, deleteOrderV1, exportOrdersCsvV1, listAttendantsV1, listSectorsV1, purgeOrderV1, restoreOrderV1, type Attendant } from "@/lib/apiV1"
 import { toast } from "sonner"
 import { pairCount } from "@/lib/utils"
 import { formatBRL, moneyVisibility, readOrderPricing, type MoneyVisibility } from "@/lib/orderMoney"
 
-type StatusTab = "ativos" | "a_pagar" | "entregue_aberto" | "finalizados" | "recusados" | "todos" | "lixeira"
+type StatusTab = "ativos" | "a_pagar" | "entregue_aberto" | "finalizados" | "recusados" | "recuperados" | "todos" | "lixeira"
 
 const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   ativos: "open,in_progress,ready",
@@ -23,6 +23,7 @@ const STATUS_FILTER: Record<StatusTab, string | undefined> = {
   entregue_aberto: "delivered",
   finalizados: "delivered",
   recusados: "cancelled",
+  recuperados: undefined,
   todos: undefined,
   lixeira: undefined,
 }
@@ -71,6 +72,8 @@ export default function PedidosPage() {
   const [dataInicio, setDataInicio] = useState("")
   const [dataFim, setDataFim] = useState("")
   const [tab, setTab] = useState<StatusTab>("ativos")
+  const [openedBy, setOpenedBy] = useState("")
+  const [attendants, setAttendants] = useState<Attendant[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const [nextToken, setNextToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -92,6 +95,7 @@ export default function PedidosPage() {
     setIsOwner(role === "owner")
     setCanPurge(role === "owner" || role === "admin")
     setMoneyTone(moneyVisibility(role))
+    if (role !== "sector") listAttendantsV1().then(setAttendants).catch(() => setAttendants([]))
   }, [])
 
   const createDemo = async () => {
@@ -151,7 +155,7 @@ export default function PedidosPage() {
   }, [])
 
   const runSearch = useCallback(
-    async (overrides?: { q?: string; tab?: StatusTab; append?: boolean; cursor?: string | null }) => {
+    async (overrides?: { q?: string; tab?: StatusTab; append?: boolean; cursor?: string | null; openedBy?: string }) => {
       const append = Boolean(overrides?.append)
       if (append) setLoadingMore(true)
       else setLoading(true)
@@ -165,6 +169,8 @@ export default function PedidosPage() {
           status: statusTab === "lixeira" ? undefined : STATUS_FILTER[statusTab],
           payment: PAYMENT_FILTER[statusTab],
           deleted: statusTab === "lixeira" ? "1" : undefined,
+          recovered: statusTab === "recuperados" ? "1" : undefined,
+          openedBy: (overrides?.openedBy ?? openedBy) || undefined,
           lastKey: overrides?.cursor || undefined,
         }
         if (term) {
@@ -184,24 +190,28 @@ export default function PedidosPage() {
         setLoadingMore(false)
       }
     },
-    [q, tab, dataInicio, dataFim]
+    [q, tab, dataInicio, dataFim, openedBy]
   )
 
   useEffect(() => {
     let startTab: StatusTab = "ativos"
     let startQ = ""
+    let startOpenedBy = ""
     try {
       const params = new URLSearchParams(window.location.search)
       startQ = params.get("q")?.trim() || ""
+      startOpenedBy = params.get("openedBy")?.trim() || ""
       const tabParam = params.get("tab") as StatusTab | null
       if (tabParam && tabParam in STATUS_FILTER) startTab = tabParam
       else if (params.get("refused") === "1") startTab = "recusados"
+      else if (params.get("recovered") === "1") startTab = "recuperados"
       else if (params.get("status") === "delivered") startTab = "finalizados"
       else if (startQ) startTab = "todos"
     } catch {}
     if (startQ) setQ(startQ)
+    if (startOpenedBy) setOpenedBy(startOpenedBy)
     setTab(startTab)
-    runSearch({ tab: startTab, q: startQ })
+    runSearch({ tab: startTab, q: startQ, openedBy: startOpenedBy })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -268,6 +278,7 @@ export default function PedidosPage() {
                   ] as const)),
               ["finalizados", "Finalizados"],
               ["recusados", "Recusados"],
+              ["recuperados", "Recuperados"],
               ["todos", "Todos"],
               ["lixeira", "Lixeira"],
             ] as const
@@ -311,6 +322,27 @@ export default function PedidosPage() {
             {loading ? "…" : "Buscar"}
           </Button>
         </div>
+
+        {attendants.length ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">Aberto por</span>
+            {[{ id: "", name: "Todos" }, ...attendants].map((a) => (
+              <Button
+                key={a.id || "all"}
+                type="button"
+                size="sm"
+                variant={openedBy === a.id ? "default" : "outline"}
+                className={`h-8 rounded-full ${openedBy === a.id ? "bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90" : ""}`}
+                onClick={() => {
+                  setOpenedBy(a.id)
+                  runSearch({ openedBy: a.id })
+                }}
+              >
+                {a.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="grid min-w-0 grid-cols-2 gap-2">
           <div className="min-w-0 space-y-1">
@@ -441,6 +473,7 @@ export default function PedidosPage() {
                             order.clientName || order.client?.name,
                             order.shoeModel || order.modeloTenis,
                             created,
+                            order.openedByName ? `aberto por ${order.openedByName}` : "",
                           ]
                             .filter(Boolean)
                             .join(" · ")}

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Shop = require('../models/Shop');
 const Membership = require('../models/Membership');
@@ -406,6 +407,8 @@ function buildFeedbackFilter(shopId, opts = {}) {
     shopId,
     'feedback.score': scores ? { $in: scores } : { $gte: 1 },
   };
+  const openedBy = String(opts.openedBy || '').trim();
+  if (openedBy && mongoose.isValidObjectId(openedBy)) filter.openedByEmployeeId = new mongoose.Types.ObjectId(openedBy);
   if (period === '30d') {
     filter['feedback.createdAt'] = { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) };
   } else if (period !== 'all') {
@@ -428,6 +431,8 @@ async function listFeedback(shopId, opts = {}) {
           _id: null,
           count: { $sum: 1 },
           sum: { $sum: '$feedback.score' },
+          serviceSum: { $sum: { $ifNull: ['$feedback.serviceScore', 0] } },
+          serviceCount: { $sum: { $cond: [{ $gte: ['$feedback.serviceScore', 1] }, 1, 0] } },
           s1: { $sum: { $cond: [{ $eq: ['$feedback.score', 1] }, 1, 0] } },
           s2: { $sum: { $cond: [{ $eq: ['$feedback.score', 2] }, 1, 0] } },
           s3: { $sum: { $cond: [{ $eq: ['$feedback.score', 3] }, 1, 0] } },
@@ -441,7 +446,7 @@ async function listFeedback(shopId, opts = {}) {
       .sort({ 'feedback.createdAt': -1 })
       .skip(skip)
       .limit(limit)
-      .select('code clientName status feedback')
+      .select('code clientName status feedback openedByName')
       .lean(),
     Order.countDocuments(filter),
   ]);
@@ -470,13 +475,15 @@ async function listFeedback(shopId, opts = {}) {
     .slice(0, 8)
     .map(([tag, n]) => ({ tag, count: n }));
 
+  const serviceCount = row?.serviceCount || 0;
+  const serviceAvg = serviceCount ? Math.round((row.serviceSum / serviceCount) * 10) / 10 : null;
   return {
     period,
     scores: scores || null,
     page,
     limit,
     total,
-    summary: { avg, count, distribution, topTags },
+    summary: { avg, count, distribution, topTags, serviceAvg, serviceCount },
     items: items.map((o) => ({
       id: String(o._id),
       code: o.code,
@@ -484,6 +491,8 @@ async function listFeedback(shopId, opts = {}) {
       clientPhone: o.clientPhone || '',
       status: o.status,
       score: o.feedback?.score,
+      serviceScore: o.feedback?.serviceScore || null,
+      openedByName: o.openedByName || '',
       comment: o.feedback?.comment || '',
       tags: Array.isArray(o.feedback?.tags) ? o.feedback.tags : [],
       createdAt: o.feedback?.createdAt || null,

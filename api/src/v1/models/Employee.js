@@ -7,6 +7,10 @@ const employeeSchema = new mongoose.Schema(
     sectorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sector', default: null },
     phone: { type: String, default: null },
     email: { type: String, default: null },
+    cargo: { type: String, default: '', trim: true, maxlength: 80 },
+    notes: { type: String, default: '', trim: true, maxlength: 500 },
+    /** Shows up in "Aberto por" on the order form. */
+    attends: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }

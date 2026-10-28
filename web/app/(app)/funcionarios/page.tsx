@@ -21,6 +21,7 @@ interface FuncionarioFormState {
   telefone: string
   cargo: string
   observacoes: string
+  attends: boolean
   ativo: boolean
 }
 
@@ -31,6 +32,7 @@ const EMPTY_FORM: FuncionarioFormState = {
   telefone: "",
   cargo: "",
   observacoes: "",
+  attends: false,
   ativo: true,
 }
 
@@ -94,7 +96,7 @@ export default function FuncionariosPage() {
       toast.error("Informe o nome do funcionário")
       return
     }
-    if (!form.setorId) {
+    if (!form.setorId && !form.attends) {
       toast.error("Selecione o setor")
       return
     }
@@ -125,6 +127,7 @@ export default function FuncionariosPage() {
       telefone: func.telefone || "",
       cargo: func.cargo || "",
       observacoes: func.observacoes || "",
+      attends: func.attends === true,
       ativo: typeof func.ativo === "boolean" ? func.ativo : true,
     })
     setEditingId(func.id)
@@ -252,6 +255,21 @@ export default function FuncionariosPage() {
                 </div>
               </div>
 
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)] px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-[var(--wq-brand)]"
+                  checked={form.attends}
+                  onChange={(e) => setForm((prev) => ({ ...prev, attends: e.target.checked }))}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-[var(--wq-text)]">Atende no balcão</span>
+                  <span className="block text-xs text-[var(--wq-text-muted)]">
+                    Aparece em &quot;Aberto por&quot; no cadastro do pedido e entra nas métricas de atendimento. Setor é opcional.
+                  </span>
+                </span>
+              </label>
+
               <div className="space-y-2">
                 <Label htmlFor="observacoes">Observações</Label>
                 <Textarea
@@ -344,10 +362,15 @@ export default function FuncionariosPage() {
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900">{func.nome}</div>
                           {func.cargo && <div className="text-sm text-slate-600">{func.cargo}</div>}
+                          {func.attends ? (
+                            <Badge className="mt-1 border-0 bg-[var(--wq-brand-soft)] text-[10px] font-semibold text-[var(--wq-brand-text)]">
+                              Atende no balcão
+                            </Badge>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
-                            {setorNames[func.setorId] || func.setorId}
+                            {setorNames[func.setorId] || func.setorId || "—"}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">

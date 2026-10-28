@@ -172,6 +172,13 @@ exports.shelfRemind = wrap(async (req, res) => {
   res.status(200).json(await markReminded(req.shopId, req.params.id));
 });
 
+exports.shelfCheck = wrap(async (req, res) => {
+  const { setShelfCheck } = require('../services/shelfService');
+  const user = await require('../models/User').findById(req.auth?.userId).select('name email').lean();
+  const on = req.body?.on !== false;
+  res.status(200).json(await setShelfCheck(req.shopId, req.params.id, { on }, user?.name || user?.email || ''));
+});
+
 exports.restore = wrap(async (req, res) => {
   const order = await orderService.restoreOrder(req.shopId, req.params.id, req.auth.userId);
   res.status(200).json(presentOrder(req, order));
@@ -312,6 +319,7 @@ exports.publicByToken = wrap(async (req, res) => {
 exports.publicFeedbackByToken = wrap(async (req, res) => {
   const result = await orderService.submitPublicFeedbackByToken(req.params.token, {
     score: req.body?.score,
+    serviceScore: req.body?.serviceScore,
     comment: req.body?.comment,
     tags: req.body?.tags,
   });
@@ -332,6 +340,7 @@ exports.publicFeedback = wrap(async (req, res) => {
     shopSlug,
     token,
     score: req.body?.score,
+    serviceScore: req.body?.serviceScore,
     comment: req.body?.comment,
     tags: req.body?.tags,
   });

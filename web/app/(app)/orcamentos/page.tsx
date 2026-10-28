@@ -15,6 +15,7 @@ import {
   Search,
   Sparkles,
   TrendingUp,
+  Trophy,
   Wallet,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -27,6 +28,7 @@ import {
   patchQuoteV1,
   suggestQuoteMessageV1,
   winQuoteV1,
+  type RecoveryInput,
   type Quote,
   type QuoteStage,
   type QuoteSummary,
@@ -35,6 +37,8 @@ import { cn } from "@/lib/utils"
 import { NewQuoteDialog } from "@/components/quotes/NewQuoteDialog"
 import { QuoteDrawer, prefillOrderHref } from "@/components/quotes/QuoteDrawer"
 import { QuoteBoard } from "@/components/quotes/QuoteBoard"
+import { RecoveryDialog } from "@/components/quotes/RecoveryDialog"
+import { RecoveredView } from "@/components/quotes/RecoveredView"
 import {
   STAGES,
   STAGE_LABEL,
@@ -49,12 +53,13 @@ import {
   waLink,
 } from "@/components/quotes/quoteUi"
 
-type View = "today" | "board" | "all"
+type View = "today" | "board" | "all" | "recovered"
 
 const VIEWS: Array<{ id: View; label: string; icon: typeof List }> = [
   { id: "today", label: "Ligar hoje", icon: PhoneCall },
   { id: "board", label: "Quadro", icon: KanbanSquare },
   { id: "all", label: "Todos", icon: List },
+  { id: "recovered", label: "Recuperados", icon: Trophy },
 ]
 
 export default function OrcamentosPage() {
@@ -67,9 +72,10 @@ export default function OrcamentosPage() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [busyId, setBusyId] = useState("")
+  const [winning, setWinning] = useState<Quote | null>(null)
   const loadSeq = useRef(0)
 
-  const load = useCallback(async (nextView: View, term: string) => {
+  const load = useCallback(async (nextView: Exclude<View, "recovered">, term: string) => {
     const seq = ++loadSeq.current
     setLoading(true)
     try {
@@ -93,11 +99,12 @@ export default function OrcamentosPage() {
   }, [])
 
   useEffect(() => {
+    if (view === "recovered") return
     const handle = window.setTimeout(() => void load(view, query), query ? 250 : 0)
     return () => window.clearTimeout(handle)
   }, [view, query, load])
 
-  const refresh = () => void load(view, query)
+  const refresh = () => void load(view === "recovered" ? "all" : view, query)
 
   const upsert = (q: Quote) => {
     setQuotes((prev) => {
@@ -152,16 +159,20 @@ export default function OrcamentosPage() {
     })
   }
 
-  const win = (q: Quote) => {
+  /** Asks "Como recuperou?" first; the dialog calls confirmWin. */
+  const win = (q: Quote) => setWinning(q)
+
+  const confirmWin = (q: Quote, input: RecoveryInput) => {
     void quick(q, "win", async () => {
-      const res = await winQuoteV1(q.id)
+      const res = await winQuoteV1(q.id, input)
+      setWinning(null)
       if (res.order) {
         toast.success(`Recuperado! #${res.order.code} voltou para a fila`, {
           action: { label: "Ver no kanban", onClick: () => router.push("/kanban") },
         })
       } else if (res.prefill) {
         toast.success("Recuperado! Abra o pedido com os dados do cliente")
-        router.push(prefillOrderHref(res.prefill))
+        router.push(prefillOrderHref({ ...res.prefill, quoteId: q.id }))
       }
       return res.quote
     })
@@ -194,7 +205,7 @@ export default function OrcamentosPage() {
       />
 
       <div className="mx-auto w-full max-w-[1600px] space-y-5 px-2.5 py-4 sm:px-5 md:px-6 lg:px-8">
-        <SummaryStrip summary={summary} onToday={() => setView("today")} />
+        <SummaryStrip summary={summary} onToday={() => setView("today")} onRecovered={() => setView("recovered")} />
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="inline-flex w-full rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 md:w-auto">
@@ -229,7 +240,7 @@ export default function OrcamentosPage() {
               )
             })}
           </div>
-          <div className="relative w-full md:max-w-sm">
+          <div className={cn("relative w-full md:max-w-sm", view === "recovered" && "hidden")}>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
             <Input
               value={query}
@@ -240,7 +251,9 @@ export default function OrcamentosPage() {
           </div>
         </div>
 
-        {loading && !quotes.length ? (
+        {view === "recovered" ? (
+          <RecoveredView onOpen={setOpenId} />
+        ) : loading && !quotes.length ? (
           <div className="flex items-center justify-center py-20 text-sm text-[var(--wq-text-muted)]">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando orçamentos
           </div>
@@ -299,11 +312,26 @@ export default function OrcamentosPage() {
           refresh()
         }}
       />
+      <RecoveryDialog
+        quote={winning}
+        open={Boolean(winning)}
+        busy={Boolean(winning) && busyId === `${winning?.id}:win`}
+        onClose={() => setWinning(null)}
+        onConfirm={(input) => winning && confirmWin(winning, input)}
+      />
     </div>
   )
 }
 
-function SummaryStrip({ summary, onToday }: { summary: QuoteSummary | null; onToday: () => void }) {
+function SummaryStrip({
+  summary,
+  onToday,
+  onRecovered,
+}: {
+  summary: QuoteSummary | null
+  onToday: () => void
+  onRecovered: () => void
+}) {
   const cards = [
     {
       key: "today",
@@ -329,6 +357,7 @@ function SummaryStrip({ summary, onToday }: { summary: QuoteSummary | null; onTo
       hint: summary ? `${summary.wonCount30d} cliente${summary.wonCount30d === 1 ? "" : "s"} voltou` : "",
       icon: TrendingUp,
       tone: "text-emerald-600 dark:text-emerald-400",
+      onClick: onRecovered,
     },
     {
       key: "rate",

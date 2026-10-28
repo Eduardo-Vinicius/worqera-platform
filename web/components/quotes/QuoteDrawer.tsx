@@ -28,6 +28,7 @@ import {
   sendQuoteWhatsAppV1,
   suggestQuoteMessageV1,
   winQuoteV1,
+  type RecoveryInput,
   type AiQuota,
   type Quote,
   type QuoteActivity,
@@ -37,6 +38,7 @@ import {
 import { cn } from "@/lib/utils"
 import { FollowUpPicker, ReasonPicker } from "./ReasonPicker"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
+import { RecoveryDialog } from "./RecoveryDialog"
 import {
   PRIORITY_LABEL,
   STAGES,
@@ -66,8 +68,9 @@ const ACTIVITY_ICON: Record<QuoteActivity["kind"], typeof Phone> = {
   reply: MessageCircle,
 }
 
-export function prefillOrderHref(prefill: { clientId: string | null; name: string; phone: string; what: string }) {
+export function prefillOrderHref(prefill: { clientId: string | null; name: string; phone: string; what: string; quoteId?: string }) {
   const qs = new URLSearchParams()
+  if (prefill.quoteId) qs.set("fromQuote", prefill.quoteId)
   if (prefill.clientId) qs.set("clientId", prefill.clientId)
   if (prefill.name) qs.set("clientName", prefill.name)
   if (prefill.phone) qs.set("clientPhone", prefill.phone)
@@ -96,6 +99,7 @@ export function QuoteDrawer({
   const [editReason, setEditReason] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
   const [official, setOfficial] = useState(false)
+  const [recoverOpen, setRecoverOpen] = useState(false)
 
   useEffect(() => {
     const role = String(localStorage.getItem("role") || "").toLowerCase()
@@ -161,24 +165,29 @@ export function QuoteDrawer({
   const setStage = (stage: QuoteStage) =>
     run(`stage-${stage}`, async () => {
       if (!quote || quote.stage === stage) return
-      if (stage === "won") return win()
+      if (stage === "won") {
+        setRecoverOpen(true)
+        return
+      }
       const res = await patchQuoteV1(quote.id, { stage })
       apply(res.quote)
     })
 
-  const win = async () => {
-    if (!quote) return
-    const res = await winQuoteV1(quote.id)
-    apply(res.quote)
-    if (res.order) {
-      toast.success(`Recuperado! #${res.order.code} voltou para a fila`, {
-        action: { label: "Ver no kanban", onClick: () => router.push("/kanban") },
-      })
-    } else if (res.prefill) {
-      toast.success("Recuperado! Abra o pedido com os dados do cliente")
-      router.push(prefillOrderHref(res.prefill))
-    }
-  }
+  const win = (input: RecoveryInput) =>
+    run("win", async () => {
+      if (!quote) return
+      const res = await winQuoteV1(quote.id, input)
+      setRecoverOpen(false)
+      apply(res.quote)
+      if (res.order) {
+        toast.success(`Recuperado! #${res.order.code} voltou para a fila`, {
+          action: { label: "Ver no kanban", onClick: () => router.push("/kanban") },
+        })
+      } else if (res.prefill) {
+        toast.success("Recuperado! Abra o pedido com os dados do cliente")
+        router.push(prefillOrderHref({ ...res.prefill, quoteId: quote.id }))
+      }
+    })
 
   const logContact = (kind: "call" | "whatsapp", text?: string) =>
     addQuoteActivityV1(quote!.id, { kind, text }).then((res) => apply(res.quote))
@@ -328,14 +337,36 @@ export function QuoteDrawer({
                 <Button
                   type="button"
                   className="h-11 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-                  disabled={busy === "stage-won" || quote.stage === "won"}
-                  onClick={() => void run("stage-won", win)}
+                  disabled={busy === "win" || quote.stage === "won"}
+                  onClick={() => setRecoverOpen(true)}
                 >
-                  {busy === "stage-won" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trophy className="mr-1.5 h-4 w-4" />}
+                  {busy === "win" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trophy className="mr-1.5 h-4 w-4" />}
                   Fechou
                 </Button>
               </div>
+              {quote.recovery ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <p className="font-semibold">
+                    Recuperado{quote.recovery.howLabel ? ` com ${quote.recovery.howLabel.toLowerCase()}` : ""}
+                    {quote.recovery.realReasonLabel ? ` · problema: ${quote.recovery.realReasonLabel.toLowerCase()}` : ""}
+                  </p>
+                  <p className="text-xs opacity-80">
+                    {quote.recovery.contacts} contato{quote.recovery.contacts === 1 ? "" : "s"}
+                    {quote.recovery.people.length
+                      ? ` · ${quote.recovery.people.length} pessoa${quote.recovery.people.length === 1 ? "" : "s"}: ${quote.recovery.people.join(", ")}`
+                      : ""}
+                  </p>
+                  {quote.recovery.note ? <p className="mt-1 text-xs">{quote.recovery.note}</p> : null}
+                </div>
+              ) : null}
             </header>
+            <RecoveryDialog
+              quote={quote}
+              open={recoverOpen}
+              busy={busy === "win"}
+              onClose={() => setRecoverOpen(false)}
+              onConfirm={(input) => void win(input)}
+            />
 
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
               <section>

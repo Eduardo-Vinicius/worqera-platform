@@ -24,8 +24,11 @@ import {
   listPlatformShopsV1,
   listProductsV1,
   meV1,
+  patchProductV1,
   productMovementsV1,
+  type ProductRestock,
 } from "@/lib/apiV1"
+import { RestockCard } from "@/components/products/RestockCard"
 
 type Variant = { id?: string; name: string; price: number | null; available?: number; onHand: number }
 type Product = {
@@ -40,6 +43,8 @@ type Product = {
   onHand?: number
   reserved?: number
   low?: boolean
+  leadTimeDays?: number
+  restock?: ProductRestock | null
   variants?: Variant[]
 }
 type DraftVariant = { name: string; onHand: string; price: string }
@@ -63,6 +68,7 @@ const emptyDraft = () => ({
   trackStock: true,
   onHand: "0",
   minQty: "0",
+  leadTimeDays: "",
   variants: [] as DraftVariant[],
 })
 
@@ -81,11 +87,25 @@ export default function ProductsAdminPage() {
   const [delta, setDelta] = useState("1")
   const [reason, setReason] = useState("")
   const [variantId, setVariantId] = useState("")
+  const [leadEdit, setLeadEdit] = useState("")
+  const [restockKey, setRestockKey] = useState(0)
   const [moves, setMoves] = useState<Array<{ id: string; type: string; quantity: number; reason: string; orderCode?: string; createdAt?: string; variantName?: string }>>([])
 
   const load = async () => {
     const res = await listProductsV1()
     setProducts(res.products || [])
+    setRestockKey((k) => k + 1)
+  }
+
+  const saveLead = async (product: Product) => {
+    const days = Math.max(0, Math.min(365, Math.floor(Number(leadEdit) || 0)))
+    try {
+      await patchProductV1(product.id, { leadTimeDays: days })
+      await load()
+      toast.success(days ? `${product.name}: fornecedor leva ${days} dias` : "Prazo do fornecedor removido")
+    } catch (err: any) {
+      toast.error(err?.message || "Não salvou o prazo")
+    }
   }
 
   useEffect(() => {
@@ -177,6 +197,7 @@ export default function ProductsAdminPage() {
         trackStock: draft.trackStock,
         onHand: draft.trackStock && !variants.length ? Math.max(0, Number(draft.onHand) || 0) : 0,
         minQty: Math.max(0, Number(draft.minQty) || 0),
+        leadTimeDays: Math.max(0, Math.min(365, Math.floor(Number(draft.leadTimeDays) || 0))),
         variants,
       })
       setDraft(emptyDraft())
@@ -325,6 +346,8 @@ export default function ProductsAdminPage() {
           <p className="text-sm text-[var(--wq-danger)]">{stats.low} produto{stats.low === 1 ? "" : "s"} abaixo do mínimo.</p>
         ) : null}
 
+        <RestockCard onChanged={() => void listProductsV1().then((res) => setProducts(res.products || []))} refreshKey={restockKey} />
+
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
           <Input
@@ -378,12 +401,23 @@ export default function ProductsAdminPage() {
                           setVariantId(product.variants?.[0]?.id || "")
                           setDelta("1")
                           setReason("")
+                          setLeadEdit(product.leadTimeDays ? String(product.leadTimeDays) : "")
                           if (!open) void openMoves(product.id)
                         }}
                       >
                         <td className="px-4 py-3">
                           <p className="font-medium">{product.name}</p>
                           {product.low ? <p className="text-xs text-[var(--wq-danger)]">Abaixo do mínimo</p> : null}
+                          {product.restock ? (
+                            <p className="text-xs text-sky-800 dark:text-sky-300">
+                              A caminho: {product.restock.qty}
+                              {product.restock.expectedAt
+                                ? ` · chega ${new Date(product.restock.expectedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
+                                : ""}
+                            </p>
+                          ) : product.leadTimeDays ? (
+                            <p className="text-xs text-[var(--wq-text-muted)]">Fornecedor: {product.leadTimeDays} dias</p>
+                          ) : null}
                           {product.trackStock === false ? (
                             <p className="text-xs text-[var(--wq-text-muted)]">Sem controle de estoque</p>
                           ) : null}
@@ -439,6 +473,26 @@ export default function ProductsAdminPage() {
                                     ))}
                                   </tbody>
                                 </table>
+                              </div>
+                            ) : null}
+                            {product.trackStock !== false ? (
+                              <div className="mb-3 flex flex-wrap items-end gap-2">
+                                <div className="space-y-1">
+                                  <Label>Prazo do fornecedor (dias)</Label>
+                                  <Input
+                                    className="w-36"
+                                    inputMode="numeric"
+                                    value={leadEdit}
+                                    onChange={(e) => setLeadEdit(e.target.value)}
+                                    placeholder="Ex.: 35"
+                                  />
+                                </div>
+                                <Button type="button" variant="outline" className="rounded-[10px]" onClick={() => void saveLead(product)}>
+                                  Salvar prazo
+                                </Button>
+                                <p className="pb-2 text-xs text-[var(--wq-text-muted)]">
+                                  Com o prazo, o sistema avisa a hora de pedir antes de acabar.
+                                </p>
                               </div>
                             ) : null}
                             {product.trackStock !== false ? (
@@ -531,6 +585,16 @@ export default function ProductsAdminPage() {
                 <Label>Avisar no mínimo</Label>
                 <Input value={draft.minQty} onChange={(e) => setDraft((d) => ({ ...d, minQty: e.target.value }))} inputMode="numeric" />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Prazo do fornecedor (dias)</Label>
+              <Input
+                value={draft.leadTimeDays}
+                onChange={(e) => setDraft((d) => ({ ...d, leadTimeDays: e.target.value }))}
+                inputMode="numeric"
+                placeholder="Ex.: solado 35. Vazio se compra na hora"
+              />
+              <p className="text-xs text-[var(--wq-text-muted)]">Com o prazo, o sistema avisa a hora de pedir antes de acabar.</p>
             </div>
             <div className="space-y-1">
               <Label>Descrição</Label>
