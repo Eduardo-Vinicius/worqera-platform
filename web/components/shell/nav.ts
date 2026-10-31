@@ -55,6 +55,8 @@ export type NavItem = {
   emphasize?: boolean
   /** Menu item that stands for a group of pages (tabs in `NAV_TABS`); active on any of them. */
   group?: NavGroup
+  /** Other routes that light up this item (pages reached through its tabs). */
+  alsoActive?: string[]
 }
 
 export type NavSection = {
@@ -82,10 +84,19 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Catálogo e estoque",
+    items: [
+      { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true, alsoActive: ["/settings/marcas", "/settings/acessorios"] },
+      { href: "/admin/produtos", label: "Produtos e estoque", icon: ShoppingBag, ownerAdminOnly: true, hideForSector: true },
+      { href: "/settings/setores", label: "Setores do kanban", icon: Layers, hideForSector: true },
+    ],
+  },
+  {
     title: "Gestão",
     items: [
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true, serviceKey: "finance" },
-      { href: "/admin/metrics", label: "Relatórios", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics", group: "relatorios" },
+      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
+      { href: "/admin/atendimento", label: "Desempenho da equipe", icon: UserCheck, ownerAdminOnly: true, serviceKey: "metrics" },
       { href: "/settings/tv", label: "Telas da loja", icon: Tv, hideForSector: true, serviceKey: "tv" },
     ],
   },
@@ -93,8 +104,8 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Configurações",
     items: [
       { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
-      { href: "/settings/servicos", label: "Catálogo", icon: ShoppingBag, hideForSector: true, group: "catalogo" },
-      { href: "/settings/equipe", label: "Equipe", icon: UsersRound, ownerAdminOnly: true, group: "equipe" },
+      { href: "/settings/equipe", label: "Equipe e acessos", icon: UsersRound, ownerAdminOnly: true },
+      { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
       {
         href: "/billing",
         label: "Plano",
@@ -147,5 +158,5 @@ export function isNavActive(pathname: string, href: string) {
 
 export function isItemActive(pathname: string, item: NavItem) {
   if (item.group) return NAV_TABS[item.group].some((tab) => isNavActive(pathname, tab.href))
-  return isNavActive(pathname, item.href)
+  return isNavActive(pathname, item.href) || Boolean(item.alsoActive?.some((href) => isNavActive(pathname, href)))
 }

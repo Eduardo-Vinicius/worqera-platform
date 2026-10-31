@@ -6,6 +6,8 @@ import { LanguageProvider } from "@/components/landing/language-provider"
 import { Header } from "@/components/landing/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { PointsSection } from "@/components/landing/points-section"
+import { HowSection } from "@/components/landing/how-section"
+import { IncludedSection } from "@/components/landing/included-section"
 import { ClientsSection } from "@/components/landing/clients-section"
 import { PricingSection } from "@/components/landing/pricing-section"
 import { FaqSection } from "@/components/landing/faq-section"
@@ -33,6 +35,8 @@ function LandingInner() {
       <main>
         <HeroSection />
         <PointsSection />
+        <HowSection />
+        <IncludedSection />
         <ClientsSection />
         <PricingSection />
         <FaqSection />

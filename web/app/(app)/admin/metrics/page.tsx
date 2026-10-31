@@ -10,7 +10,6 @@ import {
   DollarSign,
   Loader2,
   RefreshCw,
-  TrendingUp,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -176,74 +175,65 @@ export default function AdminMetricsPage() {
     return data.desempenho?.topFuncionariosMaisRapidos || []
   }, [data.desempenho])
 
-  const kpiCards = [
-    { title: "Total pedidos", value: derived.total, hint: "No período", icon: BarChart3, tone: "text-[var(--wq-brand-text)]" },
-    { title: "Em aberto", value: derived.abertos, hint: "Fluxo ativo", icon: TrendingUp, tone: "text-[var(--wq-action-text)]" },
-    { title: "Finalizados", value: derived.finalizados, hint: "Concluídos", icon: Award, tone: "text-[var(--wq-text)]" },
-    { title: "Em atraso", value: derived.atrasados, hint: "Atenção imediata", icon: AlertTriangle, tone: "text-[var(--wq-warn)]" },
-    { title: "Taxa de atraso", value: formatPct(derived.taxaAtraso), hint: "Sobre o total", icon: Clock, tone: "text-[var(--wq-danger)]" },
+  const STATUS: Record<string, string> = {
+    received: "Recebido",
+    in_progress: "Em produção",
+    ready: "Pronto",
+    delivered: "Entregue",
+    cancelled: "Cancelado",
+  }
+  const fin = data.financeiro?.resumo
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === periodo)?.label.toLowerCase() || periodo
+  const kpis = [
+    { title: "Pedidos", value: String(derived.total), hint: `${derived.abertos} em aberto · ${derived.finalizados} finalizados`, icon: BarChart3 },
+    { title: "Entregues no prazo", value: formatPct(derived.onTimePct), hint: `${derived.noPrazo} de ${derived.total} pedidos`, icon: Award },
+    { title: "Atrasados", value: String(derived.atrasados), hint: derived.atrasados ? `atraso médio ${formatDuration(derived.atrasoMedioMs)}` : "nenhum agora", icon: AlertTriangle, warn: derived.atrasados > 0 },
+    { title: "Recebido", value: formatCurrency(fin?.receitaRecebida || 0), hint: `ticket médio ${formatCurrency(fin?.ticketMedio || 0)}`, icon: DollarSign },
   ]
+  const late = data.atrasos?.itens || []
 
   return (
     <div className="-mx-0">
       <AppHeader group="relatorios"
         title="Métricas"
-        subtitle="Operação, SLA e produtividade"
+        subtitle="Como a loja foi no período"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {lastUpdated && (
-              <Badge variant="outline" className="border-[var(--wq-border)] text-[11px] text-[var(--wq-text-muted)]">
-                {new Date(lastUpdated).toLocaleString("pt-BR")}
-              </Badge>
-            )}
-            <Button asChild variant="outline" size="sm" className="rounded-[10px] border-[var(--wq-border)]">
-              <Link href="/admin/financeiro">
-                <DollarSign className="mr-2 h-4 w-4" />
-                Financeiro
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[10px] border-[var(--wq-border)]"
-              onClick={() => loadData(periodo)}
-              disabled={loading}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-[10px] border-[var(--wq-border)]"
+            onClick={() => loadData(periodo)}
+            disabled={loading}
+            aria-label="Atualizar"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
         }
       />
 
-      <div className="space-y-8 px-5 py-6 md:px-8">
-        <section className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-[var(--wq-text-muted)]">Período da análise</p>
-            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--wq-text)]">
-              {data.resumo?.periodo?.referencia || periodo}
-            </h2>
+      <div className="space-y-6 px-5 py-6 md:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[var(--wq-text-muted)]">
+            Últimos {periodLabel}
+            {lastUpdated ? ` · atualizado às ${new Date(lastUpdated).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {PERIOD_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setPeriodo(option.value)}
+                className={
+                  periodo === option.value
+                    ? "rounded-full bg-[var(--wq-action)] px-3 py-1 text-xs font-semibold text-white"
+                    : "rounded-full border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-1 text-xs font-semibold text-[var(--wq-text)] hover:bg-[var(--wq-paper)]"
+                }
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {PERIOD_OPTIONS.map((option) => {
-              const active = periodo === option.value
-              return (
-                <Button
-                  key={option.value}
-                  size="sm"
-                  variant={active ? "default" : "outline"}
-                  className={
-                    active
-                      ? "rounded-[10px] border-transparent bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-                      : "rounded-[10px] border-[var(--wq-border)] bg-white text-[var(--wq-text)] hover:bg-[var(--wq-paper)]"
-                  }
-                  onClick={() => setPeriodo(option.value)}
-                >
-                  {option.label}
-                </Button>
-              )
-            })}
-          </div>
-        </section>
+        </div>
 
         {error && (
           <Alert className="border-[var(--wq-danger)]/30 bg-[var(--wq-danger)]/5">
@@ -252,99 +242,81 @@ export default function AdminMetricsPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {kpiCards.map((card) => {
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {kpis.map((card) => {
             const Icon = card.icon
             return (
               <div
                 key={card.title}
-                className="rounded-2xl border border-[var(--wq-border)] bg-white p-5"
+                className={`rounded-2xl border bg-[var(--wq-surface)] p-5 ${card.warn ? "border-[var(--wq-warn)]/40" : "border-[var(--wq-border)]"}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">
-                    {card.title}
-                  </span>
-                  <Icon className={`h-4 w-4 ${card.tone}`} strokeWidth={1.7} />
+                <div className="flex items-center justify-between text-sm text-[var(--wq-text-muted)]">
+                  <span>{card.title}</span>
+                  <Icon className={`h-4 w-4 ${card.warn ? "text-[var(--wq-warn)]" : ""}`} strokeWidth={1.7} />
                 </div>
-                <p className="mt-3 font-[family-name:var(--font-display)] text-[32px] leading-none text-[var(--wq-text)]">
-                  {card.value}
-                </p>
+                <p className="mt-2 font-[family-name:var(--font-display)] text-3xl leading-none text-[var(--wq-text)] tabular-nums">{card.value}</p>
                 <p className="mt-2 text-xs text-[var(--wq-text-muted)]">{card.hint}</p>
               </div>
             )
           })}
         </div>
 
-        <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-              Leitura executiva
-            </CardTitle>
-            <CardDescription className="text-[var(--wq-text-muted)]">
-              SLA, prazo, atraso médio e pulso financeiro
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">No prazo</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-text)]">
-                {derived.noPrazo}
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Pedidos dentro do SLA</p>
-            </div>
-            <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">On-time</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-action-text)]">
-                {formatPct(derived.onTimePct)}
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Taxa de entregas no prazo</p>
-            </div>
-            <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">Atraso médio</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-warn)]">
-                {formatDuration(derived.atrasoMedioMs)}
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Média dos pedidos atrasados</p>
-            </div>
-            <div className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">Receita recebida</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl text-[var(--wq-brand-text)]">
-                {formatCurrency(data.financeiro?.resumo?.receitaRecebida || 0)}
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">Resumo financeiro do período</p>
-            </div>
-          </CardContent>
-        </Card>
+        {late.length > 0 && (
+          <Card className="rounded-2xl border-[var(--wq-warn)]/40 bg-[var(--wq-surface)] shadow-none">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base text-[var(--wq-text)]">
+                <Clock className="h-4 w-4 text-[var(--wq-warn)]" />
+                Atrasados para resolver
+              </CardTitle>
+              <CardDescription>Os que passaram do prazo, do mais atrasado para o menos</CardDescription>
+            </CardHeader>
+            <CardContent className="divide-y divide-[var(--wq-border)] p-0">
+              {late.slice(0, 10).map((order) => {
+                const atrasoMs = order.diasAtraso
+                  ? order.diasAtraso * 24 * 60 * 60 * 1000
+                  : Date.now() - new Date(order.dataPrevistaEntrega).getTime()
+                return (
+                  <Link
+                    key={order.id}
+                    href={`/pedidos/${order.id}`}
+                    className="flex items-center justify-between gap-3 px-6 py-3 text-sm hover:bg-[var(--wq-paper)]"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-semibold text-[var(--wq-text)]">#{order.codigo || order.id}</span>
+                      <span className="ml-2 text-xs text-[var(--wq-text-muted)]">
+                        {STATUS[order.status] || order.status}
+                        {order.funcionarioAtual ? ` · ${order.funcionarioAtual}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right text-xs text-[var(--wq-text-muted)]">
+                      <Badge className="border-0 bg-[var(--wq-danger)]/10 text-[var(--wq-danger)]">{formatDuration(atrasoMs)} de atraso</Badge>
+                      <span className="ml-2 hidden sm:inline">prazo {new Date(order.dataPrevistaEntrega).toLocaleDateString("pt-BR")}</span>
+                    </span>
+                  </Link>
+                )
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none lg:col-span-2">
+          <Card className="rounded-2xl border-[var(--wq-border)] bg-[var(--wq-surface)] shadow-none lg:col-span-2">
             <CardHeader>
-              <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-                Pedidos por departamento
-              </CardTitle>
-              <CardDescription className="text-[var(--wq-text-muted)]">
-                Distribuição atual por setor
-              </CardDescription>
+              <CardTitle className="text-base text-[var(--wq-text)]">Onde estão os pedidos</CardTitle>
+              <CardDescription>Pedidos do período por setor</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {setoresList.length === 0 && (
-                <p className="text-sm text-[var(--wq-text-muted)]">Sem dados.</p>
-              )}
+            <CardContent className="space-y-3">
+              {setoresList.length === 0 && <p className="text-sm text-[var(--wq-text-muted)]">Sem pedidos no período.</p>}
               {setoresList.map((item) => {
                 const pct = derived.total ? (item.total / derived.total) * 100 : 0
                 return (
-                  <div key={item.setorId || item.setorNome || "setor"} className="space-y-2">
+                  <div key={item.setorId || item.setorNome || "setor"} className="space-y-1.5">
                     <div className="flex justify-between text-sm text-[var(--wq-text)]">
                       <span className="font-medium">{item.setorNome || item.setorId}</span>
-                      <span className="text-[var(--wq-text-muted)]">
-                        {item.total} • {formatPct(pct)}
-                      </span>
+                      <span className="tabular-nums text-[var(--wq-text-muted)]">{item.total}</span>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
-                      <div
-                        className="h-full rounded-full bg-[var(--wq-brand)]"
-                        style={{ width: `${pct}%` }}
-                      />
+                    <div className="h-2 overflow-hidden rounded-full bg-[var(--wq-paper)]">
+                      <div className="h-full rounded-full bg-[var(--wq-brand)]" style={{ width: `${Math.min(100, pct)}%` }} />
                     </div>
                   </div>
                 )
@@ -352,178 +324,80 @@ export default function AdminMetricsPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">
+          <Card className="rounded-2xl border-[var(--wq-border)] bg-[var(--wq-surface)] shadow-none">
             <CardHeader>
-              <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-                Pulso financeiro
-              </CardTitle>
-              <CardDescription className="text-[var(--wq-text-muted)]">
-                Indicadores resumidos
-              </CardDescription>
+              <CardTitle className="text-base text-[var(--wq-text)]">Dinheiro</CardTitle>
+              <CardDescription>Dos pedidos do período</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {[
-                ["Receita prevista", formatCurrency(data.financeiro?.resumo?.receitaPrevista || 0)],
-                ["Receita pendente", formatCurrency(data.financeiro?.resumo?.receitaPendente || 0)],
-                ["Despesas", formatCurrency(data.financeiro?.resumo?.despesas || 0)],
-                ["Lucro realizado", formatCurrency(data.financeiro?.resumo?.lucroRealizado || 0)],
-                ["Ticket médio", formatCurrency(data.financeiro?.resumo?.ticketMedio || 0)],
+                ["A receber", formatCurrency(fin?.receitaPendente || 0)],
+                ["Previsto no total", formatCurrency(fin?.receitaPrevista || 0)],
+                ["Despesas", formatCurrency(fin?.despesas || 0)],
+                ["Lucro", formatCurrency(fin?.lucroRealizado || 0)],
               ].map(([label, value]) => (
-                <div
-                  key={String(label)}
-                  className="flex items-center justify-between rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 px-3 py-2 text-sm"
-                >
+                <div key={String(label)} className="flex items-center justify-between text-sm">
                   <span className="text-[var(--wq-text-muted)]">{label}</span>
-                  <span className="font-semibold text-[var(--wq-text)]">{value}</span>
+                  <span className="font-semibold tabular-nums text-[var(--wq-text)]">{value}</span>
                 </div>
               ))}
-              <Link href="/admin/financeiro" className="block pt-2">
-                <Button className="w-full rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90">
+              <Button asChild variant="outline" className="mt-3 w-full rounded-[10px] border-[var(--wq-border)]">
+                <Link href="/admin/financeiro">
                   <DollarSign className="mr-2 h-4 w-4" />
                   Abrir financeiro
-                </Button>
-              </Link>
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Card className="rounded-2xl border-[var(--wq-border)] bg-[var(--wq-surface)] shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base text-[var(--wq-text)]">Quem mais trabalhou nos pedidos</CardTitle>
+              <CardDescription>Pedidos em que a pessoa participou</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {rankingProdutividade.length === 0 && <p className="text-sm text-[var(--wq-text-muted)]">Sem dados no período.</p>}
+              {rankingProdutividade.map((item, idx) => (
+                <div key={`${item.funcionarioNome}-${idx}`} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-3">
+                    <span className="w-5 text-right text-xs tabular-nums text-[var(--wq-text-muted)]">{idx + 1}º</span>
+                    <span>
+                      <span className="font-medium text-[var(--wq-text)]">{item.funcionarioNome}</span>
+                      <span className="ml-2 text-xs text-[var(--wq-text-muted)]">{item.pedidosFinalizados} finalizados</span>
+                    </span>
+                  </span>
+                  <span className="font-semibold tabular-nums">{item.pedidosComParticipacao}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-[var(--wq-border)] bg-[var(--wq-surface)] shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base text-[var(--wq-text)]">Quem é mais rápido</CardTitle>
+              <CardDescription>Tempo médio para concluir uma etapa</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {rankingVelocidade.length === 0 && <p className="text-sm text-[var(--wq-text-muted)]">Sem etapas concluídas no período.</p>}
+              {rankingVelocidade.map((item, idx) => (
+                <div key={`${item.funcionarioNome}-${idx}`} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-3">
+                    <span className="w-5 text-right text-xs tabular-nums text-[var(--wq-text-muted)]">{idx + 1}º</span>
+                    <span>
+                      <span className="font-medium text-[var(--wq-text)]">{item.funcionarioNome}</span>
+                      <span className="ml-2 text-xs text-[var(--wq-text-muted)]">{item.etapasConcluidas} etapas</span>
+                    </span>
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatDuration(item.tempoMedioMs)}</span>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
 
         <AttendanceCard periodo={periodo} />
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">
-            <CardHeader>
-              <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-                Top funcionários por pedidos
-              </CardTitle>
-              <CardDescription className="text-[var(--wq-text-muted)]">
-                Participação e pedidos finalizados
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {rankingProdutividade.length === 0 && (
-                <p className="text-sm text-[var(--wq-text-muted)]">Sem dados.</p>
-              )}
-              {rankingProdutividade.map((item, idx) => (
-                <div
-                  key={`${item.funcionarioNome}-${idx}`}
-                  className="flex items-center justify-between rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 px-3 py-2 text-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--wq-border)] bg-white text-xs font-semibold text-[var(--wq-text-muted)]">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[var(--wq-text)]">{item.funcionarioNome}</p>
-                      <p className="text-[11px] text-[var(--wq-text-muted)]">
-                        {item.pedidosFinalizados} finalizados
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="border-[var(--wq-action)]/30 bg-[var(--wq-action)]/10 text-[var(--wq-action-text)]"
-                  >
-                    {item.pedidosComParticipacao}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">
-            <CardHeader>
-              <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-                Top funcionários mais rápidos
-              </CardTitle>
-              <CardDescription className="text-[var(--wq-text-muted)]">
-                Tempo médio por etapa concluída
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {rankingVelocidade.length === 0 && (
-                <div className="rounded-xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-paper)]/40 p-4 text-sm text-[var(--wq-text-muted)]">
-                  Ranking de velocidade indisponível para o período selecionado.
-                </div>
-              )}
-              {rankingVelocidade.map((item, idx) => (
-                <div
-                  key={`${item.funcionarioNome}-${idx}`}
-                  className="flex items-center justify-between rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 px-3 py-2 text-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--wq-border)] bg-white text-xs font-semibold text-[var(--wq-text-muted)]">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[var(--wq-text)]">{item.funcionarioNome}</p>
-                      <p className="text-[11px] text-[var(--wq-text-muted)]">
-                        {item.etapasConcluidas} etapas • {item.pedidosComTempo} pedidos
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge
-                      variant="outline"
-                      className="border-[var(--wq-brand)]/30 bg-[var(--wq-brand-soft)] text-[var(--wq-brand-text)]"
-                    >
-                      {item.tempoMedioHoras.toFixed(2)}h
-                    </Badge>
-                    <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">
-                      {formatDuration(item.tempoMedioMs)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="rounded-2xl border-[var(--wq-border)] bg-white shadow-none">
-          <CardHeader>
-            <CardTitle className="font-[family-name:var(--font-display)] text-[var(--wq-text)]">
-              Pedidos em atraso
-            </CardTitle>
-            <CardDescription className="text-[var(--wq-text-muted)]">
-              Lista priorizada dos pedidos que passaram do prazo
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(data.atrasos?.itens?.length ?? 0) === 0 && (
-              <p className="text-sm text-[var(--wq-text-muted)]">Sem pedidos em atraso.</p>
-            )}
-            {data.atrasos?.itens?.slice(0, 12).map((order) => {
-              const atrasoMs = order.diasAtraso
-                ? order.diasAtraso * 24 * 60 * 60 * 1000
-                : Date.now() - new Date(order.dataPrevistaEntrega).getTime()
-              return (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/50 px-4 py-3"
-                >
-                  <div className="space-y-1">
-                    <div className="font-semibold text-[var(--wq-text)]">#{order.codigo || order.id}</div>
-                    <div className="text-xs text-[var(--wq-text-muted)]">Status: {order.status}</div>
-                    {order.funcionarioAtual && (
-                      <div className="text-xs text-[var(--wq-text-muted)]">Resp.: {order.funcionarioAtual}</div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <Badge className="border-0 bg-[var(--wq-danger)]/10 text-[var(--wq-danger)]">
-                      {formatDuration(atrasoMs)}
-                    </Badge>
-                    <div className="mt-1 text-xs text-[var(--wq-text-muted)]">
-                      Venc. {new Date(order.dataPrevistaEntrega).toLocaleDateString("pt-BR")}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-
-        <p className="text-xs text-[var(--wq-text-muted)]">
-          Dados compostos via overview com fallback para endpoints individuais quando necessário.
-        </p>
       </div>
     </div>
   )

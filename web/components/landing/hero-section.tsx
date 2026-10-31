@@ -40,23 +40,29 @@ export function HeroSection() {
           <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t.hero.note}</p>
         </div>
 
-        <div className="lp-animate-in-delay mx-auto mt-10 max-w-4xl">
+        <div className="lp-animate-in-delay mx-auto mt-12 max-w-5xl">
           <p className="text-center text-[11px] font-semibold tracking-[0.18em] text-[var(--muted-foreground)] uppercase">
             {t.numbers.label}
           </p>
-          <dl className="mt-3 grid overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3">
+          <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_25%,var(--border))] lg:grid-cols-4">
             {t.numbers.items.map((item, index) => (
               <div
                 key={item.label}
-                className={`px-5 py-5 text-center ${index > 0 ? "border-t border-[var(--border)] sm:border-l sm:border-t-0" : ""}`}
+                className={index === 0 ? "bg-[var(--primary)] px-4 py-6 text-center sm:px-6 sm:py-7" : "bg-[var(--surface)] px-4 py-6 text-center sm:px-6 sm:py-7"}
               >
                 <dt className="sr-only">{item.label}</dt>
-                <dd className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">{item.value}</dd>
-                <dd className="mt-1 text-sm text-[var(--muted-foreground)]">{item.label}</dd>
+                <dd
+                  className={`lp-display whitespace-nowrap text-[1.7rem] font-semibold leading-none tracking-tight sm:text-[2.25rem] ${index === 0 ? "text-[var(--primary-foreground)]" : "text-[var(--primary)]"}`}
+                >
+                  {item.value}
+                </dd>
+                <dd className={`mt-2 text-sm leading-snug ${index === 0 ? "text-[var(--primary-foreground)]/85" : "text-[var(--muted-foreground)]"}`}>
+                  {item.label}
+                </dd>
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-center text-sm font-medium text-[var(--ink)]">{t.hero.social}</p>
+          <p className="mt-4 text-center text-sm font-medium text-[var(--ink)]">{t.hero.social}</p>
         </div>
 
         <div id="ramos" className="mx-auto mt-8 max-w-4xl scroll-mt-24 text-center">

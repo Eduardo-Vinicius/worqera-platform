@@ -2,6 +2,11 @@
 
 ## 2026-10-31
 
+- **Admin da plataforma:** Métricas, Análises, Operação e Contas voltavam para Oficinas no menu; o `middleware.ts` só liberava `/admin/shops` e `/admin/plataforma` para o admin sem loja aberta. Agora libera todas as rotas do painel (`PLATFORM_PREFIXES`).
+- **Menu lateral da loja:** voltam direto Serviços, Produtos e estoque, Setores do kanban (seção "Catálogo e estoque"), Métricas, Desempenho da equipe, Equipe e acessos e Funcionários. As abas no topo das páginas continuam; Marcas e Acessórios seguem pelas abas de Serviços.
+- **Métricas da loja** (`/admin/metrics`) mais direta: quatro números (pedidos, entregues no prazo, atrasados, recebido), lista "Atrasados para resolver" logo abaixo com link para o pedido, setores, dinheiro e equipe em linguagem simples; status em português; saiu o texto técnico do rodapé.
+- **Landing:** hero focado no serviço ("Do balcão à entrega, cada pedido no lugar certo") e faixa de números em destaque: **R$ 4 mi+** já passaram pela Worqera · **R$ 450 mil+** e **700+ pedidos** por mês · **6.000+ clientes**. "Por que usar" com antes → depois em quatro pontos (fila, cliente, orçamento, dinheiro), **Como funciona** (entrada, produção, pronto, entrega) e **Tudo que vem junto** (12 recursos). PT e EN.
+
 - **Painel da plataforma** (menu Worqera: Visão geral · Métricas · Análises · Operação · Oficinas · Contas · Parâmetros · Notícias):
   - **Visão geral** nova: usuários ativos, pedidos criados e entregues, lojas ativas, MRR, saúde do sistema (0–100), o que está acontecendo (insights com link) e pendências por fila. A tela anterior virou **Portal técnico** (`/admin/plataforma/portal`).
   - **Métricas**: Tecnologia (requisições, usuários ativos, erros, latência e p95, acessos a cada 30 min, endpoints mais chamados e mais lentos, usuários por UF e por sistema, versões do app), Negócio (MRR, lojas, pedidos criados e entregues, pagamentos, assinaturas por situação, série de cada métrica) e Produto (cobertura de recursos, ramos, UFs, serviços), com 1/7/14/30 dias e variação.

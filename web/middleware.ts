@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/api/auth'];
 const ADMIN_PREFIX = '/admin';
+const PLATFORM_PREFIXES = ['/admin/shops', '/admin/plataforma', '/admin/metricas', '/admin/analises', '/admin/operacao', '/admin/contas'];
+
+function isPlatformPath(pathname: string) {
+  return PLATFORM_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 const TRADE_SLUGS = new Set([
   'sapataria',
   'lavanderia',
@@ -95,7 +100,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/shops', request.url));
   }
 
-  if (pathname.startsWith('/admin/shops') || pathname.startsWith('/admin/plataforma')) {
+  if (isPlatformPath(pathname)) {
     const allowed = platformAdminEmails();
     const ok =
       Boolean(payload?.platformAdmin) ||
@@ -110,8 +115,7 @@ export function middleware(request: NextRequest) {
   if (platformAdmin && role === 'platform') {
     const inShop = visitingShop;
     const consolePath =
-      pathname.startsWith('/admin/shops') ||
-      pathname.startsWith('/admin/plataforma') ||
+      isPlatformPath(pathname) ||
       pathname.startsWith('/admin/produtos') ||
       pathname.startsWith('/forbidden') ||
       pathname.startsWith('/login');
