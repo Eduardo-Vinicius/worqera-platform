@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils"
 import { brl, relativeTime } from "./quoteUi"
 
 const SPANS = [30, 90, 365] as const
+const ITEMS_PREVIEW = 5
 
 /** Orçamentos → Recuperados: what the problem was, how it was turned around and who did it. */
 export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void }) {
   const [days, setDays] = useState<(typeof SPANS)[number]>(30)
+  const [showAll, setShowAll] = useState(false)
   const [report, setReport] = useState<RecoveredReport | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -37,10 +39,9 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <p className="text-sm text-[var(--wq-text-muted)]">Quem voltou, por que tinha recusado e o que fez fechar.</p>
-        <div className="grid grid-cols-3 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-0.5 sm:inline-flex">
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <div className="grid w-full grid-cols-3 rounded-lg border border-[var(--wq-border)] bg-[var(--wq-surface)] p-0.5 sm:inline-flex sm:w-auto">
           {SPANS.map((d) => (
             <button
               key={d}
@@ -57,17 +58,17 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
         </div>
       </div>
 
-      <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-border)] lg:grid-cols-4">
         {cards.map((c) => {
           const Icon = c.icon
           return (
-            <div key={c.label} className="min-w-0 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-3 sm:px-4 sm:py-3.5">
+            <div key={c.label} className="min-w-0 bg-[var(--wq-surface)] px-4 py-3">
               <div className="flex items-start justify-between gap-1.5">
                 <p className="min-w-0 text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-[var(--wq-text-muted)] sm:text-[11px]">{c.label}</p>
                 <Icon className={cn("h-4 w-4 shrink-0", c.tone)} />
               </div>
-              <p className={cn("mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums sm:text-3xl", c.tone)}>{c.value}</p>
-              <p className="mt-1 truncate text-xs text-[var(--wq-text-muted)]">{c.hint}</p>
+              <p className={cn("mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums sm:text-2xl", c.tone)}>{c.value}</p>
+              <p className="mt-0.5 truncate text-xs text-[var(--wq-text-muted)]">{c.hint}</p>
             </div>
           )
         })}
@@ -142,9 +143,11 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
           </div>
 
           <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-            <h3 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">Todos os recuperados</h3>
+            <h3 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">
+              {showAll || report.items.length <= ITEMS_PREVIEW ? "Todos os recuperados" : "Últimos recuperados"}
+            </h3>
             <ul className="divide-y divide-[var(--wq-border)]">
-              {report.items.map((it) => (
+              {(showAll ? report.items : report.items.slice(0, ITEMS_PREVIEW)).map((it) => (
                 <li key={it.id}>
                   <button type="button" onClick={() => onOpen(it.id)} className="flex w-full min-w-0 items-start gap-3 px-3 py-3 text-left hover:bg-[var(--wq-paper)] sm:px-4">
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -179,6 +182,15 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
                 </li>
               ))}
             </ul>
+            {report.items.length > ITEMS_PREVIEW ? (
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="block w-full border-t border-[var(--wq-border)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--wq-brand-text)] hover:bg-[var(--wq-paper)]"
+              >
+                {showAll ? "Mostrar menos" : `Ver todos (${report.items.length})`}
+              </button>
+            ) : null}
             <p className="border-t border-[var(--wq-border)] px-4 py-2 text-xs text-[var(--wq-text-muted)]">
               Os pedidos recuperados aparecem no kanban com o selo Recuperado.{" "}
               <Link href="/pedidos?recovered=1" className="font-semibold text-[var(--wq-brand-text)] underline-offset-2 hover:underline">

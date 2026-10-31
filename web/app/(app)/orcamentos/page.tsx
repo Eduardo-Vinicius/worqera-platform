@@ -1,23 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import {
-  CalendarClock,
-  Check,
-  KanbanSquare,
-  List,
-  Loader2,
-  MessageCircle,
-  Phone,
-  PhoneCall,
-  Plus,
-  Search,
-  Sparkles,
-  TrendingUp,
-  Trophy,
-  Wallet,
-} from "lucide-react"
+import { Check, ChevronDown, KanbanSquare, Loader2, PhoneCall, Plus, Search, Trophy, X, type LucideIcon } from "lucide-react"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { Button } from "@/components/ui/button"
@@ -37,56 +22,49 @@ import { cn } from "@/lib/utils"
 import { NewQuoteDialog } from "@/components/quotes/NewQuoteDialog"
 import { QuoteDrawer, prefillOrderHref } from "@/components/quotes/QuoteDrawer"
 import { QuoteBoard } from "@/components/quotes/QuoteBoard"
+import { QuoteRow } from "@/components/quotes/QuoteRow"
+import { QuoteSummaryPanel, type QuoteSection } from "@/components/quotes/QuoteSummaryPanel"
 import { RecoveryDialog } from "@/components/quotes/RecoveryDialog"
 import { RecoveredView } from "@/components/quotes/RecoveredView"
-import {
-  STAGES,
-  STAGE_LABEL,
-  brl,
-  followUpFromDays,
-  followUpLabel,
-  followUpTone,
-  formatPhone,
-  initials,
-  priorityDot,
-  stageTone,
-  waLink,
-} from "@/components/quotes/quoteUi"
+import { followUpFromDays, waLink } from "@/components/quotes/quoteUi"
 
-type View = "today" | "board" | "all" | "recovered"
+const OPEN_STAGES = new Set<QuoteStage>(["new", "contact", "followup"])
+const TODAY_PREVIEW = 6
 
-const VIEWS: Array<{ id: View; label: string; icon: typeof List }> = [
-  { id: "today", label: "Ligar hoje", icon: PhoneCall },
-  { id: "board", label: "Quadro", icon: KanbanSquare },
-  { id: "all", label: "Todos", icon: List },
-  { id: "recovered", label: "Recuperados", icon: Trophy },
-]
+/** Same rule as the API (`isDueToday`): open, and the return is late, today, or a new quote with no date yet. */
+function dueToday(q: Quote) {
+  if (!OPEN_STAGES.has(q.stage)) return false
+  const state = q.followUp.state
+  return state === "overdue" || state === "today" || (state === "none" && q.stage === "new")
+}
+
+const LEGACY_VIEW: Record<string, QuoteSection> = { today: "ligar-hoje", board: "funil", all: "funil", recovered: "recuperados" }
 
 export default function OrcamentosPage() {
   const router = useRouter()
-  const [view, setView] = useState<View>("today")
-  const [query, setQuery] = useState("")
-  const [quotes, setQuotes] = useState<Quote[]>([])
+  const [board, setBoard] = useState<Quote[]>([])
   const [summary, setSummary] = useState<QuoteSummary | null>(null)
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<Quote[]>([])
+  const [searching, setSearching] = useState(false)
+  const [showAllToday, setShowAllToday] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [busyId, setBusyId] = useState("")
   const [winning, setWinning] = useState<Quote | null>(null)
-  const loadSeq = useRef(0)
+  const [jumpTo, setJumpTo] = useState<QuoteSection | null>(null)
+  const searchSeq = useRef(0)
 
-  const load = useCallback(async (nextView: Exclude<View, "recovered">, term: string) => {
-    const seq = ++loadSeq.current
-    setLoading(true)
+  const loadBoard = useCallback(async () => {
     try {
-      const res = await listQuotesV1({ view: nextView, q: term.trim() || undefined })
-      if (seq !== loadSeq.current) return
-      setQuotes(res.quotes || [])
+      const res = await listQuotesV1({ view: "board" })
+      setBoard(res.quotes || [])
       setSummary(res.summary)
     } catch (err: any) {
-      if (seq === loadSeq.current) toast.error(err?.message || "Não carregou os orçamentos")
+      toast.error(err?.message || "Não carregou os orçamentos")
     } finally {
-      if (seq === loadSeq.current) setLoading(false)
+      setLoading(false)
     }
   }, [])
 
@@ -94,26 +72,47 @@ export default function OrcamentosPage() {
     const params = new URLSearchParams(window.location.search)
     const open = params.get("open")
     if (open) setOpenId(open)
-    const v = params.get("view") as View | null
-    if (v && VIEWS.some((x) => x.id === v)) setView(v)
-  }, [])
+    const legacy = LEGACY_VIEW[params.get("view") || ""]
+    if (legacy) setJumpTo(legacy)
+    void loadBoard()
+  }, [loadBoard])
 
   useEffect(() => {
-    if (view === "recovered") return
-    const handle = window.setTimeout(() => void load(view, query), query ? 250 : 0)
-    return () => window.clearTimeout(handle)
-  }, [view, query, load])
+    if (loading || !jumpTo) return
+    document.getElementById(jumpTo)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    setJumpTo(null)
+  }, [loading, jumpTo])
 
-  const refresh = () => void load(view === "recovered" ? "all" : view, query)
+  useEffect(() => {
+    const term = query.trim()
+    if (!term) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    const seq = ++searchSeq.current
+    setSearching(true)
+    const handle = window.setTimeout(() => {
+      listQuotesV1({ view: "all", q: term })
+        .then((res) => seq === searchSeq.current && setResults(res.quotes || []))
+        .catch(() => {})
+        .finally(() => seq === searchSeq.current && setSearching(false))
+    }, 250)
+    return () => window.clearTimeout(handle)
+  }, [query])
+
+  const today = useMemo(() => board.filter(dueToday).sort((a, b) => b.priority.score - a.priority.score), [board])
+  const todayShown = showAllToday ? today : today.slice(0, TODAY_PREVIEW)
+
+  const jump = (section: QuoteSection) => {
+    setQuery("")
+    document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
 
   const upsert = (q: Quote) => {
-    setQuotes((prev) => {
-      const exists = prev.some((row) => row.id === q.id)
-      if (view === "today" && !query && (q.stage === "won" || q.stage === "lost" || q.followUp.state === "later" || (q.stage === "contact" && q.followUp.state === "none"))) {
-        return prev.filter((row) => row.id !== q.id)
-      }
-      return exists ? prev.map((row) => (row.id === q.id ? q : row)) : [q, ...prev]
-    })
+    const merge = (prev: Quote[]) => (prev.some((row) => row.id === q.id) ? prev.map((row) => (row.id === q.id ? q : row)) : [q, ...prev])
+    setBoard(merge)
+    setResults((prev) => (prev.some((row) => row.id === q.id) ? prev.map((row) => (row.id === q.id ? q : row)) : prev))
     void listQuotesV1({ view: "today" }).then((res) => setSummary(res.summary)).catch(() => {})
   }
 
@@ -181,15 +180,31 @@ export default function OrcamentosPage() {
   const moveStage = (q: Quote, stage: QuoteStage) => {
     if (q.stage === stage) return
     if (stage === "won") return win(q)
-    setQuotes((prev) => prev.map((row) => (row.id === q.id ? { ...row, stage } : row)))
+    setBoard((prev) => prev.map((row) => (row.id === q.id ? { ...row, stage } : row)))
     void quick(q, "stage", async () => (await patchQuoteV1(q.id, { stage })).quote)
   }
+
+  const row = (q: Quote, showStage: boolean) => (
+    <QuoteRow
+      key={q.id}
+      quote={q}
+      showStage={showStage}
+      busy={busyId.startsWith(`${q.id}:`) ? busyId.split(":")[1] : ""}
+      onOpen={() => setOpenId(q.id)}
+      onWhatsApp={() => whatsapp(q)}
+      onCall={() => call(q)}
+      onSnooze={(days) => snooze(q, days)}
+      onWin={() => win(q)}
+    />
+  )
+
+  const term = query.trim()
 
   return (
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Orçamentos"
-        subtitle="Quem não fechou, quem ligar hoje e quem voltou"
+        subtitle="Quem ligar hoje, o funil e quem voltou"
         actions={
           <Button
             type="button"
@@ -204,92 +219,97 @@ export default function OrcamentosPage() {
         }
       />
 
-      <div className="mx-auto w-full max-w-[1600px] space-y-5 px-2.5 py-4 sm:px-5 md:px-6 lg:px-8">
-        <SummaryStrip summary={summary} onToday={() => setView("today")} onRecovered={() => setView("recovered")} />
+      <div className="mx-auto w-full max-w-[1400px] space-y-4 px-2.5 py-4 sm:space-y-6 sm:px-5 md:px-6 lg:px-8">
+        <QuoteSummaryPanel summary={summary} board={board} onJump={jump} />
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid w-full grid-cols-4 gap-1 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 md:inline-flex md:w-auto">
-            {VIEWS.map((v) => {
-              const Icon = v.icon
-              const active = view === v.id
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setView(v.id)}
-                  className={cn(
-                    "relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold leading-tight transition sm:flex-row sm:gap-1.5 sm:px-3.5 sm:py-2 sm:text-sm sm:font-medium",
-                    active
-                      ? "bg-[var(--wq-brand)] text-white shadow-sm"
-                      : "text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="max-w-full truncate">{v.label}</span>
-                  {v.id === "today" && summary?.todayCount ? (
-                    <span
-                      className={cn(
-                        "absolute right-1 top-0.5 rounded-full px-1.5 text-[10px] font-bold tabular-nums sm:static sm:ml-0.5 sm:text-[11px]",
-                        active ? "bg-white/25 text-white" : "bg-rose-500 text-white"
-                      )}
-                    >
-                      {summary.todayCount}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-          <div className={cn("relative w-full md:max-w-sm", view === "recovered" && "hidden")}>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Nome, telefone ou código do pedido"
-              className="h-11 rounded-[10px] bg-[var(--wq-surface)] pl-9"
-            />
-          </div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar em todos os orçamentos: nome, telefone ou código do pedido"
+            className="h-11 rounded-[10px] bg-[var(--wq-surface)] pl-9 pr-10"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)]"
+              aria-label="Limpar busca"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
-        {view === "recovered" ? (
-          <RecoveredView onOpen={setOpenId} />
-        ) : loading && !quotes.length ? (
-          <div className="flex items-center justify-center py-20 text-sm text-[var(--wq-text-muted)]">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando orçamentos
-          </div>
-        ) : view === "board" ? (
-          <QuoteBoard quotes={quotes} onOpen={setOpenId} onMove={moveStage} />
-        ) : quotes.length === 0 ? (
-          <EmptyState
-            today={view === "today" && !query}
-            searching={Boolean(query)}
-            onNew={() => setNewOpen(true)}
-            onBoard={() => setView("board")}
-          />
+        {term ? (
+          <Section icon={Search} title="Resultado da busca" count={searching ? undefined : results.length} hint="Todas as etapas, inclusive os antigos">
+            {searching && !results.length ? (
+              <Loading label="Buscando" />
+            ) : results.length ? (
+              <List>{results.map((q) => row(q, true))}</List>
+            ) : (
+              <Empty title="Ninguém com esse nome ou telefone" text="Busque pelo nome, pelo telefone ou pelo código do pedido." />
+            )}
+          </Section>
+        ) : loading ? (
+          <Loading label="Carregando orçamentos" />
         ) : (
-          <ul className="space-y-2">
-            {quotes.map((q) => (
-              <QuoteRow
-                key={q.id}
-                quote={q}
-                showStage={view === "all" || Boolean(query)}
-                busy={busyId.startsWith(`${q.id}:`) ? busyId.split(":")[1] : ""}
-                onOpen={() => setOpenId(q.id)}
-                onWhatsApp={() => whatsapp(q)}
-                onCall={() => call(q)}
-                onSnooze={(days) => snooze(q, days)}
-                onWin={() => win(q)}
-              />
-            ))}
-          </ul>
-        )}
+          <>
+            <Section
+              id="ligar-hoje"
+              icon={PhoneCall}
+              title="Ligar hoje"
+              count={today.length}
+              hint="Ordem por prioridade: retorno atrasado, motivo e valor"
+            >
+              {today.length ? (
+                <>
+                  <List>{todayShown.map((q) => row(q, false))}</List>
+                  {today.length > TODAY_PREVIEW ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllToday((v) => !v)}
+                      className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-[var(--wq-brand-text)] hover:underline"
+                    >
+                      {showAllToday ? "Mostrar menos" : `Ver mais ${today.length - TODAY_PREVIEW}`}
+                      <ChevronDown className={cn("h-4 w-4 transition", showAllToday && "rotate-180")} />
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <Check className="h-4 w-4" />
+                  </span>
+                  <p className="text-sm text-[var(--wq-text-muted)]">
+                    <b className="font-semibold text-[var(--wq-text)]">Retornos em dia.</b> Quem você empurra para outro dia sai daqui e volta na data.
+                  </p>
+                </div>
+              )}
+            </Section>
 
-        {view === "today" && !query && quotes.length > 0 ? (
-          <p className="flex items-center gap-2 text-xs text-[var(--wq-text-muted)]">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--wq-brand)]" />
-            Ordem por prioridade: retorno atrasado, motivo e valor. Quem você empurra para outro dia sai da lista.
-          </p>
-        ) : null}
+            <Section id="funil" icon={KanbanSquare} title="Funil" count={board.length} hint="Abertos e fechados nos últimos 60 dias · arraste o cartão para mudar a etapa">
+              {board.length ? (
+                <QuoteBoard quotes={board} onOpen={setOpenId} onMove={moveStage} />
+              ) : (
+                <Empty
+                  title="Nenhum orçamento ainda"
+                  text="Quando o cliente não fechar, use “Cliente não fechou” no kanban, ou registre o orçamento do balcão aqui."
+                  action={
+                    <Button type="button" className="mt-4 rounded-[10px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]" onClick={() => setNewOpen(true)}>
+                      <Plus className="mr-1 h-4 w-4" /> Novo orçamento
+                    </Button>
+                  }
+                />
+              )}
+            </Section>
+
+            <Section id="recuperados" icon={Trophy} title="Recuperados" hint="Quem voltou, por que tinha recusado e o que fez fechar">
+              <RecoveredView onOpen={setOpenId} />
+            </Section>
+          </>
+        )}
       </div>
 
       <NewQuoteDialog
@@ -308,8 +328,9 @@ export default function OrcamentosPage() {
         }}
         onChanged={upsert}
         onDeleted={(id) => {
-          setQuotes((prev) => prev.filter((row) => row.id !== id))
-          refresh()
+          setBoard((prev) => prev.filter((row) => row.id !== id))
+          setResults((prev) => prev.filter((row) => row.id !== id))
+          void loadBoard()
         }}
       />
       <RecoveryDialog
@@ -323,270 +344,56 @@ export default function OrcamentosPage() {
   )
 }
 
-function SummaryStrip({
-  summary,
-  onToday,
-  onRecovered,
+function Section({
+  id,
+  icon: Icon,
+  title,
+  count,
+  hint,
+  children,
 }: {
-  summary: QuoteSummary | null
-  onToday: () => void
-  onRecovered: () => void
+  id?: string
+  icon: LucideIcon
+  title: string
+  count?: number
+  hint?: string
+  children: ReactNode
 }) {
-  const cards = [
-    {
-      key: "today",
-      label: "Ligar hoje",
-      value: summary ? String(summary.todayCount) : "—",
-      hint: summary?.overdueCount ? `${summary.overdueCount} com retorno atrasado` : "Nada atrasado",
-      icon: PhoneCall,
-      tone: summary?.overdueCount ? "text-rose-600 dark:text-rose-400" : "text-[var(--wq-brand)]",
-      onClick: onToday,
-    },
-    {
-      key: "open",
-      label: "Na mesa",
-      value: summary ? brl(summary.openValue) : "—",
-      hint: summary ? `${summary.openCount} orçamento${summary.openCount === 1 ? "" : "s"} em aberto` : "",
-      icon: Wallet,
-      tone: "text-[var(--wq-text)]",
-    },
-    {
-      key: "won",
-      label: "Recuperado · 30 dias",
-      value: summary ? brl(summary.wonValue30d) : "—",
-      hint: summary ? `${summary.wonCount30d} cliente${summary.wonCount30d === 1 ? "" : "s"} voltou` : "",
-      icon: TrendingUp,
-      tone: "text-emerald-600 dark:text-emerald-400",
-      onClick: onRecovered,
-    },
-    {
-      key: "rate",
-      label: "Taxa de recuperação",
-      value: summary ? `${summary.recoveryRate}%` : "—",
-      hint: "Fechou ÷ (fechou + desistiu), 30 dias",
-      icon: Check,
-      tone: "text-[var(--wq-action)]",
-    },
-  ]
   return (
-    <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-      {cards.map((card) => {
-        const Icon = card.icon
-        const body = (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--wq-text-muted)]">{card.label}</p>
-              <Icon className={cn("h-4 w-4", card.tone)} />
-            </div>
-            <p className={cn("mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl", card.tone)}>
-              {card.value}
-            </p>
-            <p className="mt-1 truncate text-xs text-[var(--wq-text-muted)]">{card.hint}</p>
-          </>
-        )
-        const cls = "rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 py-3.5 text-left"
-        return card.onClick ? (
-          <button key={card.key} type="button" onClick={card.onClick} className={cn(cls, "transition hover:border-[var(--wq-brand)]/40")}>
-            {body}
-          </button>
-        ) : (
-          <div key={card.key} className={cls}>
-            {body}
-          </div>
-        )
-      })}
+    <section id={id} className="scroll-mt-20">
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--wq-text)]">
+          <Icon className="h-4 w-4 text-[var(--wq-brand)]" />
+          {title}
+          {count != null ? (
+            <span className="rounded-full bg-[var(--wq-paper)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--wq-text-muted)]">{count}</span>
+          ) : null}
+        </h2>
+        {hint ? <p className="text-xs text-[var(--wq-text-muted)]">{hint}</p> : null}
+      </div>
+      {children}
     </section>
   )
 }
 
-function QuoteRow({
-  quote: q,
-  showStage,
-  busy,
-  onOpen,
-  onWhatsApp,
-  onCall,
-  onSnooze,
-  onWin,
-}: {
-  quote: Quote
-  showStage: boolean
-  busy: string
-  onOpen: () => void
-  onWhatsApp: () => void
-  onCall: () => void
-  onSnooze: (days: number) => void
-  onWin: () => void
-}) {
-  const [snoozeOpen, setSnoozeOpen] = useState(false)
-  const open = q.stage !== "won" && q.stage !== "lost"
-  return (
-    <li className="group relative rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] transition hover:border-[var(--wq-brand)]/35 hover:shadow-[0_8px_24px_-18px_rgba(15,23,42,0.45)]">
-      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:px-4">
-        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--wq-brand-soft)] text-sm font-semibold text-[var(--wq-brand)]">
-            {initials(q.name)}
-            {open ? (
-              <span className={cn("absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ring-2 ring-[var(--wq-surface)]", priorityDot(q.priority.level))} />
-            ) : null}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <p className="truncate font-semibold">{q.name}</p>
-              {q.orderCode ? (
-                <span className="rounded-md bg-[var(--wq-paper)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--wq-text-muted)]">
-                  #{q.orderCode}
-                </span>
-              ) : null}
-              {showStage ? (
-                <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", stageTone(q.stage))}>
-                  {STAGE_LABEL[q.stage]}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-0.5 truncate text-sm text-[var(--wq-text-muted)]">
-              {q.what || "Sem descrição"}
-              {q.reasonLabel ? ` · ${q.reasonLabel}` : ""}
-            </p>
-            {open && q.priority.hint ? (
-              <p className="mt-1 hidden text-xs text-[var(--wq-text-muted)] sm:block">{q.priority.hint}</p>
-            ) : null}
-          </div>
-          <div className="hidden shrink-0 text-right sm:block">
-            <p className="font-semibold tabular-nums">{q.value ? brl(q.value) : "—"}</p>
-            {open ? (
-              <span className={cn("mt-1 inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium", followUpTone(q.followUp.state))}>
-                {followUpLabel(q)}
-              </span>
-            ) : null}
-          </div>
-        </button>
-
-        <div className="flex items-center gap-1.5 sm:shrink-0">
-          <div className="flex flex-1 items-center gap-2 sm:hidden">
-            <span className="font-semibold tabular-nums">{q.value ? brl(q.value) : "—"}</span>
-            {open ? (
-              <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", followUpTone(q.followUp.state))}>
-                {followUpLabel(q)}
-              </span>
-            ) : null}
-          </div>
-          {open ? (
-            <>
-              <Button
-                type="button"
-                size="icon"
-                className="h-10 w-10 rounded-xl bg-[#25D366] text-[#073018] hover:bg-[#1ebe5d]"
-                disabled={!q.phoneDigits || busy === "wa"}
-                onClick={onWhatsApp}
-                aria-label="WhatsApp com texto pronto"
-                title="WhatsApp com texto pronto"
-              >
-                {busy === "wa" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-              </Button>
-              {q.phone ? (
-                <Button asChild type="button" size="icon" variant="outline" className="h-10 w-10 rounded-xl" title="Ligar">
-                  <a href={`tel:${q.phoneDigits || q.phone}`} onClick={onCall} aria-label={`Ligar para ${formatPhone(q.phone)}`}>
-                    <Phone className="h-4 w-4" />
-                  </a>
-                </Button>
-              ) : null}
-              <div className="relative">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-10 w-10 rounded-xl"
-                  onClick={() => setSnoozeOpen((v) => !v)}
-                  disabled={busy === "snooze"}
-                  aria-label="Ligar outro dia"
-                  title="Ligar outro dia"
-                >
-                  {busy === "snooze" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
-                </Button>
-                {snoozeOpen ? (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setSnoozeOpen(false)} />
-                    <div className="absolute right-0 top-11 z-20 w-40 overflow-hidden rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] py-1 shadow-xl">
-                      {[
-                        { days: 1, label: "Amanhã" },
-                        { days: 3, label: "Em 3 dias" },
-                        { days: 7, label: "Em 1 semana" },
-                        { days: 30, label: "Em 1 mês" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.days}
-                          type="button"
-                          className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--wq-paper)]"
-                          onClick={() => {
-                            setSnoozeOpen(false)
-                            onSnooze(opt.days)
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-              <Button
-                type="button"
-                className="h-10 rounded-xl bg-[var(--wq-action)] px-3 text-white hover:bg-[var(--wq-action)]/90"
-                disabled={busy === "win"}
-                onClick={onWin}
-                title="Cliente fechou"
-              >
-                {busy === "win" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                <span className="ml-1 hidden lg:inline">Fechou</span>
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </div>
-    </li>
-  )
+function List({ children }: { children: ReactNode }) {
+  return <ul className="divide-y divide-[var(--wq-border)] rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">{children}</ul>
 }
 
-function EmptyState({
-  today,
-  searching,
-  onNew,
-  onBoard,
-}: {
-  today: boolean
-  searching: boolean
-  onNew: () => void
-  onBoard: () => void
-}) {
+function Loading({ label }: { label: string }) {
   return (
-    <div className="rounded-3xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] px-6 py-16 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--wq-brand-soft)]">
-        {today ? <Check className="h-7 w-7 text-[var(--wq-brand)]" /> : <Search className="h-6 w-6 text-[var(--wq-brand)]" />}
-      </div>
-      <p className="mt-4 text-lg font-semibold">
-        {searching ? "Ninguém com esse nome ou telefone" : today ? "Nada para ligar hoje" : "Nenhum orçamento ainda"}
-      </p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-[var(--wq-text-muted)]">
-        {searching
-          ? "Busque pelo nome, pelo telefone ou pelo código do pedido."
-          : today
-            ? "Os retornos estão em dia. Quando o cliente não fechar, use “Cliente não fechou” no kanban ou registre aqui."
-            : "Quando o cliente não fechar, use “Cliente não fechou” no kanban, ou registre o orçamento do balcão aqui."}
-      </p>
-      {!searching ? (
-        <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
-          <Button type="button" className="rounded-[10px] bg-[var(--wq-brand)] text-white hover:bg-[var(--wq-brand-deep)]" onClick={onNew}>
-            <Plus className="mr-1 h-4 w-4" /> Novo orçamento
-          </Button>
-          {today ? (
-            <Button type="button" variant="outline" className="rounded-[10px]" onClick={onBoard}>
-              <KanbanSquare className="mr-1 h-4 w-4" /> Ver o quadro
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+    <div className="flex items-center justify-center py-16 text-sm text-[var(--wq-text-muted)]">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {label}
     </div>
   )
 }
 
+function Empty({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] px-6 py-10 text-center">
+      <p className="font-semibold">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-[var(--wq-text-muted)]">{text}</p>
+      {action}
+    </div>
+  )
+}

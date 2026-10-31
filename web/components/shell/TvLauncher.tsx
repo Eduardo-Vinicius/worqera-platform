@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ChevronDown, Copy, ExternalLink, PlayCircle, Settings2, Tv } from "lucide-react"
+import { Copy, ExternalLink, PlayCircle, Settings2, Tv } from "lucide-react"
 import { toast } from "sonner"
 import { copyTvLink, markTvOpened, visibleScreens, type TvScreen } from "./tvScreens"
 import { cn } from "@/lib/utils"
@@ -41,16 +41,16 @@ export function TvLauncher() {
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          "inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-semibold transition",
+          "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-[10px] px-2 text-xs font-medium transition",
           open
-            ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
-            : "border-[var(--wq-border)] bg-[var(--wq-surface)] text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
+            ? "bg-[var(--wq-brand-soft)] text-[var(--wq-text)]"
+            : "text-[var(--wq-text-muted)] hover:bg-[var(--wq-paper)] hover:text-[var(--wq-text)]"
         )}
         title="Telas da loja (TVs)"
+        aria-label="Telas da loja (TVs)"
       >
-        <Tv className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Telas da loja</span>
-        <ChevronDown className={cn("hidden h-3 w-3 transition sm:block", open && "rotate-180")} />
+        <Tv className="h-4 w-4" />
+        <span className="hidden lg:inline">TVs</span>
       </button>
 
       {open ? (

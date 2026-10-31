@@ -12,7 +12,18 @@ import '../ai/ai_widgets.dart';
 import 'quote_kit.dart';
 import 'recovered_view.dart';
 
-/// Orçamentos: quem ligar hoje, o funil e o histórico de cada cliente que não fechou.
+const _preview = 5;
+
+/// Mesma regra da API (`isDueToday`): aberto, e o retorno está atrasado, é hoje, ou é novo sem data.
+bool _dueToday(Map q) {
+  if (!quoteOpen(q)) return false;
+  final state = q['followUp'] is Map ? '${(q['followUp'] as Map)['state']}' : 'none';
+  return state == 'overdue' || state == 'today' || (state == 'none' && q['stage'] == 'new');
+}
+
+num _score(Map q) => q['priority'] is Map ? (num.tryParse('${(q['priority'] as Map)['score']}') ?? 0) : 0;
+
+/// Orçamentos numa tela só: resumo, quem ligar hoje, o funil e os recuperados, um embaixo do outro.
 class QuotesScreen extends StatefulWidget {
   const QuotesScreen({super.key, required this.api, required this.session, this.openId});
   final WorqeraApi api;
@@ -24,12 +35,15 @@ class QuotesScreen extends StatefulWidget {
 }
 
 class _QuotesScreenState extends State<QuotesScreen> {
-  String view = 'today';
   String stage = 'new';
   String query = '';
-  List<Map<String, dynamic>> quotes = [];
+  List<Map<String, dynamic>> board = [];
+  List<Map<String, dynamic>> results = [];
   Map<String, dynamic> summary = {};
   bool loading = true;
+  bool searching = false;
+  bool allToday = false;
+  bool allStage = false;
   String? error;
   String busy = '';
   Timer? debounce;
@@ -52,16 +66,16 @@ class _QuotesScreenState extends State<QuotesScreen> {
     super.dispose();
   }
 
+  List<Map<String, dynamic>> _rows(dynamic data) =>
+      ((data as Map)['quotes'] as List? ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
   Future<void> load() async {
     try {
-      final res = await widget.api.dio.get('/quotes', queryParameters: {
-        'view': view == 'board' ? 'board' : view,
-        if (query.trim().isNotEmpty) 'q': query.trim(),
-      });
+      final res = await widget.api.dio.get('/quotes', queryParameters: {'view': 'board'});
       final body = Map<String, dynamic>.from(res.data as Map);
       if (!mounted) return;
       setState(() {
-        quotes = ((body['quotes'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        board = _rows(body);
         summary = body['summary'] is Map ? Map<String, dynamic>.from(body['summary'] as Map) : {};
         loading = false;
         error = null;
@@ -74,73 +88,34 @@ class _QuotesScreenState extends State<QuotesScreen> {
         });
       }
     }
+    if (query.trim().isNotEmpty) await runSearch();
   }
 
-  void setView(String next) {
-    setState(() {
-      view = next;
-      loading = next != 'recovered';
-    });
-    if (next != 'recovered') load();
-  }
-
-  /// Four tabs that always fit: icon over a short label on narrow phones.
-  Widget _tabs(BuildContext context) {
-    final today = (summary['todayCount'] ?? 0) as num;
-    final tabs = <(String, IconData, String)>[
-      ('today', Icons.phone_in_talk_outlined, 'Hoje'),
-      ('board', Icons.view_kanban_outlined, 'Quadro'),
-      ('all', Icons.list, 'Todos'),
-      ('recovered', Icons.emoji_events_outlined, 'Recuperados'),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(12), border: Border.all(color: context.wqLine)),
-      child: Row(children: [
-        for (final t in tabs)
-          Expanded(
-            child: Material(
-              color: view == t.$1 ? Wq.brand : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(9),
-                onTap: () => setView(t.$1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Stack(clipBehavior: Clip.none, children: [
-                      Icon(t.$2, size: 20, color: view == t.$1 ? Colors.white : context.wqMuted),
-                      if (t.$1 == 'today' && today > 0)
-                        Positioned(
-                          right: -10,
-                          top: -6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(99)),
-                            child: Text('$today', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                    ]),
-                    const SizedBox(height: 2),
-                    Text(
-                      t.$3,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: view == t.$1 ? Colors.white : context.wqMuted),
-                    ),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-      ]),
-    );
+  Future<void> runSearch() async {
+    final term = query.trim();
+    if (term.isEmpty) return;
+    setState(() => searching = true);
+    try {
+      final res = await widget.api.dio.get('/quotes', queryParameters: {'view': 'all', 'q': term});
+      if (mounted && term == query.trim()) setState(() => results = _rows(res.data));
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => searching = false);
+    }
   }
 
   void onSearch(String value) {
-    query = value;
+    setState(() {
+      query = value;
+      if (value.trim().isEmpty) results = [];
+    });
     debounce?.cancel();
-    debounce = Timer(const Duration(milliseconds: 300), load);
+    debounce = Timer(const Duration(milliseconds: 300), runSearch);
+  }
+
+  void clearSearch() {
+    search.clear();
+    onSearch('');
   }
 
   void openQuote(String id) {
@@ -212,13 +187,41 @@ class _QuotesScreenState extends State<QuotesScreen> {
     }
   }
 
+  Widget _section(BuildContext context, IconData icon, String title, {int? count, String? hint}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, size: 18, color: Wq.brand),
+          const SizedBox(width: 8),
+          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.wqInk)),
+          if (count != null) ...[const SizedBox(width: 8), Pill('$count', color: context.wqMuted)],
+        ]),
+        if (hint != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(hint, style: TextStyle(fontSize: 12, color: context.wqMuted))),
+      ]),
+    );
+  }
+
+  Widget _more(int hidden, bool expanded, VoidCallback onTap) {
+    if (hidden <= 0) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 18),
+        label: Text(expanded ? 'Mostrar menos' : 'Ver mais $hidden'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visible = view == 'board' ? quotes.where((q) => q['stage'] == stage).toList() : quotes;
-    final byStage = (summary['byStage'] is Map) ? summary['byStage'] as Map : const {};
+    final today = board.where(_dueToday).toList()..sort((a, b) => _score(b).compareTo(_score(a)));
+    final inStage = board.where((q) => q['stage'] == stage).toList();
+    final term = query.trim();
     return WqPage(
       title: 'Orçamentos',
-      subtitle: 'Quem não fechou e quem ligar hoje',
+      subtitle: 'Quem ligar hoje, o funil e quem voltou',
       floating: FloatingActionButton.extended(
         onPressed: create,
         backgroundColor: Wq.brand,
@@ -232,20 +235,44 @@ class _QuotesScreenState extends State<QuotesScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
           children: [
             _summary(context),
-            const SizedBox(height: 14),
-            _tabs(context),
             const SizedBox(height: 12),
-            if (view == 'recovered')
-              RecoveredView(api: widget.api, onOpen: openQuote)
-            else
-              TextField(
-                controller: search,
-                onChanged: onSearch,
-                textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Nome, telefone ou código'),
+            TextField(
+              controller: search,
+              onChanged: onSearch,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Buscar: nome, telefone ou código',
+                suffixIcon: term.isEmpty ? null : IconButton(tooltip: 'Limpar', icon: const Icon(Icons.close), onPressed: clearSearch),
               ),
-            if (view == 'board') ...[
-              const SizedBox(height: 12),
+            ),
+            if (term.isNotEmpty) ...[
+              _section(context, Icons.search, 'Resultado da busca', count: searching ? null : results.length, hint: 'Todas as etapas, inclusive os antigos'),
+              if (searching && results.isEmpty)
+                const Padding(padding: EdgeInsets.only(top: 32), child: Center(child: CircularProgressIndicator()))
+              else if (results.isEmpty)
+                _empty(context, 'Ninguém com esse nome', 'Busque pelo nome, pelo telefone ou pelo código do pedido.')
+              else
+                for (final q in results) _row(context, q, stageMenu: true),
+            ] else if (loading)
+              const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: CircularProgressIndicator()))
+            else if (error != null)
+              Padding(padding: const EdgeInsets.only(top: 32), child: Text(error!, textAlign: TextAlign.center))
+            else ...[
+              _section(context, Icons.phone_in_talk_outlined, 'Ligar hoje', count: today.length, hint: 'Ordem por prioridade: retorno atrasado, motivo e valor'),
+              if (today.isEmpty)
+                WqCard(
+                  child: Row(children: [
+                    const Icon(Icons.check_circle_outline, color: Wq.success),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('Retornos em dia. Quem você empurra para outro dia volta na data.', style: TextStyle(color: context.wqMuted))),
+                  ]),
+                )
+              else ...[
+                for (final q in (allToday ? today : today.take(_preview))) _row(context, q),
+                _more(today.length - _preview, allToday, () => setState(() => allToday = !allToday)),
+              ],
+              _section(context, Icons.view_kanban_outlined, 'Funil', count: board.length, hint: 'Abertos e fechados nos últimos 60 dias'),
               SizedBox(
                 height: 40,
                 child: ListView(scrollDirection: Axis.horizontal, children: [
@@ -253,97 +280,122 @@ class _QuotesScreenState extends State<QuotesScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text('${s.$2} ${byStage[s.$1] ?? 0}'),
+                        label: Text('${s.$2} ${board.where((q) => q['stage'] == s.$1).length}'),
                         selected: stage == s.$1,
                         selectedColor: stageColor(s.$1).withValues(alpha: 0.16),
-                        onSelected: (_) => setState(() => stage = s.$1),
+                        onSelected: (_) => setState(() {
+                          stage = s.$1;
+                          allStage = false;
+                        }),
                       ),
                     ),
                 ]),
               ),
+              const SizedBox(height: 10),
+              if (inStage.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text('Nada em ${stageLabel(stage)}.', style: TextStyle(color: context.wqMuted)),
+                )
+              else ...[
+                for (final q in (allStage ? inStage : inStage.take(_preview))) _row(context, q, stageMenu: true),
+                _more(inStage.length - _preview, allStage, () => setState(() => allStage = !allStage)),
+              ],
+              _section(context, Icons.emoji_events_outlined, 'Recuperados', hint: 'Quem voltou, por que tinha recusado e o que fez fechar'),
+              RecoveredView(api: widget.api, onOpen: openQuote),
             ],
-            const SizedBox(height: 12),
-            if (view == 'recovered')
-              const SizedBox.shrink()
-            else if (loading)
-              const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: CircularProgressIndicator()))
-            else if (error != null)
-              Padding(padding: const EdgeInsets.only(top: 32), child: Text(error!, textAlign: TextAlign.center))
-            else if (visible.isEmpty)
-              _empty(context)
-            else
-              for (final q in visible) _row(context, q),
           ],
         ),
       ),
     );
   }
 
+  /// Um cartão só com os quatro números e o funil em uma barra.
   Widget _summary(BuildContext context) {
-    final overdue = summary['overdueCount'] ?? 0;
-    final cards = [
+    final overdue = (summary['overdueCount'] ?? 0) as num;
+    final cells = [
       ('Ligar hoje', '${summary['todayCount'] ?? 0}', overdue > 0 ? '$overdue atrasados' : 'Nada atrasado', overdue > 0 ? const Color(0xFFE11D48) : Wq.brand),
       ('Na mesa', money0(summary['openValue'] ?? 0), '${summary['openCount'] ?? 0} em aberto', context.wqInk),
       ('Recuperado 30d', money0(summary['wonValue30d'] ?? 0), '${summary['wonCount30d'] ?? 0} voltaram', Wq.success),
       ('Recuperação', '${summary['recoveryRate'] ?? 0}%', 'últimos 30 dias', Wq.action),
     ];
-    // Cards size to their content (no fixed ratio), so big text or small phones never overflow.
-    return LayoutBuilder(builder: (context, box) {
-      final w = (box.maxWidth - 8) / 2;
-      return Wrap(spacing: 8, runSpacing: 8, children: [
-        for (final c in cards)
-          SizedBox(
-            width: w,
-            child: WqCard(
+    final counts = [for (final s in quoteStages) (s.$1, s.$2, board.where((q) => q['stage'] == s.$1).length)];
+    final total = counts.fold<int>(0, (sum, s) => sum + s.$3);
+    Widget cell((String, String, String, Color) c) => Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(c.$1.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: context.wqMuted)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(c.$2, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: c.$4)),
+            ),
+            Text(c.$3, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+          ]),
+        );
+    final line = BorderSide(color: context.wqLine);
+    return Container(
+      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.wqLine)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: Container(decoration: BoxDecoration(border: Border(right: line)), child: cell(cells[0]))),
+            Expanded(child: cell(cells[1])),
+          ]),
+        ),
+        Divider(height: 1, color: context.wqLine),
+        IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: Container(decoration: BoxDecoration(border: Border(right: line)), child: cell(cells[2]))),
+            Expanded(child: cell(cells[3])),
+          ]),
+        ),
+        if (total > 0) ...[
+          Divider(height: 1, color: context.wqLine),
+          Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            onTap: c.$1 == 'Ligar hoje'
-                ? () => setView('today')
-                : c.$1 == 'Recuperado 30d'
-                    ? () => setView('recovered')
-                    : null,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(c.$1.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: context.wqMuted)),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(c.$2, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: c.$4)),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: SizedBox(
+                  height: 8,
+                  child: Row(children: [
+                    for (final s in counts)
+                      if (s.$3 > 0) Expanded(flex: s.$3, child: Container(color: stageColor(s.$1))),
+                  ]),
+                ),
               ),
-              Text(c.$3, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 12, runSpacing: 4, children: [
+                for (final s in counts)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 8, height: 8, decoration: BoxDecoration(color: stageColor(s.$1), shape: BoxShape.circle)),
+                    const SizedBox(width: 4),
+                    Text('${s.$2} ', style: TextStyle(fontSize: 12, color: context.wqMuted)),
+                    Text('${s.$3}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.wqInk)),
+                  ]),
+              ]),
             ]),
           ),
-          ),
-      ]);
-    });
-  }
-
-  Widget _empty(BuildContext context) {
-    final today = view == 'today' && query.isEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(top: 32),
-      child: Column(children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(color: Wq.brand.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
-          child: Icon(today ? Icons.check_rounded : Icons.search, color: Wq.brand, size: 28),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          query.isNotEmpty ? 'Ninguém com esse nome' : today ? 'Nada para ligar hoje' : 'Nenhum orçamento aqui',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.wqInk),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Quando o cliente não fechar, use “Cliente não fechou” no pedido, ou registre aqui pelo Novo.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: context.wqMuted),
-        ),
+        ],
       ]),
     );
   }
 
-  Widget _row(BuildContext context, Map<String, dynamic> q) {
+  Widget _empty(BuildContext context, String title, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(children: [
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.wqInk)),
+        const SizedBox(height: 4),
+        Text(text, textAlign: TextAlign.center, style: TextStyle(color: context.wqMuted)),
+      ]),
+    );
+  }
+
+  Widget _row(BuildContext context, Map<String, dynamic> q, {bool stageMenu = false}) {
     final open = quoteOpen(q);
     final busyKey = busy.startsWith('${q['id']}:') ? busy.split(':').last : '';
     final hint = q['priority'] is Map ? '${(q['priority'] as Map)['hint'] ?? ''}' : '';
@@ -406,7 +458,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
                 ],
                 child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.event_repeat_outlined, size: 22)),
               ),
-              if (view == 'board')
+              if (stageMenu)
                 PopupMenuButton<String>(
                   tooltip: 'Mudar etapa',
                   onSelected: (next) => move(q, next),

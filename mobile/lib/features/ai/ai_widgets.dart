@@ -65,11 +65,15 @@ class AiQuotaNotice extends StatelessWidget {
   }
 }
 
-/// Resumo do dia no Início: números ao vivo e a frase escrita pela IA no Business.
+/// Visão geral → "Operação de hoje": o único bloco sobre a operação.
+/// Frase da IA, os quatro números (cada um abre a tela certa), por onde começar e a fila por setor.
 class DailyBriefCard extends StatefulWidget {
-  const DailyBriefCard({super.key, required this.api, required this.session});
+  const DailyBriefCard({super.key, required this.api, required this.session, this.open = 0, this.overdue = 0, this.sectors = const []});
   final WorqeraApi api;
   final SessionStore session;
+  final int open;
+  final int overdue;
+  final List<Map> sectors;
 
   @override
   State<DailyBriefCard> createState() => _DailyBriefCardState();
@@ -129,79 +133,70 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
     }
   }
 
+  void _openQuotes() => _openHref('/orcamentos');
+
   @override
   Widget build(BuildContext context) {
-    if (hidden) return const SizedBox.shrink();
     final n = brief?['numbers'] is Map ? brief!['numbers'] as Map : const {};
     // A API já decide o que cada papel vê: dono/admin com valores, atendimento sem valores, setor só a própria fila.
     final audience = '${brief?['audience'] ?? 'owner'}';
     const late = Color(0xFFE11D48);
-    final List<(String, dynamic, String?, Color)> chips = audience == 'sector'
+    final stake = audience == 'owner' ? ((brief?['stake'] as num?) ?? 0) : 0;
+    final actions = ((brief?['actions'] as List?) ?? const []).whereType<Map>().toList();
+    final List<(String, dynamic, VoidCallback, Color)> kpis = audience == 'sector'
         ? [
-            ('Na fila', n['queue'] ?? 0, '/kanban', context.wqInk),
-            ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
-            ('Hoje', n['dueToday'] ?? 0, '/kanban', Wq.brand),
-            ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
+            ('Na fila', n['queue'] ?? 0, () => context.go('/kanban'), context.wqInk),
+            ('Atrasados', n['overdue'] ?? 0, () => context.go('/kanban'), late),
+            ('Vencem hoje', n['dueToday'] ?? 0, () => context.go('/kanban'), Wq.brand),
+            ('Amanhã', n['dueTomorrow'] ?? 0, () => context.go('/kanban'), context.wqInk),
           ]
-        : audience == 'team'
-            ? [
-                ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
-                ('Prontos', n['ready'] ?? 0, '/kanban', Wq.success),
-                ('Ligar hoje', n['callToday'] ?? 0, null, Wq.brand),
-                ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
-              ]
-            : [
-                ('Prontos', n['ready'] ?? 0, '/kanban', Wq.success),
-                ('Ligar hoje', n['callToday'] ?? 0, null, Wq.brand),
-                ('Atrasados', n['overdue'] ?? 0, '/kanban', late),
-                ('Amanhã', n['dueTomorrow'] ?? 0, '/kanban', context.wqInk),
-              ];
+        : [
+            ('Em andamento', widget.open, () => context.go('/kanban'), context.wqInk),
+            ('Atrasados', widget.overdue, () => context.go('/kanban'), late),
+            ('Prontos', n['ready'] ?? 0, () => context.go('/kanban'), Wq.success),
+            ('Ligar hoje', n['callToday'] ?? 0, _openQuotes, Wq.brand),
+          ];
+    final sectors = [...widget.sectors]..sort((a, b) => (num.tryParse('${b['count']}') ?? 0).compareTo(num.tryParse('${a['count']}') ?? 0));
+    final shown = sectors.take(5).toList();
+    final maxCount = shown.fold<num>(1, (max, row) {
+      final count = num.tryParse('${row['count']}') ?? 0;
+      return count > max ? count : max;
+    });
+    final fallback = '${widget.open} pedido${widget.open == 1 ? '' : 's'} em andamento'
+        '${widget.overdue > 0 ? ', ${widget.overdue} atrasado${widget.overdue == 1 ? '' : 's'}' : ', fila em dia'}.';
+    final label = TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.wqLine),
-        gradient: LinearGradient(
-          colors: [Wq.brand.withValues(alpha: context.wqDark ? 0.18 : 0.09), context.wqSurface],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.wqLine)),
+      clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 6, 6),
+          padding: const EdgeInsets.fromLTRB(14, 12, 6, 10),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(color: Wq.brand, borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(color: Wq.brand, borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Text('RESUMO DO DIA', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted)),
-                  if (brief?['ai'] == true) ...[const SizedBox(width: 6), const Pill('IA', color: Wq.brand, filled: true)],
+                Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  Text('OPERAÇÃO DE HOJE', style: label),
+                  if (brief?['ai'] == true) const Pill('IA', color: Wq.brand, filled: true),
+                  if (stake > 0) Pill('${brl(stake)} em jogo', color: Wq.brand),
                 ]),
                 const SizedBox(height: 4),
-                if (audience == 'owner' && ((brief?['stake'] as num?) ?? 0) > 0)
-                  Text.rich(TextSpan(children: [
-                    TextSpan(text: brl(brief!['stake']), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: context.wqInk, letterSpacing: -0.5)),
-                    TextSpan(text: '  em jogo hoje', style: TextStyle(fontSize: 14, color: context.wqMuted)),
-                  ])),
                 Text(
-                  brief == null ? 'Lendo a operação…' : '${brief!['text'] ?? ''}',
+                  brief != null ? '${brief!['text'] ?? ''}' : (hidden ? fallback : 'Lendo a operação…'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: context.wqInk),
                 ),
                 if ('${brief?['tip'] ?? ''}'.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Icon(Icons.lightbulb_outline, size: 15, color: Color(0xFFF59E0B)),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text('${brief!['tip']}', style: TextStyle(fontSize: 13, color: context.wqMuted))),
-                    ]),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('${brief!['tip']}', style: TextStyle(fontSize: 13, color: context.wqMuted)),
                   ),
                 AiQuotaNotice(quota: quota),
               ]),
@@ -213,37 +208,69 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
             ),
           ]),
         ),
-        for (final entry in ((brief?['actions'] as List?) ?? const []).whereType<Map>().toList().asMap().entries)
-          _BriefAction(index: entry.key, action: entry.value, onTap: () => _openHref('${entry.value['href'] ?? ''}')),
-        if (((brief?['actions'] as List?) ?? const []).isNotEmpty) const SizedBox(height: 8),
         Divider(height: 1, color: context.wqLine),
         Row(children: [
-          for (final c in chips)
+          for (final k in kpis)
             Expanded(
               child: InkWell(
-                onTap: () {
-                  if (c.$3 != null) {
-                    context.go(c.$3!);
-                    return;
-                  }
-                  final page = QuotesScreen(api: widget.api, session: widget.session);
-                  final scope = ShellScope.maybeOf(context);
-                  if (scope != null) {
-                    scope.openPage('quotes', page, stack: true);
-                  } else {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-                  }
-                },
+                onTap: k.$3,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
                   child: Column(children: [
-                    Text('${c.$2}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: (c.$2 is num && c.$2 > 0) ? c.$4 : context.wqMuted)),
-                    Text(c.$1, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                    Text('${k.$2}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: (k.$2 is num && k.$2 > 0) ? k.$4 : context.wqMuted)),
+                    Text(k.$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
                   ]),
                 ),
               ),
             ),
         ]),
+        Divider(height: 1, color: context.wqLine),
+        Padding(padding: const EdgeInsets.fromLTRB(14, 10, 14, 6), child: Text('COMECE POR AQUI', style: label)),
+        if (actions.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: Text(brief != null || hidden ? 'Nada urgente agora. Bom momento para adiantar a fila.' : 'Carregando…', style: TextStyle(color: context.wqMuted, fontSize: 13)),
+          )
+        else ...[
+          for (final entry in actions.asMap().entries)
+            _BriefAction(index: entry.key, action: entry.value, onTap: () => _openHref('${entry.value['href'] ?? ''}')),
+          const SizedBox(height: 6),
+        ],
+        if (shown.isNotEmpty) ...[
+          Divider(height: 1, color: context.wqLine),
+          InkWell(
+            onTap: () => context.go('/kanban'),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Row(children: [
+                  Expanded(child: Text('FILA POR SETOR', style: label)),
+                  if (sectors.length > shown.length) Text('+${sectors.length - shown.length} setores', style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                ]),
+                const SizedBox(height: 8),
+                for (final s in shown)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(children: [
+                      SizedBox(width: 96, child: Text('${s['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: context.wqInk))),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            minHeight: 6,
+                            value: ((num.tryParse('${s['count']}') ?? 0) / maxCount).clamp(0.04, 1).toDouble(),
+                            backgroundColor: context.wqPaper,
+                            color: Wq.brand,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 32, child: Text('${s['count'] ?? 0}', textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800))),
+                    ]),
+                  ),
+              ]),
+            ),
+          ),
+        ],
       ]),
     );
   }

@@ -1,5 +1,20 @@
 # App celular
 
+## 2026-10-31
+
+- **Visão geral enxuta:** um só bloco **Operação de hoje** (`DailyBriefCard` em `ai_widgets.dart`) com a frase da IA, os quatro números clicáveis (Em andamento, Atrasados, Prontos, Ligar hoje), "Comece por aqui" e "Fila por setor".
+- **Saíram:** os chips repetidos, o bloco "Hoje", os 4 atalhos, a carga por setor separada e o cartão de assinatura (o trial vai no subtítulo).
+- **Abaixo:** Prateleira (dono) e Pedidos recentes ("Ver todos").
+- **TVs:** o cartão grande virou um ícone de TV no topo (`TvScreensButton`), que abre a lista para copiar o link.
+- **Orçamentos numa tela só (sem abas):**
+  - Em cima, um cartão com os 4 números e o funil em barra.
+  - Depois, a busca: enquanto busca, mostra só o resultado, de todas as etapas.
+  - E, um embaixo do outro:
+    - **Ligar hoje:** 5 primeiros e "Ver mais".
+    - **Funil:** chips de etapa filtram a lista e cada cartão tem o menu "Mudar etapa".
+    - **Recuperados.**
+  - Uma chamada só (`view=board`).
+
 ## 2026-10-30
 
 - **Clientes com CRM** (`features/crm/crm_views.dart`):

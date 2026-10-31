@@ -935,6 +935,10 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true)
   const [activeSectorId, setActiveSectorId] = useState<string | null>(null)
   const [filterLate, setFilterLate] = useState(false)
+  // `/kanban?late=1` (Visão geral → Atrasados) opens with the late filter on.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("late") === "1") setFilterLate(true)
+  }, [])
   const [filterDate, setFilterDate] = useState("")
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 

@@ -1,5 +1,27 @@
 # Worqera Web — Change log
 
+## 2026-10-31
+
+- **Visão geral enxuta:** os três blocos sobre a operação (Resumo do dia, chips de próximas ações e "Hoje" com 4 números) viraram um só, **Operação de hoje** (`components/dashboard/OperationPanel.tsx`):
+  - Frase da IA e dica, com "R$ em jogo" só para o dono.
+  - Quatro números clicáveis: Em andamento, Atrasados (abre o kanban já filtrado, `/kanban?late=1`), Prontos para retirar e Ligar hoje.
+  - "Comece por aqui" (as ações do resumo) e "Fila por setor" em barras (até 6 setores, "+N setores").
+  - Se a IA falhar, aparece uma frase com os números do painel.
+- **Saíram da Visão geral:** a faixa grande das TVs (continua em Configurações → TVs), os atalhos (já estão no menu), o cartão de assinatura (o trial aparece no subtítulo) e o bloco separado de carga por setor.
+- **Abaixo do painel:** Pedidos recentes com bolinha de status (pronto em verde, atrasado em vermelho) e data. Prateleira e Indicação aparecem ao lado, só para o dono.
+- **Topo:** botão das TVs discreto (só o ícone, "TVs" em tela larga) e "Digest" virou ícone de e-mail.
+- `DailyBriefCard` removido. `useDailyBrief`, `ACTION_ICON` e `TONE` agora são exportados; `SectorBriefStrip` do kanban segue igual.
+- **Orçamentos numa tela só (sem abas):**
+  - Em cima, um painel com Ligar hoje, Na mesa, Recuperado em 30 dias e Taxa (`QuoteSummaryPanel`). Cada número leva à sua parte da tela, e embaixo fica o funil em uma barra colorida por etapa, com a legenda.
+  - Depois, a busca em todos os orçamentos. Enquanto busca, a tela mostra só o resultado, de todas as etapas.
+  - E, um embaixo do outro:
+    - **Ligar hoje:** lista única por prioridade, 6 primeiros e "Ver mais".
+    - **Funil:** o quadro com arrastar, abertos e fechados em 60 dias.
+    - **Recuperados:** números num painel só e os 5 últimos com "Ver todos".
+  - A linha do orçamento foi para `components/quotes/QuoteRow.tsx` e ficou mais compacta, numa lista só.
+  - A tela carrega tudo numa chamada (`view=board`). "Ligar hoje" usa a mesma regra da API.
+  - Links antigos `?view=recovered|board|today` rolam até a parte certa.
+
 ## 2026-10-30
 
 - **Clientes virou CRM:**

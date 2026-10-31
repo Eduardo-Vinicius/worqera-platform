@@ -107,6 +107,14 @@ export function stageTone(stage: QuoteStage) {
   return "bg-[var(--wq-brand-soft)] text-[var(--wq-brand)] border-[var(--wq-brand)]/25"
 }
 
+export function stageBar(stage: QuoteStage) {
+  if (stage === "won") return "bg-emerald-500"
+  if (stage === "lost") return "bg-slate-300 dark:bg-slate-600"
+  if (stage === "followup") return "bg-sky-500"
+  if (stage === "contact") return "bg-violet-500"
+  return "bg-[var(--wq-brand)]"
+}
+
 export function initials(name: string) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean)
   if (!parts.length) return "?"
