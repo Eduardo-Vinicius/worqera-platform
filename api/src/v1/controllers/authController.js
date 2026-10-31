@@ -47,6 +47,7 @@ exports.signup = wrap(async (req, res) => {
     shopSlug,
     partnerCode,
     planCode,
+    kit: req.body?.kit,
     ref: ref || req.query?.ref,
   });
   if (result.refreshToken) {

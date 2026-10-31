@@ -827,6 +827,8 @@ export async function createClienteService(cliente: {
   estado?: string;
   complemento?: string;
   observacoes?: string;
+  birthday?: { day: number; month: number; year: number | null } | null;
+  source?: string;
 }) {
   const token = localStorage.getItem("token");
   const response = await fetch(`${API_BASE_URL}/clients`, {

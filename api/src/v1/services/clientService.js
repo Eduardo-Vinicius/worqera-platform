@@ -68,6 +68,48 @@ async function listClients(shopId, { q, limit, cursor } = {}) {
   return { data: page, clients: page, nextToken, count: page.length };
 }
 
+/**
+ * Birthday from the forms: "1990-05-14", "14/05", "14/05/1990" or { day, month, year }.
+ * Returns undefined when not sent, null to clear.
+ */
+function parseBirthday(data) {
+  const raw = data.birthday ?? data.birthDate ?? data.aniversario ?? data.dataNascimento;
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return { birthDay: null, birthMonth: null, birthYear: null };
+  let day;
+  let month;
+  let year = null;
+  if (typeof raw === 'object') {
+    day = Number(raw.day);
+    month = Number(raw.month);
+    year = raw.year ? Number(raw.year) : null;
+  } else {
+    const s = String(raw).trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) [, year, month, day] = m.map(Number);
+    else if ((m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/))) {
+      day = Number(m[1]);
+      month = Number(m[2]);
+      year = m[3] ? Number(m[3]) : null;
+    }
+  }
+  const valid = Number.isInteger(day) && Number.isInteger(month) && day >= 1 && day <= 31 && month >= 1 && month <= 12;
+  if (!valid) {
+    const err = new Error('Aniversário inválido. Use dia e mês (ex.: 14/05).');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+  const y = year && year >= 1900 && year <= new Date().getFullYear() ? year : null;
+  return { birthDay: day, birthMonth: month, birthYear: y };
+}
+
+function cleanTags(raw) {
+  if (raw === undefined) return undefined;
+  const list = Array.isArray(raw) ? raw : String(raw || '').split(',');
+  return [...new Set(list.map((t) => String(t || '').trim().slice(0, 30)).filter(Boolean))].slice(0, 10);
+}
+
 async function createClient(shopId, data) {
   const address =
     data.address ||
@@ -92,6 +134,10 @@ async function createClient(shopId, data) {
     email: data.email || null,
     whatsappOptIn: Boolean(data.whatsappOptIn),
     address,
+    notes: data.notes || data.observacoes || null,
+    ...(parseBirthday(data) || {}),
+    tags: cleanTags(data.tags) || [],
+    source: data.source ? String(data.source).trim().slice(0, 60) : null,
   });
 }
 
@@ -126,6 +172,11 @@ async function patchClient(shopId, id, updates) {
   if (updates.notes != null || updates.observacoes != null) {
     client.notes = updates.notes || updates.observacoes || null;
   }
+  const birthday = parseBirthday(updates);
+  if (birthday) Object.assign(client, birthday);
+  const tags = cleanTags(updates.tags);
+  if (tags) client.tags = tags;
+  if (updates.source !== undefined) client.source = updates.source ? String(updates.source).trim().slice(0, 60) : null;
 
   const hasAddressField =
     updates.address != null ||
@@ -169,4 +220,4 @@ async function deleteClient(shopId, id) {
   return result;
 }
 
-module.exports = { listClients, createClient, getClient, patchClient, deleteClient };
+module.exports = { listClients, createClient, getClient, patchClient, deleteClient, parseBirthday };

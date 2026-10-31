@@ -8,6 +8,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
+import '../crm/crm_views.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../quotes/quotes_screen.dart';
@@ -31,11 +32,55 @@ class _ClientsScreenState extends State<ClientsScreen> {
   bool loading = true;
   bool searching = false;
   Timer? searchTimer;
+  /// base | birthdays | inactive | recurring | new | all
+  String tab = 'base';
+
+  static const _tabs = <(String, String)>[
+    ('base', 'Base'),
+    ('birthdays', 'Aniversariantes'),
+    ('inactive', 'Sumidos'),
+    ('recurring', 'Recorrentes'),
+    ('new', 'Novos'),
+    ('all', 'Todos'),
+  ];
 
   @override
   void initState() {
     super.initState();
     load();
+  }
+
+  void openClient(String id) {
+    final scope = ShellScope.maybeOf(context);
+    if (scope != null) {
+      scope.openPage('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session), stack: true);
+      return;
+    }
+    widget.openClient?.call(id);
+  }
+
+  void setTab(String next) => setState(() => tab = next == 'vip' ? 'recurring' : next);
+
+  Widget _tabBar(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: _tabs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final t = _tabs[i];
+          return ChoiceChip(
+            label: Text(t.$2, style: TextStyle(fontWeight: FontWeight.w700, color: tab == t.$1 ? Colors.white : context.wqInk)),
+            selected: tab == t.$1,
+            selectedColor: Wq.brand,
+            showCheckmark: false,
+            onSelected: (_) => setTab(t.$1),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -107,7 +152,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
       context,
       title: 'Novo cliente',
       child: (sheet) => WqSheetFields(
-        create: () => List.generate(7, (_) => TextEditingController()),
+        create: () => List.generate(8, (_) => TextEditingController()),
         builder: (_, fields) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -140,6 +185,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
             TextField(controller: fields[3], decoration: const InputDecoration(labelText: 'Endereço')),
             TextField(controller: fields[4], decoration: const InputDecoration(labelText: 'E-mail')),
             TextField(controller: fields[5], decoration: const InputDecoration(labelText: 'CPF')),
+            TextField(
+              controller: fields[7],
+              keyboardType: TextInputType.datetime,
+              decoration: const InputDecoration(labelText: 'Aniversário (opcional)', hintText: 'DD/MM ou DD/MM/AAAA'),
+            ),
             TextField(controller: fields[6], decoration: const InputDecoration(labelText: 'Observações')),
             const SizedBox(height: 8),
             FilledButton(
@@ -151,6 +201,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 'email': fields[4].text.trim(),
                 'cpf': fields[5].text.trim(),
                 'notes': fields[6].text.trim(),
+                if (fields[7].text.trim().isNotEmpty) 'birthday': fields[7].text.trim(),
               }),
               child: const Text('Cadastrar'),
             ),
@@ -159,7 +210,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
       ),
     );
     if (payload == null || payload['name']!.isEmpty || !mounted) return;
-    await widget.api.dio.post('/clients', data: payload);
+    try {
+      await widget.api.dio.post('/clients', data: payload);
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+      return;
+    }
     q.clear();
     await load();
   }
@@ -168,8 +224,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Widget build(BuildContext context) {
     return WqPage(
       title: 'Clientes',
-      subtitle: 'Quem deixa pedido na empresa',
+      subtitle: 'Base, aniversariantes, sumidos e recorrentes',
       child: Column(children: [
+        _tabBar(context),
+        const SizedBox(height: 8),
+        if (tab == 'base') Expanded(child: CrmHomeView(api: widget.api, onSegment: setTab)),
+        if (tab != 'base' && tab != 'all') Expanded(child: CrmSegmentView(api: widget.api, segment: tab, onOpen: openClient)),
+        if (tab == 'all') ...[
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: TextField(
@@ -181,47 +242,48 @@ class _ClientsScreenState extends State<ClientsScreen> {
         Expanded(
           child: loading
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            children: [
-              if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
-              if (searching) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Buscando na lista inteira…', style: TextStyle(color: context.wqMuted, fontSize: 12))),
-              FilledButton(onPressed: create, child: const Text('Novo cliente')),
-              const SizedBox(height: 12),
-              Text('${visible.length} ${visible.length == 1 ? 'cliente' : 'clientes'}', style: TextStyle(color: context.wqMuted, fontSize: 13)),
-              const SizedBox(height: 8),
-              for (final row in visible) ...[
-                WqCard(
-                  onTap: () {
-                    final id = '${row['id'] ?? row['_id']}';
-                    final scope = ShellScope.maybeOf(context);
-                    if (scope != null) {
-                      scope.openPage('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session), stack: true);
-                      return;
-                    }
-                    widget.openClient?.call(id);
-                  },
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${row['name'] ?? row['nomeCompleto'] ?? 'Cliente'}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(
-                      [
-                        '${row['phone'] ?? row['telefone'] ?? row['email'] ?? ''}',
-                        maskCpf('${row['cpf'] ?? ''}'),
-                      ].where((part) => part.isNotEmpty).join(' · '),
-                      style: const TextStyle(color: Wq.muted),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (visible.isEmpty)
-                Text(
-                  all.isEmpty ? 'Nenhum cliente cadastrado.' : 'Nenhum cliente encontrado.',
-                  style: const TextStyle(color: Wq.muted),
-                ),
-            ],
-          ),
+              : Builder(builder: (context) {
+                  final rows = visible;
+                  // Builder list: only the rows on screen are built (smooth with hundreds of clients).
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                    itemCount: rows.length + 1,
+                    itemBuilder: (context, i) {
+                      if (i == 0) {
+                        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+                          if (searching) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Buscando na lista inteira…', style: TextStyle(color: context.wqMuted, fontSize: 12))),
+                          FilledButton(onPressed: create, child: const Text('Novo cliente')),
+                          const SizedBox(height: 12),
+                          Text('${rows.length} ${rows.length == 1 ? 'cliente' : 'clientes'}', style: TextStyle(color: context.wqMuted, fontSize: 13)),
+                          const SizedBox(height: 8),
+                          if (rows.isEmpty)
+                            Text(all.isEmpty ? 'Nenhum cliente cadastrado.' : 'Nenhum cliente encontrado.', style: const TextStyle(color: Wq.muted)),
+                        ]);
+                      }
+                      final row = rows[i - 1];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: WqCard(
+                          onTap: () => openClient('${row['id'] ?? row['_id']}'),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('${row['name'] ?? row['nomeCompleto'] ?? 'Cliente'}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text(
+                              [
+                                '${row['phone'] ?? row['telefone'] ?? row['email'] ?? ''}',
+                                maskCpf('${row['cpf'] ?? ''}'),
+                                if (row['birthday'] is Map) 'aniv. ${birthdayLabel(row['birthday'])}',
+                              ].where((part) => part.isNotEmpty).join(' · '),
+                              style: const TextStyle(color: Wq.muted),
+                            ),
+                          ]),
+                        ),
+                      );
+                    },
+                  );
+                }),
         ),
+        ],
       ]),
     );
   }
@@ -268,6 +330,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     Text(maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}')),
                     if (maskCpf('${client!['cpf'] ?? ''}').isNotEmpty) Text(maskCpf('${client!['cpf'] ?? ''}')),
                     if (_address(client!).isNotEmpty) Text(_address(client!)),
+                    if (client!['birthday'] is Map) Text('Aniversário: ${birthdayLabel(client!['birthday'])}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if ((client!['tags'] as List?)?.isNotEmpty == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Wrap(spacing: 6, runSpacing: 4, children: [
+                          for (final t in (client!['tags'] as List)) Chip(label: Text('$t'), visualDensity: VisualDensity.compact),
+                        ]),
+                      ),
                     if ('${client!['notes'] ?? ''}'.isNotEmpty) Text('${client!['notes']}', style: const TextStyle(color: Wq.muted)),
                     const SizedBox(height: 8),
                     OutlinedButton(
@@ -276,6 +346,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         final initialPhone = maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}');
                         final initialEmail = '${client!['email'] ?? ''}';
                         final initialCpf = '${client!['cpf'] ?? ''}';
+                        final b = client!['birthday'];
+                        final initialBirthday = b is Map ? '${birthdayLabel(b)}${b['year'] != null ? '/${b['year']}' : ''}' : '';
+                        final initialTags = ((client!['tags'] as List?) ?? const []).join(', ');
                         final payload = await showWqSheet<Map<String, String>>(
                           context,
                           title: 'Editar cliente',
@@ -285,6 +358,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               TextEditingController(text: initialPhone),
                               TextEditingController(text: initialEmail),
                               TextEditingController(text: initialCpf),
+                              TextEditingController(text: initialBirthday),
+                              TextEditingController(text: initialTags),
                             ],
                             builder: (_, fields) => Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -293,6 +368,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 TextField(controller: fields[1], decoration: const InputDecoration(labelText: 'Telefone')),
                                 TextField(controller: fields[2], decoration: const InputDecoration(labelText: 'E-mail')),
                                 TextField(controller: fields[3], decoration: const InputDecoration(labelText: 'CPF')),
+                                TextField(
+                                  controller: fields[4],
+                                  keyboardType: TextInputType.datetime,
+                                  decoration: const InputDecoration(labelText: 'Aniversário', hintText: 'DD/MM ou DD/MM/AAAA'),
+                                ),
+                                TextField(controller: fields[5], decoration: const InputDecoration(labelText: 'Etiquetas', hintText: 'VIP, empresa… (separe por vírgula)')),
                                 const SizedBox(height: 8),
                                 FilledButton(
                                   onPressed: () => Navigator.pop(sheet, {
@@ -300,6 +381,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                     'phone': fields[1].text.trim(),
                                     'email': fields[2].text.trim(),
                                     'cpf': fields[3].text.trim(),
+                                    'birthday': fields[4].text.trim(),
+                                    'tags': fields[5].text.trim(),
                                   }),
                                   child: const Text('Salvar'),
                                 ),
@@ -308,7 +391,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           ),
                         );
                         if (payload == null || !context.mounted) return;
-                        await widget.api.dio.patch('/clients/${widget.clientId}', data: payload);
+                        try {
+                          await widget.api.dio.patch('/clients/${widget.clientId}', data: payload);
+                        } catch (e) {
+                          if (context.mounted) wqToast(context, widget.api.message(e));
+                          return;
+                        }
                         final res = await widget.api.dio.get('/clients/${widget.clientId}');
                         if (!context.mounted) return;
                         setState(() => client = Map<String, dynamic>.from(res.data as Map));
@@ -318,6 +406,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                   ]),
                 ),
+                if (client!['stats'] is Map) ...[
+                  const SizedBox(height: 10),
+                  _stats(context, Map<String, dynamic>.from(client!['stats'] as Map)),
+                ],
                 if (widget.session != null)
                   ClientQuotesSection(api: widget.api, session: widget.session!, clientId: widget.clientId),
                 const SizedBox(height: 12),
@@ -325,8 +417,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 for (final order in orders)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('${order['code'] ?? ''}'),
-                    trailing: StatusChip(order['status']),
+                    title: Text('#${order['code'] ?? ''}${'${order['what'] ?? ''}'.isEmpty ? '' : ' · ${order['what']}'}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: order['createdAt'] == null
+                        ? null
+                        : Text([
+                            dayLabel('${order['createdAt']}'),
+                            if (order['total'] != null) brl0(order['total']),
+                          ].join(' · ')),
+                    trailing: order['status'] == 'refused' ? const Text('Não fechou', style: TextStyle(color: Wq.muted, fontSize: 12)) : StatusChip(order['status']),
                     onTap: widget.session == null
                         ? null
                         : () {
@@ -348,6 +446,32 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               ],
             ),
     );
+  }
+
+  Widget _stats(BuildContext context, Map<String, dynamic> s) {
+    final cells = <(String, String)>[
+      ('Pedidos', '${s['orders'] ?? 0}'),
+      if (s['spent'] != null) ('Gasto total', brl0(s['spent'])),
+      ('Volta a cada', s['avgGapDays'] != null ? '${s['avgGapDays']} dias' : '—'),
+      ('Último', sinceLabel(s['daysSince']).replaceFirst('Último pedido ', '')),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      final w = (box.maxWidth - 8) / 2;
+      return Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final c in cells)
+          SizedBox(
+            width: w,
+            child: WqCard(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(c.$1.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w800, color: context.wqMuted)),
+                const SizedBox(height: 2),
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(c.$2, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
+              ]),
+            ),
+          ),
+      ]);
+    });
   }
 
   String _address(Map client) {

@@ -6,6 +6,7 @@ import {
   AlarmClock,
   ArrowRight,
   BadgeDollarSign,
+  Cake,
   CalendarClock,
   Flag,
   Flame,
@@ -37,6 +38,7 @@ const ACTION_ICON: Record<string, LucideIcon> = {
   urgent: Flame,
   check: Flag,
   restock: Truck,
+  birthday: Cake,
 }
 
 type Chip = { label: string; value: number; href: string; tone: "" | "ok" | "warn" | "brand" }

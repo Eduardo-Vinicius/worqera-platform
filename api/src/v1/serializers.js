@@ -21,7 +21,13 @@ function serializeClient(client) {
     email: client.email || null,
     cpf: client.cpf || null,
     notes: client.notes || null,
+    observacoes: client.notes || null,
     whatsappOptIn: Boolean(client.whatsappOptIn),
+    whatsappOptOut: Boolean(client.whatsappOptOut),
+    birthday: client.birthDay && client.birthMonth ? { day: client.birthDay, month: client.birthMonth, year: client.birthYear || null } : null,
+    tags: Array.isArray(client.tags) ? client.tags : [],
+    source: client.source || null,
+    createdAt: client.createdAt || null,
     address,
     // Flat PT aliases for current web forms
     nomeCompleto: name,

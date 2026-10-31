@@ -14,7 +14,7 @@ import {
 import { DEFAULT_WA_TEMPLATES } from "@/lib/whatsapp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import Link from "next/link"
-import { VERTICAL_PRESETS, type ShopVertical } from "@/lib/itemNoun"
+import { BUSINESS_TYPES, VERTICAL_PRESETS, type ShopVertical, type ShopWorkflow } from "@/lib/itemNoun"
 import {
   BRAND_PRESETS,
   applyBrandCssVars,
@@ -50,6 +50,7 @@ export default function EmpresaPage() {
     tplCreated: DEFAULT_WA_TEMPLATES.created,
     tplLink: DEFAULT_WA_TEMPLATES.publicLink,
     vertical: "general" as ShopVertical,
+    workflow: "receive" as ShopWorkflow,
     itemLabel: "peça",
     itemLabelPlural: "peças",
   })
@@ -92,6 +93,7 @@ export default function EmpresaPage() {
       tplCreated: tpl.created || DEFAULT_WA_TEMPLATES.created,
       tplLink: tpl.publicLink || DEFAULT_WA_TEMPLATES.publicLink,
       vertical: (doc?.vertical || "general") as ShopVertical,
+      workflow: (doc?.workflow === "produce" ? "produce" : "receive") as ShopWorkflow,
       itemLabel: doc?.branding?.itemLabel || "peça",
       itemLabelPlural: doc?.branding?.itemLabelPlural || "peças",
     }
@@ -165,6 +167,7 @@ export default function EmpresaPage() {
         name: form.name,
         slug: form.slug,
         vertical: form.vertical,
+        workflow: form.workflow,
         branding: {
           displayName: form.displayName || form.name,
           emailFromName: form.emailFromName || form.displayName || form.name,
@@ -302,6 +305,39 @@ export default function EmpresaPage() {
                   Define como o produto chama o item no pedido (não trava setores — você configura).
                 </p>
               </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-[var(--wq-text)]">Como funciona o seu serviço</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ["receive", "O cliente traz o item", "Tênis, roupa, equipamento, carro: entra, passa pelos setores e o cliente busca."],
+                      ["produce", "Eu produzo ou instalo", "Marcenaria, gráfica, sob encomenda: nada chega do cliente; o pedido é o projeto."],
+                    ] as const
+                  ).map(([value, title, hint]) => (
+                    <label
+                      key={value}
+                      className={`flex cursor-pointer gap-2 rounded-xl border px-3 py-2.5 ${
+                        form.workflow === value ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)]" : "border-[var(--wq-border)]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="workflow"
+                        className="mt-1 accent-[var(--wq-brand)]"
+                        checked={form.workflow === value}
+                        onChange={() => setForm((f) => ({ ...f, workflow: value }))}
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-[var(--wq-text)]">{title}</span>
+                        <span className="block text-xs text-[var(--wq-text-muted)]">{hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-[var(--wq-text-muted)]">
+                  Em &quot;Eu produzo&quot;, o pedido pede o que será feito em vez de marca e modelo do item do cliente.
+                </p>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {field("itemLabel", "Nome do item (singular)", form.itemLabel, (v) =>
                   setForm((f) => ({ ...f, itemLabel: v, vertical: "custom" }))
@@ -318,14 +354,7 @@ export default function EmpresaPage() {
                   desativados — você pode renomear tudo depois. Nada é travado.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["general", "Geral"],
-                      ["footwear", "Calçados"],
-                      ["laundry", "Lavanderia"],
-                      ["repair", "Assistência"],
-                    ] as const
-                  ).map(([key, label]) => (
+                  {BUSINESS_TYPES.map(({ kit: key, label }) => (
                     <Button
                       key={key}
                       type="button"

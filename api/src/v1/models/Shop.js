@@ -11,9 +11,14 @@ const shopSchema = new mongoose.Schema(
      */
     vertical: {
       type: String,
-      enum: ['general', 'footwear', 'laundry', 'repair', 'custom'],
+      enum: ['general', 'footwear', 'laundry', 'repair', 'auto', 'carpentry', 'printing', 'production', 'custom'],
       default: 'general',
     },
+    /**
+     * receive = the client leaves an item (tênis, roupa, equipamento, carro) and takes it back.
+     * produce = the shop makes or installs something (marcenaria, gráfica, sob encomenda): no item comes in.
+     */
+    workflow: { type: String, enum: ['receive', 'produce'], default: 'receive' },
     branding: {
       displayName: { type: String, default: '' },
       emailFromName: { type: String, default: '' },

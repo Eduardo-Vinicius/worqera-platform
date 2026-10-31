@@ -8,6 +8,7 @@ router.use('/shops', require('./routes/shopRoutes'));
 router.use('/sectors', require('./routes/sectorRoutes'));
 router.use('/kanban', require('./routes/kanbanRoutes'));
 router.use('/clients', require('./routes/clientRoutes'));
+router.use('/crm', require('./routes/crmRoutes'));
 router.use('/orders', require('./routes/orderRoutes'));
 router.use('/employees', require('./routes/employeeRoutes'));
 router.use('/billing', require('./routes/billingRoutes'));

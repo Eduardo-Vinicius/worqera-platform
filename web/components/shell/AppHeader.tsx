@@ -30,7 +30,7 @@ export function AppHeader({
   showTvs?: boolean
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] md:bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] md:backdrop-blur-md">
       <div
         className={cn(
           "mx-auto flex w-full max-w-[1600px] flex-col gap-2.5 px-2.5 py-2.5 sm:gap-3 sm:px-5 sm:py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 lg:px-8"

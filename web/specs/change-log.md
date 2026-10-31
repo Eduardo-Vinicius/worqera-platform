@@ -1,5 +1,21 @@
 # Worqera Web — Change log
 
+## 2026-10-30
+
+- **Clientes virou CRM:**
+  - Abas Visão da base, Aniversariantes, Sumidos, Recorrentes, Novos e Todos (`components/crm/*`).
+  - Visão da base traz a leitura da IA, as ações da semana, os números clicáveis, "quantas vezes voltou" e a saúde da base.
+  - As listas têm botões de WhatsApp: Dar parabéns, Chamar de volta e Agradecer.
+  - Ficha do cliente nova: contato, WhatsApp, aniversário, etiquetas, origem, números, Raio-X, histórico de pedidos, orçamentos e "Novo pedido".
+  - Aniversário (`BirthdayField`), origem e etiquetas no cadastro e na edição.
+- **Ramos:**
+  - O cadastro pergunta "O que a sua empresa faz?" (`BUSINESS_TYPES`).
+  - Empresa: "Como funciona o seu serviço" (o cliente traz o item / eu produzo ou instalo) e os kits novos.
+  - No pedido em "eu produzo", sai Marca e entram "O que será feito", "Medidas e detalhes" e "Fotos de referência".
+- **Menu:** Operação · Clientes (Clientes e CRM, Avaliações, WhatsApp e e-mail) · Estoque e cadastros · Gestão (com Telas da loja) · Administração.
+- **Celular:** topo, barra de baixo e rodapé do pedido sem blur no celular; rolagem nativa sem arrastar a página de trás.
+
+
 ## 2026-10-28
 
 - **Telas da loja fáceis de achar:** na Visão geral, botão **Telas da loja** no topo (`TvLauncher`: Abrir, Copiar link, demonstração e Configurar) e a faixa com as TVs (`TvScreensStrip`). No menu lateral, **Telas da loja** em Operação, abrindo a página das TVs com os cartões no topo (antes era "TVs" em Administração). TV Financeiro só para dono/admin. Os atalhos de TV escondidos no fim da Visão geral saíram. Lista única em `components/shell/tvScreens.ts`.

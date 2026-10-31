@@ -127,9 +127,13 @@ async function patchCurrentShop(shopId, updates) {
   }
 
   if (updates.vertical != null) {
-    const allowed = new Set(['general', 'footwear', 'laundry', 'repair', 'custom']);
+    const allowed = new Set(['general', 'footwear', 'laundry', 'repair', 'auto', 'carpentry', 'printing', 'production', 'custom']);
     const v = String(updates.vertical || '').toLowerCase();
     if (allowed.has(v)) shop.vertical = v;
+  }
+
+  if (updates.workflow != null && ['receive', 'produce'].includes(String(updates.workflow))) {
+    shop.workflow = String(updates.workflow);
   }
 
   if (updates.branding != null && typeof updates.branding === 'object') {
@@ -409,6 +413,7 @@ async function seedDefaultCatalog(shopId) {
 const STARTER_KITS = {
   general: {
     vertical: 'general',
+    workflow: 'receive',
     itemLabel: 'peça',
     itemLabelPlural: 'peças',
     sectors: [
@@ -425,6 +430,7 @@ const STARTER_KITS = {
   },
   footwear: {
     vertical: 'footwear',
+    workflow: 'receive',
     itemLabel: 'tênis',
     itemLabelPlural: 'tênis',
     sectors: [
@@ -444,6 +450,7 @@ const STARTER_KITS = {
   },
   laundry: {
     vertical: 'laundry',
+    workflow: 'receive',
     itemLabel: 'roupa',
     itemLabelPlural: 'roupas',
     sectors: [
@@ -461,6 +468,7 @@ const STARTER_KITS = {
   },
   repair: {
     vertical: 'repair',
+    workflow: 'receive',
     itemLabel: 'equipamento',
     itemLabelPlural: 'equipamentos',
     sectors: [
@@ -476,7 +484,81 @@ const STARTER_KITS = {
       { name: 'Reparo completo', defaultPrice: 180, sortOrder: 3 },
     ],
   },
+  auto: {
+    vertical: 'auto',
+    workflow: 'receive',
+    itemLabel: 'veículo',
+    itemLabelPlural: 'veículos',
+    sectors: [
+      { name: 'Recepção', slug: 'recepcao', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Diagnóstico', slug: 'diagnostico', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Serviço', slug: 'servico', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Lavagem e conferência', slug: 'conferencia', order: 4, color: '#00BCD4', isTerminal: false },
+      { name: 'Pronto para retirada', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Revisão', defaultPrice: 250, sortOrder: 1 },
+      { name: 'Lavagem completa', defaultPrice: 80, sortOrder: 2 },
+      { name: 'Polimento', defaultPrice: 350, sortOrder: 3 },
+    ],
+  },
+  carpentry: {
+    vertical: 'carpentry',
+    workflow: 'produce',
+    itemLabel: 'móvel',
+    itemLabelPlural: 'móveis',
+    sectors: [
+      { name: 'Projeto e medição', slug: 'projeto', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Corte', slug: 'corte', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Montagem', slug: 'montagem', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Acabamento', slug: 'acabamento', order: 4, color: '#00BCD4', isTerminal: false },
+      { name: 'Pronto para instalar', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Projeto e medição', defaultPrice: 0, sortOrder: 1 },
+      { name: 'Móvel planejado (m²)', defaultPrice: 900, sortOrder: 2 },
+      { name: 'Instalação', defaultPrice: 300, sortOrder: 3 },
+      { name: 'Reforma de móvel', defaultPrice: 250, sortOrder: 4 },
+    ],
+  },
+  printing: {
+    vertical: 'printing',
+    workflow: 'produce',
+    itemLabel: 'produto',
+    itemLabelPlural: 'produtos',
+    sectors: [
+      { name: 'Arte', slug: 'arte', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Aprovação do cliente', slug: 'aprovacao', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Produção', slug: 'producao', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Acabamento', slug: 'acabamento', order: 4, color: '#00BCD4', isTerminal: false },
+      { name: 'Pronto', slug: 'pronto', order: 5, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Criação de arte', defaultPrice: 80, sortOrder: 1 },
+      { name: 'Impressão', defaultPrice: 50, sortOrder: 2 },
+      { name: 'Personalizado', defaultPrice: 40, sortOrder: 3 },
+    ],
+  },
+  production: {
+    vertical: 'production',
+    workflow: 'produce',
+    itemLabel: 'item',
+    itemLabelPlural: 'itens',
+    sectors: [
+      { name: 'Pedido aprovado', slug: 'aprovado', order: 1, color: '#2196F3', isTerminal: false },
+      { name: 'Produção', slug: 'producao', order: 2, color: '#FF9800', isTerminal: false },
+      { name: 'Qualidade', slug: 'qualidade', order: 3, color: '#9C27B0', isTerminal: false },
+      { name: 'Pronto para entrega', slug: 'pronto', order: 4, color: '#4CAF50', isTerminal: true },
+    ],
+    services: [
+      { name: 'Produção sob encomenda', defaultPrice: 100, sortOrder: 1 },
+      { name: 'Entrega', defaultPrice: 30, sortOrder: 2 },
+    ],
+  },
 };
+
+/** Kits the signup and onboarding offer, in display order. */
+const KIT_CHOICES = Object.entries(STARTER_KITS).map(([key, kit]) => ({ key, vertical: kit.vertical, workflow: kit.workflow, itemLabel: kit.itemLabel }));
 
 /**
  * Apply a vertical starter kit: sets vertical/itemLabel, replaces sector columns
@@ -505,23 +587,37 @@ async function applyStarterKit(shopId, { kit } = {}) {
   }
 
   shop.vertical = pack.vertical;
+  shop.workflow = pack.workflow || 'receive';
   shop.branding = shop.branding || {};
   shop.branding.itemLabel = pack.itemLabel;
   shop.branding.itemLabelPlural = pack.itemLabelPlural;
   await shop.save();
 
-  await Sector.updateMany({ shopId, active: true }, { $set: { active: false } });
-  const createdSectors = await Sector.insertMany(
-    pack.sectors.map((s) => ({
-      shopId,
+  // Slugs are unique per shop: reuse a sector with the same slug (reactivated) instead of
+  // inserting a duplicate, and only deactivate the leftovers at the end, so the shop is
+  // never left without active sectors if something fails halfway.
+  const createdSectors = [];
+  for (const s of pack.sectors) {
+    const fields = {
       name: s.name,
-      slug: s.slug,
       order: s.order,
       color: s.color,
       isTerminal: Boolean(s.isTerminal),
       notifyEmailOnEnter: Boolean(s.isTerminal),
       active: true,
-    }))
+    };
+    const existing = await Sector.findOne({ shopId, slug: s.slug });
+    if (existing) {
+      existing.set(fields);
+      await existing.save();
+      createdSectors.push(existing);
+    } else {
+      createdSectors.push(await Sector.create({ shopId, slug: s.slug, ...fields }));
+    }
+  }
+  await Sector.updateMany(
+    { shopId, active: true, _id: { $nin: createdSectors.map((x) => x._id) } },
+    { $set: { active: false } }
   );
 
   let servicesAdded = 0;
@@ -547,6 +643,7 @@ async function applyStarterKit(shopId, { kit } = {}) {
     ok: true,
     kit: key,
     vertical: pack.vertical,
+    workflow: shop.workflow,
     sectorsCreated: createdSectors.length,
     servicesAdded,
     itemLabel: pack.itemLabel,
@@ -594,6 +691,8 @@ async function uploadShopLogo(shopId, file) {
 }
 
 module.exports = {
+  STARTER_KITS,
+  KIT_CHOICES,
   getCurrentShop,
   patchCurrentShop,
   ensurePartnerCode,

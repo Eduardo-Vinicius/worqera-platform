@@ -10,6 +10,7 @@ const guard = [auth, shopContext, subscriptionGate];
 router.get('/', ...guard, clientController.list);
 router.post('/', ...guard, clientController.create);
 router.get('/:id', ...guard, clientController.get);
+router.get('/:id/overview', ...guard, clientController.overview);
 router.patch('/:id', ...guard, clientController.patch);
 router.delete('/:id', ...guard, clientController.remove);
 

@@ -11,6 +11,11 @@ import Link from "next/link"
 import { getClientesService, updateClienteService } from "@/lib/apiService"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
+import { CrmHome } from "@/components/crm/CrmHome"
+import { CrmList } from "@/components/crm/CrmList"
+import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
+import { CRM_TABS, birthdayLabel, type CrmTab } from "@/components/crm/crmUi"
+import { cn } from "@/lib/utils"
 
 const maskCpf = (value?: string) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -41,6 +46,20 @@ export default function ClientsPage() {
   const [editForm, setEditForm] = useState<any>({});
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [tab, setTabState] = useState<CrmTab>("base");
+  const [birthday, setBirthday] = useState<BirthdayValue>(null);
+
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab") as CrmTab | null;
+    if (t && CRM_TABS.some((x) => x.id === t)) setTabState(t);
+  }, []);
+
+  const setTab = (next: CrmTab) => {
+    setTabState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url.toString());
+  };
 
   useEffect(() => {
     async function fetchClients() {
@@ -93,8 +112,11 @@ export default function ClientsPage() {
       cidade: client.cidade,
       estado: client.estado,
       complemento: client.complemento || "",
-      observacoes: client.observacoes || "",
+      observacoes: client.observacoes || client.notes || "",
+      tags: (client.tags || []).join(", "),
+      source: client.source || "",
     });
+    setBirthday(client.birthday || null);
     setIsEditModalOpen(true);
   };
 
@@ -102,9 +124,13 @@ export default function ClientsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await updateClienteService(editingClient.id, editForm);
+      const bday = birthdayPayload(birthday);
+      const payload = { ...editForm, ...(bday !== undefined ? { birthday: bday } : {}) };
+      await updateClienteService(editingClient.id, payload as never);
       const updatedClients = clients.map(client =>
-        client.id === editingClient.id ? { ...client, ...editForm } : client
+        client.id === editingClient.id
+          ? { ...client, ...editForm, birthday: bday ?? null, tags: String(editForm.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean) }
+          : client
       );
       setClients(updatedClients);
       toast.success("Cliente atualizado com sucesso");
@@ -143,6 +169,7 @@ export default function ClientsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Clientes"
+        subtitle="Base, aniversariantes, sumidos e recorrentes"
         actions={
           <Button asChild size="sm" className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90">
             <Link href="/clientes/novo">
@@ -154,6 +181,28 @@ export default function ClientsPage() {
       />
 
       <div className="mx-auto max-w-[1320px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <nav className="grid grid-cols-3 gap-1 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 sm:grid-cols-6" aria-label="CRM">
+          {CRM_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "min-w-0 truncate rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm",
+                tab === t.id ? "bg-[var(--wq-brand)] text-white shadow-sm" : "text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
+              )}
+            >
+              <span className="sm:hidden">{t.short}</span>
+              <span className="hidden sm:inline">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {tab === "base" ? <CrmHome onTab={setTab} /> : null}
+        {CRM_TABS.find((t) => t.id === tab)?.segment ? <CrmList segment={CRM_TABS.find((t) => t.id === tab)!.segment!} /> : null}
+
+        {tab === "todos" ? (
+        <>
         <div className="relative min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wq-text-muted)]" />
           <Input
@@ -199,13 +248,14 @@ export default function ClientsPage() {
                       key={client.id || idx}
                       className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2.5 hover:bg-[var(--wq-paper)]"
                     >
-                      <div className="min-w-0 flex-1">
+                      <Link href={`/clientes/${client.id}`} className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-[var(--wq-text)]">{name}</p>
                         <p className="truncate text-sm text-[var(--wq-text-muted)]">
                           {phone || "Sem telefone"}
                           {cpf ? <span className="ml-2 text-xs">{cpf}</span> : null}
+                          {client.birthday ? <span className="ml-2 text-xs">aniv. {birthdayLabel(client.birthday)}</span> : null}
                         </p>
-                      </div>
+                      </Link>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button
                           type="button"
@@ -232,6 +282,8 @@ export default function ClientsPage() {
             )}
           </>
         )}
+        </>
+        ) : null}
       </div>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -345,6 +397,36 @@ export default function ClientsPage() {
                   onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="edit-birthday">Aniversário</Label>
+                <BirthdayField id="edit-birthday" value={birthday} onChange={setBirthday} />
+              </div>
+              <div>
+                <Label htmlFor="source">Como conheceu a loja</Label>
+                <Input
+                  id="source"
+                  list="client-sources"
+                  value={editForm.source || ""}
+                  onChange={(e) => setEditForm({...editForm, source: e.target.value})}
+                  placeholder="Indicação, Instagram, Google…"
+                />
+                <datalist id="client-sources">
+                  {["Indicação", "Instagram", "Google", "Passou na frente", "WhatsApp", "Outro"].map((s) => <option key={s} value={s} />)}
+                </datalist>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="tags">Etiquetas</Label>
+              <Input
+                id="tags"
+                value={editForm.tags || ""}
+                onChange={(e) => setEditForm({...editForm, tags: e.target.value})}
+                placeholder="VIP, empresa, sempre pede urgência (separe por vírgula)"
+              />
             </div>
 
             <div>

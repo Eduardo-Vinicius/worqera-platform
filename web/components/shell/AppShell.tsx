@@ -163,7 +163,7 @@ function MobileBottomNav({ hidden }: { hidden?: boolean }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--wq-border)] bg-[var(--wq-surface)] pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Atalhos móveis"
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around gap-0.5 px-1 py-1.5">
@@ -331,7 +331,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-x-hidden",
-            fullBleed ? "overflow-hidden" : "overflow-y-auto"
+            // Native momentum scroll and no scroll-chaining to the page behind.
+            fullBleed ? "overflow-hidden" : "overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
           )}
         >
           <div

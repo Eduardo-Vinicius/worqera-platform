@@ -125,6 +125,8 @@ export async function signupV1(input: {
   planCode?: string
   partnerCode?: string
   ref?: string
+  /** Business type: starter kit key (footwear, carpentry…). */
+  kit?: string
 }) {
   const data = await v1Fetch<any>("/auth/signup", {
     method: "POST",
@@ -293,6 +295,68 @@ export async function createAttendantV1(name: string) {
     body: JSON.stringify({ name, attends: true, active: true }),
   })
   return { id: String(e.id || e._id || ""), name: e.name } as Attendant
+}
+
+export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" | "never" | "all"
+
+export type CrmSummary = {
+  inactiveDays: number
+  counts: { clients: number; active90: number; recurring: number; new30: number; inactive: number; never: number; once: number; vip: number }
+  buckets: { one: number; two_three: number; four_plus: number }
+  birthdays: { today: number; week: number; registered: number }
+  rates: { repeat: number; active: number; birthdayCoverage: number }
+  money?: { spent: number; avgTicket: number; perClient: number }
+}
+
+export type CrmRow = {
+  id: string
+  name: string
+  phone: string
+  orders: number
+  spent?: number
+  ticket?: number
+  lastOrderAt: string | null
+  daysSince: number | null
+  openOrders: number
+  birthday: { day: number; month: number; year: number | null } | null
+  birthdayIn: number | null
+  age: number | null
+  tags: string[]
+  whatsapp: { text: string; url: string } | null
+  segment: string
+}
+
+export type CrmInsight = {
+  summary: CrmSummary
+  moves: Array<{ id: string; title: string; segment: CrmSegment }>
+  headline: string
+  tip: string
+  ai: boolean
+}
+
+export async function getCrmSummaryV1(days = 90) {
+  return v1Fetch<CrmSummary>(`/crm/summary?days=${days}`)
+}
+
+export async function getCrmListV1(params: { segment: CrmSegment; days?: number; range?: "today" | "week" | "month"; q?: string }) {
+  const qs = new URLSearchParams({ segment: params.segment })
+  if (params.days) qs.set("days", String(params.days))
+  if (params.range) qs.set("range", params.range)
+  if (params.q) qs.set("q", params.q)
+  return v1Fetch<{ segment: CrmSegment; inactiveDays: number; total: number; items: CrmRow[] }>(`/crm/list?${qs}`)
+}
+
+export async function getCrmInsightV1(refresh = false) {
+  return v1Fetch<{ insight: CrmInsight; business: boolean; aiQuota: AiQuota | null }>(`/crm/insight${refresh ? "?refresh=1" : ""}`)
+}
+
+export type ClientOverview = {
+  stats: CrmRow & { segment: string; firstOrderAt: string | null; avgGapDays: number | null }
+  orders: Array<{ id: string; code: string; status: string; what: string; total?: number; createdAt: string; deliveredAt: string | null; score: number | null }>
+}
+
+export async function getClientOverviewV1(id: string) {
+  return v1Fetch<ClientOverview>(`/clients/${encodeURIComponent(id)}/overview`)
 }
 
 export type AttendanceRow = {
@@ -907,7 +971,7 @@ export async function seedShopCatalogV1() {
   )
 }
 
-export async function applyStarterKitV1(kit: "general" | "footwear" | "laundry" | "repair") {
+export async function applyStarterKitV1(kit: string) {
   return v1Fetch<{
     ok: boolean
     kit: string

@@ -172,6 +172,9 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   String? openedByInitial;
   int attendantCount = 0;
   String? openedByError;
+  /// Marcenaria, gráfica…: nada chega do cliente; o item é o que será feito.
+  bool produce = false;
+  String nounPlural = 'itens';
 
   bool get editing => widget.orderId != null && widget.orderId!.isNotEmpty;
   _ItemDraft get current => items[itemIndex.clamp(0, items.length - 1)];
@@ -257,6 +260,15 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
           .map((row) => '${row['name']}'.trim())
           .toList();
       clients = _maps(results[4].data, const ['clients', 'data', 'items']).map(_client).toList();
+      try {
+        final shopRes = await widget.api.dio.get('/shops/current');
+        final shop = shopRes.data is Map ? shopRes.data as Map : const {};
+        final doc = shop['shop'] is Map ? shop['shop'] as Map : shop;
+        produce = doc['workflow'] == 'produce';
+        final branding = doc['branding'] is Map ? doc['branding'] as Map : const {};
+        final plural = '${branding['itemLabelPlural'] ?? ''}'.trim();
+        if (plural.isNotEmpty) nounPlural = plural;
+      } catch (_) {}
       try {
         final products = await widget.api.dio.get('/products');
         catalog = _maps(products.data, const ['products', 'data']).where((row) => row['active'] != false).toList();
@@ -1320,7 +1332,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 const SizedBox(height: 18),
                 KeyedSubtree(
                   key: _itemSectionKey,
-                  child: _section(context, _step('Item'), 'Item', 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
+                  child: _section(context, _step('Item'), produce ? '${nounPlural[0].toUpperCase()}${nounPlural.substring(1)}' : 'Item', produce ? 'O que será feito, medidas, serviços e etapas.' : 'Marca, modelo, serviços, setores e fotos.', trailing: OutlinedButton.icon(onPressed: addItem, icon: const Icon(Icons.add), label: const Text('Item'))),
                 ),
                 if (clientIdx.length > 1) ...[
                   _itemTabs(context, clientIdx),
@@ -1332,7 +1344,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     if (clientIdx.length > 1) TextButton(onPressed: () => removeItem(itemIndex), child: const Text('Remover', style: TextStyle(color: Wq.danger))),
                   ]),
                   const SizedBox(height: 8),
-                  TextField(
+                  if (!produce) TextField(
                     key: ValueKey('brand-$itemIndex'),
                     controller: item.brand,
                     textCapitalization: TextCapitalization.words,
@@ -1352,11 +1364,18 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                     onChanged: (_) => setState(() => brandMenu = true),
                     onSubmitted: (_) => commitBrand(item),
                   ),
-                  if (brandMenu) _brandMenu(item),
+                  if (brandMenu && !produce) _brandMenu(item),
                   const SizedBox(height: 8),
-                  TextField(key: ValueKey('model-$itemIndex'), controller: item.model, decoration: const InputDecoration(labelText: 'Modelo *')),
+                  TextField(
+                    key: ValueKey('model-$itemIndex'),
+                    controller: item.model,
+                    decoration: InputDecoration(
+                      labelText: produce ? 'O que será feito *' : 'Modelo *',
+                      hintText: produce ? 'Ex.: armário de cozinha 2,40 m, MDF branco' : null,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  TextField(key: ValueKey('notes-$itemIndex'), controller: item.notes, decoration: const InputDecoration(labelText: 'Observação')),
+                  TextField(key: ValueKey('notes-$itemIndex'), controller: item.notes, decoration: InputDecoration(labelText: produce ? 'Medidas e detalhes' : 'Observação')),
                   const SizedBox(height: 12),
                   const Text('Serviços', style: TextStyle(fontWeight: FontWeight.w700)),
                   if (services.isEmpty) Text('Nenhum serviço no catálogo.', style: TextStyle(color: context.wqMuted)),
@@ -1391,8 +1410,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                       ),
                   ]),
                   const SizedBox(height: 12),
-                  Text('Fotos deste item', style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text('Só deste modelo · máx. $_maxPhotos', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+                  Text(produce ? 'Fotos de referência (opcional)' : 'Fotos deste item', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(produce ? 'Local, projeto ou inspiração · máx. $_maxPhotos' : 'Só deste modelo · máx. $_maxPhotos', style: TextStyle(color: context.wqMuted, fontSize: 12)),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(onPressed: () => addPhotos(item, ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined), label: const Text('Tirar foto')),
                   const SizedBox(height: 8),

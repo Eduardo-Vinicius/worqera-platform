@@ -1,5 +1,17 @@
 # App celular
 
+## 2026-10-30
+
+- **Clientes com CRM** (`features/crm/crm_views.dart`):
+  - Abas Base, Aniversariantes, Sumidos, Recorrentes, Novos e Todos, com botão de WhatsApp em cada cliente.
+  - A lista de Todos agora é leve (`ListView.builder`).
+  - A ficha mostra números, aniversário, etiquetas e o histórico real.
+  - Aniversário e etiquetas no cadastro e na edição.
+- **Ramos:** no pedido em "eu produzo" (marcenaria etc.), sai Marca e entra "O que será feito". Kits novos em Empresa.
+- **Menus** (Mais e lateral): Operação · Clientes · Estoque e cadastros · Gestão · Administração.
+- **Desempenho:** cartões sem sombra borrada (rolagem mais leve).
+
+
 ## 2026-10-28
 
 - **Início → Telas da loja** (`tv_screens_card.dart`): toque copia o link da TV Cliente, Oficina ou Financeiro (dono/admin) para abrir no navegador da TV; atalho para a demonstração.

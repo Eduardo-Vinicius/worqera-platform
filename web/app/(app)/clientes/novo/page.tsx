@@ -13,6 +13,7 @@ import Link from "next/link"
 import { createClienteService } from "@/lib/apiService"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 import { AppHeader } from "@/components/shell/AppHeader"
 
 const fieldClass = "rounded-[10px] border-[var(--wq-border)] bg-white"
@@ -20,6 +21,8 @@ const errorClass = "border-[var(--wq-danger)]"
 
 export default function NewClientPage() {
   const router = useRouter();
+  const [birthday, setBirthday] = useState<BirthdayValue>(null)
+  const [source, setSource] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     cpf: "",
@@ -123,6 +126,8 @@ export default function NewClientPage() {
         estado: formData.estado,
         complemento: formData.complemento,
         observacoes: formData.notes,
+        ...(birthdayPayload(birthday) ? { birthday: birthdayPayload(birthday) } : {}),
+        ...(source.trim() ? { source: source.trim() } : {}),
       });
       setIsLoading(false);
       toast.success("Cliente cadastrado com sucesso!");
@@ -313,6 +318,21 @@ export default function NewClientPage() {
               </div>
             </div>
           </details>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-birthday">Aniversário (opcional)</Label>
+              <BirthdayField id="new-birthday" value={birthday} onChange={setBirthday} />
+              <p className="text-xs text-[var(--wq-text-muted)]">Dia e mês bastam. A Worqera lembra de dar parabéns.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-source">Como conheceu a loja</Label>
+              <Input id="new-source" list="new-client-sources" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Indicação, Instagram, Google…" />
+              <datalist id="new-client-sources">
+                {["Indicação", "Instagram", "Google", "Passou na frente", "WhatsApp", "Outro"].map((s) => <option key={s} value={s} />)}
+              </datalist>
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="notes">Observações</Label>

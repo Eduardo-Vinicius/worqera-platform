@@ -32,7 +32,8 @@ import {
   deletePedidoItemFotoService,
 } from "@/lib/apiService"
 import { compressImageFile } from "@/lib/compressImage"
-import { listProductsV1, listServicesV1, listSectorsV1 } from "@/lib/apiV1"
+import { getShopCurrentV1, listProductsV1, listServicesV1, listSectorsV1 } from "@/lib/apiV1"
+import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
 import { normalizeWarranty } from "@/lib/warranty"
 import { clampDiscount, formatBRL, netTotal, roundMoney } from "@/lib/orderMoney"
 import { useRouter } from "next/navigation"
@@ -174,6 +175,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [loadingClients, setLoadingClients] = useState(true);
   const [availableServices, setAvailableServices] = useState(FALLBACK_SERVICES);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([])
+  /** produce = marcenaria, gráfica…: nothing comes from the client, the item is what will be made. */
+  const [produce, setProduce] = useState(false)
+  const [noun, setNoun] = useState({ singular: "item", plural: "itens" })
   const [productQuery, setProductQuery] = useState("")
   const [productPickerOpen, setProductPickerOpen] = useState(false)
   const [deliverNow, setDeliverNow] = useState(true)
@@ -253,6 +257,22 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       cancelled = true
     }
   }, [isEdit, orderId, router])
+
+  useEffect(() => {
+    let cancelled = false
+    getShopCurrentV1()
+      .then((res: any) => {
+        if (cancelled) return
+        const doc = res?.shop || res
+        setProduce(doc?.workflow === "produce")
+        const n = resolveItemNoun(doc)
+        setNoun({ singular: n.singular, plural: n.plural })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -1586,7 +1606,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
               {/* Block 2 — Itens */}
               <section id="wq-item-block" className="scroll-mt-24 space-y-3 border-t border-[var(--wq-border)] pt-6 sm:space-y-4">
                 <div className="flex items-start justify-between gap-2">
-                  <StepHeading step={stepOf("Item")} title="Item" hint="Marca, modelo, serviços, setores e fotos." />
+                  <StepHeading
+                    step={stepOf("Item")}
+                    title={produce ? capitalizeNoun(noun.plural) : "Item"}
+                    hint={produce ? "O que será feito, medidas, serviços e etapas." : "Marca, modelo, serviços, setores e fotos."}
+                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -1682,17 +1706,19 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         ) : null}
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`brand-${itemIndex}`}>Marca</Label>
-                        <BrandField
-                          id={`brand-${itemIndex}`}
-                          value={item.brand}
-                          onChange={(name) => patchItem(itemIndex, { brand: name })}
-                        />
-                      </div>
+                      {!produce ? (
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`brand-${itemIndex}`}>Marca</Label>
+                          <BrandField
+                            id={`brand-${itemIndex}`}
+                            value={item.brand}
+                            onChange={(name) => patchItem(itemIndex, { brand: name })}
+                          />
+                        </div>
+                      ) : null}
 
                       <div className="space-y-1.5">
-                        <Label htmlFor={`sneaker-${itemIndex}`}>Modelo *</Label>
+                        <Label htmlFor={`sneaker-${itemIndex}`}>{produce ? `O que será feito (${noun.singular}) *` : "Modelo *"}</Label>
                         <Input
                           id={`sneaker-${itemIndex}`}
                           value={item.sneaker}
@@ -1700,13 +1726,13 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                             patchItem(itemIndex, { sneaker: e.target.value })
                             if (errors.items) setErrors((prev) => ({ ...prev, items: "" }))
                           }}
-                          placeholder="Ex.: referência do item"
+                          placeholder={produce ? "Ex.: armário de cozinha 2,40 m, MDF branco" : "Ex.: referência do item"}
                           className="bg-[var(--wq-surface)]"
                         />
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor={`item-notes-${itemIndex}`}>Observação</Label>
+                        <Label htmlFor={`item-notes-${itemIndex}`}>{produce ? "Medidas e detalhes" : "Observação"}</Label>
                         <Input
                           id={`item-notes-${itemIndex}`}
                           value={item.notes}
@@ -1832,9 +1858,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
 
                       <div className="space-y-2">
                         <div>
-                          <Label>Fotos deste item</Label>
+                          <Label>{produce ? "Fotos de referência (opcional)" : "Fotos deste item"}</Label>
                           <p className="text-xs text-[var(--wq-text-muted)]">
-                            Só deste modelo · máx. {MAX_PHOTOS}
+                            {produce ? `Local, projeto ou inspiração · máx. ${MAX_PHOTOS}` : `Só deste modelo · máx. ${MAX_PHOTOS}`}
                           </p>
                         </div>
                         <div className="relative rounded-lg border border-dashed border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-center">
@@ -2451,7 +2477,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
             </aside>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-x-hidden border-t border-[var(--wq-border)] bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-4 md:left-[246px]">
+          <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-x-hidden border-t border-[var(--wq-border)] bg-[var(--wq-surface)] px-2.5 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 md:left-[246px] md:bg-[color-mix(in_srgb,var(--wq-surface)_94%,transparent)] md:backdrop-blur">
             <div className="mx-auto flex w-full min-w-0 max-w-[1400px] flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <div className="min-w-0 flex-1 text-xs text-[var(--wq-text-muted)]">
                 <p className="truncate font-semibold text-[var(--wq-text)]">

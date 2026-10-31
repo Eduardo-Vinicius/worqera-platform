@@ -217,13 +217,9 @@ class WqCard extends StatelessWidget {
     final radius = BorderRadius.circular(10);
     final surface = dark ? WqTokens.darkSurface : Wq.surface;
     final line = dark ? WqTokens.darkBorder : Wq.line;
+    // No blurred shadow: the border already separates cards, and a blur per card made long lists scroll heavy.
     final box = DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.03), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
-      ),
+      decoration: BoxDecoration(borderRadius: radius),
       child: Material(
         color: surface,
         borderRadius: radius,

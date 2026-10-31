@@ -267,6 +267,7 @@ class _BriefAction extends StatelessWidget {
     'urgent': Icons.local_fire_department_outlined,
     'check': Icons.flag_outlined,
     'restock': Icons.local_shipping_outlined,
+    'birthday': Icons.cake_outlined,
   };
 
   Color _tone(BuildContext context) {

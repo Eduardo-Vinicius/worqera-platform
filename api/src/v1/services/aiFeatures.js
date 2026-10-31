@@ -175,6 +175,16 @@ function dailyActions(n, { team = false } = {}) {
       tone: 'danger',
     });
   }
+  if (n.birthdays) {
+    actions.push({
+      id: 'birthday',
+      title: `Parabenizar ${plural(n.birthdays, 'aniversariante', 'aniversariantes')}`,
+      detail: 'Mensagem pronta no WhatsApp',
+      value: 0,
+      href: '/clientes?tab=aniversariantes',
+      tone: 'ok',
+    });
+  }
   if (!team && (n.restock?.late || n.restock?.order)) {
     const r = n.restock;
     actions.push({
@@ -456,6 +466,7 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
   const withMoney = audience === 'owner';
   const day = saoPauloDayKey(now);
   const full = await dailyNumbers(shopId, now);
+  full.birthdays = await require('./crmService').birthdaysToday(shopId, now).catch(() => 0);
   if (withMoney) Object.assign(full, await ownerExtras(shopId, now));
   const m = full.money || {};
   // Front desk gets only the values they handle per order; totals and the shelf stay out of the payload.

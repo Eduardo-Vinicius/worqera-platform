@@ -1,5 +1,22 @@
 # Worqera API — Change log
 
+## 2026-10-30
+
+- **CRM** (`services/crmService.js`, rotas `/crm/*` para dono, admin e atendimento):
+  - `Client` ganhou `birthDay/birthMonth/birthYear`, `tags`, `source` e `notes`. As observações eram descartadas antes.
+  - Aceita `birthday` como "14/05", "14/05/1990", "1990-05-14" ou `{day, month, year}`.
+  - `GET /crm/summary?days=`: clientes, ativos em 90 dias, recorrentes, novos, sumidos, sem pedido, VIP, faixas de pedidos, aniversariantes, taxas e dinheiro (só dono/admin).
+  - `GET /crm/list?segment=birthdays|inactive|recurring|new|vip|never|all&range=&days=`: lista com mensagem de WhatsApp pronta (parabéns, "sentimos sua falta", agradecimento) que respeita o opt-out.
+  - `GET /crm/insight`: leitura da base e até 3 ações. IA no Business com cache diário (`AiBrief.kind = 'crm'`); sem IA, texto pronto.
+  - `GET /clients/:id/overview`: números, ritmo de volta e os últimos 30 pedidos. `GET /clients/:id` também traz `stats` e `recentOrders`, o que conserta a ficha do app antigo.
+  - Resumo do dia: ação `birthday` ("Parabenizar N aniversariantes").
+- **Ramos:**
+  - `Shop.workflow`: `receive` (o cliente traz o item) ou `produce` (a empresa produz ou instala).
+  - Novos `vertical`: `auto`, `carpentry`, `printing`, `production`, cada um com seu kit.
+  - `POST /auth/signup` aceita `kit`, e `PATCH /shops/current` aceita `workflow`.
+  - **Corrigido em `applyStarterKit`:** os setores com o mesmo slug são reaproveitados e os antigos só são desativados no fim. Antes, o slug repetido podia deixar a empresa sem setores ativos.
+
+
 ## 2026-10-28
 
 - `GET /metrics/attendance` também devolve `totals.serviceScore`, `serviceScoreCount`, `recoveries` e `missing[]` (até 40 pedidos em andamento sem "Aberto por", para corrigir no relatório).

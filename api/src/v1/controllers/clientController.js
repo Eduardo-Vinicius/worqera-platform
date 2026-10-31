@@ -23,10 +23,29 @@ exports.create = wrap(async (req, res) => {
   res.status(201).json(serializeClient(obj));
 });
 
+function seesMoney(req) {
+  const role = String(req.membership?.role || '').toLowerCase();
+  return role === 'owner' || role === 'admin';
+}
+
 exports.get = wrap(async (req, res) => {
   const client = await clientService.getClient(req.shopId, req.params.id);
-  res.status(200).json(serializeClient(client));
+  // History + numbers inline: older app builds read `recentOrders` from this route.
+  const overview = await require('../services/crmService')
+    .clientOverview(req.shopId, req.params.id, { showMoney: seesMoney(req) })
+    .catch(() => null);
+  res.status(200).json({
+    ...serializeClient(client),
+    ...(overview ? { stats: overview.stats, recentOrders: overview.orders, orders: overview.orders } : {}),
+  });
 });
+
+exports.overview = wrap(async (req, res) => {
+  const overview = await require('../services/crmService').clientOverview(req.shopId, req.params.id, { showMoney: seesMoney(req) });
+  res.status(200).json(overview);
+});
+
+exports.seesMoney = seesMoney;
 
 exports.patch = wrap(async (req, res) => {
   const client = await clientService.patchClient(req.shopId, req.params.id, req.body || {});

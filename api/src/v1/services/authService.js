@@ -83,7 +83,7 @@ async function allocateSlug(base) {
   return `${root}-${crypto.randomBytes(2).toString('hex')}`;
 }
 
-async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref, planCode }) {
+async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref, planCode, kit }) {
   const { generatePartnerCode } = require('./shopService');
   const normalizedEmail = String(email).toLowerCase().trim();
   const existing = await User.findOne({ email: normalizedEmail });
@@ -172,6 +172,14 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
       active: true,
     }))
   );
+
+  // Business type picked at signup: kanban setores, services and item noun for that kind of shop.
+  if (kit) {
+    const { applyStarterKit, STARTER_KITS } = require('./shopService');
+    if (STARTER_KITS[String(kit).toLowerCase()]) {
+      await applyStarterKit(shop._id, { kit }).catch((err) => console.warn('[signup] kit', err.message));
+    }
+  }
 
   await sendEmailVerificationMail(user.email, verification);
 

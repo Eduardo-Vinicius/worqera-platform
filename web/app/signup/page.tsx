@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signupV1 } from "@/lib/apiV1"
+import { BUSINESS_TYPES } from "@/lib/itemNoun"
 import { toast } from "sonner"
 import { Check, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
@@ -71,6 +72,7 @@ export default function SignupPage() {
     password: "",
     shopName: "",
   })
+  const [kit, setKit] = useState("")
 
   useEffect(() => {
     try {
@@ -103,6 +105,7 @@ export default function SignupPage() {
       const data = await signupV1({
         ...form,
         planCode: chosen.code,
+        kit: kit || undefined,
         partnerCode: partnerCode || undefined,
         ref: partnerCode || undefined,
       })
@@ -236,6 +239,27 @@ export default function SignupPage() {
             <div className="space-y-1.5">
               <Label htmlFor="shopName">Nome da empresa</Label>
               <Input id="shopName" required placeholder="Oficina da Ana" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("shopName")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kit">O que a sua empresa faz?</Label>
+              <select
+                id="kit"
+                value={kit}
+                onChange={(e) => setKit(e.target.value)}
+                className="h-12 w-full rounded-md border border-[var(--border)] bg-[var(--paper)] px-3 text-base"
+              >
+                <option value="">Escolha o ramo (dá para mudar depois)</option>
+                {BUSINESS_TYPES.map((b) => (
+                  <option key={b.kit} value={b.kit}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              {kit ? (
+                <p className="text-xs text-[var(--muted,#6b7280)]">
+                  {BUSINESS_TYPES.find((b) => b.kit === kit)?.hint}. Já criamos as etapas do kanban e os serviços desse ramo.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">E-mail</Label>

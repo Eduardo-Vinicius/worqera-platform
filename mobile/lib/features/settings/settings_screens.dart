@@ -24,6 +24,10 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
     'footwear': 'Calçados / tênis',
     'laundry': 'Lavanderia',
     'repair': 'Assistência / reparo',
+    'auto': 'Oficina / estética automotiva',
+    'carpentry': 'Marcenaria / móveis planejados',
+    'printing': 'Gráfica / personalizados',
+    'production': 'Produção sob encomenda',
     'custom': 'Personalizado',
   };
   static const _presetNoun = <String, List<String>>{
@@ -31,6 +35,10 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
     'footwear': ['tênis', 'tênis'],
     'laundry': ['roupa', 'roupas'],
     'repair': ['equipamento', 'equipamentos'],
+    'auto': ['veículo', 'veículos'],
+    'carpentry': ['móvel', 'móveis'],
+    'printing': ['produto', 'produtos'],
+    'production': ['item', 'itens'],
   };
 
   final name = TextEditingController();
@@ -207,7 +215,16 @@ class _EmpresaScreenState extends State<EmpresaScreen> {
               Text('Aplica setores e serviços sugeridos. Os setores atuais são desativados.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final kit in const [('general', 'Geral'), ('footwear', 'Calçados'), ('laundry', 'Lavanderia'), ('repair', 'Assistência')])
+                for (final kit in const [
+                  ('footwear', 'Calçados'),
+                  ('laundry', 'Lavanderia'),
+                  ('repair', 'Assistência'),
+                  ('auto', 'Automotivo'),
+                  ('carpentry', 'Marcenaria'),
+                  ('printing', 'Gráfica'),
+                  ('production', 'Sob encomenda'),
+                  ('general', 'Outro'),
+                ])
                   OutlinedButton(onPressed: () => applyKit(kit.$1, kit.$2), child: Text(kit.$2)),
               ]),
               const SizedBox(height: 8),
