@@ -73,7 +73,7 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 
 - [x] products, checkout mock (`mock: !apiKey`), webhook HMAC + fail-closed secret
 - [x] AbacatePay `POST /subscriptions/create` quando ApiKey + ProductId
-- [ ] E-mail reset senha via SES (hoje token em dev response)
+- [x] E-mail de reset de senha pelo `mailer`. O token só volta na resposta fora de produção (`NODE_ENV !== 'production'`, e a imagem Docker e o compose de produção fixam `production`).
 
 ## Ordem restante
 
@@ -94,7 +94,7 @@ Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp Clou
 | QW-API-07 | E-mail trial D-2 / D-0 | **feito** (`scripts/send-trial-reminders.js`) |
 | QW-API-08 | Export CSV delivered | **feito** |
 | QW-API-09 | Digest semanal owner | **feito** |
-| QW-API-10 | Sentry API | backlog |
+| QW-API-10 | Sentry API | **feito** (2026-10-31; liga com `SENTRY_DSN`) |
 | QW-API-11 | Financeiro `today` + caixaHoje + services from items[] | **feito** |
 
 ## Propostas backend (trimestre)

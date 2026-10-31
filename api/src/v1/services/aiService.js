@@ -5,7 +5,7 @@
  */
 
 const AiUsage = require('../models/AiUsage');
-const { saoPauloMonthStart } = require('../lib/planCap');
+const { planTier, saoPauloMonthStart } = require('../lib/planCap');
 
 /** USD per 1M tokens [input, output]. Unknown models use the fast default. */
 const PRICES = {
@@ -32,10 +32,18 @@ function modelFor(depth = 'fast') {
   return process.env.WORQERA_AI_MODEL || 'gpt-6-luna';
 }
 
-/** AI uses included in the Business plan per month (each answer the AI writes = 1 use). */
-function monthlyCap() {
-  const n = Number(process.env.WORQERA_AI_MONTHLY_CAP);
-  return Number.isFinite(n) && n > 0 ? n : 1000;
+const CAP_DEFAULTS = { trial: 30, basic: 50, pro: 300, business: 1500 };
+
+/** AI uses per month for the plan (each answer the AI writes = 1 use); the trial has its own small quota. */
+function monthlyCap(planCode, status) {
+  const key = status === 'trialing' ? 'trial' : planTier(planCode) || 'business';
+  const fromEnv = Number(process.env[`WORQERA_AI_CAP_${key.toUpperCase()}`]);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  if (key === 'business') {
+    const legacy = Number(process.env.WORQERA_AI_MONTHLY_CAP);
+    if (Number.isFinite(legacy) && legacy > 0) return legacy;
+  }
+  return CAP_DEFAULTS[key];
 }
 
 function costUsd(model, inputTokens, outputTokens) {
@@ -66,7 +74,9 @@ async function quotaFor(shopId, now = new Date()) {
   const Shop = require('../models/Shop');
   const shop = await Shop.findById(shopId).select('aiQuota').lean();
   const q = shop?.aiQuota || {};
-  const base = Number(q.monthlyCap) > 0 ? Number(q.monthlyCap) : monthlyCap();
+  const Subscription = require('../models/Subscription');
+  const sub = await Subscription.findOne({ shopId }).select('planCode status').lean();
+  const base = Number(q.monthlyCap) > 0 ? Number(q.monthlyCap) : monthlyCap(sub?.planCode, sub?.status);
   const extra = q.extraMonth === monthKey(now) ? Number(q.extraCalls) || 0 : 0;
   const limit = base + extra;
   const used = await callsThisMonth(shopId);

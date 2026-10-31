@@ -80,11 +80,15 @@ const shopSchema = new mongoose.Schema(
         enabled: { type: Boolean, default: true },
       },
     },
-    /** AI uses per month on Business. Empty = plan default; extra* = granted by Worqera for one month. */
+    /** AI uses per month. Empty = plan default; extra* = granted by Worqera for one month. */
     aiQuota: {
       monthlyCap: { type: Number, default: null },
       extraMonth: { type: String, default: '' },
       extraCalls: { type: Number, default: 0 },
+    },
+    /** Who pays the Worqera subscription. Asaas needs a CPF or CNPJ to issue the charge. */
+    billing: {
+      cpfCnpj: { type: String, default: null },
     },
     /**
      * Official WhatsApp (Cloud API). Worqera is the Tech Provider; Eduardo's card

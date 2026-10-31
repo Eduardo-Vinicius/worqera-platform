@@ -179,7 +179,7 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
 }
 
 /** A segment list with the message to send. */
-async function crmList(shopId, { segment = 'all', days, range = 'week', q, showMoney = true, limit = 200, now = new Date() } = {}) {
+async function crmList(shopId, { segment = 'all', days, range = 'week', q, showMoney = true, limit = 200, offset = 0, now = new Date() } = {}) {
   const seg = SEGMENTS.includes(segment) ? segment : 'all';
   const inactiveDays = [30, 60, 90, 180, 365].includes(Number(days)) ? Number(days) : 90;
   const filter = { shopId };
@@ -209,9 +209,19 @@ async function crmList(shopId, { segment = 'all', days, range = 'week', q, showM
   else rows.sort((a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0) || a.name.localeCompare(b.name));
   if (seg === 'vip') rows = rows.slice(0, Math.max(10, Math.ceil(rows.length * 0.2)));
   const total = rows.length;
-  rows = rows.slice(0, Math.min(500, Math.max(1, Number(limit) || 200)));
+  const start = Math.max(0, Math.floor(Number(offset) || 0));
+  const size = Math.min(500, Math.max(1, Number(limit) || 200));
+  rows = rows.slice(start, start + size);
   if (!showMoney) rows = rows.map(({ spent, ticket, ...rest }) => rest); // eslint-disable-line no-unused-vars
-  return { segment: seg, inactiveDays, range: seg === 'birthdays' ? range : undefined, total, items: rows };
+  return {
+    segment: seg,
+    inactiveDays,
+    range: seg === 'birthdays' ? range : undefined,
+    total,
+    offset: start,
+    hasMore: start + rows.length < total,
+    items: rows,
+  };
 }
 
 /** One client: numbers plus the order history (the "timeline"). */

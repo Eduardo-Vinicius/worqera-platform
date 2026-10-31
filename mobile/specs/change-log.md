@@ -2,6 +2,8 @@
 
 ## 2026-10-31
 
+- **Preços e Asaas:** tela de plano com Basic/Pro/Business, Mensal/Anual, CPF/CNPJ, "Assinar" abrindo a fatura do Asaas no navegador, "Pagar fatura em aberto" e "Cancelar assinatura". Cadastro com os três planos e os preços novos (147/297/597). Textos de IA sem "só no Business".
+
 - **Visão geral enxuta:** um só bloco **Operação de hoje** (`DailyBriefCard` em `ai_widgets.dart`) com a frase da IA, os quatro números clicáveis (Em andamento, Atrasados, Prontos, Ligar hoje), "Comece por aqui" e "Fila por setor".
 - **Saíram:** os chips repetidos, o bloco "Hoje", os 4 atalhos, a carga por setor separada e o cartão de assinatura (o trial vai no subtítulo).
 - **Abaixo:** Prateleira (dono) e Pedidos recentes ("Ver todos").
@@ -14,6 +16,18 @@
     - **Funil:** chips de etapa filtram a lista e cada cartão tem o menu "Mudar etapa".
     - **Recuperados.**
   - Uma chamada só (`view=board`).
+- **Clientes → CRM:** listas de 100 em 100, com "Carregar mais" no fim e "Mostrando X de Y". Antes cortavam em 200.
+- **App igual ao site** (inventário em `specs/inventory.md`):
+  - **Corrigido:** no resumo do dia, "Parabenizar aniversariantes" e "Prateleira/Conferir entrega" não faziam nada ao tocar. Agora abrem Clientes na aba Aniversariantes e a nova tela de Prateleira (`ShelfPage`).
+  - "Entregues sem pagar" abre Pedidos direto nessa aba (`/orders?tab=`, `OrdersScreen.initialTab`).
+  - **IA nova no app** (todas as IAs do site agora estão no app):
+    - Raio-X do cliente na ficha (`ClientInsightCard`).
+    - Cobrança inteligente no topo do Financeiro (`ReceivablesCard`, só dono e admin).
+    - "Melhorar com IA" na folha Avisar do pedido.
+  - **Gestão → Atendimento** (`ops/attendance_screen.dart`): pedidos por pessoa, vendido, ticket, nota e recuperados; os pedidos em andamento sem "Aberto por" dá para marcar ali mesmo. Também copia o relatório para planilha.
+  - **Clientes → WhatsApp e e-mail** (`comms/comms_screen.dart`), numa tela só:
+    - WhatsApp oficial: status, autorização no balcão, aviso automático de pronto, uso do mês e desconectar. Conectar abre o cadastro da Meta no site.
+    - Também: telefone da loja, proteção do número, e-mail, modelos com prévia, o que sai sozinho e o guia contra bloqueio.
 
 ## 2026-10-30
 

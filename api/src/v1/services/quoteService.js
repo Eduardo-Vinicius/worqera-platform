@@ -166,7 +166,8 @@ async function listQuotes(shopId, query = {}) {
   if (query.clientId && isId(query.clientId)) filter.clientId = query.clientId;
   if (query.orderId && isId(query.orderId)) filter.orderId = query.orderId;
 
-  const rows = await Quote.find(filter).sort({ createdAt: -1 }).limit(2000).lean();
+  // The list only needs the latest contacts; the full history loads with the quote itself.
+  const rows = await Quote.find(filter).slice('activity', -5).sort({ createdAt: -1 }).limit(2000).lean();
   const summary = summarize(rows, now);
   const term = String(query.q || '').trim();
 

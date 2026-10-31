@@ -15,6 +15,7 @@ exports.list = wrap(async (req, res) => {
       range: req.query.range,
       q: req.query.q,
       limit: req.query.limit,
+      offset: req.query.offset,
       showMoney: seesMoney(req),
     })
   );

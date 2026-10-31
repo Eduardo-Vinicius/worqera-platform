@@ -43,4 +43,4 @@ Referência: análise do procedy-platform (módulos de clientes, relacionamento,
    - Para `produce`: agenda de instalação/entrega e sinal obrigatório na aprovação.
    - Para o automotivo: placa como identificador do item.
    - Textos do e-mail e da página do cliente por ramo ("Recebemos seu tênis" → "Seu pedido entrou em produção").
-6. **Performance:** paginação "carregar mais" nas listas grandes do site (pedidos e clientes acima de 200).
+6. **Performance:** ~~paginação "carregar mais"~~ feito em 31/10. Pedidos e Consultas → Clientes já tinham; as listas do CRM ganharam no site e no app, e a lista de Orçamentos ficou mais leve. Falta: Orçamentos ainda lê até 2000 por vez para montar o resumo; passar o resumo para uma agregação no Mongo quando alguma loja chegar perto disso.

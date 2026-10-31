@@ -2,6 +2,12 @@
 
 ## 2026-10-31
 
+- **Preços e Asaas:**
+  - `/billing` refeito: escolha do plano, Mensal/Anual (2 meses grátis), CPF/CNPJ com máscara, "Assinar" abrindo a fatura do Asaas (Pix, boleto ou cartão), "Pagar fatura em aberto", "Cancelar assinatura" (dono) e a implantação de R$ 497.
+  - Catálogo único do front em `lib/plans.ts` (preços, frases de valor, itens); cadastro com Basic, Pro e Business (todos com 7 dias grátis).
+  - Landing, `/recursos` e login com os preços novos (147/297/597), IA em todos os planos e "Pix, boleto ou cartão"; o Business vai para o cadastro em vez do WhatsApp.
+  - Avisos de IA (`AiQuotaNotice`) apontam para "Ver planos"; textos de "IA só no Business" saíram.
+
 - **Visão geral enxuta:** os três blocos sobre a operação (Resumo do dia, chips de próximas ações e "Hoje" com 4 números) viraram um só, **Operação de hoje** (`components/dashboard/OperationPanel.tsx`):
   - Frase da IA e dica, com "R$ em jogo" só para o dono.
   - Quatro números clicáveis: Em andamento, Atrasados (abre o kanban já filtrado, `/kanban?late=1`), Prontos para retirar e Ligar hoje.
@@ -21,6 +27,11 @@
   - A linha do orçamento foi para `components/quotes/QuoteRow.tsx` e ficou mais compacta, numa lista só.
   - A tela carrega tudo numa chamada (`view=board`). "Ligar hoje" usa a mesma regra da API.
   - Links antigos `?view=recovered|board|today` rolam até a parte certa.
+- **Sem "tênis" fixo:**
+  - A TV Cliente agora diz "Cuidado de verdade em cada pedido."
+  - Financeiro: "N pedidos voltaram".
+  - Pedido: "Setores só deste item".
+- **Clientes → CRM:** as listas (Todos, Sumidos etc.) carregam de 100 em 100, com "Carregar mais" e "Mostrando X de Y". Antes cortavam em 200 sem avisar.
 
 ## 2026-10-30
 

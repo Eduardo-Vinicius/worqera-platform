@@ -289,7 +289,7 @@ export default function AdminFinanceiroPage() {
                     {formatCurrency(data?.recovered?.value || 0)}
                   </p>
                   <p className="text-[10px] text-emerald-800/80 dark:text-emerald-300/80">
-                    {data?.recovered?.count || 0} tênis {(data?.recovered?.count || 0) === 1 ? "voltou" : "voltaram"}
+                    {data?.recovered?.count || 0} {(data?.recovered?.count || 0) === 1 ? "pedido voltou" : "pedidos voltaram"}
                   </p>
                 </Link>
               </div>

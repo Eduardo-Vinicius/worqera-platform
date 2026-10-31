@@ -338,12 +338,23 @@ export async function getCrmSummaryV1(days = 90) {
   return v1Fetch<CrmSummary>(`/crm/summary?days=${days}`)
 }
 
-export async function getCrmListV1(params: { segment: CrmSegment; days?: number; range?: "today" | "week" | "month"; q?: string }) {
+export async function getCrmListV1(params: {
+  segment: CrmSegment
+  days?: number
+  range?: "today" | "week" | "month"
+  q?: string
+  limit?: number
+  offset?: number
+}) {
   const qs = new URLSearchParams({ segment: params.segment })
   if (params.days) qs.set("days", String(params.days))
   if (params.range) qs.set("range", params.range)
   if (params.q) qs.set("q", params.q)
-  return v1Fetch<{ segment: CrmSegment; inactiveDays: number; total: number; items: CrmRow[] }>(`/crm/list?${qs}`)
+  if (params.limit) qs.set("limit", String(params.limit))
+  if (params.offset) qs.set("offset", String(params.offset))
+  return v1Fetch<{ segment: CrmSegment; inactiveDays: number; total: number; offset?: number; hasMore?: boolean; items: CrmRow[] }>(
+    `/crm/list?${qs}`
+  )
 }
 
 export async function getCrmInsightV1(refresh = false) {
@@ -1130,25 +1141,34 @@ export async function getBillingProductsV1() {
   return v1Fetch<{ products: any[] }>("/billing/products")
 }
 
-export async function createCheckoutSessionV1() {
+/** Asaas: returns the invoice link (Pix, boleto or card), or `provider: "manual"` when online payment is off. */
+export async function createCheckoutSessionV1(body: {
+  planCode: string
+  cycle: "monthly" | "yearly"
+  cpfCnpj: string
+  successUrl?: string
+}) {
   return v1Fetch<{
     url: string | null
-    id?: string
-    sessionId?: string
     provider?: string
     configured?: boolean
-    mock?: boolean
     message?: string
+    planCode?: string
+    cycle?: string
   }>("/billing/checkout-sessions", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   })
 }
 
-export async function completeCheckoutDevV1() {
+export async function cancelSubscriptionV1() {
+  return v1Fetch<{ subscription: any }>("/billing/cancel", { method: "POST", body: "{}" })
+}
+
+export async function completeCheckoutDevV1(planCode?: string) {
   return v1Fetch("/billing/dev/complete-checkout", {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(planCode ? { planCode } : {}),
   })
 }
 

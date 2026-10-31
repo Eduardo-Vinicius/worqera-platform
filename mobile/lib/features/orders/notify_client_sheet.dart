@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
@@ -17,6 +18,8 @@ Future<void> showNotifyClientSheet(
   required String status,
   String? dueAt,
   num remaining = 0,
+  WorqeraApi? api,
+  String? orderId,
 }) async {
   final first = clientName.trim().split(RegExp(r'\s+')).first;
   final hi = first.isEmpty ? 'Oi!' : 'Oi, $first!';
@@ -32,6 +35,9 @@ Future<void> showNotifyClientSheet(
   ];
   final text = TextEditingController(text: options.first.$2);
   var picked = 0;
+  var improving = false;
+  var aiDone = false;
+  final canImprove = api != null && (orderId ?? '').isNotEmpty;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -50,12 +56,44 @@ Future<void> showNotifyClientSheet(
                   selected: picked == i,
                   onSelected: (_) => setSheet(() {
                     picked = i;
+                    aiDone = false;
                     text.text = options[i].$2;
                   }),
                 ),
             ]),
             const SizedBox(height: 8),
             TextField(controller: text, maxLines: 6, minLines: 4, decoration: const InputDecoration(border: OutlineInputBorder())),
+            if (canImprove)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: improving || text.text.trim().isEmpty
+                      ? null
+                      : () async {
+                          setSheet(() => improving = true);
+                          try {
+                            final res = await api.dio.post('/ai/orders/$orderId/message', data: {'text': text.text});
+                            final body = res.data is Map ? res.data as Map : const {};
+                            if (body['locked'] == true) {
+                              if (ctx.mounted) wqToast(ctx, 'A IA não está disponível no seu plano agora. A mensagem pronta continua valendo.');
+                            } else if (body['ai'] == true && '${body['text'] ?? ''}'.isNotEmpty) {
+                              text.text = '${body['text']}';
+                              aiDone = true;
+                            } else if (ctx.mounted) {
+                              wqToast(ctx, 'A IA não mudou a mensagem desta vez');
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) wqToast(ctx, api.message(e));
+                          } finally {
+                            if (ctx.mounted) setSheet(() => improving = false);
+                          }
+                        },
+                  icon: improving
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: Text(aiDone ? 'Reescrever de novo' : 'Melhorar com IA'),
+                ),
+              ),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(

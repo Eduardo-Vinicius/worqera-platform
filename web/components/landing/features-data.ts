@@ -130,7 +130,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       slug: "orcamentos",
       name: "CRM de orçamentos",
       short: "O cliente que não fechou vira retorno, com dia para ligar e mensagem pronta.",
-      plan: "Todos os planos · IA no Business",
+      plan: "Todos os planos · IA em todos",
       kicker: "Vendas",
       headline: "O orçamento que não fechou ainda é venda.",
       lead: "Quando o cliente diz “vou pensar”, a Worqera guarda o motivo, marca o dia de retornar e coloca na lista de quem ligar hoje. Fechou? O pedido volta para a fila sozinho.",
@@ -175,7 +175,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       slug: "orcamentos",
       name: "Quote CRM",
       short: "The customer who did not close becomes a follow-up, with a day to call and a ready message.",
-      plan: "All plans · AI on Business",
+      plan: "All plans · AI on every plan",
       kicker: "Sales",
       headline: "A quote that did not close is still a sale.",
       lead: "When the customer says “let me think”, Worqera keeps the reason, sets the day to follow up and puts it on today’s call list. Closed? The order goes back on the queue by itself.",
@@ -500,7 +500,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       slug: "ia",
       name: "IA na operação",
       short: "Escreve a mensagem certa, resume o dia e lê a semana. Você decide.",
-      plan: "Business",
+      plan: "Todos os planos · cota por plano",
       kicker: "Inteligência",
       headline: "A IA que trabalha no balcão, não no slide.",
       lead: "A IA da Worqera usa os dados da sua fila para escrever e resumir. Nada sai sozinho: ela sugere, a equipe revisa e envia.",
@@ -521,7 +521,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       caps: [
         { title: "Resposta para avaliações", desc: "Uma resposta educada para cada nota, pronta para ajustar." },
         { title: "Sempre editável", desc: "Todo texto da IA pode ser mudado antes de sair." },
-        { title: "Limite à vista", desc: "1.000 usos por mês. O sistema avisa quando estiver perto do fim." },
+        { title: "Limite à vista", desc: "50 usos no Basic, 300 no Pro e 1.500 no Business. O sistema avisa quando estiver perto do fim." },
         { title: "Não para a operação", desc: "Acabou o limite, os textos prontos da Worqera continuam saindo." },
         { title: "Mais quando precisar", desc: "Precisa de mais no mês? A Worqera libera um pacote extra." },
         { title: "Só os seus dados", desc: "A IA lê apenas a sua empresa, na hora em que você pede." },
@@ -545,7 +545,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       slug: "ia",
       name: "AI in operations",
       short: "Writes the right message, sums up the day and reads the week. You decide.",
-      plan: "Business",
+      plan: "All plans · quota per plan",
       kicker: "Intelligence",
       headline: "AI that works at the counter, not on a slide.",
       lead: "Worqera’s AI uses your queue data to write and summarize. Nothing goes out on its own: it suggests, the team reviews and sends.",
@@ -566,7 +566,7 @@ const pages: Record<FeatureSlug, { pt: FeatureCopy; en: FeatureCopy }> = {
       caps: [
         { title: "Review replies", desc: "A polite reply for each score, ready to tweak." },
         { title: "Always editable", desc: "Every AI text can be changed before it goes out." },
-        { title: "Visible limit", desc: "1,000 uses a month. The system warns when you are close." },
+        { title: "Visible limit", desc: "50 uses on Basic, 300 on Pro and 1,500 on Business. The system warns when you are close." },
         { title: "Never stops the shop", desc: "Past the limit, Worqera’s ready texts keep coming." },
         { title: "More when you need it", desc: "Need more this month? Worqera adds an extra pack." },
         { title: "Only your data", desc: "AI reads only your company, at the moment you ask." },
@@ -793,7 +793,7 @@ type Mark = "yes" | "no" | string
 
 export const PLAN_ROWS: Array<{ pt: string; en: string; href?: FeatureSlug; basic: Mark; pro: Mark; business: Mark }> = [
   { pt: "Kanban por setores", en: "Sector kanban", href: "kanban", basic: "yes", pro: "yes", business: "yes" },
-  { pt: "Pedidos por mês", en: "Orders per month", basic: "100", pro: "Sem limite|No limit", business: "Sem limite|No limit" },
+  { pt: "Pedidos por mês", en: "Orders per month", basic: "150", pro: "Sem limite|No limit", business: "Sem limite|No limit" },
   { pt: "Etiqueta, QR e consulta do cliente", en: "Label, QR and customer tracking", href: "cliente", basic: "yes", pro: "yes", business: "yes" },
   { pt: "Avaliações com convite ao Google", en: "Reviews with a Google invite", href: "cliente", basic: "yes", pro: "yes", business: "yes" },
   { pt: "CRM de orçamentos (Ligar hoje e funil)", en: "Quote CRM (Call today and funnel)", href: "orcamentos", basic: "yes", pro: "yes", business: "yes" },
@@ -802,8 +802,8 @@ export const PLAN_ROWS: Array<{ pt: string; en: string; href?: FeatureSlug; basi
   { pt: "Financeiro, métricas e TV financeiro", en: "Finance, metrics and finance TV", href: "financeiro", basic: "no", pro: "yes", business: "yes" },
   { pt: "Marca da empresa", en: "Company brand", basic: "no", pro: "yes", business: "yes" },
   { pt: "Produtos, estoque e venda no pedido", en: "Products, stock and sales on the order", href: "produtos", basic: "no", pro: "yes", business: "yes" },
-  { pt: "IA (1.000 usos por mês)", en: "AI (1,000 uses a month)", href: "ia", basic: "no", pro: "no", business: "yes" },
-  { pt: "WhatsApp oficial com pacote", en: "Official WhatsApp with a pack", href: "whatsapp", basic: "no", pro: "no", business: "Em ativação|Activating" },
+  { pt: "IA (usos por mês)", en: "AI (uses a month)", href: "ia", basic: "50", pro: "300", business: "1.500|1,500" },
+  { pt: "WhatsApp oficial automático com pacote", en: "Automatic official WhatsApp with a pack", href: "whatsapp", basic: "no", pro: "no", business: "yes" },
   { pt: "Implantação e treinamento", en: "Onboarding and training", basic: "no", pro: "no", business: "yes" },
 ]
 

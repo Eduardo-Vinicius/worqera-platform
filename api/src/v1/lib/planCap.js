@@ -1,28 +1,38 @@
-const BASIC_ORDER_CAP = 100;
-const BASIC_CODES = new Set(['WORQERA_BASIC']);
+const BASIC_ORDER_CAP = 150;
 
-const BUSINESS_CODES = new Set(['WORQERA_BUSINESS', 'WORQERA_PREMIUM']);
+const TIER = {
+  WORQERA_BASIC: 'basic',
+  WORQERA_PRO: 'pro',
+  WORQERA_EARLY: 'pro',
+  WORQERA_BUSINESS: 'business',
+  WORQERA_PREMIUM: 'business',
+};
+
+function planTier(code) {
+  return TIER[String(code || '').trim().toUpperCase()] || null;
+}
 
 function isBasicPlan(code) {
-  return BASIC_CODES.has(String(code || '').trim().toUpperCase());
+  return planTier(code) === 'basic';
 }
 
 function isBusinessPlan(code) {
-  return BUSINESS_CODES.has(String(code || '').trim().toUpperCase());
+  return planTier(code) === 'business';
 }
 
 /**
- * Business-only perks: `ai` and `whatsapp`.
+ * `ai`: every paid plan and the trial (the quota is what changes).
+ * `whatsapp`: Business, not during the trial. `weekly`: Business.
  * Takes `req.subscription` (or a plan code). The Worqera admin visiting a shop
  * and non-production runs see everything, so the features can be tried.
  */
 function planHas(subscription, feature) {
-  if (!['ai', 'whatsapp'].includes(feature)) return false;
-  if (subscription && typeof subscription === 'object') {
-    if (subscription.platformVisit || subscription.devBypass) return true;
-    return isBusinessPlan(subscription.planCode);
-  }
-  return isBusinessPlan(subscription);
+  const sub = subscription && typeof subscription === 'object' ? subscription : { planCode: subscription };
+  if (sub.platformVisit || sub.devBypass) return ['ai', 'whatsapp', 'weekly'].includes(feature);
+  if (feature === 'ai') return Boolean(planTier(sub.planCode));
+  if (feature === 'weekly') return isBusinessPlan(sub.planCode);
+  if (feature === 'whatsapp') return isBusinessPlan(sub.planCode) && sub.status !== 'trialing';
+  return false;
 }
 
 /** Midnight on the first day of the month in America/Sao_Paulo (UTC−3). */
@@ -49,6 +59,7 @@ function saoPauloDayKey(now = new Date()) {
 
 module.exports = {
   BASIC_ORDER_CAP,
+  planTier,
   isBasicPlan,
   isBusinessPlan,
   planHas,

@@ -186,6 +186,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       status: '${order?['status'] ?? ''}',
       dueAt: '${order?['dueAt'] ?? ''}',
       remaining: num.tryParse('${pricing?['remaining'] ?? 0}') ?? 0,
+      api: widget.session.isSector ? null : widget.api,
+      orderId: '${order?['id'] ?? order?['_id'] ?? widget.orderId}',
     );
   }
 

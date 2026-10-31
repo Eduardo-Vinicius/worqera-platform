@@ -41,9 +41,9 @@ type ShopRow = {
 type Filter = "all" | "trialing" | "trial_7d" | "active" | "suspended"
 
 const PLANS = [
-  { code: "WORQERA_BASIC", label: "Basic", price: "R$ 97" },
-  { code: "WORQERA_PRO", label: "Pro", price: "R$ 197" },
-  { code: "WORQERA_BUSINESS", label: "Business", price: "R$ 697" },
+  { code: "WORQERA_BASIC", label: "Basic", price: "R$ 147" },
+  { code: "WORQERA_PRO", label: "Pro", price: "R$ 297" },
+  { code: "WORQERA_BUSINESS", label: "Business", price: "R$ 597" },
 ] as const
 
 type PlanCode = (typeof PLANS)[number]["code"] | "WORQERA_EARLY" | "WORQERA_PREMIUM" | ""

@@ -10,7 +10,7 @@ import { WORQERA_AI_CONTACT, resetLabel } from "./AiQuotaNotice"
 
 /**
  * "O que vamos fazer" in the customer's words: shown on the laudo PDF and the
- * public tracking page. AI writes it on Business; the team can always edit.
+ * public tracking page. AI writes it (every plan, within the quota); the team can always edit.
  */
 export function CustomerSummaryBox({
   orderId,
@@ -82,7 +82,7 @@ export function CustomerSummaryBox({
             className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-surface)]"
             onClick={() => void generate()}
             disabled={Boolean(busy)}
-            title="Escrever com IA (Business)"
+            title="Escrever com IA"
             aria-label="Escrever com IA"
           >
             {busy === "ai" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}

@@ -8,9 +8,10 @@ import '../../design/ui.dart';
 
 /// Owner only: ready orders nobody picked up, and the money waiting on them.
 class ShelfCard extends StatefulWidget {
-  const ShelfCard({super.key, required this.api, required this.session});
+  const ShelfCard({super.key, required this.api, required this.session, this.initiallyOpen = false});
   final WorqeraApi api;
   final SessionStore session;
+  final bool initiallyOpen;
 
   @override
   State<ShelfCard> createState() => _ShelfCardState();
@@ -18,7 +19,7 @@ class ShelfCard extends StatefulWidget {
 
 class _ShelfCardState extends State<ShelfCard> {
   Map<String, dynamic>? shelf;
-  bool open = false;
+  late bool open = widget.initiallyOpen;
 
   @override
   void initState() {
@@ -209,6 +210,28 @@ class _ShelfCardState extends State<ShelfCard> {
             child: Text(open ? 'Mostrar menos' : 'Ver todos os ${items.length}'),
           ),
       ]),
+    );
+  }
+}
+
+/// Aberto pelo resumo do dia ("Prateleira", "Conferir entrega"): a prateleira já expandida.
+class ShelfPage extends StatelessWidget {
+  const ShelfPage({super.key, required this.api, required this.session});
+  final WorqeraApi api;
+  final SessionStore session;
+
+  @override
+  Widget build(BuildContext context) {
+    return WqPage(
+      title: 'Prateleira',
+      subtitle: 'Prontos que ninguém buscou',
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        children: [
+          ShelfCard(api: api, session: session, initiallyOpen: true),
+          Text('Quando o cliente buscar, entregue pelo kanban e o pedido sai daqui.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+        ],
+      ),
     );
   }
 }

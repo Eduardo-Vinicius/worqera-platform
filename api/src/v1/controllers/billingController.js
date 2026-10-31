@@ -15,35 +15,24 @@ exports.listProducts = wrap(async (_req, res) => {
 });
 
 exports.createCheckoutSession = wrap(async (req, res) => {
-  const session = await billingService.createCheckoutSession(req.shopId, req.body || {});
+  const User = require('../models/User');
+  const owner = req.auth?.userId ? await User.findById(req.auth.userId).select('email').lean() : null;
+  const session = await billingService.createCheckoutSession(req.shopId, req.body || {}, { ownerEmail: owner?.email });
   res.status(201).json(session);
+});
+
+exports.cancelSubscription = wrap(async (req, res) => {
+  res.status(200).json({ subscription: await billingService.cancelSubscription(req.shopId) });
+});
+
+exports.asaasWebhook = wrap(async (req, res) => {
+  if (!billingService.authorizeAsaasWebhook(req.headers['asaas-access-token'])) {
+    return sendError(res, 401, { title: 'Unauthorized', detail: 'Invalid webhook token', code: 'UNAUTHORIZED' });
+  }
+  res.status(200).json(await billingService.handleAsaasWebhook(req.body || {}));
 });
 
 exports.completeCheckoutDev = wrap(async (req, res) => {
   const subscription = await billingService.completeCheckoutDev(req.shopId, req.body || {});
   res.status(200).json({ subscription });
-});
-
-exports.abacateWebhook = wrap(async (req, res) => {
-  const querySecret = req.query.webhookSecret || req.query.secret;
-  const signature =
-    req.headers['x-abacate-signature'] ||
-    req.headers['x-worqera-signature'] ||
-    req.headers['x-signature'];
-  const rawBody =
-    typeof req.rawBody === 'string'
-      ? req.rawBody
-      : Buffer.isBuffer(req.rawBody)
-        ? req.rawBody.toString('utf8')
-        : JSON.stringify(req.body || {});
-
-  if (!billingService.authorizeWebhook({ querySecret, signatureHeader: signature, rawBody })) {
-    return sendError(res, 401, {
-      title: 'Unauthorized',
-      detail: 'Invalid webhook signature or secret',
-      code: 'UNAUTHORIZED',
-    });
-  }
-  const result = await billingService.handleAbacateWebhook(req.body || {});
-  res.status(200).json(result);
 });

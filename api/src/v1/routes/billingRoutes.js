@@ -2,6 +2,7 @@ const express = require('express');
 const billingController = require('../controllers/billingController');
 const { auth } = require('../middleware/auth');
 const { shopContext } = require('../middleware/shopContext');
+const { requireRole } = require('../middleware/requireRole');
 
 const router = express.Router();
 
@@ -10,7 +11,8 @@ const shopGuard = [auth, shopContext];
 
 router.get('/products', ...shopGuard, billingController.listProducts);
 router.get('/subscription', ...shopGuard, billingController.getSubscription);
-router.post('/checkout-sessions', ...shopGuard, billingController.createCheckoutSession);
+router.post('/checkout-sessions', ...shopGuard, requireRole('owner', 'admin'), billingController.createCheckoutSession);
+router.post('/cancel', ...shopGuard, requireRole('owner'), billingController.cancelSubscription);
 router.post('/dev/complete-checkout', ...shopGuard, billingController.completeCheckoutDev);
 
 module.exports = router;

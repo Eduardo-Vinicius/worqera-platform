@@ -10,7 +10,7 @@ function aiAllowed(req) {
   return planHas(req.subscription, 'ai');
 }
 
-/** The shop's AI quota, or null outside Business. Sent with every AI answer so the UI can say "limite do mês". */
+/** The shop's AI quota, or null without a plan. Sent with every AI answer so the UI can say "limite do mês". */
 async function quotaOf(req) {
   if (!aiAllowed(req)) return null;
   return quotaFor(req.shopId);
@@ -39,7 +39,7 @@ exports.brief = wrap(async (req, res) => {
 });
 
 exports.insights = wrap(async (req, res) => {
-  if (!aiAllowed(req)) {
+  if (!planHas(req.subscription, 'weekly')) {
     return res.status(200).json({ locked: true, insights: null });
   }
   const refresh = req.query.refresh === '1' || req.query.refresh === 'true';

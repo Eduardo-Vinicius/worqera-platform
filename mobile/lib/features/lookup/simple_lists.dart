@@ -8,14 +8,16 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
+import '../ai/ai_widgets.dart';
 import '../crm/crm_views.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../quotes/quotes_screen.dart';
 
 class ClientsScreen extends StatefulWidget {
-  const ClientsScreen({super.key, required this.api, this.openClient, this.session});
+  const ClientsScreen({super.key, required this.api, this.openClient, this.session, this.initialTab});
   final WorqeraApi api;
+  final String? initialTab;
   final SessionStore? session;
   final void Function(String id)? openClient;
 
@@ -47,6 +49,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
   @override
   void initState() {
     super.initState();
+    final start = widget.initialTab;
+    if (start != null && _tabs.any((t) => t.$1 == start)) tab = start;
     load();
   }
 
@@ -410,6 +414,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   const SizedBox(height: 10),
                   _stats(context, Map<String, dynamic>.from(client!['stats'] as Map)),
                 ],
+                if (widget.session?.isSector != true) ClientInsightCard(api: widget.api, clientId: widget.clientId),
                 if (widget.session != null)
                   ClientQuotesSection(api: widget.api, session: widget.session!, clientId: widget.clientId),
                 const SizedBox(height: 12),

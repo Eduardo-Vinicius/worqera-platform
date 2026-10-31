@@ -25,8 +25,9 @@ class _SignupScreenState extends State<SignupScreen> {
   String? error;
 
   static const _plans = {
-    'basic': ('Basic', 'R\$ 97', 'WORQERA_BASIC', 'A fila no ar esta semana.', 'Até 100 pedidos criados no mês.', ['Kanban por setores', 'Cliente consulta sozinho', 'TV da oficina']),
-    'pro': ('Pro', 'R\$ 197', 'WORQERA_PRO', 'A oficina inteira, sem teto.', 'Pedidos sem limite neste plano.', ['Financeiro e métricas', 'TV financeiro', 'Marca, produtos e estoque']),
+    'basic': ('Basic', 'R\$ 147', 'WORQERA_BASIC', 'Um orçamento recuperado no mês já paga o plano.', 'Até 150 pedidos criados no mês.', ['Kanban por setores e TVs', 'CRM de orçamentos', 'IA no resumo do dia']),
+    'pro': ('Pro', 'R\$ 297', 'WORQERA_PRO', 'O caixa, a prateleira e o estoque na sua mão.', 'Pedidos sem limite neste plano.', ['Financeiro e métricas', 'Produtos, estoque e marca', 'IA em orçamentos e cobrança']),
+    'business': ('Business', 'R\$ 597', 'WORQERA_BUSINESS', 'O WhatsApp avisa sozinho e a IA escreve com você.', 'O WhatsApp oficial liga quando a assinatura começar.', ['Tudo do Pro', 'WhatsApp oficial automático', 'IA com 1.500 usos']),
   };
 
   @override
@@ -94,16 +95,16 @@ class _SignupScreenState extends State<SignupScreen> {
         children: [
           if (error != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(error!, style: const TextStyle(color: Wq.danger))),
           Row(children: [
-            for (final id in ['basic', 'pro'])
+            for (final id in ['basic', 'pro', 'business'])
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(right: id == 'basic' ? 8 : 0),
+                  padding: EdgeInsets.only(right: id == 'business' ? 0 : 8),
                   child: WqCard(
                     onTap: () => setState(() => plan = id),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(_plans[id]!.$1, style: TextStyle(fontWeight: FontWeight.w800, color: plan == id ? Wq.brand : null)),
-                      Text(_plans[id]!.$2, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      Text(id == 'pro' ? 'Recomendado' : 'Começar', style: const TextStyle(color: Wq.muted, fontSize: 12)),
+                      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(_plans[id]!.$2, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+                      Text(id == 'pro' ? 'Recomendado' : id == 'basic' ? 'Começar' : 'Automático', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Wq.muted, fontSize: 12)),
                     ]),
                   ),
                 ),

@@ -7,12 +7,14 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../home/shelf_card.dart';
+import '../lookup/simple_lists.dart';
 import '../products/products_screen.dart';
 import '../quotes/quote_kit.dart';
 import '../quotes/quotes_screen.dart';
 
 const _aiContact =
-    'https://wa.me/5511985591053?text=Ol%C3%A1!%20Quero%20mais%20usos%20de%20IA%20no%20plano%20Business%20da%20minha%20empresa.';
+    'https://wa.me/5511985591053?text=Ol%C3%A1!%20Quero%20mais%20usos%20de%20IA%20na%20minha%20empresa.';
 
 String _resetLabel(dynamic iso) {
   const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -109,26 +111,40 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
     }
   }
 
+  void _push(String id, Widget page) {
+    final scope = ShellScope.maybeOf(context);
+    if (scope != null) {
+      scope.openPage(id, page, stack: true);
+    } else {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    }
+  }
+
+  /// Links do resumo vêm no formato do site (`/clientes?tab=aniversariantes`); aqui viram a tela certa do app.
   void _openHref(String href) {
-    if (href.startsWith('/orcamentos')) {
-      final page = QuotesScreen(api: widget.api, session: widget.session);
-      final scope = ShellScope.maybeOf(context);
-      if (scope != null) {
-        scope.openPage('quotes', page, stack: true);
-      } else {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-      }
-    } else if (href.startsWith('/admin/produtos')) {
-      final page = ProductsScreen(api: widget.api);
-      final scope = ShellScope.maybeOf(context);
-      if (scope != null) {
-        scope.openPage('produtos', page, stack: true);
-      } else {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-      }
-    } else if (href.startsWith('/pedidos')) {
-      context.go('/orders');
-    } else if (href.startsWith('/kanban')) {
+    final uri = Uri.tryParse(href) ?? Uri();
+    final path = uri.path;
+    final tab = uri.queryParameters['tab'];
+    if (path.startsWith('/orcamentos')) {
+      _push('quotes', QuotesScreen(api: widget.api, session: widget.session));
+    } else if (path.startsWith('/admin/produtos')) {
+      _push('produtos', ProductsScreen(api: widget.api));
+    } else if (path.startsWith('/clientes')) {
+      const webTabs = {'aniversariantes': 'birthdays', 'sumidos': 'inactive', 'recorrentes': 'recurring', 'novos': 'new', 'todos': 'all'};
+      _push(
+        'clients',
+        ClientsScreen(
+          api: widget.api,
+          session: widget.session,
+          initialTab: webTabs[tab] ?? tab,
+          openClient: (id) => _push('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session)),
+        ),
+      );
+    } else if (href.contains('prateleira')) {
+      _push('shelf', ShelfPage(api: widget.api, session: widget.session));
+    } else if (path.startsWith('/pedidos')) {
+      context.go(tab == null ? '/orders' : '/orders?tab=$tab');
+    } else if (path.startsWith('/kanban')) {
       context.go('/kanban');
     }
   }
@@ -430,5 +446,256 @@ class _ReviewReplyButtonState extends State<ReviewReplyButton> {
           ]),
         ),
     ]);
+  }
+}
+
+/// Ficha do cliente: quem é esse cliente numa olhada e o próximo passo com ele (`/ai/clients/:id/insight`).
+class ClientInsightCard extends StatefulWidget {
+  const ClientInsightCard({super.key, required this.api, required this.clientId});
+  final WorqeraApi api;
+  final String clientId;
+
+  @override
+  State<ClientInsightCard> createState() => _ClientInsightCardState();
+}
+
+class _ClientInsightCardState extends State<ClientInsightCard> {
+  Map<String, dynamic>? insight;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.dio.get('/ai/clients/${widget.clientId}/insight').then((res) {
+      final body = res.data is Map ? res.data as Map : const {};
+      if (mounted && body['insight'] is Map) setState(() => insight = Map<String, dynamic>.from(body['insight'] as Map));
+    }).catchError((_) {});
+  }
+
+  Color _tagColor(String tag) {
+    if (RegExp(r'^Deve|reclamou|Sumido|Passou da hora', caseSensitive: false).hasMatch(tag)) return const Color(0xFFE11D48);
+    if (RegExp(r'fiel|Ama', caseSensitive: false).hasMatch(tag)) return Wq.success;
+    return context.wqMuted;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = insight;
+    if (data == null) return const SizedBox.shrink();
+    final numbers = data['numbers'] is Map ? data['numbers'] as Map : const {};
+    final tags = ((numbers['tags'] as List?) ?? const []).map((t) => '$t').where((t) => t.isNotEmpty).toList();
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.wqLine)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(color: Wq.brand, borderRadius: BorderRadius.circular(8)),
+          child: const Icon(Icons.manage_search, color: Colors.white, size: 17),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text('RAIO-X DO CLIENTE', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted)),
+              if (data['ai'] == true) ...[const SizedBox(width: 6), const Pill('IA', color: Wq.brand, filled: true)],
+            ]),
+            const SizedBox(height: 4),
+            Text('${data['summary'] ?? ''}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: context.wqInk)),
+            if ('${data['next'] ?? ''}'.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.arrow_forward, size: 16, color: Wq.brand),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text('${data['next']}', style: const TextStyle(fontWeight: FontWeight.w700, color: Wq.brand))),
+                ]),
+              ),
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [for (final t in tags) Pill(t, color: _tagColor(t))]),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Financeiro: quem deve, há quanto tempo e em que ordem cobrar (`/ai/receivables`). Só dono e admin; some para os outros.
+class ReceivablesCard extends StatefulWidget {
+  const ReceivablesCard({super.key, required this.api});
+  final WorqeraApi api;
+
+  @override
+  State<ReceivablesCard> createState() => _ReceivablesCardState();
+}
+
+class _ReceivablesCardState extends State<ReceivablesCard> {
+  Map<String, dynamic>? data;
+  Map? quota;
+  bool busy = false;
+  bool hidden = false;
+  bool all = false;
+
+  static const _levels = <String, (String, Color)>{
+    'ready': ('Pronto', Wq.success),
+    'soft': ('Até 7 dias', Color(0xFF0284C7)),
+    'firm': ('8 a 30 dias', Color(0xFFD97706)),
+    'late': ('+30 dias', Color(0xFFE11D48)),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load({bool refresh = false}) async {
+    setState(() => busy = true);
+    try {
+      final res = await widget.api.dio.get('/ai/receivables', queryParameters: refresh ? {'refresh': '1'} : null);
+      final body = Map<String, dynamic>.from(res.data as Map);
+      if (mounted) {
+        setState(() {
+          data = body['receivables'] is Map ? Map<String, dynamic>.from(body['receivables'] as Map) : null;
+          quota = body['aiQuota'] is Map ? body['aiQuota'] as Map : null;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => hidden = true);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  num _n(dynamic v) => num.tryParse('${v ?? 0}') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (hidden || d == null) return const SizedBox.shrink();
+    final buckets = d['buckets'] is Map ? d['buckets'] as Map : const {};
+    final aging = d['aging'] is Map ? d['aging'] as Map : const {};
+    final items = ((d['items'] as List?) ?? const []).whereType<Map>().toList();
+    final plan = ((d['plan'] as List?) ?? const []).map((p) => '$p').toList();
+    final shown = all ? items : items.take(5).toList();
+    final label = TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: context.wqMuted);
+    final up7 = _n(aging['upTo7']), up30 = _n(aging['upTo30']), over = _n(aging['over30']);
+    final agingTotal = (up7 + up30 + over) == 0 ? 1 : up7 + up30 + over;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(color: context.wqSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.wqLine)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 6, 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(color: const Color(0xFFF59E0B), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.payments_outlined, color: Colors.white, size: 17),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text('COBRANÇA INTELIGENTE', style: label),
+                  if (d['ai'] == true) ...[const SizedBox(width: 6), const Pill('IA', color: Wq.brand, filled: true)],
+                ]),
+                const SizedBox(height: 4),
+                Text('${d['headline'] ?? ''}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35, color: context.wqInk)),
+                for (final entry in plan.asMap().entries)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('${entry.key + 1}. ${entry.value}', style: TextStyle(fontSize: 13, color: context.wqMuted)),
+                  ),
+                AiQuotaNotice(quota: quota),
+              ]),
+            ),
+            IconButton(
+              tooltip: 'Atualizar',
+              onPressed: busy ? null : () => load(refresh: true),
+              icon: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 20),
+            ),
+          ]),
+        ),
+        if (_n(d['total']) > 0.009) ...[
+          Divider(height: 1, color: context.wqLine),
+          Row(children: [
+            for (final c in [
+              ('A receber', _n(d['total']), false),
+              ('Entregues sem pagar (${buckets['deliveredCount'] ?? 0})', _n(buckets['delivered']), true),
+              ('Prontos com saldo (${buckets['readyCount'] ?? 0})', _n(buckets['ready']), false),
+            ])
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(brl(c.$2), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: c.$3 && c.$2 > 0 ? const Color(0xFFD97706) : context.wqInk)),
+                    ),
+                    Text(c.$1, maxLines: 2, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                  ]),
+                ),
+              ),
+          ]),
+          if (_n(d['atRisk']) > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('IDADE DO QUE JÁ FOI ENTREGUE', style: label),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: SizedBox(
+                    height: 8,
+                    child: Row(children: [
+                      if (up7 > 0) Expanded(flex: (up7 / agingTotal * 1000).round().clamp(1, 1000), child: Container(color: const Color(0xFF38BDF8))),
+                      if (up30 > 0) Expanded(flex: (up30 / agingTotal * 1000).round().clamp(1, 1000), child: Container(color: const Color(0xFFFBBF24))),
+                      if (over > 0) Expanded(flex: (over / agingTotal * 1000).round().clamp(1, 1000), child: Container(color: const Color(0xFFE11D48))),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Até 7 dias ${brl(up7)} · 8–30 dias ${brl(up30)} · +30 dias ${brl(over)}', style: TextStyle(fontSize: 11, color: context.wqMuted)),
+              ]),
+            ),
+          Divider(height: 1, color: context.wqLine),
+          for (final item in shown)
+            ListTile(
+              dense: true,
+              title: Text('#${item['code']} · ${item['clientName'] ?? 'Cliente'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Row(children: [
+                Pill(_levels['${item['level']}']?.$1 ?? '', color: _levels['${item['level']}']?.$2 ?? context.wqMuted),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    item['stage'] == 'delivered' ? 'entregue há ${item['days']} dia${item['days'] == 1 ? '' : 's'}' : 'esperando retirada',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(brl(_n(item['value'])), style: const TextStyle(fontWeight: FontWeight.w800)),
+                if ('${item['waUrl'] ?? ''}'.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Cobrar pelo WhatsApp',
+                    onPressed: () => openLink('${item['waUrl']}'),
+                    icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
+                  ),
+              ]),
+            ),
+          if (items.length > 5)
+            TextButton(onPressed: () => setState(() => all = !all), child: Text(all ? 'Mostrar menos' : 'Ver todos os ${items.length}')),
+        ],
+      ]),
+    );
   }
 }

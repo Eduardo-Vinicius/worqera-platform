@@ -31,7 +31,7 @@ String sinceLabel(dynamic days) {
   return 'Último pedido há ${(d / 30).round()} meses';
 }
 
-/// CRM → Base: leitura da base (IA no Business), números e o que fazer.
+/// CRM → Base: leitura da base (IA dentro da cota do plano), números e o que fazer.
 class CrmHomeView extends StatefulWidget {
   const CrmHomeView({super.key, required this.api, required this.onSegment});
   final WorqeraApi api;
@@ -150,10 +150,13 @@ class CrmSegmentView extends StatefulWidget {
 }
 
 class _CrmSegmentViewState extends State<CrmSegmentView> {
+  static const _page = 100;
   List<Map<String, dynamic>>? rows;
   String? error;
   String range = 'week';
   int days = 90;
+  int total = 0;
+  bool loadingMore = false;
 
   @override
   void initState() {
@@ -167,22 +170,51 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
     if (oldWidget.segment != widget.segment) load();
   }
 
+  Future<Map<String, dynamic>> _fetch(int offset) async {
+    final res = await widget.api.dio.get('/crm/list', queryParameters: {
+      'segment': widget.segment,
+      if (widget.segment == 'birthdays') 'range': range,
+      if (widget.segment == 'inactive') 'days': days,
+      'limit': _page,
+      if (offset > 0) 'offset': offset,
+    });
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  List<Map<String, dynamic>> _items(Map body) =>
+      ((body['items'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
   Future<void> load() async {
     setState(() => rows = null);
     try {
-      final res = await widget.api.dio.get('/crm/list', queryParameters: {
-        'segment': widget.segment,
-        if (widget.segment == 'birthdays') 'range': range,
-        if (widget.segment == 'inactive') 'days': days,
-      });
-      final body = Map<String, dynamic>.from(res.data as Map);
+      final body = await _fetch(0);
       if (!mounted) return;
       setState(() {
-        rows = ((body['items'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        rows = _items(body);
+        total = int.tryParse('${body['total'] ?? 0}') ?? 0;
         error = null;
       });
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
+    }
+  }
+
+  Future<void> loadMore() async {
+    final current = rows;
+    if (current == null || loadingMore) return;
+    setState(() => loadingMore = true);
+    try {
+      final body = await _fetch(current.length);
+      final seen = current.map((r) => '${r['id']}').toSet();
+      if (!mounted) return;
+      setState(() {
+        rows = [...current, ..._items(body).where((r) => !seen.contains('${r['id']}'))];
+        total = int.tryParse('${body['total'] ?? total}') ?? total;
+      });
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => loadingMore = false);
     }
   }
 
@@ -256,8 +288,22 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
                     onRefresh: load,
                     child: ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                      itemCount: list.length,
+                      itemCount: list.length + (list.length < total ? 1 : 0),
                       itemBuilder: (context, i) {
+                        if (i == list.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Column(children: [
+                              OutlinedButton(
+                                onPressed: loadingMore ? null : loadMore,
+                                child: loadingMore
+                                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Text('Carregar mais'),
+                              ),
+                              Text('Mostrando ${list.length} de $total', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+                            ]),
+                          );
+                        }
                         final r = list[i];
                         final wa = r['whatsapp'] is Map ? r['whatsapp'] as Map : null;
                         return Padding(

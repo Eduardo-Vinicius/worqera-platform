@@ -1,5 +1,27 @@
 # Worqera API — Change log
 
+## 2026-10-31
+
+- **Preços novos** (`billingService.PRODUCTS`): Basic R$ 147, Pro R$ 297, Business R$ 597; anual 10× (`yearlyPriceCents`). Fundador do Business segue R$ 499.
+- **IA em todos os planos** (`lib/planCap.planHas`, `aiService.monthlyCap(planCode, status)`): teste 30, Basic 50, Pro 300, Business 1.500 usos por mês (envs `WORQERA_AI_CAP_*`). Leitura semanal (`/metrics/insights`) e WhatsApp oficial seguem só no Business; WhatsApp oficial também fica fora do teste. Basic passa de 100 para **150 pedidos** por mês.
+- **Asaas no lugar do AbacatePay** (`services/asaas.js` só HTTP; regras em `billingService`):
+  - Checkout: valida o CPF/CNPJ (`lib/cpfCnpj.js`, salvo em `Shop.billing.cpfCnpj`), cria ou reaproveita o cliente e a assinatura (`billingType UNDEFINED`, mensal ou anual, `externalReference = shopId`) e devolve o link da fatura. Em teste, o 1º vencimento é o último dia do teste. Troca de plano ou ciclo atualiza a assinatura existente; CPF/CNPJ novo apaga a antiga antes de criar outra (não cobra duas vezes).
+  - `POST /billing/cancel` (dono). Só dono e admin abrem checkout.
+  - Webhook `POST /webhooks/asaas`: token no header `asaas-access-token` comparado em tempo constante (sem token configurado, recusa tudo), idempotente pelo `id` do evento. Pago → ativa com +1 mês/ano; vencido → `past_due` com a fatura; estorno/chargeback → `past_due`; assinatura removida → `canceled`.
+  - `Subscription` ganhou `cycle` e `lastInvoiceUrl`; `provider` aceita `Asaas`.
+  - **Bugs do AbacatePay que saem junto:** um único produto para todos os planos (quem assinava Basic pagava o preço do produto) e o webhook que sempre ativava como Pro. Saem também a chave pública embutida no código e a rota `/webhooks/abacatepay`.
+- **Tolerância** (`subscriptionGate.canUse`): a loja segue usando 5 dias depois de um vencimento sem pagamento, e o teste que já assinou também; cancelada usa até o fim do período pago.
+- Cadastro aceita o Business (`signupPlanCode`).
+- Testes: `__tests__/billing.test.js` (CPF/CNPJ, preços, cliente Asaas, 1º vencimento, token, eventos, tolerância) e smoke com banco descartável do fluxo checkout → troca de plano → troca de CPF → webhook → cancelamento.
+
+- **Sentry** (`v1/lib/errorReport.js`, `@sentry/node`):
+  - Liga só com `SENTRY_DSN` (exemplo em `.env.prod.example`). Sem a variável não faz nada, nem no dev nem nos testes.
+  - Reporta só os 5xx, vindos do `wrap` dos controllers e do `errorHandler`, com as tags rota, método, `shopId` e `correlationId`.
+  - Não envia corpo, headers, cookies nem dados do usuário.
+- **CRM `/crm/list`:** aceita `offset` e devolve `offset` e `hasMore`. Sem `offset`, continua igual (os primeiros 200).
+- **Orçamentos `GET /quotes`:** a lista lê só os 5 últimos contatos de cada orçamento (`slice('activity', -5)`). A resposta não muda (o último contato), mas a leitura fica bem mais leve; o histórico completo continua em `GET /quotes/:id`.
+- **Pedido de demonstração:** "Tênis demonstração" virou "Item de demonstração", que serve para qualquer ramo.
+
 ## 2026-10-30
 
 - **CRM** (`services/crmService.js`, rotas `/crm/*` para dono, admin e atendimento):

@@ -1,11 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import type { AiQuota } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 
 export const WORQERA_AI_CONTACT =
-  "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero mais usos de IA no plano Business da minha empresa.")
+  "https://wa.me/5511985591053?text=" + encodeURIComponent("Olá! Quero mais usos de IA na minha empresa.")
 
 export function resetLabel(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "long", timeZone: "America/Sao_Paulo" })
@@ -32,8 +32,12 @@ export function AiQuotaNotice({
         <p className="mt-0.5">
           A empresa usou os {quota.limit.toLocaleString("pt-BR")} usos de IA deste mês. Até {resetLabel(quota.resetsAt)}, os textos
           saem prontos, sem IA.{" "}
+          <Link href="/billing" className="font-semibold underline">
+            Ver planos com mais IA
+          </Link>{" "}
+          ou{" "}
           <a href={WORQERA_AI_CONTACT} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
-            Precisa de mais? Fale com a Worqera
+            fale com a Worqera
           </a>
           .
         </p>
@@ -44,9 +48,9 @@ export function AiQuotaNotice({
     return (
       <p className={cn("text-xs text-amber-800 dark:text-amber-300", className)}>
         Restam {quota.left.toLocaleString("pt-BR")} de {quota.limit.toLocaleString("pt-BR")} usos de IA este mês.{" "}
-        <a href={WORQERA_AI_CONTACT} target="_blank" rel="noopener noreferrer" className="underline">
-          Pedir mais
-        </a>
+        <Link href="/billing" className="underline">
+          Ver planos
+        </Link>
       </p>
     )
   }

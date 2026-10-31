@@ -91,8 +91,9 @@ class _WorqeraAppState extends State<WorqeraApp> {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/orders',
-              builder: (context, _) => OrdersScreen(
+              builder: (context, state) => OrdersScreen(
                 api: api,
+                initialTab: state.uri.queryParameters['tab'],
                 session: session,
                 openOrder: (id) {
                   final scope = ShellScope.maybeOf(context);

@@ -263,7 +263,7 @@ export default function TvClientePage() {
                 {ready.length ? "Tudo pronto por aqui!" : "Nenhum pedido em andamento"}
               </p>
               <p className="mt-[1vmin] font-medium text-[#A9A9BC]" style={{ fontSize: "var(--tv-label)" }}>
-                Cuidado de verdade com o seu tênis.
+                Cuidado de verdade em cada pedido.
               </p>
             </div>
           )}

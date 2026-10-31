@@ -5,7 +5,10 @@ function wrap(fn) {
     } catch (err) {
       const { sendError } = require('../middleware/errors');
       const status = err.status || 500;
-      if (status >= 500) res.locals.apiError = err.detail || err.message;
+      if (status >= 500) {
+        res.locals.apiError = err.detail || err.message;
+        require('../lib/errorReport').reportError(err, req);
+      }
       return sendError(res, status, {
         title: err.title || (status >= 500 ? 'Internal Server Error' : 'Error'),
         detail: err.detail || err.message,

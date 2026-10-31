@@ -14,6 +14,7 @@ const RANGES = [
 ] as const
 
 const DAYS = [60, 90, 180, 365] as const
+const PAGE = 100
 
 const EMPTY: Record<string, string> = {
   birthdays: "Ninguém faz aniversário nesse período. Peça a data no próximo atendimento: é o melhor motivo para chamar o cliente.",
@@ -29,11 +30,31 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
   const [rows, setRows] = useState<CrmRow[] | null>(null)
   const [total, setTotal] = useState(0)
   const [error, setError] = useState("")
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const params = { segment, range: segment === "birthdays" ? range : undefined, days: segment === "inactive" ? days : undefined, limit: PAGE }
+
+  const loadMore = async () => {
+    if (!rows) return
+    setLoadingMore(true)
+    try {
+      const res = await getCrmListV1({ ...params, offset: rows.length })
+      setRows((prev) => {
+        const seen = new Set((prev || []).map((r) => r.id))
+        return [...(prev || []), ...res.items.filter((r) => !seen.has(r.id))]
+      })
+      setTotal(res.total)
+    } catch (err: any) {
+      setError(err?.message || "Não carregou")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
     setRows(null)
-    getCrmListV1({ segment, range: segment === "birthdays" ? range : undefined, days: segment === "inactive" ? days : undefined })
+    getCrmListV1(params)
       .then((res) => {
         if (cancelled) return
         setRows(res.items)
@@ -144,6 +165,23 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
           ))}
         </ul>
       )}
+
+      {rows && rows.length < total ? (
+        <div className="flex flex-col items-center gap-1 pt-1">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] px-4 text-sm font-semibold hover:bg-[var(--wq-paper)] disabled:opacity-60"
+          >
+            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {loadingMore ? "Carregando…" : "Carregar mais"}
+          </button>
+          <p className="text-xs text-[var(--wq-text-muted)]">
+            Mostrando {rows.length} de {total}
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 }

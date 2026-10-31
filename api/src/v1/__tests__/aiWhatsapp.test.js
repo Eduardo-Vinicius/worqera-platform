@@ -6,11 +6,12 @@ const pricing = require('../lib/whatsappPricing');
 const { costUsd } = require('../services/aiService');
 const { dailyFallback, weeklyFallback, reviewFallback, weekKey } = require('../services/aiFeatures');
 
-test('AI and WhatsApp are Business-only, except the Worqera visit and dev', () => {
+test('AI is in every plan, WhatsApp stays in Business, and the Worqera visit and dev see all', () => {
   assert.equal(planHas({ planCode: 'WORQERA_BUSINESS' }, 'ai'), true);
   assert.equal(planHas({ planCode: 'WORQERA_PREMIUM' }, 'whatsapp'), true);
-  assert.equal(planHas({ planCode: 'WORQERA_PRO' }, 'ai'), false);
-  assert.equal(planHas({ planCode: 'WORQERA_BASIC' }, 'ai'), false);
+  assert.equal(planHas({ planCode: 'WORQERA_PRO' }, 'ai'), true);
+  assert.equal(planHas({ planCode: 'WORQERA_BASIC' }, 'ai'), true);
+  assert.equal(planHas({ planCode: 'WORQERA_PRO' }, 'whatsapp'), false);
   assert.equal(planHas({ planCode: 'visit', platformVisit: true }, 'ai'), true);
   assert.equal(planHas({ planCode: 'dev', devBypass: true }, 'ai'), true);
   assert.equal(planHas('WORQERA_BUSINESS', 'export'), false);
@@ -22,7 +23,10 @@ test('AI quota renews on the 1st of next month in São Paulo', () => {
   const { nextResetAt, monthlyCap } = require('../services/aiService');
   assert.equal(nextResetAt(new Date('2026-10-25T14:00:00.000Z')).toISOString(), '2026-11-01T03:00:00.000Z');
   assert.equal(nextResetAt(new Date('2026-12-31T23:00:00.000Z')).toISOString(), '2027-01-01T03:00:00.000Z');
-  assert.equal(monthlyCap(), 1000);
+  assert.equal(monthlyCap(), 1500);
+  assert.equal(monthlyCap('WORQERA_BASIC', 'active'), 50);
+  assert.equal(monthlyCap('WORQERA_PRO', 'active'), 300);
+  assert.equal(monthlyCap('WORQERA_BUSINESS', 'trialing'), 30);
 });
 
 test('AI cost follows the price table', () => {

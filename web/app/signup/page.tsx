@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signupV1 } from "@/lib/apiV1"
 import { BUSINESS_TYPES } from "@/lib/itemNoun"
+import { IMPLANTACAO, PLANS as CATALOG, formatBRL } from "@/lib/plans"
 import { toast } from "sonner"
 import { Check, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
@@ -24,41 +25,28 @@ const BEATS = [
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
 const WHATSAPP =
   "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 697).")
+  encodeURIComponent("Olá! Quero a implantação da Worqera na minha empresa.")
 
-type PlanId = "basic" | "pro"
+type PlanId = "basic" | "pro" | "business"
 
-const PLANS: Record<
-  PlanId,
-  {
-    code: string
-    name: string
-    price: string
-    line: string
-    limit: string
-    items: string[]
-    aside: string
-  }
-> = {
+const ASIDE: Record<PlanId, { limit: string; aside: string }> = {
   basic: {
-    code: "WORQERA_BASIC",
-    name: "Basic",
-    price: "R$ 97",
-    line: "A fila no ar esta semana.",
-    limit: "Até 100 pedidos criados no mês. Passou disso, o próximo pede o Pro.",
-    items: ["Kanban por setores", "Cliente consulta sozinho", "TV da oficina"],
+    limit: "Até 150 pedidos criados no mês. Passou disso, o próximo pede o Pro.",
     aside: "Sem caixa, sem métricas e sem estoque.",
   },
-  pro: {
-    code: "WORQERA_PRO",
-    name: "Pro",
-    price: "R$ 197",
-    line: "A oficina inteira, sem teto.",
-    limit: "Pedidos sem limite neste plano.",
-    items: ["Financeiro e métricas", "TV financeiro", "Marca da empresa", "Produtos, estoque e vendas"],
-    aside: "Tudo o que a operação usa no dia a dia.",
+  pro: { limit: "Pedidos sem limite neste plano.", aside: "Tudo o que a operação usa no dia a dia." },
+  business: {
+    limit: "Pedidos sem limite. O WhatsApp oficial liga quando a assinatura começar.",
+    aside: "No teste, a IA tem 30 usos para você experimentar.",
   },
 }
+
+const PLANS = Object.fromEntries(
+  CATALOG.map((p) => {
+    const id = p.name.toLowerCase() as PlanId
+    return [id, { code: p.code, name: p.name, price: formatBRL(p.monthly), line: p.value, items: p.items, ...ASIDE[id] }]
+  })
+) as Record<PlanId, { code: string; name: string; price: string; line: string; limit: string; items: string[]; aside: string }>
 
 export default function SignupPage() {
   const router = useRouter()
@@ -78,7 +66,7 @@ export default function SignupPage() {
     try {
       const q = new URLSearchParams(window.location.search)
       const picked = (q.get("plan") || "").toLowerCase()
-      if (picked === "basic" || picked === "pro") setPlan(picked)
+      if (picked === "basic" || picked === "pro" || picked === "business") setPlan(picked)
       const ref = q.get("ref") || q.get("partner") || ""
       if (ref) setPartnerCode(ref.toUpperCase())
     } catch {}
@@ -155,7 +143,7 @@ export default function SignupPage() {
             Você escolhe o plano, abre a empresa e usa de verdade. No sétimo dia decide se continua. Nada é cobrado para entrar.
           </p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {(Object.keys(PLANS) as PlanId[]).map((id) => {
               const item = PLANS[id]
               const active = id === plan
@@ -172,7 +160,7 @@ export default function SignupPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-base font-semibold">{item.name}</span>
                     <span className={cn("text-[10px] font-semibold tracking-[0.14em] uppercase", active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]")}>
-                      {id === "pro" ? "Recomendado" : "Começar"}
+                      {id === "pro" ? "Recomendado" : id === "basic" ? "Começar" : "Automático"}
                     </span>
                   </div>
                   <p className="lp-display mt-2 text-2xl font-semibold leading-none">
@@ -217,9 +205,9 @@ export default function SignupPage() {
           </article>
 
           <p className="mt-4 text-sm text-[var(--muted-foreground)]">
-            Quer análise, acompanhamento e treinamento com a Worqera?{" "}
+            7 dias grátis em qualquer plano. Quer a Worqera montando tudo com você (setores, carga do histórico e treinamento)?{" "}
             <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ink)] underline underline-offset-4">
-              O Business fecha em conversa.
+              Implantação por {formatBRL(IMPLANTACAO)}, uma vez.
             </a>
           </p>
         </section>

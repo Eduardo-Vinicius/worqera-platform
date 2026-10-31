@@ -1,3 +1,4 @@
+require('./v1/lib/errorReport').init();
 const app = require('./app');
 const { connectMongo, getMongoUri } = require('./v1/db/mongo');
 

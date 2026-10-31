@@ -28,8 +28,8 @@ router.use('/runtime', require('./routes/runtimeRoutes'));
 router.use('/alerts', require('./routes/alertsRoutes'));
 router.use('/invites', require('./routes/inviteRoutes'));
 
-// Webhook at /api/v1/webhooks/abacatepay
-router.post('/webhooks/abacatepay', billingController.abacateWebhook);
+// Asaas: /api/v1/webhooks/asaas (authenticated by the asaas-access-token header)
+router.post('/webhooks/asaas', billingController.asaasWebhook);
 
 // Meta WhatsApp Cloud API: /api/v1/webhooks/whatsapp
 const whatsappController = require('./controllers/whatsappController');

@@ -227,6 +227,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                ReceivablesCard(api: widget.api),
                 if (stock != null) ...[
                   const Padding(
                     padding: EdgeInsets.only(bottom: 8),
@@ -443,127 +444,267 @@ class BillingScreen extends StatefulWidget {
   State<BillingScreen> createState() => _BillingScreenState();
 }
 
+/// (código, nome, mensal, anual, frase de valor) — mesmo catálogo do site (`web/lib/plans.ts`).
+const _billingPlans = <(String, String, int, int, String)>[
+  ('WORQERA_BASIC', 'Basic', 147, 1470, 'Um orçamento recuperado no mês já paga o plano.'),
+  ('WORQERA_PRO', 'Pro', 297, 2970, 'O caixa, a prateleira e o estoque na sua mão.'),
+  ('WORQERA_BUSINESS', 'Business', 597, 5970, 'O WhatsApp avisa sozinho e a IA escreve com você.'),
+];
+
+const _statusLabel = {
+  'trialing': 'Em teste',
+  'active': 'Ativa',
+  'past_due': 'Pagamento atrasado',
+  'canceled': 'Cancelada',
+  'expired': 'Teste encerrado',
+};
+
 class _BillingScreenState extends State<BillingScreen> {
   Map? sub;
   Map? aiQuota;
   String? error;
+  String planCode = 'WORQERA_PRO';
+  String cycle = 'monthly';
+  String busy = '';
+  final doc = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    widget.api.dio.get('/billing/subscription').then((res) {
+    load();
+  }
+
+  @override
+  void dispose() {
+    doc.dispose();
+    super.dispose();
+  }
+
+  String _code(dynamic raw) => '$raw' == 'WORQERA_PREMIUM' ? 'WORQERA_BUSINESS' : '${raw ?? ''}';
+
+  Future<void> load() async {
+    try {
+      final res = await widget.api.dio.get('/billing/subscription');
       final body = res.data;
-      if (mounted) setState(() => sub = body is Map ? Map<String, dynamic>.from(body['subscription'] as Map? ?? body) : {});
-    }).catchError((e) {
+      final next = body is Map && body['subscription'] is Map ? Map<String, dynamic>.from(body['subscription'] as Map) : <String, dynamic>{};
+      if (!mounted) return;
+      setState(() {
+        sub = next;
+        final code = _code(next['planCode']);
+        if (_billingPlans.any((p) => p.$1 == code)) planCode = code;
+        if (next['cycle'] == 'yearly') cycle = 'yearly';
+      });
+    } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
-    });
+    }
     widget.api.dio.get('/ai/quota').then((res) {
       final body = res.data;
       if (mounted && body is Map && body['quota'] is Map) setState(() => aiQuota = body['quota'] as Map);
     }).catchError((_) {});
   }
 
-  String _planName() {
-    final code = '${sub?['planCode'] ?? ''}';
-    if (code == 'WORQERA_BASIC') return 'Worqera Basic · R\$ 97/mês';
-    final founder = DateTime.tryParse('${(sub?['price'] as Map?)?['founderUntil'] ?? ''}');
-    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') {
-      return founder == null ? 'Worqera Business · R\$ 697/mês' : 'Worqera Business · R\$ 499/mês (fundador até ${dayLabel(founder.toIso8601String())})';
-    }
-    if (code == 'WORQERA_PRO') return 'Worqera Pro · R\$ 197/mês';
-    if (sub == null && error == null) return 'Carregando…';
-    return 'Sem assinatura';
+  bool get _founder => (sub?['price'] as Map?)?['founderUntil'] != null && cycle == 'monthly';
+
+  int _price((String, String, int, int, String) p) {
+    if (cycle == 'yearly') return p.$4;
+    if (p.$1 == 'WORQERA_BUSINESS' && _founder) return 499;
+    return p.$3;
   }
 
-  String _planPitch() {
-    final code = '${sub?['planCode'] ?? ''}';
-    if (code == 'WORQERA_BASIC') return 'Até 100 pedidos no mês. Sem caixa, sem métricas, sem estoque.';
-    if (code == 'WORQERA_BUSINESS' || code == 'WORQERA_PREMIUM') {
-      return 'IA em orçamentos, resumo do dia e leitura semanal (1.000 usos por mês), WhatsApp oficial com pacote de mensagens, implantação e treinamento.';
+  String _money(int v) => 'R\$ ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]}.')}';
+
+  String _per() => cycle == 'yearly' ? '/ano' : '/mês';
+
+  Future<void> subscribe() async {
+    setState(() => busy = 'checkout');
+    try {
+      final res = await widget.api.dio.post('/billing/checkout-sessions', data: {
+        'planCode': planCode,
+        'cycle': cycle,
+        'cpfCnpj': doc.text.trim(),
+      });
+      final body = res.data is Map ? res.data as Map : const {};
+      final url = '${body['url'] ?? ''}';
+      if (url.startsWith('http')) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        await load();
+      } else if (mounted) {
+        wqToast(context, '${body['message'] ?? 'Pagamento online desligado. Fale com a Worqera.'}');
+      }
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => busy = '');
     }
-    if (code == 'WORQERA_PRO') return 'Oficina inteira, sem teto: financeiro, métricas, marca e estoque.';
-    return '';
   }
 
-  String _planLine() {
-    final status = '${sub?['status'] ?? '—'}';
-    final end = DateTime.tryParse('${sub?['trialEndsAt'] ?? ''}');
-    if (status == 'trialing' && end != null) {
-      final left = end.difference(DateTime.now()).inDays;
-      final days = left < 0 ? 0 : left;
-      return 'Trial · $days dia${days == 1 ? '' : 's'} restantes';
+  Future<void> cancel() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar a assinatura?'),
+        content: const Text('A empresa usa até o fim do período pago.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Cancelar assinatura')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => busy = 'cancel');
+    try {
+      await widget.api.dio.post('/billing/cancel', data: {});
+      if (mounted) wqToast(context, 'Assinatura cancelada');
+      await load();
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => busy = '');
     }
-    return 'Status $status';
-  }
-
-  Future<void> checkout(String plan) async {
-    final res = await widget.api.dio.post('/billing/checkout-sessions', data: {'planCode': plan});
-    final url = '${(res.data as Map)['url'] ?? ''}';
-    if (url.isNotEmpty) await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
+    final status = '${sub?['status'] ?? ''}';
+    final code = _code(sub?['planCode']);
+    final current = _billingPlans.where((p) => p.$1 == code).firstOrNull;
+    final trialEnd = DateTime.tryParse('${sub?['trialEndsAt'] ?? ''}');
+    final trialLeft = status == 'trialing' && trialEnd != null ? trialEnd.difference(DateTime.now()).inDays.clamp(0, 99) : null;
+    final invoice = '${sub?['lastInvoiceUrl'] ?? ''}';
+    final paidUntil = DateTime.tryParse('${sub?['currentPeriodEnd'] ?? ''}');
+    final sameAsCurrent = status == 'active' && current?.$1 == planCode && '${sub?['cycle'] ?? 'monthly'}' == cycle;
+    final chosen = _billingPlans.firstWhere((p) => p.$1 == planCode);
+
     return WqPage(
       title: 'Plano e assinatura',
-      subtitle: 'Basic R\$ 97 · Pro R\$ 197 · Business R\$ 697',
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
-          WqCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('SEU PLANO', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
-              Text(_planName(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(_planLine(), style: const TextStyle(color: Wq.muted)),
-              if (_planPitch().isNotEmpty) Text(_planPitch(), style: const TextStyle(color: Wq.muted)),
-            ]),
-          ),
-          if (aiQuota != null) ...[
-            const SizedBox(height: 12),
+      subtitle: 'Basic R\$ 147 · Pro R\$ 297 · Business R\$ 597',
+      child: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+          children: [
+            if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
             WqCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('IA DO MÊS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(
-                  value: ((aiQuota!['percent'] ?? 0) as num) / 100,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(8),
-                  color: aiQuota!['blocked'] == true ? Wq.danger : aiQuota!['nearLimit'] == true ? Wq.warn : Wq.brand,
-                  backgroundColor: context.wqPaper,
+                const Text('SEU PLANO', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
+                Text(
+                  sub == null && error == null ? 'Carregando…' : current == null ? 'Sem assinatura' : 'Worqera ${current.$2}',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Cada texto que a IA escreve conta 1 uso. Acabou, os textos saem prontos até o mês virar.',
-                  style: TextStyle(color: Wq.muted, fontSize: 12),
+                Text(
+                  [
+                    if (status.isNotEmpty) _statusLabel[status] ?? status,
+                    if (trialLeft != null) '$trialLeft dia${trialLeft == 1 ? '' : 's'} de teste',
+                    if (status == 'active' && paidUntil != null) 'pago até ${dayLabel(paidUntil.toIso8601String())}',
+                  ].join(' · '),
+                  style: const TextStyle(color: Wq.muted),
                 ),
-                AiQuotaNotice(quota: aiQuota, always: true),
+                if (invoice.startsWith('http')) ...[
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: Wq.action),
+                    onPressed: () => launchUrl(Uri.parse(invoice), mode: LaunchMode.externalApplication),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: const Text('Pagar fatura em aberto'),
+                  ),
+                ],
               ]),
             ),
-          ],
-          const SizedBox(height: 12),
-          for (final plan in [
-            ('WORQERA_BASIC', 'Basic', 'R\$ 97', 'Até 100 pedidos'),
-            ('WORQERA_PRO', 'Pro', 'R\$ 197', 'Sem teto'),
-            ('WORQERA_BUSINESS', 'Business', 'R\$ 697', 'Com a Worqera'),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: WqCard(
-                onTap: () => checkout(plan.$1),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(plan.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text(plan.$4, style: const TextStyle(color: Wq.muted, fontSize: 13)),
-                    ]),
-                  ),
-                  Text(plan.$3, style: const TextStyle(fontWeight: FontWeight.w800)),
-                ]),
+            const SizedBox(height: 12),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 'monthly', label: Text('Mensal')),
+                ButtonSegment(value: 'yearly', label: Text('Anual · 2 meses grátis')),
+              ],
+              selected: {cycle},
+              onSelectionChanged: (v) => setState(() => cycle = v.first),
+            ),
+            const SizedBox(height: 12),
+            for (final p in _billingPlans)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: WqCard(
+                  onTap: () => setState(() => planCode = p.$1),
+                  child: Row(children: [
+                    Icon(planCode == p.$1 ? Icons.radio_button_checked : Icons.radio_button_off, color: planCode == p.$1 ? Wq.brand : Wq.muted),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(
+                          [p.$2, if (current?.$1 == p.$1) 'seu plano' else if (p.$1 == 'WORQERA_PRO') 'recomendado'].join(' · '),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(p.$5, style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                      ]),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${_money(_price(p))}${_per()}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: doc,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'CPF ou CNPJ de quem paga',
+                helperText: 'O Asaas pede o documento para emitir a cobrança. Se já informou, pode deixar em branco.',
+                helperMaxLines: 2,
               ),
             ),
-          const Text('O pagamento abre no navegador.', style: TextStyle(color: Wq.muted)),
-        ],
+            const SizedBox(height: 12),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Wq.brand, minimumSize: const Size.fromHeight(48)),
+              onPressed: busy.isNotEmpty || sameAsCurrent ? null : subscribe,
+              child: busy == 'checkout'
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(sameAsCurrent ? 'Este já é o seu plano' : 'Assinar ${chosen.$2} · ${_money(_price(chosen))}${_per()}'),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Pagamento pelo Asaas: Pix, boleto ou cartão. Abre no navegador. Em teste, a primeira cobrança vence no último dia do teste.',
+              style: TextStyle(color: Wq.muted, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            WqCard(
+              onTap: () => openLink('https://wa.me/5511985591053?text=${Uri.encodeComponent('Olá! Quero a implantação da Worqera na minha empresa.')}'),
+              child: const Text(
+                'Implantação com a Worqera (setores, carga do histórico e treinamento): R\$ 497 uma vez. Toque para falar com a gente.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+            if (aiQuota != null) ...[
+              const SizedBox(height: 12),
+              WqCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('IA DO MÊS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: ((aiQuota!['percent'] ?? 0) as num) / 100,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(8),
+                    color: aiQuota!['blocked'] == true ? Wq.danger : aiQuota!['nearLimit'] == true ? Wq.warn : Wq.brand,
+                    backgroundColor: context.wqPaper,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Cada texto que a IA escreve conta 1 uso. Acabou, os textos saem prontos até o mês virar.',
+                    style: TextStyle(color: Wq.muted, fontSize: 12),
+                  ),
+                  AiQuotaNotice(quota: aiQuota, always: true),
+                ]),
+              ),
+            ],
+            if ('${sub?['provider'] ?? ''}' == 'Asaas' && ['active', 'past_due', 'trialing'].contains(status))
+              Center(
+                child: TextButton(
+                  onPressed: busy.isNotEmpty ? null : cancel,
+                  child: Text(busy == 'cancel' ? 'Cancelando…' : 'Cancelar assinatura', style: const TextStyle(color: Wq.muted)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const webhookEventSchema = new mongoose.Schema(
   {
-    provider: { type: String, required: true, default: 'AbacatePay' },
+    provider: { type: String, required: true, default: 'Asaas' },
     eventId: { type: String, required: true },
     type: { type: String, required: true },
     processedAt: { type: Date, default: Date.now },

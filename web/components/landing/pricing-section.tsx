@@ -5,10 +5,6 @@ import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
 import { Check } from "lucide-react"
 
-const WHATSAPP =
-  "https://wa.me/5511985591053?text=" +
-  encodeURIComponent("Olá! Quero o plano Business Worqera (R$ 697).")
-
 export function PricingSection() {
   const { locale, t } = useLanguage()
   const pt = locale === "pt"
@@ -25,10 +21,7 @@ export function PricingSection() {
 
         <div className="mt-12 grid gap-4 md:grid-cols-3 lg:gap-5">
           {t.pricing.plans.map((plan) => {
-            const isBusiness = plan.name === "Business"
-            const href = isBusiness
-              ? WHATSAPP
-              : `/signup?plan=${plan.name === "Basic" ? "basic" : "pro"}`
+            const href = `/signup?plan=${plan.name.toLowerCase()}`
             return (
               <div
                 key={plan.name}
@@ -57,11 +50,9 @@ export function PricingSection() {
                   {plan.priceNote ? (
                     <p className="mt-1 text-xs text-[var(--muted-foreground)]">{plan.priceNote}</p>
                   ) : null}
-                  {isBusiness ? null : (
-                    <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                      {pt ? "7 dias grátis no signup" : "7 days free on signup"}
-                    </p>
-                  )}
+                  <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                    {pt ? "7 dias grátis no signup" : "7 days free on signup"}
+                  </p>
                 </div>
 
                 <ul className="mb-6 flex-1 space-y-2.5">
@@ -83,13 +74,7 @@ export function PricingSection() {
                       : "w-full rounded-md border-[var(--border)] text-[var(--ink)]"
                   }
                 >
-                  {isBusiness ? (
-                    <a href={href} target="_blank" rel="noopener noreferrer">
-                      {plan.cta}
-                    </a>
-                  ) : (
-                    <Link href={href}>{plan.cta}</Link>
-                  )}
+                  <Link href={href}>{plan.cta}</Link>
                 </Button>
               </div>
             )

@@ -2302,7 +2302,7 @@ async function createDemoOrder(shopId, userId) {
   return createOrder(shopId, userId, {
     clientId: client._id,
     clientName: DEMO_CLIENT_NAME,
-    shoeModel: 'Tênis demonstração',
+    shoeModel: 'Item de demonstração',
     notes: 'Pedido de exemplo — pode excluir',
     status: 'open',
     pricing: { total: 0, deposit: 0 },

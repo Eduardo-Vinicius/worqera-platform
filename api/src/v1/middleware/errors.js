@@ -47,7 +47,10 @@ function defaultCode(status) {
 function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
   console.error('[v1] Unhandled error:', err);
-  if ((err.status || 500) >= 500) res.locals.apiError = err.detail || err.message;
+  if ((err.status || 500) >= 500) {
+    res.locals.apiError = err.detail || err.message;
+    require('../lib/errorReport').reportError(err, req);
+  }
   return sendError(res, err.status || 500, {
     title: err.title || 'Internal Server Error',
     detail: err.detail || err.message || 'Unexpected error',

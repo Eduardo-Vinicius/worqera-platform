@@ -15,6 +15,8 @@ import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
+import '../comms/comms_screen.dart';
+import '../ops/attendance_screen.dart';
 import '../ops/ops_screens.dart';
 import '../products/products_screen.dart';
 import '../quotes/quotes_screen.dart';
@@ -427,6 +429,7 @@ class _Drawer extends StatelessWidget {
               const _Section('Clientes'),
               if (flags.on('clients')) _item(context, Icons.people_outline, 'Clientes e CRM', () => _open('clients', ClientsScreen(api: api, session: session, openClient: (id) => onStack('client', ClientDetailScreen(api: api, clientId: id, session: session))))),
               if (flags.on('reviews')) _item(context, Icons.star_outline, 'Avaliações', () => _open('reviews', ReviewsScreen(api: api))),
+              _item(context, Icons.forum_outlined, 'WhatsApp e e-mail', () => _open('comunicacao', CommsScreen(api: api, session: session))),
             ],
             if (inShop && setup) ...[
               const _Section('Estoque e cadastros'),
@@ -440,6 +443,7 @@ class _Drawer extends StatelessWidget {
               const _Section('Gestão'),
               if (admin && flags.on('finance')) _item(context, Icons.account_balance_wallet_outlined, 'Financeiro', () => _open('financeiro', FinanceScreen(api: api, stock: true))),
               if (admin && flags.on('metrics')) _item(context, Icons.bar_chart, 'Métricas', () => _open('metricas', MetricsScreen(api: api))),
+              if (admin && flags.on('metrics')) _item(context, Icons.how_to_reg_outlined, 'Atendimento', () => _open('atendimento', AttendanceScreen(api: api))),
               if (setup && flags.on('tv')) _item(context, Icons.tv_outlined, 'Telas da loja', () => _open('tvs', TvScreen(api: api))),
               if (admin && flags.on('finance')) _item(context, Icons.monitor, 'TV Financeiro', () => _open('tv-financeiro', TvFinanceBoard(api: api))),
             ],

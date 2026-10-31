@@ -4,7 +4,7 @@
 **Base:** `/api/v1`  
 Legenda: **LIVE** = runtime Mongo · **PLANEJADO** = ainda não no host · **LEGADO** = aliases PT / rotas antigas
 
-> Contrato canônico **live** em `/api/v1`. Front: `web/lib/apiService.ts` + `adapters.ts` (aliases PT). Health, auth SaaS, shop/sectors/kanban, clients/orders = **LIVE**. Billing AbacatePay ainda é **stub**.
+> Contrato canônico **live** em `/api/v1`. Front: `web/lib/apiService.ts` + `adapters.ts` (aliases PT). Health, auth SaaS, shop/sectors/kanban, clients/orders = **LIVE**. Billing pelo **Asaas** (sem chave, cobrança manual).
 
 ## Erros (alvo)
 
@@ -57,9 +57,10 @@ LEGADO: `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh-token` (s
 
 ```
 GET  /billing/products               # LIVE
-POST /billing/checkout-sessions      # LIVE — mock URL se sem API key
-POST /billing/dev/complete-checkout  # LIVE — só Development
-POST /webhooks/abacatepay            # LIVE — raw body + secret + HMAC (fail-closed)
+POST /billing/checkout-sessions      # LIVE — owner/admin · { planCode, cycle: monthly|yearly, cpfCnpj, successUrl } → { provider: 'Asaas', url (fatura) } ou { provider: 'manual' }
+POST /billing/cancel                 # LIVE — owner · cancela no Asaas; usa até o fim do período pago
+POST /billing/dev/complete-checkout  # LIVE — só fora de produção
+POST /webhooks/asaas                 # LIVE — header asaas-access-token (fail-closed), idempotente pelo id do evento
 GET  /billing/subscription           # LIVE — subscription do shop atual
 ```
 

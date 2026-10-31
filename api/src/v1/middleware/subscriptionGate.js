@@ -2,6 +2,22 @@ const Subscription = require('../models/Subscription');
 const { sendError } = require('./errors');
 
 const ACTIVE_STATUSES = new Set(['trialing', 'active']);
+const GRACE_MS = 5 * 24 * 60 * 60 * 1000;
+
+/** Active, trial in time, a missed payment inside the 5-day grace, or canceled with paid days left. */
+function canUse(sub, now = new Date()) {
+  if (!sub) return false;
+  const t = now.getTime();
+  const at = (d) => (d ? new Date(d).getTime() : 0);
+  if (sub.status === 'active') return true;
+  if (sub.status === 'trialing') {
+    if (!sub.trialEndsAt || at(sub.trialEndsAt) > t) return true;
+    return Boolean(sub.providerSubscriptionId) && at(sub.trialEndsAt) + GRACE_MS > t;
+  }
+  if (sub.status === 'past_due') return at(sub.currentPeriodEnd) + GRACE_MS > t;
+  if (sub.status === 'canceled') return at(sub.currentPeriodEnd) > t;
+  return false;
+}
 
 async function subscriptionGate(req, res, next) {
   try {
@@ -28,19 +44,13 @@ async function subscriptionGate(req, res, next) {
       return next();
     }
 
-    if (!sub || !ACTIVE_STATUSES.has(sub.status)) {
+    if (!canUse(sub)) {
+      if (sub && sub.status === 'trialing') {
+        await Subscription.updateOne({ _id: sub._id }, { $set: { status: 'expired' } });
+      }
       return sendError(res, 402, {
         title: 'Subscription Inactive',
-        detail: 'Active or trialing subscription required',
-        code: 'SUBSCRIPTION_INACTIVE',
-      });
-    }
-
-    if (sub.status === 'trialing' && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
-      await Subscription.updateOne({ _id: sub._id }, { $set: { status: 'expired' } });
-      return sendError(res, 402, {
-        title: 'Subscription Inactive',
-        detail: 'Trial period has ended',
+        detail: sub?.status === 'trialing' ? 'Trial period has ended' : 'Active or trialing subscription required',
         code: 'SUBSCRIPTION_INACTIVE',
       });
     }
@@ -57,4 +67,4 @@ async function subscriptionGate(req, res, next) {
   }
 }
 
-module.exports = { subscriptionGate, ACTIVE_STATUSES };
+module.exports = { subscriptionGate, canUse, ACTIVE_STATUSES };

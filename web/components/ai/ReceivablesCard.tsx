@@ -16,7 +16,7 @@ const LEVEL: Record<ReceivableItem["level"], { label: string; tone: string }> = 
   late: { label: "+30 dias", tone: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300" },
 }
 
-/** Who owes the shop, how old it is and in which order to collect. AI writes the plan on Business. */
+/** Who owes the shop, how old it is and in which order to collect. AI writes the plan (within the plan quota). */
 export function ReceivablesCard() {
   const [data, setData] = useState<Receivables | null>(null)
   const [quota, setQuota] = useState<AiQuota | null>(null)

@@ -1823,7 +1823,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                             Partida deste item
                           </p>
                           <p className="text-xs text-[var(--wq-text-muted)]">
-                            Setores só deste tênis · Final entra sozinha
+                            Setores só deste item · Final entra sozinha
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1.5">

@@ -10,6 +10,7 @@
     "test": "node --test src/v1/__tests__/**/*.test.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.78.0",
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1481.0",
     "axios": "^1.12.2",

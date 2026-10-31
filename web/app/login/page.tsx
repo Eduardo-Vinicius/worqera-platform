@@ -102,7 +102,7 @@ export default function LoginPage() {
             para a rotina do dia a dia.
           </p>
           <div className="flex flex-wrap gap-2">
-            {["Kanban setorial", "Rastreio público", "AbacatePay", "Trial 7 dias"].map((f) => (
+            {["Kanban setorial", "Rastreio público", "Pix, boleto ou cartão", "Trial 7 dias"].map((f) => (
               <span
                 key={f}
                 className="rounded-full px-3 py-1 text-xs font-medium"

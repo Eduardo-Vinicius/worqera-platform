@@ -100,9 +100,9 @@ export function FeaturesIndex() {
                 <tr className="border-b border-[var(--border)] text-left">
                   <th className="px-4 py-3 font-semibold text-[var(--muted-foreground)]">{pt ? "Recurso" : "Feature"}</th>
                   {[
-                    ["Basic", "R$ 97"],
-                    ["Pro", "R$ 197"],
-                    ["Business", "R$ 697"],
+                    ["Basic", "R$ 147"],
+                    ["Pro", "R$ 297"],
+                    ["Business", "R$ 597"],
                   ].map(([name, price]) => (
                     <th key={name} className="w-28 px-3 py-3 text-center">
                       <p className="lp-display text-base font-semibold text-[var(--ink)]">{name}</p>
@@ -135,8 +135,8 @@ export function FeaturesIndex() {
           </div>
           <p className="mt-3 text-xs text-[var(--muted-foreground)]">
             {pt
-              ? "Basic e Pro com 7 dias grátis. Business fecha em conversa, com implantação."
-              : "Basic and Pro with 7 free days. Business closes in a conversation, with onboarding."}
+              ? "7 dias grátis em qualquer plano. Implantação com a Worqera: R$ 497 uma vez."
+              : "7 free days on any plan. Setup with Worqera: R$ 497 once."}
           </p>
         </div>
       </section>

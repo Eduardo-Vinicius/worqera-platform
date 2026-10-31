@@ -9,8 +9,9 @@ import '../../design/flow.dart';
 import '../../design/ui.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key, required this.api, required this.session, required this.openOrder, required this.openNew});
+  const OrdersScreen({super.key, required this.api, required this.session, required this.openOrder, required this.openNew, this.initialTab});
   final WorqeraApi api;
+  final String? initialTab;
   final SessionStore session;
   final void Function(String id) openOrder;
   final VoidCallback openNew;
@@ -33,7 +34,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialTab != null && widget.initialTab!.isNotEmpty) tab = widget.initialTab!;
     load();
+  }
+
+  @override
+  void didUpdateWidget(covariant OrdersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.initialTab;
+    if (next != null && next.isNotEmpty && next != oldWidget.initialTab && next != tab) {
+      setState(() => tab = next);
+      load();
+    }
   }
 
   Map<String, dynamic> query({String? cursor}) {

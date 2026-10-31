@@ -9,6 +9,8 @@ import '../../design/ui.dart';
 import '../admin/admin_screens.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
+import '../comms/comms_screen.dart';
+import '../ops/attendance_screen.dart';
 import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
@@ -83,6 +85,7 @@ class _MoreScreenState extends State<MoreScreen> {
             const _Heading('Clientes'),
             if (flags.on('clients')) _row(context, 'Clientes e CRM', Icons.people_outline, () => open(ClientsScreen(api: api, session: session, openClient: (id) => open(ClientDetailScreen(api: api, clientId: id, session: session), id: 'client', stack: true)))),
             if (flags.on('reviews')) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),
+            _row(context, 'WhatsApp e e-mail', Icons.forum_outlined, () => open(CommsScreen(api: api, session: session))),
           ],
           if (inShop && session.seesShopSetup) ...[
             const _Heading('Estoque e cadastros'),
@@ -96,6 +99,7 @@ class _MoreScreenState extends State<MoreScreen> {
             const _Heading('Gestão'),
             if (session.isAdmin && flags.on('finance')) _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api, stock: true))),
             if (session.isAdmin && flags.on('metrics')) _row(context, 'Métricas', Icons.bar_chart, () => open(MetricsScreen(api: api))),
+            if (session.isAdmin && flags.on('metrics')) _row(context, 'Atendimento', Icons.how_to_reg_outlined, () => open(AttendanceScreen(api: api))),
             if (session.seesShopSetup && flags.on('tv')) _row(context, 'Telas da loja', Icons.tv_outlined, () => open(TvScreen(api: api))),
             if (session.isAdmin && flags.on('finance')) _row(context, 'TV Financeiro', Icons.monitor, () => open(TvFinanceBoard(api: api))),
           ],

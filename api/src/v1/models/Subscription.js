@@ -9,12 +9,15 @@ const subscriptionSchema = new mongoose.Schema(
       enum: ['trialing', 'active', 'past_due', 'canceled', 'expired'],
       default: 'trialing',
     },
-    provider: { type: String, enum: ['AbacatePay', 'Manual', 'Dev'], default: 'Manual' },
+    provider: { type: String, enum: ['Asaas', 'AbacatePay', 'Manual', 'Dev'], default: 'Manual' },
+    cycle: { type: String, enum: ['monthly', 'yearly'], default: 'monthly' },
+    /** Open Asaas invoice (pending or overdue), so the plan page can say "pagar fatura em aberto". */
+    lastInvoiceUrl: { type: String, default: null },
     trialEndsAt: { type: Date, default: null },
     currentPeriodEnd: { type: Date, default: null },
     providerCustomerId: { type: String, default: null },
     providerSubscriptionId: { type: String, default: null },
-    /** Founder price: shops that were customers before Business went to R$ 697 keep R$ 499 for 12 months. */
+    /** Founder price: Business shops that were customers before the price change keep R$ 499 for 12 months. */
     founder: {
       priceCents: { type: Number, default: null },
       until: { type: Date, default: null },

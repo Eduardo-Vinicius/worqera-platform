@@ -95,7 +95,7 @@ export function NotifyClientDialog({
     try {
       const res = await improveClientMessageV1(info.orderId, text)
       if (res.locked) {
-        toast.message("Melhorar com IA faz parte do Business", { description: "No seu plano, a mensagem pronta continua valendo." })
+        toast.message("A IA não está disponível no seu plano agora", { description: "A mensagem pronta continua valendo." })
       } else if (res.ai) {
         setText(res.text)
         setAiDone(true)

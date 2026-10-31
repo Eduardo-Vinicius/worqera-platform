@@ -1,21 +1,27 @@
 const crypto = require('crypto');
 const Subscription = require('../models/Subscription');
 const WebhookEvent = require('../models/WebhookEvent');
+const Shop = require('../models/Shop');
+const asaas = require('./asaas');
+const { normalizeCpfCnpj } = require('../lib/cpfCnpj');
+const { saoPauloDayKey } = require('../lib/planCap');
 
 const PRODUCTS = [
   {
     code: 'WORQERA_BASIC',
     name: 'Worqera Basic',
-    description: 'A fila no ar. Até 100 pedidos no mês, sem caixa, sem métricas e sem estoque',
-    priceCents: 9700,
+    description: 'A fila no ar: kanban, consulta do cliente, CRM de orçamentos e IA no resumo do dia. Até 150 pedidos por mês',
+    priceCents: 14700,
+    yearlyPriceCents: 147000,
     currency: 'BRL',
     interval: 'month',
   },
   {
     code: 'WORQERA_PRO',
     name: 'Worqera Pro',
-    description: 'A oficina inteira, sem teto: financeiro, métricas, marca, produtos e estoque',
-    priceCents: 19700,
+    description: 'Sem limite de pedidos: financeiro, métricas, estoque, marca e IA com 300 usos por mês',
+    priceCents: 29700,
+    yearlyPriceCents: 297000,
     currency: 'BRL',
     interval: 'month',
   },
@@ -23,8 +29,9 @@ const PRODUCTS = [
     code: 'WORQERA_BUSINESS',
     name: 'Worqera Business',
     description:
-      'IA em orçamentos, resumo do dia e leitura semanal (1.000 usos por mês), WhatsApp oficial com pacote de mensagens, implantação e treinamento. Tudo do Pro',
-    priceCents: 69700,
+      'Tudo do Pro, WhatsApp oficial avisando sozinho, IA com 1.500 usos e leitura semanal, suporte prioritário',
+    priceCents: 59700,
+    yearlyPriceCents: 597000,
     currency: 'BRL',
     interval: 'month',
   },
@@ -44,13 +51,11 @@ function normalizePlanCode(code) {
   return c;
 }
 
-/** Official AbacatePay webhook HMAC public key (docs). Override via env if rotated. */
-const ABACATE_PUBLIC_KEY =
-  process.env.WORQERA_AbacatePay__PublicKey ||
-  't9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9';
-
-const API_BASE =
-  process.env.WORQERA_AbacatePay__ApiBaseUrl || 'https://api.abacatepay.com/v1';
+function priceCents(planCode, cycle = 'monthly') {
+  const plan = PRODUCTS.find((p) => p.code === normalizePlanCode(planCode));
+  if (!plan) return null;
+  return cycle === 'yearly' ? plan.yearlyPriceCents : plan.priceCents;
+}
 
 const FOUNDER_PRICE_CENTS = 49900;
 
@@ -87,114 +92,189 @@ function timingSafeEqualString(a, b) {
   return crypto.timingSafeEqual(aa, bb);
 }
 
-function abacateEnabled() {
-  const flag = process.env.WORQERA_AbacatePay__Enabled;
-  if (flag != null && flag !== '') {
-    return ['1', 'true', 'yes', 'on'].includes(String(flag).toLowerCase());
-  }
-  // Default: on only when keys present (legacy); prod example sets Enabled=false
-  return true;
+function fail(status, message, code = 'VALIDATION_ERROR') {
+  const err = new Error(message);
+  err.status = status;
+  err.code = code;
+  return err;
 }
 
-async function createCheckoutSession(shopId, { planCode, successUrl, cancelUrl } = {}) {
-  const plan = PRODUCTS.find((p) => p.code === (planCode || 'WORQERA_PRO')) || PRODUCTS[0];
-  const apiKey = process.env.WORQERA_AbacatePay__ApiKey || process.env.ABACATEPAY_API_KEY || '';
-  const productId =
-    process.env.WORQERA_AbacatePay__ProductId || process.env.ABACATEPAY_PRODUCT_ID || '';
+const MANUAL = {
+  provider: 'manual',
+  url: null,
+  configured: false,
+  message: 'Pagamento online desligado. Fale com a Worqera para ativar ou estender o trial.',
+};
 
-  if (!abacateEnabled() || (!apiKey && process.env.NODE_ENV === 'production')) {
-    return {
-      id: `manual_${shopId}`,
-      url: null,
-      planCode: plan.code,
-      successUrl: successUrl || null,
-      cancelUrl: cancelUrl || null,
-      provider: 'manual',
-      configured: false,
-      mock: false,
-      message:
-        'Pagamento online desligado. Fale com a Worqera para ativar ou estender o trial.',
-    };
-  }
+/** The first charge falls on the last day of the trial, so nobody loses free days. */
+function firstDueDate(sub, now = new Date()) {
+  const trialEnd = sub?.status === 'trialing' && sub?.trialEndsAt ? new Date(sub.trialEndsAt) : null;
+  return saoPauloDayKey(trialEnd && trialEnd > now ? trialEnd : now);
+}
 
-  // Production: real AbacatePay subscription checkout
-  if (apiKey && productId) {
-    const body = {
-      items: [{ id: productId, quantity: 1 }],
-      methods: ['PIX', 'CARD'],
-      externalId: String(shopId),
-      metadata: { shopId: String(shopId), planCode: plan.code },
-      returnUrl: cancelUrl || undefined,
-      completionUrl: successUrl || undefined,
-    };
+async function openInvoiceUrl(subscriptionId) {
+  const pending = await asaas.listSubscriptionPayments(subscriptionId, 'PENDING');
+  const overdue = pending?.data?.length ? null : await asaas.listSubscriptionPayments(subscriptionId, 'OVERDUE');
+  const first = (pending?.data || [])[0] || (overdue?.data || [])[0];
+  return first?.invoiceUrl || null;
+}
 
-    const res = await fetch(`${API_BASE}/subscriptions/create`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+async function createCheckoutSession(shopId, { planCode, cycle, cpfCnpj, successUrl } = {}, { ownerEmail } = {}) {
+  const code = normalizePlanCode(planCode || 'WORQERA_PRO');
+  const period = cycle === 'yearly' ? 'yearly' : 'monthly';
+  const cents = priceCents(code, period);
+  if (!cents) throw fail(400, 'Plano inválido');
+  if (!asaas.configured()) return { ...MANUAL, planCode: code, cycle: period };
+
+  const shop = await Shop.findById(shopId).select('name billing').lean();
+  const savedDoc = shop?.billing?.cpfCnpj || null;
+  const doc = normalizeCpfCnpj(cpfCnpj || savedDoc);
+  if (!doc) throw fail(400, 'Informe um CPF ou CNPJ válido para emitir a cobrança');
+  if (doc !== savedDoc) await Shop.updateOne({ _id: shopId }, { $set: { 'billing.cpfCnpj': doc } });
+
+  const sub = await Subscription.findOne({ shopId }).lean();
+  const founder = code === 'WORQERA_BUSINESS' && period === 'monthly' ? effectivePrice({ ...sub, planCode: code }) : null;
+  const value = (founder?.founderUntil ? founder.priceCents : cents) / 100;
+  const planName = PRODUCTS.find((p) => p.code === code).name;
+  const onAsaas = sub?.provider === 'Asaas';
+
+  let customerId = onAsaas && sub?.providerCustomerId && doc === savedDoc ? sub.providerCustomerId : null;
+  if (!customerId) {
+    const customer = await asaas.createCustomer({
+      name: shop?.name || 'Empresa Worqera',
+      cpfCnpj: doc,
+      email: ownerEmail || undefined,
+      externalReference: String(shopId),
     });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(
-        payload?.error || payload?.message || payload?.detail || 'AbacatePay checkout failed'
-      );
-      err.status = res.status >= 400 && res.status < 600 ? res.status : 502;
-      err.code = 'BILLING_PROVIDER_ERROR';
-      throw err;
-    }
-    const data = payload.data || payload;
-    const url = data.url || data.checkout?.url || data.paymentUrl;
-    const id = data.id || data.checkout?.id || `abct_${shopId}_${Date.now()}`;
-    if (!url) {
-      const err = new Error('AbacatePay did not return checkout URL');
-      err.status = 502;
-      err.code = 'BILLING_PROVIDER_ERROR';
-      throw err;
-    }
-    return {
-      id: String(id),
-      url: String(url),
-      planCode: plan.code,
-      successUrl: successUrl || null,
-      cancelUrl: cancelUrl || null,
-      provider: 'AbacatePay',
-      mock: false,
-    };
+    customerId = customer.id;
   }
 
-  // Dev / stub path
-  const base =
-    process.env.WORQERA_AbacatePay__CheckoutBaseUrl ||
-    'https://pay.abacatepay.com/checkout';
-  const sessionId = `dev_${shopId}_${Date.now()}`;
-  const params = new URLSearchParams({
-    session: sessionId,
-    plan: plan.code,
-    shop: String(shopId),
-  });
-  if (successUrl) params.set('successUrl', successUrl);
-  if (cancelUrl) params.set('cancelUrl', cancelUrl);
-
-  return {
-    id: sessionId,
-    url: `${base}?${params.toString()}`,
-    planCode: plan.code,
-    successUrl: successUrl || null,
-    cancelUrl: cancelUrl || null,
-    provider: 'AbacatePay',
-    mock: true,
+  const body = {
+    billingType: 'UNDEFINED',
+    value,
+    cycle: period === 'yearly' ? 'YEARLY' : 'MONTHLY',
+    description: `${planName}${period === 'yearly' ? ' anual' : ''}`,
+    externalReference: String(shopId),
   };
+  let subscriptionId =
+    onAsaas && sub?.providerSubscriptionId && customerId === sub.providerCustomerId ? sub.providerSubscriptionId : null;
+  if (subscriptionId) {
+    await asaas.updateSubscription(subscriptionId, { ...body, updatePendingPayments: true });
+  } else {
+    // New payer (CPF/CNPJ changed): the old subscription must stop, or the shop pays twice.
+    if (onAsaas && sub?.providerSubscriptionId) {
+      await asaas.deleteSubscription(sub.providerSubscriptionId).catch(() => {});
+    }
+    const created = await asaas.createSubscription({
+      ...body,
+      customer: customerId,
+      nextDueDate: firstDueDate(sub),
+      callback: successUrl ? { successUrl, autoRedirect: true } : undefined,
+    });
+    subscriptionId = created.id;
+  }
+
+  const url = await openInvoiceUrl(subscriptionId);
+  await Subscription.updateOne(
+    { shopId },
+    {
+      $set: {
+        planCode: code,
+        cycle: period,
+        provider: 'Asaas',
+        providerCustomerId: customerId,
+        providerSubscriptionId: subscriptionId,
+        lastInvoiceUrl: url,
+      },
+    },
+    { upsert: true }
+  );
+  return { provider: 'Asaas', url, planCode: code, cycle: period };
+}
+
+async function cancelSubscription(shopId) {
+  const sub = await Subscription.findOne({ shopId }).lean();
+  if (sub?.provider === 'Asaas' && sub.providerSubscriptionId) {
+    await asaas.deleteSubscription(sub.providerSubscriptionId);
+  }
+  return Subscription.findOneAndUpdate(
+    { shopId },
+    { $set: { status: 'canceled', lastInvoiceUrl: null } },
+    { new: true }
+  ).lean();
+}
+
+/** Asaas sends the token set on the webhook in `asaas-access-token`. No token configured = nothing gets in. */
+function authorizeAsaasWebhook(token) {
+  const expected = process.env.WORQERA_Asaas__WebhookToken || '';
+  if (!expected || !token) return false;
+  return timingSafeEqualString(token, expected);
+}
+
+function addCycle(dateKey, cycle) {
+  const d = new Date(`${dateKey}T12:00:00.000Z`);
+  if (cycle === 'yearly') d.setUTCFullYear(d.getUTCFullYear() + 1);
+  else d.setUTCMonth(d.getUTCMonth() + 1);
+  return d;
+}
+
+/** What an Asaas event changes on our Subscription, or null to ignore it. */
+function webhookUpdate(event, payload, sub, now = new Date()) {
+  const payment = payload?.payment || {};
+  switch (event) {
+    case 'PAYMENT_CONFIRMED':
+    case 'PAYMENT_RECEIVED':
+      return {
+        status: 'active',
+        trialEndsAt: null,
+        currentPeriodEnd: addCycle(payment.dueDate || saoPauloDayKey(now), sub?.cycle),
+        lastInvoiceUrl: null,
+      };
+    case 'PAYMENT_CREATED':
+      return payment.invoiceUrl ? { lastInvoiceUrl: payment.invoiceUrl } : null;
+    case 'PAYMENT_OVERDUE':
+      return { status: 'past_due', lastInvoiceUrl: payment.invoiceUrl || null };
+    case 'PAYMENT_REFUNDED':
+    case 'PAYMENT_CHARGEBACK_REQUESTED':
+      return { status: 'past_due' };
+    case 'SUBSCRIPTION_DELETED':
+    case 'SUBSCRIPTION_INACTIVATED':
+      return { status: 'canceled', lastInvoiceUrl: null };
+    default:
+      return null;
+  }
+}
+
+/** At-least-once delivery: the event id is stored first, so a repeat changes nothing. */
+async function handleAsaasWebhook(payload) {
+  const eventId = String(payload?.id || '');
+  const event = String(payload?.event || '');
+  if (!eventId || !event) throw fail(400, 'Invalid webhook payload');
+  try {
+    await WebhookEvent.create({ provider: 'Asaas', eventId, type: event, processedAt: new Date(), payload });
+  } catch (e) {
+    if (e.code === 11000) return { ok: true, duplicate: true };
+    throw e;
+  }
+  const subscriptionId = payload.payment?.subscription || payload.subscription?.id || null;
+  const shopRef = payload.payment?.externalReference || payload.subscription?.externalReference || null;
+  let sub = subscriptionId ? await Subscription.findOne({ providerSubscriptionId: subscriptionId }).lean() : null;
+  if (!sub && shopRef && /^[a-f0-9]{24}$/i.test(String(shopRef))) {
+    sub = await Subscription.findOne({ shopId: shopRef, provider: 'Asaas' }).lean();
+  }
+  if (!sub) return { ok: true, duplicate: false, matched: false };
+  const set = webhookUpdate(event, payload, sub);
+  if (!set) return { ok: true, duplicate: false, matched: true };
+  const updated = await Subscription.findOneAndUpdate({ _id: sub._id }, { $set: set }, { new: true }).lean();
+  if (set.status === 'active' && sub.status !== 'active') {
+    await notifyBillingActivated(sub.shopId, updated).catch(() => {});
+  }
+  return { ok: true, duplicate: false, matched: true };
 }
 
 async function completeCheckoutDev(shopId, { planCode } = {}) {
   if (process.env.NODE_ENV === 'production') {
-    const err = new Error('Dev checkout disabled in production');
-    err.status = 403;
-    err.code = 'FORBIDDEN';
-    throw err;
+    throw fail(403, 'Dev checkout disabled in production', 'FORBIDDEN');
   }
 
   const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -202,7 +282,7 @@ async function completeCheckoutDev(shopId, { planCode } = {}) {
     { shopId },
     {
       $set: {
-        planCode: planCode || 'WORQERA_PRO',
+        planCode: normalizePlanCode(planCode || 'WORQERA_PRO'),
         status: 'active',
         provider: 'Dev',
         currentPeriodEnd: periodEnd,
@@ -219,11 +299,11 @@ async function completeCheckoutDev(shopId, { planCode } = {}) {
 
 async function notifyBillingActivated(shopId, sub) {
   try {
-    const Shop = require('../models/Shop');
     const Membership = require('../models/Membership');
     const User = require('../models/User');
     const { sendMail } = require('./mailer');
     const shop = await Shop.findById(shopId).lean();
+    const plan = PRODUCTS.find((p) => p.code === normalizePlanCode(sub?.planCode))?.name || 'Worqera';
     const owners = await Membership.find({
       shopId,
       role: { $in: ['owner', 'admin'] },
@@ -236,8 +316,8 @@ async function notifyBillingActivated(shopId, sub) {
         to: u.email,
         shop,
         subject: 'Assinatura ativa',
-        text: `Olá ${u.name || ''},\n\nSua assinatura Worqera Pro está ativa.\nStatus: ${sub?.status}\nPlano: ${sub?.planCode || 'WORQERA_PRO'}\n`,
-        html: `<p>Assinatura <strong>ativa</strong> para <strong>${shop?.name || 'sua oficina'}</strong>.</p><p>Plano: ${sub?.planCode || 'WORQERA_PRO'}</p>`,
+        text: `Olá ${u.name || ''},\n\nSua assinatura ${plan} está ativa para ${shop?.name || 'sua empresa'}.\n`,
+        html: `<p>Assinatura <strong>${plan}</strong> ativa para <strong>${shop?.name || 'sua empresa'}</strong>.</p>`,
       });
     }
   } catch (err) {
@@ -245,150 +325,20 @@ async function notifyBillingActivated(shopId, sub) {
   }
 }
 
-function verifyWebhookSecret(querySecret) {
-  const expected = process.env.WORQERA_AbacatePay__WebhookSecret || '';
-  if (!expected) {
-    return process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_WEBHOOK === '1';
-  }
-  return timingSafeEqualString(querySecret, expected);
-}
-
-/** HMAC-SHA256 over raw body → base64 (AbacatePay docs). */
-function verifyWebhookHmac(rawBody, signatureHeader) {
-  if (!signatureHeader) return false;
-  const provided = String(signatureHeader).replace(/^sha256=/i, '').trim();
-  const digestB64 = crypto
-    .createHmac('sha256', ABACATE_PUBLIC_KEY)
-    .update(Buffer.from(rawBody || '', 'utf8'))
-    .digest('base64');
-  if (timingSafeEqualString(digestB64, provided)) return true;
-
-  // Dev fallback: HMAC with webhook secret (hex) for local tests
-  const secret = process.env.WORQERA_AbacatePay__WebhookSecret || '';
-  if (secret && process.env.NODE_ENV !== 'production') {
-    const digestHex = crypto.createHmac('sha256', secret).update(rawBody || '').digest('hex');
-    if (timingSafeEqualString(digestHex, provided)) return true;
-  }
-  return false;
-}
-
-/**
- * Production: require BOTH query secret and HMAC signature.
- * Development: either mechanism (or ALLOW_INSECURE_WEBHOOK).
- */
-function authorizeWebhook({ querySecret, signatureHeader, rawBody }) {
-  const isProd = process.env.NODE_ENV === 'production';
-  const secretOk = verifyWebhookSecret(querySecret);
-  const hmacOk = verifyWebhookHmac(rawBody, signatureHeader);
-
-  if (isProd) {
-    return secretOk && hmacOk;
-  }
-  if (process.env.ALLOW_INSECURE_WEBHOOK === '1') return true;
-  return secretOk || hmacOk;
-}
-
-function extractShopId(data) {
-  return (
-    data.shopId ||
-    data.metadata?.shopId ||
-    data.externalId ||
-    data.subscription?.externalId ||
-    data.checkout?.externalId ||
-    data.checkout?.metadata?.shopId ||
-    null
-  );
-}
-
-async function handleAbacateWebhook(payload) {
-  const eventId = String(payload.id || payload.eventId || payload.event?.id || '');
-  const type = String(payload.type || payload.event?.type || payload.event || '');
-  if (!eventId || !type) {
-    const err = new Error('Invalid webhook payload');
-    err.status = 400;
-    err.code = 'VALIDATION_ERROR';
-    throw err;
-  }
-
-  try {
-    await WebhookEvent.create({
-      provider: 'AbacatePay',
-      eventId,
-      type,
-      processedAt: new Date(),
-      payload,
-    });
-  } catch (e) {
-    if (e.code === 11000) {
-      return { ok: true, duplicate: true };
-    }
-    throw e;
-  }
-
-  const data = payload.data || payload.payload || payload;
-  const shopId = extractShopId(data);
-  const providerSubscriptionId =
-    data.subscription?.id ||
-    data.subscriptionId ||
-    data.providerSubscriptionId ||
-    data.id ||
-    null;
-
-  if (shopId) {
-    if (
-      type === 'subscription.completed' ||
-      type === 'subscription.renewed' ||
-      type === 'subscription.trial_started'
-    ) {
-      const status = type === 'subscription.trial_started' ? 'trialing' : 'active';
-      const sub = await Subscription.findOneAndUpdate(
-        { shopId },
-        {
-          $set: {
-            status,
-            provider: 'AbacatePay',
-            providerSubscriptionId,
-            currentPeriodEnd:
-              data.subscription?.nextBillingDate ||
-              data.currentPeriodEnd ||
-              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            trialEndsAt: status === 'active' ? null : data.subscription?.trialEndsAt || null,
-            planCode: 'WORQERA_PRO',
-          },
-        },
-        { upsert: true, new: true }
-      ).lean();
-      if (status === 'active') {
-        await notifyBillingActivated(shopId, sub).catch(() => {});
-      }
-    } else if (type === 'subscription.payment_failed') {
-      await Subscription.findOneAndUpdate(
-        { shopId },
-        { $set: { status: 'past_due', providerSubscriptionId } }
-      );
-    } else if (type === 'subscription.cancelled') {
-      await Subscription.findOneAndUpdate(
-        { shopId },
-        { $set: { status: 'canceled', providerSubscriptionId } }
-      );
-    }
-  }
-
-  return { ok: true, duplicate: false };
-}
-
 module.exports = {
   FOUNDER_PRICE_CENTS,
   effectivePrice,
   getSubscription,
   listProducts,
+  firstDueDate,
   createCheckoutSession,
+  cancelSubscription,
+  authorizeAsaasWebhook,
+  webhookUpdate,
+  handleAsaasWebhook,
   completeCheckoutDev,
-  verifyWebhookSecret,
-  verifyWebhookHmac,
-  authorizeWebhook,
-  handleAbacateWebhook,
   PRODUCTS,
   PLAN_CODES,
   normalizePlanCode,
+  priceCents,
 };

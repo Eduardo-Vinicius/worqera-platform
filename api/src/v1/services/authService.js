@@ -68,8 +68,9 @@ function signRefreshToken(user) {
 }
 
 function signupPlanCode(planCode) {
-  const code = String(planCode || '').trim().toUpperCase();
-  if (code === 'WORQERA_BASIC' || code === 'BASIC') return 'WORQERA_BASIC';
+  const code = String(planCode || '').trim().toUpperCase().replace(/^WORQERA_/, '');
+  if (code === 'BASIC') return 'WORQERA_BASIC';
+  if (code === 'BUSINESS') return 'WORQERA_BUSINESS';
   return 'WORQERA_PRO';
 }
 
