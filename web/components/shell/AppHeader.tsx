@@ -6,6 +6,8 @@ import { ThemeToggle } from "./ThemeToggle"
 import { SystemOkBadge } from "./SystemOkBadge"
 import { FeedbackBell } from "./FeedbackBell"
 import { TvLauncher } from "./TvLauncher"
+import { SectionTabs } from "./SectionTabs"
+import type { NavGroup } from "./nav"
 import { cn } from "@/lib/utils"
 
 export function AppHeader({
@@ -17,6 +19,7 @@ export function AppHeader({
   showInbox = true,
   showOrderJump = true,
   showTvs = false,
+  group,
 }: {
   title: string
   subtitle?: string
@@ -28,6 +31,8 @@ export function AppHeader({
   showOrderJump?: boolean
   /** "Telas da loja" button. Only Visão geral turns it on. */
   showTvs?: boolean
+  /** Pages grouped under one menu item get their tabs right below the title. */
+  group?: NavGroup
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] md:bg-[color-mix(in_srgb,var(--wq-paper)_85%,transparent)] md:backdrop-blur-md">
@@ -71,6 +76,11 @@ export function AppHeader({
           {showTheme ? <ThemeToggle compact /> : null}
         </div>
       </div>
+      {group ? (
+        <div className="mx-auto w-full max-w-[1600px] px-2.5 pb-2.5 sm:px-5 md:px-6 lg:px-8">
+          <SectionTabs group={group} />
+        </div>
+      ) : null}
     </header>
   )
 }

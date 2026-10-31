@@ -275,7 +275,7 @@ export default function ProductsAdminPage() {
   if (!shopLabel) {
     return (
       <div className="space-y-6">
-        <AppHeader title="Produtos" subtitle="Escolha a oficina" />
+        <AppHeader group="catalogo" title="Produtos" subtitle="Escolha a oficina" />
         <ul className="divide-y divide-[var(--wq-border)] overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
           {shops.length === 0 ? (
             <li className="px-4 py-8 text-sm text-[var(--wq-text-muted)]">Nenhuma oficina.</li>
@@ -303,7 +303,7 @@ export default function ProductsAdminPage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="catalogo"
         title="Produtos"
         subtitle="O que a loja vende. No pedido, em Produtos da loja: reserva ao salvar, baixa na entrega."
         actions={

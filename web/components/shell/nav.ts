@@ -18,6 +18,10 @@ import {
   Activity,
   SlidersHorizontal,
   Megaphone,
+  Gauge,
+  TrendingUp,
+  ListChecks,
+  Contact,
   Tv,
   Star,
   HandCoins,
@@ -49,6 +53,8 @@ export type NavItem = {
   external?: boolean
   /** Visual emphasis in sidebar (ex.: Plano) */
   emphasize?: boolean
+  /** Menu item that stands for a group of pages (tabs in `NAV_TABS`); active on any of them. */
+  group?: NavGroup
 }
 
 export type NavSection = {
@@ -76,30 +82,19 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Estoque e cadastros",
-    items: [
-      { href: "/admin/produtos", label: "Produtos e estoque", icon: ShoppingBag, ownerAdminOnly: true, hideForSector: true },
-      { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true },
-      { href: "/settings/setores", label: "Setores do kanban", icon: Layers, hideForSector: true },
-      { href: "/settings/marcas", label: "Marcas", icon: Tag, hideForSector: true },
-      { href: "/settings/acessorios", label: "Acessórios", icon: Package, hideForSector: true },
-    ],
-  },
-  {
     title: "Gestão",
     items: [
       { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, ownerAdminOnly: true, serviceKey: "finance" },
-      { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
-      { href: "/admin/atendimento", label: "Atendimento", icon: UserCheck, ownerAdminOnly: true, serviceKey: "metrics" },
+      { href: "/admin/metrics", label: "Relatórios", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics", group: "relatorios" },
       { href: "/settings/tv", label: "Telas da loja", icon: Tv, hideForSector: true, serviceKey: "tv" },
     ],
   },
   {
-    title: "Administração",
+    title: "Configurações",
     items: [
       { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
-      { href: "/settings/equipe", label: "Equipe e acessos", icon: UsersRound, ownerAdminOnly: true },
-      { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
+      { href: "/settings/servicos", label: "Catálogo", icon: ShoppingBag, hideForSector: true, group: "catalogo" },
+      { href: "/settings/equipe", label: "Equipe", icon: UsersRound, ownerAdminOnly: true, group: "equipe" },
       {
         href: "/billing",
         label: "Plano",
@@ -113,14 +108,44 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Worqera",
     items: [
       { href: "/admin/plataforma", label: "Visão geral", icon: Activity, platformOnly: true },
+      { href: "/admin/metricas", label: "Métricas", icon: Gauge, platformOnly: true },
+      { href: "/admin/analises", label: "Análises", icon: TrendingUp, platformOnly: true },
+      { href: "/admin/operacao", label: "Operação", icon: ListChecks, platformOnly: true },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
+      { href: "/admin/contas", label: "Contas", icon: Contact, platformOnly: true },
       { href: "/admin/plataforma/parametros", label: "Parâmetros", icon: SlidersHorizontal, platformOnly: true },
       { href: "/admin/plataforma/noticias", label: "Notícias", icon: Megaphone, platformOnly: true },
     ],
   },
 ]
 
+export type NavGroup = "catalogo" | "equipe" | "relatorios"
+
+/** Pages that live under one menu item, shown as tabs at the top of each page (`SectionTabs`). */
+export const NAV_TABS: Record<NavGroup, NavItem[]> = {
+  catalogo: [
+    { href: "/settings/servicos", label: "Serviços", icon: Wrench, hideForSector: true },
+    { href: "/admin/produtos", label: "Produtos e estoque", icon: ShoppingBag, ownerAdminOnly: true },
+    { href: "/settings/setores", label: "Setores do kanban", icon: Layers, hideForSector: true },
+    { href: "/settings/marcas", label: "Marcas", icon: Tag, hideForSector: true },
+    { href: "/settings/acessorios", label: "Acessórios", icon: Package, hideForSector: true },
+  ],
+  equipe: [
+    { href: "/settings/equipe", label: "Acessos", icon: UsersRound, ownerAdminOnly: true },
+    { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
+  ],
+  relatorios: [
+    { href: "/admin/metrics", label: "Métricas", icon: BarChart3, ownerAdminOnly: true, serviceKey: "metrics" },
+    { href: "/admin/atendimento", label: "Desempenho da equipe", icon: UserCheck, ownerAdminOnly: true, serviceKey: "metrics" },
+  ],
+}
+
 export function isNavActive(pathname: string, href: string) {
   if (href === "/dashboard" || href === "/admin/plataforma") return pathname === href
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+export function isItemActive(pathname: string, item: NavItem) {
+  if (item.group) return NAV_TABS[item.group].some((tab) => isNavActive(pathname, tab.href))
+  return isNavActive(pathname, item.href)
 }

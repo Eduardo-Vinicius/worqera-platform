@@ -16,7 +16,8 @@ Inventário: [feature-inventory.md](./feature-inventory.md) · Landing: [`../../
 - [x] Ops UX Onda B — rebrand + TVs Cliente/Chão + kanban DnD polish
 - [x] Ops UX Onda C — multi-tênis (`items[]`), upload por item, badge `N pares`
 - [x] Produtos e estoque — só admin Worqera; venda no pedido entra no kanban (2026-10-13)
-- [x] Planos — site e aba Plano do dono/admin: Basic 97, Pro 197, Business 499 (2026-10-13)
+- [x] Planos — site e aba Plano do dono/admin: Basic 147, Pro 297, Business 597, anual −17%, Asaas (2026-10-31)
+- [x] Painel da plataforma — Visão geral, Métricas, Análises, Operação, Contas 360° (2026-10-31)
 - [x] Kanban labels — código loja `0001…`, sticky CTA, `/pedidos/[id]/etiqueta` + QR, detalhe + move fora do plano com comentário
 - [x] Ops UX A1 — nav slim (Consultas em Principal; TVs fora da sidebar)
 - [x] **QW-01** `<Toaster />` no layout

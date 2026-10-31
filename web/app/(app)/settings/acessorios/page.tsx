@@ -89,7 +89,7 @@ export default function AcessoriosSettingsPage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="catalogo"
         title="Acessórios"
         subtitle="O que o cliente pode deixar junto do pedido. Cada loja cadastra a própria lista."
       />

@@ -100,3 +100,81 @@ test('the shop keeps working 5 days after a missed due date', () => {
   assert.equal(canUse({ status: 'expired' }, now), false);
   assert.equal(canUse(null, now), false);
 });
+
+test('checkout still works when Asaas refuses the return link (site not registered)', async () => {
+  const asaas = require('../services/asaas');
+  const billing = require('../services/billingService');
+  const Shop = require('../models/Shop');
+  const Subscription = require('../models/Subscription');
+  const saved = { ...asaas };
+  const savedShop = { findById: Shop.findById, updateOne: Shop.updateOne };
+  const savedSub = { findOne: Subscription.findOne, updateOne: Subscription.updateOne };
+  const sent = [];
+  try {
+    asaas.configured = () => true;
+    asaas.createCustomer = async () => ({ id: 'cus_1' });
+    asaas.createSubscription = async (body) => {
+      sent.push(body);
+      if (body.callback) {
+        const err = new Error('Não há nenhum domínio configurado em sua conta. Cadastre um site em Minha Conta na aba Informações.');
+        err.code = 'BILLING_PROVIDER_ERROR';
+        throw err;
+      }
+      return { id: 'sub_1' };
+    };
+    asaas.listSubscriptionPayments = async () => ({ data: [{ invoiceUrl: 'https://asaas.test/i/1' }] });
+    const lean = (value) => ({ select: () => ({ lean: async () => value }), lean: async () => value });
+    Shop.findById = () => lean({ name: 'Loja', billing: { cpfCnpj: '52998224725' } });
+    Shop.updateOne = async () => ({});
+    Subscription.findOne = () => lean({ status: 'trialing', trialEndsAt: new Date(Date.now() + 86400000) });
+    Subscription.updateOne = async () => ({});
+
+    const res = await billing.createCheckoutSession('64b000000000000000000001', { planCode: 'WORQERA_PRO', successUrl: 'https://worqera.com/billing?pago=1' });
+    assert.equal(res.url, 'https://asaas.test/i/1');
+    assert.equal(sent.length, 2);
+    assert.ok(sent[0].callback);
+    assert.equal(sent[1].callback, undefined);
+  } finally {
+    Object.assign(asaas, saved);
+    Object.assign(Shop, savedShop);
+    Object.assign(Subscription, savedSub);
+  }
+});
+
+test('subscription e-mail is a Worqera receipt, not a shop message', () => {
+  const { subscriptionActiveEmail } = require('../services/platformEmails');
+  const mail = subscriptionActiveEmail({
+    ownerName: 'Eduardo',
+    shopName: 'Loja <b>X</b>',
+    planName: 'Worqera Pro',
+    cycle: 'monthly',
+    amountBrl: 297,
+    paidUntil: new Date('2026-12-05T12:00:00.000Z'),
+    method: 'PIX',
+    billingUrl: 'https://worqera.com/billing',
+  });
+  assert.equal(mail.subject, 'Assinatura Worqera Pro ativa');
+  assert.match(mail.html, /R\$\s?297,00/);
+  assert.match(mail.html, /Pix/);
+  assert.match(mail.html, /05\/12\/2026/);
+  assert.match(mail.html, /https:\/\/worqera\.com\/billing/);
+  assert.match(mail.html, /Loja &lt;b&gt;X&lt;\/b&gt;/);
+  assert.doesNotMatch(mail.subject, /\[/);
+  assert.match(mail.text, /Worqera Pro/);
+});
+
+test('Asaas charges become a readable payment list', () => {
+  const { paymentView } = require('../services/billingService');
+  const paid = paymentView({
+    id: 'pay_1', dueDate: '2026-11-05', paymentDate: '2026-11-04', value: 297, status: 'RECEIVED',
+    billingType: 'PIX', invoiceUrl: 'https://asaas.test/i/1', transactionReceiptUrl: 'https://asaas.test/r/1',
+  });
+  assert.deepEqual(paid, {
+    id: 'pay_1', dueDate: '2026-11-05', paidAt: '2026-11-04', value: 297, status: 'paid', statusLabel: 'Pago',
+    method: 'Pix', invoiceUrl: 'https://asaas.test/i/1', receiptUrl: 'https://asaas.test/r/1',
+  });
+  assert.equal(paymentView({ status: 'PENDING', billingType: 'UNDEFINED' }).statusLabel, 'Em aberto');
+  assert.equal(paymentView({ status: 'OVERDUE' }).status, 'overdue');
+  assert.equal(paymentView({ status: 'REFUNDED' }).statusLabel, 'Estornado');
+  assert.equal(paymentView({ status: 'CONFIRMED', billingType: 'CREDIT_CARD' }).method, 'Cartão de crédito');
+});

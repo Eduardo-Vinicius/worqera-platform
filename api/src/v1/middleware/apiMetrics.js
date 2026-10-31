@@ -1,23 +1,15 @@
-const { redisCmd } = require('../lib/redisClient');
 const { normalizeRoute } = require('../lib/runtimeMatch');
+const metricsStore = require('../lib/metricsStore');
 const PlatformError = require('../models/PlatformError');
 
-const HOUR_TTL_SEC = 30 * 24 * 60 * 60;
-const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
-const ACTIVE_KEY = 'metrics:active';
 const ERROR_CAP = 1000;
-
-function hourKey(date = new Date()) {
-  return `metrics:h:${date.toISOString().slice(0, 13)}`;
-}
-
-function fieldId(method, route) {
-  return `${method}\u001f${route}`;
-}
+const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 
 function shouldSkip(req) {
+  if (String(req.method || '').toUpperCase() === 'OPTIONS') return true;
   const path = String(req.originalUrl || req.url || '').split('?')[0];
-  return path === '/health' || path === '/health/ready' || path === '/' || path === '/favicon.ico';
+  if (path === '/health' || path === '/health/ready' || path === '/' || path === '/favicon.ico') return true;
+  return /\.(?:js|css|png|jpe?g|gif|svg|ico|webp|map|woff2?)$/i.test(path);
 }
 
 async function logApiError({ message, route, method, status, shopId }) {
@@ -48,186 +40,120 @@ async function logApiError({ message, route, method, status, shopId }) {
     const count = await PlatformError.countDocuments();
     if (count > ERROR_CAP) {
       const overflow = count - ERROR_CAP;
-      const old = await PlatformError.find()
-        .sort({ at: 1, _id: 1 })
-        .limit(overflow)
-        .select('_id')
-        .lean();
-      if (old.length) {
-        await PlatformError.deleteMany({ _id: { $in: old.map((d) => d._id) } });
-      }
+      const old = await PlatformError.find().sort({ at: 1, _id: 1 }).limit(overflow).select('_id').lean();
+      if (old.length) await PlatformError.deleteMany({ _id: { $in: old.map((d) => d._id) } });
     }
   } catch (err) {
     console.warn('[metrics] erro não gravado:', err.message);
   }
 }
 
-async function recordApiCall(req, res, ms) {
+/** Runs when the response is done, so 401/403/409/429/5xx from any handler count with the final status. */
+function recordApiCall(req, res, ms) {
   if (shouldSkip(req)) return;
   const route = normalizeRoute(req);
   const method = String(req.method || 'GET').toUpperCase();
   const status = Number(res.statusCode) || 0;
-  const rounded = Math.max(0, Math.round(ms));
-  const id = fieldId(method, route);
-  const key = hourKey();
-
-  await redisCmd(async (redis) => {
-    const multi = redis.multi();
-    multi.hIncrBy(key, `${id}:n`, 1);
-    multi.hIncrBy(key, `${id}:ms`, rounded);
-    multi.hIncrBy(key, `${id}:s${Math.floor(status / 100)}`, 1);
-    multi.expire(key, HOUR_TTL_SEC);
-    await multi.exec();
-    const current = Number(await redis.hGet(key, `${id}:max`)) || 0;
-    if (rounded > current) await redis.hSet(key, `${id}:max`, String(rounded));
-    if (req.auth?.userId) {
-      const now = Date.now();
-      await redis.zAdd(ACTIVE_KEY, { score: now, value: String(req.auth.userId) });
-      await redis.zRemRangeByScore(ACTIVE_KEY, 0, now - ACTIVE_WINDOW_MS);
-    }
+  const { client, platform, appVersion } = metricsStore.clientOf(req);
+  const apiError = String(res.locals?.apiError || '');
+  const code = apiError.includes(':') ? apiError.slice(0, apiError.indexOf(':')) : '';
+  metricsStore.enqueue({
+    at: new Date(),
+    method,
+    route,
+    status,
+    ms,
+    client,
+    platform,
+    appVersion,
+    userId: req.auth?.userId ? String(req.auth.userId) : null,
+    shopId: req.auth?.shopId || req.shopId ? String(req.auth?.shopId || req.shopId) : null,
+    code,
+    message: apiError.slice(code ? code.length + 1 : 0).trim() || `HTTP ${status}`,
+    correlationId: req.correlationId || '',
   });
-
   if (status >= 500) {
-    await logApiError({
-      message: res.locals?.apiError || `HTTP ${status}`,
+    logApiError({
+      message: apiError || `HTTP ${status}`,
       route,
       method,
       status,
       shopId: req.auth?.shopId || req.shopId || null,
-    });
+    }).catch(() => {});
   }
 }
 
 function apiMetrics(req, res, next) {
   const start = process.hrtime.bigint();
   res.on('finish', () => {
-    const ms = Number(process.hrtime.bigint() - start) / 1e6;
-    recordApiCall(req, res, ms).catch(() => {});
+    try {
+      recordApiCall(req, res, Number(process.hrtime.bigint() - start) / 1e6);
+    } catch {
+      // metrics never break a request
+    }
   });
   next();
 }
 
-const WINDOW_MS = {
-  '1h': 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '30d': 30 * 24 * 60 * 60 * 1000,
-};
+const WINDOW_MS = { '1h': 60 * 60 * 1000, '24h': 24 * 60 * 60 * 1000, '30d': 30 * 24 * 60 * 60 * 1000 };
 
-function hourStampMs(key) {
-  const stamp = String(key).replace(/^metrics:h:/, '');
-  const ms = Date.parse(`${stamp}:00:00.000Z`);
-  return Number.isFinite(ms) ? ms : null;
-}
-
-function windowsForHour(hourMs, nowMs) {
-  const age = nowMs - hourMs;
-  const hit = {};
-  for (const [name, span] of Object.entries(WINDOW_MS)) {
-    hit[name] = age >= 0 && age < span;
-  }
-  return hit;
-}
-
-function blankRow(id) {
-  return { id, count: 0, sumMs: 0, maxMs: 0, s2: 0, s4: 0, s5: 0 };
-}
-
-function presentWindow(map) {
+async function endpointWindow(sinceMs) {
+  const MetricBucket = require('../models/MetricBucket');
+  const rows = await MetricBucket.aggregate([
+    { $match: { start: { $gte: new Date(Date.now() - sinceMs - 30 * 60 * 1000) } } },
+    {
+      $group: {
+        _id: { method: '$method', route: '$route' },
+        count: { $sum: '$count' },
+        sumMs: { $sum: '$totalMs' },
+        maxMs: { $max: '$maxMs' },
+        ok: { $sum: { $cond: [{ $eq: ['$status', '2xx'] }, '$count', 0] } },
+        clientErrors: { $sum: '$errors4xx' },
+        errors: { $sum: '$errors5xx' },
+      },
+    },
+    { $sort: { count: -1 } },
+    { $limit: 200 },
+  ]);
   let calls = 0;
   let errors = 0;
   let sumMs = 0;
-  const endpoints = [...map.values()].map((row) => {
-    calls += row.count;
-    errors += row.s5;
-    sumMs += row.sumMs;
-    const sep = row.id.indexOf('\u001f');
-    const count = row.count;
+  const endpoints = rows.map((r) => {
+    calls += r.count;
+    errors += r.errors;
+    sumMs += r.sumMs;
     return {
-      method: sep >= 0 ? row.id.slice(0, sep) : '',
-      route: sep >= 0 ? row.id.slice(sep + 1) : row.id,
-      count,
-      avgMs: count ? Math.round(row.sumMs / count) : 0,
-      maxMs: row.maxMs,
-      ok: row.s2,
-      clientErrors: row.s4,
-      errors: row.s5,
-      errorRate: count ? Math.round((row.s5 / count) * 1000) / 10 : 0,
-      clientErrorRate: count ? Math.round((row.s4 / count) * 1000) / 10 : 0,
+      method: r._id.method,
+      route: r._id.route,
+      count: r.count,
+      avgMs: r.count ? Math.round(r.sumMs / r.count) : 0,
+      maxMs: r.maxMs,
+      ok: r.ok,
+      clientErrors: r.clientErrors,
+      errors: r.errors,
+      errorRate: r.count ? Math.round((r.errors / r.count) * 1000) / 10 : 0,
+      clientErrorRate: r.count ? Math.round((r.clientErrors / r.count) * 1000) / 10 : 0,
     };
   });
-  endpoints.sort((a, b) => b.count - a.count);
-  return {
-    calls,
-    errors,
-    avgMs: calls ? Math.round(sumMs / calls) : 0,
-    endpoints,
-  };
+  return { calls, errors, avgMs: calls ? Math.round(sumMs / calls) : 0, endpoints };
 }
 
-function emptyWindows() {
-  return {
-    '1h': presentWindow(new Map()),
-    '24h': presentWindow(new Map()),
-    '30d': presentWindow(new Map()),
-  };
-}
-
+/** The old Portal screen: traffic windows now come from the durable buckets in Mongo. */
 async function readOpsSnapshot() {
-  const redisUp = await redisCmd(async (redis) => {
-    const now = Date.now();
-    await redis.zRemRangeByScore(ACTIVE_KEY, 0, now - ACTIVE_WINDOW_MS);
-    const activeUsers = await redis.zCard(ACTIVE_KEY);
-    const buckets = {
-      '1h': new Map(),
-      '24h': new Map(),
-      '30d': new Map(),
-    };
-    for await (const rawKey of redis.scanIterator({ MATCH: 'metrics:h:*', COUNT: 200 })) {
-      const key = String(rawKey);
-      const hourMs = hourStampMs(key);
-      if (hourMs == null) continue;
-      const which = windowsForHour(hourMs, now);
-      if (!which['30d']) continue;
-      const data = await redis.hGetAll(key);
-      for (const [field, raw] of Object.entries(data || {})) {
-        const split = field.lastIndexOf(':');
-        if (split < 0) continue;
-        const id = field.slice(0, split);
-        const kind = field.slice(split + 1);
-        const n = Number(raw) || 0;
-        for (const name of Object.keys(buckets)) {
-          if (!which[name]) continue;
-          let row = buckets[name].get(id);
-          if (!row) {
-            row = blankRow(id);
-            buckets[name].set(id, row);
-          }
-          if (kind === 'n') row.count += n;
-          else if (kind === 'ms') row.sumMs += n;
-          else if (kind === 'max') row.maxMs = Math.max(row.maxMs, n);
-          else if (kind === 's2') row.s2 += n;
-          else if (kind === 's4') row.s4 += n;
-          else if (kind === 's5') row.s5 += n;
-        }
-      }
-    }
-    return {
-      activeUsers,
-      windows: {
-        '1h': presentWindow(buckets['1h']),
-        '24h': presentWindow(buckets['24h']),
-        '30d': presentWindow(buckets['30d']),
-      },
-    };
-  });
-
-  const errors = await PlatformError.find().sort({ at: -1 }).limit(100).lean();
-  const windows = redisUp?.windows || emptyWindows();
+  const ActiveAccount = require('../models/ActiveAccount');
+  const [h1, h24, d30, activeIds, errors] = await Promise.all([
+    endpointWindow(WINDOW_MS['1h']),
+    endpointWindow(WINDOW_MS['24h']),
+    endpointWindow(WINDOW_MS['30d']),
+    ActiveAccount.distinct('userId', { lastSeenAt: { $gte: new Date(Date.now() - ACTIVE_WINDOW_MS) } }),
+    PlatformError.find().sort({ at: -1 }).limit(100).lean(),
+  ]);
   return {
-    redis: redisUp ? 'up' : 'down',
-    activeUsers: redisUp?.activeUsers || 0,
-    windows,
-    endpoints: windows['30d'].endpoints,
+    redis: 'n/a',
+    store: metricsStore.stats(),
+    activeUsers: activeIds.length,
+    windows: { '1h': h1, '24h': h24, '30d': d30 },
+    endpoints: d30.endpoints,
     errors: errors.map((e) => ({
       id: e._id,
       message: e.message,
@@ -241,12 +167,4 @@ async function readOpsSnapshot() {
   };
 }
 
-module.exports = {
-  apiMetrics,
-  readOpsSnapshot,
-  logApiError,
-  hourStampMs,
-  windowsForHour,
-  ACTIVE_WINDOW_MS,
-  HOUR_TTL_SEC,
-};
+module.exports = { apiMetrics, readOpsSnapshot, logApiError, shouldSkip, ACTIVE_WINDOW_MS };

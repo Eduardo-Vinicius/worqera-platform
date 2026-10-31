@@ -2,6 +2,22 @@
 
 ## 2026-10-31
 
+- **Painel da plataforma** (menu Worqera: Visão geral · Métricas · Análises · Operação · Oficinas · Contas · Parâmetros · Notícias):
+  - **Visão geral** nova: usuários ativos, pedidos criados e entregues, lojas ativas, MRR, saúde do sistema (0–100), o que está acontecendo (insights com link) e pendências por fila. A tela anterior virou **Portal técnico** (`/admin/plataforma/portal`).
+  - **Métricas**: Tecnologia (requisições, usuários ativos, erros, latência e p95, acessos a cada 30 min, endpoints mais chamados e mais lentos, usuários por UF e por sistema, versões do app), Negócio (MRR, lojas, pedidos criados e entregues, pagamentos, assinaturas por situação, série de cada métrica) e Produto (cobertura de recursos, ramos, UFs, serviços), com 1/7/14/30 dias e variação.
+  - **Análises**: Produto (funil de ativação com tempo mediano, retenção por semana de cadastro, ativos por dia e por canal, uso de recursos), Transações (funil de pedidos e de orçamentos, faixas de valor, serviços) e Lojas (estágio, em risco, tabela com MRR e queda de pedidos).
+  - **Operação**: filas com prazo (no prazo, atenção, atrasado), **+7 dias** de teste e **Entrar** na loja direto da lista.
+  - **Contas**: segmentos com contagem, busca e conta 360° (lojas e plano, onde usa, contadores de 30 dias e eventos de segurança).
+  - Componentes em `components/admin/charts.tsx`; atualização automática a cada minuto.
+
+- **Landing nova (home), de 12 para 6 seções:** Hero (título direto, "Testar 7 dias grátis" e "Ver preços", os números **700+ pedidos/mês · R$ 450 mil+/mês · 7.000+ pedidos e 6.000+ clientes na base**, "Trazemos seu histórico" e os ramos em etiquetas com link para cada página) · **Três pontos** (`points-section.tsx`: Fila por setor, Cliente avisado sozinho, Dinheiro que volta) · Quem usa (depoimentos, mais compacto) · Preços (Mensal/Anual −17%, frase de valor, implantação R$ 497) · FAQ (7 perguntas, com ramo, pagamento e histórico) · Chamada final (`cta-section.tsx`). Saíram da home e foram apagados: News, Proof, Ramos, Why, Loop, Day reel, Practice e System; as páginas de ramo e `/recursos` seguem. Textos PT e EN no `i18n.ts`.
+
+- **Plano:** anual mostrado como valor por mês com **−17%** e o total do ano riscado; seção **Últimos pagamentos** (valor, forma, status, fatura/comprovante); quem vem de "Assinar agora" chega com o plano escolhido e o aviso "Falta só o pagamento".
+- **Cadastro:** "Como quer começar?" com **Testar 7 dias grátis** ou **Assinar agora** (cria a conta e vai direto ao pagamento, inclusive depois de verificar o e-mail; o onboarding fica para depois).
+- **Faixa do teste** (`TrialBanner`): "Teste do Pro · N dias restantes" com botão **Assinar**; assinatura já feita em teste aparece como aviso tranquilo ("a primeira cobrança vence em DD/MM"); atraso com "Pagar fatura".
+- **Pedido:** desconto com chave **% / R$** (começa em %; em % acompanha o subtotal). O pedido continua guardando em R$.
+- **Menu lateral:** Operação · Clientes · Gestão · Configurações. **Catálogo** (Serviços, Produtos e estoque, Setores, Marcas, Acessórios), **Equipe** (Acessos, Funcionários) e **Relatórios** (Métricas, Desempenho da equipe) viraram um item cada, com abas no topo das páginas (`SectionTabs`, `AppHeader group`). As rotas não mudaram. "Atendimento" agora se chama "Desempenho da equipe".
+
 - **Preços e Asaas:**
   - `/billing` refeito: escolha do plano, Mensal/Anual (2 meses grátis), CPF/CNPJ com máscara, "Assinar" abrindo a fatura do Asaas (Pix, boleto ou cartão), "Pagar fatura em aberto", "Cancelar assinatura" (dono) e a implantação de R$ 497.
   - Catálogo único do front em `lib/plans.ts` (preços, frases de valor, itens); cadastro com Basic, Pro e Business (todos com 7 dias grátis).

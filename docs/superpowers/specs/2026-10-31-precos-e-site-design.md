@@ -103,6 +103,7 @@ Saem da home: News, Why, Loop, DayReel, Practice e Ramos. As páginas de ramo (`
 1. Abrir a conta Asaas (CNPJ da Axisbyte) e, primeiro, uma conta **Sandbox** para testar.
 2. Gerar a chave de API (Integrações → Chaves de API) e colocar em `WORQERA_Asaas__ApiKey`, com `WORQERA_Asaas__Env=sandbox`.
 3. Criar o webhook (Integrações → Webhooks): URL `https://<PUBLIC_API_URL>/api/v1/webhooks/asaas`, um token de 32+ caracteres (`openssl rand -hex 32`) em `WORQERA_Asaas__WebhookToken`, e os eventos de cobrança (`PAYMENT_*`) e de assinatura (`SUBSCRIPTION_*`).
-4. Testar no Sandbox: assinar, pagar a fatura de teste, ver a loja ficar ativa.
-5. Repetir chave e webhook na conta de **produção** e trocar para `WORQERA_Asaas__Env=production`.
-6. Avisar as lojas atuais da tabela nova, com a data em que ela passa a valer.
+4. Em Minha Conta → Informações → Site, cadastrar `https://worqera.com` (o Asaas só aceita o link de volta ao site para domínio cadastrado; sem ele a cobrança sai, mas o pagador não volta sozinho).
+5. Testar no Sandbox: assinar, pagar a fatura de teste, ver a loja ficar ativa.
+6. Repetir chave, webhook e site na conta de **produção** e trocar para `WORQERA_Asaas__Env=production`.
+7. Avisar as lojas atuais da tabela nova, com a data em que ela passa a valer.

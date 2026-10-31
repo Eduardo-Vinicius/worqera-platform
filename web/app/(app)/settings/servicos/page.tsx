@@ -186,7 +186,7 @@ export default function ServicosSettingsPage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="catalogo"
         title="Catálogo de serviços"
         subtitle="Usado no novo pedido. Setores sugeridos marcam a partida do par quando o serviço é escolhido."
         actions={

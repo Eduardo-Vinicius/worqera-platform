@@ -186,7 +186,7 @@ export default function AdminMetricsPage() {
 
   return (
     <div className="-mx-0">
-      <AppHeader
+      <AppHeader group="relatorios"
         title="Métricas"
         subtitle="Operação, SLA e produtividade"
         actions={

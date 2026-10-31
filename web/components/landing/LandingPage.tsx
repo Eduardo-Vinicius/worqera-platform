@@ -5,17 +5,11 @@ import "./landing.css"
 import { LanguageProvider } from "@/components/landing/language-provider"
 import { Header } from "@/components/landing/header"
 import { HeroSection } from "@/components/landing/hero-section"
-import { SystemSection } from "@/components/landing/system-section"
-import { NewsSection } from "@/components/landing/news-section"
-import { ProofSection } from "@/components/landing/proof-section"
+import { PointsSection } from "@/components/landing/points-section"
 import { ClientsSection } from "@/components/landing/clients-section"
-import { TradesSection } from "@/components/landing/trades-section"
-import { WhySection } from "@/components/landing/why-section"
-import { DayReel } from "@/components/landing/day-reel"
-import { LoopSection } from "@/components/landing/loop-section"
-import { PracticeSection } from "@/components/landing/practice-section"
 import { PricingSection } from "@/components/landing/pricing-section"
 import { FaqSection } from "@/components/landing/faq-section"
+import { CtaSection } from "@/components/landing/cta-section"
 import { Footer, WhatsAppFab } from "@/components/landing/footer"
 
 function LandingInner() {
@@ -38,17 +32,11 @@ function LandingInner() {
       <Header dark={dark} onToggleTheme={toggleTheme} />
       <main>
         <HeroSection />
-        <SystemSection />
-        <NewsSection />
-        <ProofSection />
+        <PointsSection />
         <ClientsSection />
-        <TradesSection />
-        <WhySection />
-        <LoopSection />
-        <DayReel />
-        <PracticeSection />
         <PricingSection />
         <FaqSection />
+        <CtaSection />
       </main>
       <Footer />
       <WhatsAppFab />

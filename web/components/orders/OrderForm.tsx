@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -162,6 +163,9 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [prioridade, setPrioridade] = useState<string>("2")
   const [totalPrice, setTotalPrice] = useState(0)
   const [discount, setDiscount] = useState(0)
+  /** How the desk types the discount; the order always stores it in R$ (`pricing.discount`). */
+  const [discountMode, setDiscountMode] = useState<"pct" | "brl">("pct")
+  const [discountPct, setDiscountPct] = useState<number | null>(null)
   const [lockedTotal, setLockedTotal] = useState<number | null>(null)
   const [signalType, setSignalType] = useState("50") // "50", "100", "custom"
   const [signalValue, setSignalValue] = useState(0)
@@ -895,6 +899,24 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     setDiscount(nextDiscount)
     syncPayable(subtotal, nextDiscount, signalType, null)
   }
+
+  const discountSubtotal = suggestedTotal(items, hasWarranty, warrantyPrice)
+  const shownPct =
+    discountPct ?? (discountSubtotal > 0 ? Math.round((discount / discountSubtotal) * 1000) / 10 : 0)
+
+  const handleDiscountPct = (raw: number) => {
+    const pct = Math.min(100, Math.max(0, Number.isFinite(raw) ? raw : 0))
+    setDiscountPct(pct)
+    handleDiscountChange(roundMoney((discountSubtotal * pct) / 100))
+  }
+
+  // In % mode the discount follows the subtotal when items or the warranty change.
+  useEffect(() => {
+    if (discountMode !== "pct" || discountPct == null) return
+    const next = roundMoney((discountSubtotal * discountPct) / 100)
+    if (Math.abs(next - discount) > 0.009) handleDiscountChange(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discountSubtotal, discountMode, discountPct])
 
   // Handler para mudança de tipo de sinal
   const handleSignalTypeChange = (type: string) => {
@@ -2233,20 +2255,64 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                     <>
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
-                        <Label htmlFor="discount">Desconto (R$)</Label>
-                        <MoneyField
-                          id="discount"
-                          value={discount}
-                          onValue={handleDiscountChange}
-                          placeholder="0"
-                          className="w-36 text-lg font-semibold"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="discount">Desconto</Label>
+                          <div className="inline-grid grid-cols-2 rounded-md border border-[var(--wq-border)] p-0.5 text-xs font-semibold" role="group" aria-label="Desconto em % ou R$">
+                            {(["pct", "brl"] as const).map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => {
+                                  setDiscountMode(m)
+                                  setDiscountPct(null)
+                                }}
+                                aria-pressed={discountMode === m}
+                                className={cn(
+                                  "rounded px-2 py-0.5",
+                                  discountMode === m ? "bg-[var(--wq-brand)] text-white" : "text-[var(--wq-text-muted)]"
+                                )}
+                              >
+                                {m === "pct" ? "%" : "R$"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {discountMode === "pct" ? (
+                          <div className="relative w-36">
+                            <Input
+                              id="discount"
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              value={shownPct || ""}
+                              onChange={(e) => handleDiscountPct(Number(e.target.value.replace(",", ".")))}
+                              placeholder="0"
+                              className="pr-8 text-lg font-semibold"
+                            />
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--wq-text-muted)]">%</span>
+                          </div>
+                        ) : (
+                          <MoneyField
+                            id="discount"
+                            value={discount}
+                            onValue={handleDiscountChange}
+                            placeholder="0"
+                            className="w-36 text-lg font-semibold"
+                          />
+                        )}
                       </div>
                       <div className="text-right text-sm text-[var(--wq-text-muted)]">
                         <p>Soma dos serviços: R$ {itemsServicesTotal.toFixed(2)}</p>
                         {hasWarranty && <p>Garantia (3 meses): R$ {warrantyPrice.toFixed(2)}</p>}
                         <p>Subtotal: R$ {suggestedTotal(items, hasWarranty, warrantyPrice).toFixed(2)}</p>
-                        {discount > 0 ? <p>Desconto: − R$ {clampDiscount(suggestedTotal(items, hasWarranty, warrantyPrice), discount).toFixed(2)}</p> : null}
+                        {discount > 0 ? (
+                          <p>
+                            Desconto{shownPct > 0 ? ` ${String(shownPct).replace(".", ",")}%` : ""}: − R${" "}
+                            {clampDiscount(discountSubtotal, discount).toFixed(2)}
+                          </p>
+                        ) : null}
                         <p className="font-semibold text-[var(--wq-text)]">
                           Total: {totalPrice > 0 ? `R$ ${totalPrice.toFixed(2)}` : "A definir"}
                           {totalPrice <= 0 ? <span className="block font-normal">O laudo fica em espera até ter valor.</span> : null}

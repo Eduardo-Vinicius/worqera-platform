@@ -35,9 +35,15 @@ services:
   worqera-redis:
     image: redis:7-alpine
     container_name: worqera-redis
-    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    # Teto de memória: só chaves com TTL saem primeiro (sessões sem TTL ficam).
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
     volumes:
       - /volumes/worqera/redis:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - internal
     restart: unless-stopped

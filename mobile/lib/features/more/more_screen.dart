@@ -9,12 +9,11 @@ import '../../design/ui.dart';
 import '../admin/admin_screens.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
+import 'hub_screen.dart';
 import '../comms/comms_screen.dart';
-import '../ops/attendance_screen.dart';
 import '../ops/ops_screens.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
-import '../products/products_screen.dart';
 import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
@@ -87,27 +86,19 @@ class _MoreScreenState extends State<MoreScreen> {
             if (flags.on('reviews')) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),
             _row(context, 'WhatsApp e e-mail', Icons.forum_outlined, () => open(CommsScreen(api: api, session: session))),
           ],
-          if (inShop && session.seesShopSetup) ...[
-            const _Heading('Estoque e cadastros'),
-            if (session.isAdmin) _row(context, 'Produtos e estoque', Icons.shopping_bag_outlined, () => open(ProductsScreen(api: api), id: 'produtos')),
-            _row(context, 'Serviços', Icons.build_outlined, () => open(CatalogScreen(api: api, title: 'Serviços', subtitle: 'O que entra no pedido', path: '/services', price: true))),
-            _row(context, 'Setores do kanban', Icons.view_column_outlined, () => open(CatalogScreen(api: api, title: 'Setores', subtitle: 'Colunas do kanban', path: '/sectors', sector: true))),
-            _row(context, 'Marcas', Icons.sell_outlined, () => open(CatalogScreen(api: api, title: 'Marcas', subtitle: 'Catálogo usado no pedido', path: '/brands'))),
-            _row(context, 'Acessórios', Icons.inventory_2_outlined, () => open(CatalogScreen(api: api, title: 'Acessórios', subtitle: 'Itens que acompanham o pedido', path: '/accessories'))),
-          ],
           if (inShop && (session.isAdmin || (session.seesShopSetup && flags.on('tv')))) ...[
             const _Heading('Gestão'),
             if (session.isAdmin && flags.on('finance')) _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api, stock: true))),
-            if (session.isAdmin && flags.on('metrics')) _row(context, 'Métricas', Icons.bar_chart, () => open(MetricsScreen(api: api))),
-            if (session.isAdmin && flags.on('metrics')) _row(context, 'Atendimento', Icons.how_to_reg_outlined, () => open(AttendanceScreen(api: api))),
+            if (session.isAdmin && flags.on('metrics'))
+              _row(context, 'Relatórios', Icons.bar_chart, () => open(HubScreen(title: 'Relatórios', subtitle: 'Métricas e desempenho da equipe', entries: reportEntries(api)))),
             if (session.seesShopSetup && flags.on('tv')) _row(context, 'Telas da loja', Icons.tv_outlined, () => open(TvScreen(api: api))),
             if (session.isAdmin && flags.on('finance')) _row(context, 'TV Financeiro', Icons.monitor, () => open(TvFinanceBoard(api: api))),
           ],
           if (inShop && session.seesShopSetup) ...[
-            const _Heading('Administração'),
+            const _Heading('Configurações'),
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
-            if (session.isAdmin) _row(context, 'Equipe e acessos', Icons.group_outlined, () => open(TeamScreen(api: api))),
-            if (session.isAdmin) _row(context, 'Funcionários', Icons.badge_outlined, () => open(EmployeesScreen(api: api))),
+            _row(context, 'Catálogo', Icons.inventory_2_outlined, () => open(HubScreen(title: 'Catálogo', subtitle: 'Serviços, produtos, setores, marcas e acessórios', entries: catalogEntries(api, session)))),
+            if (session.isAdmin) _row(context, 'Equipe', Icons.group_outlined, () => open(HubScreen(title: 'Equipe', subtitle: 'Acessos e funcionários', entries: teamEntries(api)))),
             if (session.isAdmin) _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
           ],
           if (session.visiting)

@@ -1,6 +1,7 @@
 const authService = require('../services/authService');
 const { wrap } = require('./helpers');
 const { sendError } = require('../middleware/errors');
+const security = require('../lib/securityLog');
 
 const REFRESH_COOKIE = 'wq_refresh';
 const REFRESH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -65,7 +66,21 @@ exports.login = wrap(async (req, res) => {
       code: 'VALIDATION_ERROR',
     });
   }
-  const result = await authService.login({ email, password });
+  let result;
+  try {
+    result = await authService.login({ email, password });
+  } catch (err) {
+    if (err.status === 401) {
+      const User = require('../models/User');
+      User.findOne({ email: String(email).toLowerCase().trim() })
+        .select('_id')
+        .lean()
+        .then((u) => u && security.record(u._id, 'login_failed', req))
+        .catch(() => {});
+    }
+    throw err;
+  }
+  security.record(result.user?.id, 'login', req);
   setRefreshCookie(res, result.refreshToken);
   res.status(200).json(result);
 });
@@ -86,6 +101,7 @@ exports.refresh = wrap(async (req, res) => {
 });
 
 exports.logout = wrap(async (req, res) => {
+  if (req.auth?.userId) security.record(req.auth.userId, 'logout', req);
   clearRefreshCookie(res);
   res.status(200).json({ ok: true });
 });
@@ -99,7 +115,11 @@ exports.forgotPassword = wrap(async (req, res) => {
 exports.resetPassword = wrap(async (req, res) => {
   const { token, password } = req.body || {};
   const result = await authService.resetPassword({ token, password });
-  res.status(200).json(result);
+  if (result.userId) {
+    security.record(result.userId, 'password_reset', req);
+    security.record(result.userId, 'sessions_revoked', req);
+  }
+  res.status(200).json({ ok: result.ok });
 });
 
 exports.verifyEmail = wrap(async (req, res) => {

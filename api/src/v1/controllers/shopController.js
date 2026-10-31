@@ -69,6 +69,7 @@ exports.resetMemberPassword = wrap(async (req, res) => {
     req.params.id,
     req.body?.password
   );
+  require('../lib/securityLog').record(result.userId, 'password_set_by_admin', req, { byUserId: req.auth?.userId ? String(req.auth.userId) : null });
   res.status(200).json(result);
 });
 

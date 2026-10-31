@@ -79,7 +79,11 @@ function wrapCompanyHtml(shop, bodyHtml) {
 </div>`;
 }
 
-async function sendMail({ to, subject, html, text, shop, attachments }) {
+/**
+ * `platform: true` = Worqera writing to the shop owner (billing): Worqera as sender,
+ * plain subject and the html sent as is (already a full Worqera layout).
+ */
+async function sendMail({ to, subject, html, text, shop, attachments, platform = false }) {
   if (!to) {
     return { ok: false, skipped: true, reason: 'no-recipient' };
   }
@@ -97,10 +101,12 @@ async function sendMail({ to, subject, html, text, shop, attachments }) {
     : [];
 
   const payload = {
-    from: brandedFrom(shop),
+    from: platform
+      ? `"${String(process.env.WORQERA_Email__FromName || 'Worqera').replace(/"/g, '')}" <${platformFromAddress()}>`
+      : brandedFrom(shop),
     to: String(to),
-    subject: brandedSubject(shop, subject),
-    html: html ? wrapCompanyHtml(shop, html) : undefined,
+    subject: platform ? String(subject || 'Worqera') : brandedSubject(shop, subject),
+    html: html ? (platform ? html : wrapCompanyHtml(shop, html)) : undefined,
     text: text || undefined,
     attachments: files.length ? files : undefined,
   };

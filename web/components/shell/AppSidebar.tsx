@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LogOut } from "lucide-react"
-import { NAV_SECTIONS, isNavActive } from "./nav"
+import { NAV_SECTIONS, isItemActive } from "./nav"
 import { cn } from "@/lib/utils"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { logoutV1 } from "@/lib/apiV1"
@@ -143,7 +143,7 @@ export function AppSidebar({
               </div>
               <ul className="space-y-0.5">
                 {items.map((item) => {
-                  const active = !item.external && isNavActive(pathname, item.href)
+                  const active = !item.external && isItemActive(pathname, item)
                   const Icon = item.icon
                   const emphasize = Boolean(item.emphasize)
                   return (

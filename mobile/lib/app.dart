@@ -11,6 +11,7 @@ import 'features/home/home_screen.dart';
 import 'features/kanban/kanban_screen.dart';
 import 'features/lookup/qr_screen.dart';
 import 'features/more/more_screen.dart';
+import 'features/ops/ops_screens.dart' show BillingScreen;
 import 'features/orders/order_detail_screen.dart';
 import 'features/orders/order_form_screen.dart';
 import 'features/orders/orders_screen.dart';
@@ -56,6 +57,10 @@ class _WorqeraAppState extends State<WorqeraApp> {
         builder: (_, state) => VerifyEmailScreen(api: api, session: session, email: state.uri.queryParameters['email'] ?? ''),
       ),
       GoRoute(path: '/onboarding', builder: (_, _) => OnboardingScreen(api: api)),
+      GoRoute(
+        path: '/plano',
+        builder: (_, state) => BillingScreen(api: api, initialPlan: state.uri.queryParameters['plan'], fromSignup: true),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(session: session, api: api, theme: theme, navigationShell: shell),
         branches: [

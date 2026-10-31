@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../auth/session.dart';
 import '../config/app_config.dart';
@@ -6,10 +8,15 @@ import '../config/app_config.dart';
 class WorqeraApi {
   WorqeraApi(this.session) {
     dio = Dio(BaseOptions(baseUrl: AppConfig.apiBase, connectTimeout: const Duration(seconds: 20)));
+    _loadAppVersion();
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         if (session.token != null) options.headers['Authorization'] = 'Bearer ${session.token}';
         if (session.shopId.isNotEmpty) options.headers['X-Worqera-Shop'] = session.shopId;
+        // Lets the Worqera admin count users per platform and app version (rollout).
+        options.headers['X-Worqera-Client'] = 'mobile';
+        options.headers['X-Worqera-Platform'] = defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+        if (_appVersion != null) options.headers['X-Worqera-App-Version'] = _appVersion;
         handler.next(options);
       },
       onError: (error, handler) async {
@@ -73,6 +80,16 @@ class WorqeraApi {
 
   final SessionStore session;
   late final Dio dio;
+  String? _appVersion;
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      _appVersion = info.buildNumber.isEmpty ? info.version : '${info.version}+${info.buildNumber}';
+    } catch (_) {
+      _appVersion = null;
+    }
+  }
 
   String message(Object error) {
     if (error is DioException) {

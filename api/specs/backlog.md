@@ -43,3 +43,4 @@
 | TOP-09 | Atalhos teclado kanban | done |
 | TOP-10 | TV configurável | done |
 | TOP-11 | Produtos e estoque (admin Worqera) | done (API+web+app; loja não vê) |
+| TOP-12 | Painel da plataforma: métricas, insights, filas, análises, contas 360° | done (API+web; 2026-10-31) |

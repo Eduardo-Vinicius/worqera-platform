@@ -12,6 +12,7 @@ const shopGuard = [auth, shopContext];
 router.get('/products', ...shopGuard, billingController.listProducts);
 router.get('/subscription', ...shopGuard, billingController.getSubscription);
 router.post('/checkout-sessions', ...shopGuard, requireRole('owner', 'admin'), billingController.createCheckoutSession);
+router.get('/payments', ...shopGuard, requireRole('owner', 'admin'), billingController.listPayments);
 router.post('/cancel', ...shopGuard, requireRole('owner'), billingController.cancelSubscription);
 router.post('/dev/complete-checkout', ...shopGuard, billingController.completeCheckoutDev);
 

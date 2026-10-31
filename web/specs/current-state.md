@@ -21,7 +21,12 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |
 | Oficinas `/admin/shops` | LIVE (KPIs + tabela; ajuste ao clicar) |
-| Portal `/admin/plataforma` | LIVE (visão geral Worqera: rede, atenção, API) |
+| Visão geral `/admin/plataforma` | LIVE (admin Worqera: KPIs da semana, saúde 0–100, insights, pendências) |
+| Métricas `/admin/metricas` | LIVE (Tecnologia · Negócio · Produto, períodos com comparação) |
+| Análises `/admin/analises` | LIVE (Produto: ativação, coortes, uso · Transações · Lojas: estágio e risco; `?tab=`) |
+| Operação `/admin/operacao` | LIVE (filas com prazo; +7 dias de teste e Entrar na loja) |
+| Contas `/admin/contas` | LIVE (segmentos, busca, conta 360° em `/admin/contas/[id]`) |
+| Portal técnico `/admin/plataforma/portal` | LIVE (tela anterior: IA, WhatsApp, e-mails, endpoints) |
 | Dashboard / Tour Loop | LIVE (compacto mobile + atalho Finanças) |
 | Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item** |
 | Financeiro `/admin/financeiro` | LIVE (owner/admin; líquido em destaque; produtos só no admin Worqera) |
@@ -39,7 +44,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |
 | Avaliações `/avaliacoes` | LIVE |
 | Consulta `/p/o/{token}` (antigo `/p/{slug}/{code}?t=` segue válido) + `#avaliar` | LIVE |
-| Billing lock UX | LIVE (aba Plano do dono e do admin: Basic 97 até 100 pedidos, Pro 197, Business 499) |
+| Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos) |
 | TV Cliente / TV Oficina | LIVE |
 
 ## Próximo

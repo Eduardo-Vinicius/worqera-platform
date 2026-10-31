@@ -1,575 +1,141 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
+import { AlertTriangle, ArrowRight, CheckCircle2, Info, TrendingUp } from "lucide-react"
 import { AppHeader } from "@/components/shell/AppHeader"
-import { Button } from "@/components/ui/button"
-import {
-  enterPlatformShop,
-  getPlatformOpsV1,
-  listPlatformShopsV1,
-  meV1,
-  type OpsEndpoint,
-} from "@/lib/apiV1"
-import { toast } from "sonner"
+import { getPlatformOverviewV1, type PlatformInsight, type PlatformOverview } from "@/lib/apiV1"
+import { Chips, HealthDot, KpiCard, LONG_PERIODS, Skeleton, brl0, nf, useAutoRefresh } from "@/components/admin/charts"
+import { cn } from "@/lib/utils"
 
-type Ops = Awaited<ReturnType<typeof getPlatformOpsV1>>
-type WindowId = "1h" | "24h" | "30d"
-type SortId = "calls" | "slow" | "errors"
-type ShopRow = {
-  id: string
-  name: string
-  slug: string
-  status: string
-  trialDaysLeft?: number | null
-  openCount?: number
-  orderCount?: number
-  lastOrderAt?: string | null
-  subscription?: { status?: string; planCode?: string } | null
+const SEVERITY: Record<PlatformInsight["severity"], { icon: typeof Info; tone: string; label: string }> = {
+  critical: { icon: AlertTriangle, tone: "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100", label: "Crítico" },
+  warn: { icon: AlertTriangle, tone: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100", label: "Atenção" },
+  info: { icon: Info, tone: "border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100", label: "Info" },
+  positive: { icon: TrendingUp, tone: "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100", label: "Bom sinal" },
 }
 
-function planLabel(code?: string | null) {
-  const c = String(code || "").toUpperCase()
-  if (c === "WORQERA_BASIC" || c === "WORQERA_EARLY") return "Basic"
-  if (c === "WORQERA_PRO") return "Pro"
-  if (c === "WORQERA_BUSINESS" || c === "WORQERA_PREMIUM") return "Business"
-  return "Sem plano"
-}
+const SLA_TONE = { ok: "bg-emerald-500", warn: "bg-amber-500", late: "bg-rose-500" }
 
-const WINDOWS: Array<{ id: WindowId; label: string }> = [
-  { id: "1h", label: "1 hora" },
-  { id: "24h", label: "24 horas" },
-  { id: "30d", label: "30 dias" },
-]
-
-function formatWhen(value?: string | null) {
-  if (!value) return "—"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return "—"
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-}
-
-function mailKind(kind?: string) {
-  if (kind === "created") return "Laudo"
-  if (kind === "ready") return "Pronto"
-  if (kind === "moved") return "Andamento"
-  return kind || "E-mail"
-}
-
-function mailStatus(row: NonNullable<Ops["mail"]>[number]) {
-  if (row.ok && row.provider && row.provider !== "console") return "Enviado"
-  if (row.reason === "awaiting-photos") return "Esperando fotos"
-  if (row.reason === "awaiting-price") return "Sem valor"
-  if (row.reason === "no-email") return "Cliente sem e-mail"
-  if (row.reason === "email-disabled") return "E-mail desligado"
-  if (row.reason === "smtp-off" || row.provider === "console") return "SMTP desligado"
-  if (row.error) return `Falhou: ${row.error}`
-  return "Não enviado"
-}
-
-function sortEndpoints(rows: OpsEndpoint[], sort: SortId) {
-  const list = [...rows]
-  if (sort === "slow") list.sort((a, b) => b.avgMs - a.avgMs || b.count - a.count)
-  else if (sort === "errors") {
-    list.sort(
-      (a, b) =>
-        b.clientErrors + b.errors - (a.clientErrors + a.errors) ||
-        (b.clientErrorRate || 0) - (a.clientErrorRate || 0)
-    )
-  } else list.sort((a, b) => b.count - a.count)
-  return list
-}
-
-export default function PlatformPortalPage() {
-  const [allowed, setAllowed] = useState(false)
-  const [ops, setOps] = useState<Ops | null>(null)
-  const [shopList, setShopList] = useState<ShopRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [windowId, setWindowId] = useState<WindowId>("24h")
-  const [sort, setSort] = useState<SortId>("calls")
-
-  const load = useCallback(async () => {
-    try {
-      const [nextOps, shopRes] = await Promise.all([
-        getPlatformOpsV1(),
-        listPlatformShopsV1().catch(() => ({ shops: [] as ShopRow[] })),
-      ])
-      setOps(nextOps)
-      setShopList(shopRes.shops || [])
-    } catch (err: any) {
-      toast.error(err?.message || "Falha ao carregar a visão geral")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
+/** Worqera admin home: what matters this week, in one glance. */
+export default function PlataformaOverviewPage() {
+  const [days, setDays] = useState(7)
+  const [data, setData] = useState<PlatformOverview | null>(null)
+  const [error, setError] = useState("")
+  const updated = useAutoRefresh(
+    async () => {
       try {
-        const me = await meV1()
-        if (cancelled) return
-        if (!me?.platformAdmin) {
-          setAllowed(false)
-          setLoading(false)
-          toast.error("Acesso restrito ao time Worqera")
-          return
-        }
-        setAllowed(true)
-        await load()
+        setData(await getPlatformOverviewV1(days))
+        setError("")
       } catch (err: any) {
-        if (!cancelled) {
-          setLoading(false)
-          toast.error(err?.message || "Falha ao carregar a visão geral")
-        }
+        setError(err?.message || "Não carregou a visão geral")
       }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [load])
-
-  useEffect(() => {
-    if (!allowed) return
-    const tick = () => {
-      if (document.hidden) return
-      void load()
-    }
-    const timer = window.setInterval(tick, 60_000)
-    document.addEventListener("visibilitychange", tick)
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener("visibilitychange", tick)
-    }
-  }, [allowed, load])
-
-  const view = ops?.windows?.[windowId]
-  const rows = useMemo(() => sortEndpoints(view?.endpoints || [], sort), [view, sort])
-  const shops = ops?.shops
-  const view24h = ops?.windows?.["24h"]
-  const attention = useMemo(() => {
-    return shopList
-      .map((shop) => {
-        const suspended = shop.status === "suspended"
-        const trialDays = shop.trialDaysLeft
-        const trialSoon =
-          shop.subscription?.status === "trialing" && trialDays != null && trialDays <= 7
-        if (!suspended && !trialSoon) return null
-        return {
-          shop,
-          reason: suspended
-            ? "Suspensa"
-            : trialDays != null && trialDays <= 0
-              ? "Trial acaba hoje"
-              : `Trial ${trialDays}d`,
-          urgent: suspended || (trialDays != null && trialDays <= 3),
-        }
-      })
-      .filter((row): row is NonNullable<typeof row> => Boolean(row))
-      .sort((a, b) => Number(b.urgent) - Number(a.urgent))
-      .slice(0, 8)
-  }, [shopList])
+    },
+    [days]
+  )
 
   return (
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
       <AppHeader
         title="Visão geral"
-        subtitle="Rede Worqera — oficinas, trial e saúde da API"
+        subtitle={`Rede Worqera · ${updated}`}
+        showInbox={false}
+        showOrderJump={false}
         actions={
-          <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={() => void load()}>
-            Atualizar
-          </Button>
+          <Link href="/admin/plataforma/portal" className="text-sm font-semibold text-[var(--wq-brand-text)] hover:underline">
+            Portal técnico →
+          </Link>
         }
       />
       <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2.5 py-4 sm:px-5 md:px-6 lg:px-8">
-        {ops?.redis === "down" ? (
-          <p className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            Redis fora do ar. Oficinas, notícias e erros continuam visíveis. Chamadas e usuários ativos ficam zerados até ele voltar.
-          </p>
-        ) : null}
-
-        {!allowed && !loading ? (
-          <p className="text-sm text-[var(--wq-text-muted)]">Sem acesso.</p>
-        ) : null}
-
-        {allowed ? (
+        <div className="flex justify-end">
+          <Chips value={days} onChange={setDays} options={LONG_PERIODS} />
+        </div>
+        {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</p> : null}
+        {!data ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        ) : (
           <>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <Kpi label="Oficinas" value={shops?.total} hint="cadastradas" href="/admin/shops" />
-              <Kpi label="Em trial" value={shops?.trialing} hint="assinatura" href="/admin/shops" />
-              <Kpi label="Ativas" value={shops?.active} hint="plano pago" href="/admin/shops" />
-              <Kpi label="Suspensas" value={shops?.suspended} hint="acesso bloqueado" href="/admin/shops" />
-              <Kpi label="Pedidos abertos" value={shops?.openOrders} hint="soma das oficinas" />
+              <KpiCard label="Usuários ativos 30d" value={nf(data.kpis.activeUsers30.value)} delta={data.kpis.activeUsers30} />
+              <KpiCard label={`Pedidos criados · ${days}d`} value={nf(data.kpis.ordersCreated.value)} delta={data.kpis.ordersCreated} />
+              <KpiCard label={`Pedidos entregues · ${days}d`} value={nf(data.kpis.ordersDelivered.value)} delta={data.kpis.ordersDelivered} hint="ação de valor" />
+              <KpiCard label="Lojas ativas 30d" value={nf(data.kpis.activeShops30.value)} hint="com alguém usando" />
+              <KpiCard label="MRR" value={brl0(data.kpis.mrr.value)} hint={`${nf(data.kpis.mrr.paying)} pagantes`} />
             </section>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
-              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                  <h2 className="text-sm font-semibold">Precisa de atenção</h2>
-                  <Link href="/admin/shops" className="text-xs font-medium text-[var(--wq-brand-text)]">
-                    Todas as oficinas
-                  </Link>
-                </div>
-                {attention.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-[var(--wq-text-muted)]">
-                    Nenhuma oficina suspensa ou com trial nos próximos 7 dias.
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-[var(--wq-border)]">
-                    {attention.map(({ shop, reason, urgent }) => (
-                      <li key={shop.id} className="flex items-center gap-3 px-4 py-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{shop.name}</p>
-                          <p className="text-xs text-[var(--wq-text-muted)]">
-                            {planLabel(shop.subscription?.planCode)}
-                            {" · "}
-                            <span className={urgent ? "font-medium text-amber-800" : ""}>{reason}</span>
-                            {" · "}
-                            {shop.openCount ?? 0} abertos
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="shrink-0 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-                          onClick={() => {
-                            enterPlatformShop({ id: shop.id, name: shop.name, slug: shop.slug })
-                            window.location.href = "/dashboard"
-                          }}
-                        >
-                          Entrar
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-
-              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">Saúde agora</h2>
-                <dl className="divide-y divide-[var(--wq-border)] text-sm">
-                  <div className="flex items-center justify-between px-4 py-2.5">
-                    <dt className="text-[var(--wq-text-muted)]">Redis</dt>
-                    <dd className="font-medium">{ops?.redis === "down" ? "Fora do ar" : "Ok"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-2.5">
-                    <dt className="text-[var(--wq-text-muted)]">Usuários ativos</dt>
-                    <dd className="font-medium tabular-nums">{ops?.activeUsers ?? "—"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-2.5">
-                    <dt className="text-[var(--wq-text-muted)]">Chamadas 24h</dt>
-                    <dd className="font-medium tabular-nums">{view24h?.calls ?? "—"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-2.5">
-                    <dt className="text-[var(--wq-text-muted)]">Erros 5xx 24h</dt>
-                    <dd className="font-medium tabular-nums">{view24h?.errors ?? "—"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-2.5">
-                    <dt className="text-[var(--wq-text-muted)]">Tempo médio 24h</dt>
-                    <dd className="font-medium tabular-nums">{view24h ? `${view24h.avgMs} ms` : "—"}</dd>
-                  </div>
-                </dl>
-                <div className="flex flex-wrap gap-2 border-t border-[var(--wq-border)] px-4 py-3">
-                  <Button asChild size="sm" variant="outline" className="rounded-[10px]">
-                    <Link href="/admin/plataforma/parametros">Parâmetros</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-[10px]">
-                    <Link href="/admin/plataforma/noticias">Notícias</Link>
-                  </Button>
-                </div>
-              </section>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                  <h2 className="text-sm font-semibold">IA no mês</h2>
-                  <span className="text-xs text-[var(--wq-text-muted)]">
-                    {ops?.ai?.configured ? `${ops.ai.model} · ${ops.ai.deepModel}` : "Sem OPENAI_API_KEY"}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-4 px-4 py-3">
-                  <p className="text-2xl font-semibold tabular-nums">US$ {(ops?.ai?.totalUsd ?? 0).toFixed(2)}</p>
-                  <p className="text-sm text-[var(--wq-text-muted)]">
-                    ≈ R$ {((ops?.ai?.totalUsd ?? 0) * 5.7).toFixed(2)} · {ops?.ai?.calls ?? 0} chamadas
-                  </p>
-                </div>
-                <ul className="max-h-56 divide-y divide-[var(--wq-border)] overflow-y-auto border-t border-[var(--wq-border)]">
-                  {(ops?.ai?.shops || []).length === 0 ? (
-                    <li className="px-4 py-3 text-sm text-[var(--wq-text-muted)]">Nenhuma chamada de IA este mês.</li>
-                  ) : (
-                    ops?.ai?.shops.map((row) => (
-                      <li key={row.shopId} className="flex items-center justify-between px-4 py-2 text-sm">
-                        <span className="truncate">{row.shopName || row.shopId}</span>
-                        <span className={`tabular-nums ${row.blocked ? "font-semibold text-rose-600" : "text-[var(--wq-text-muted)]"}`}>
-                          {row.used}/{row.limit} usos · US$ {row.costUsd.toFixed(3)}
-                          {row.failed ? ` · ${row.failed} falhas` : ""}
-                          {row.blocked ? " · limite" : ""}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <section className="space-y-2">
+                <h2 className="text-sm font-semibold">O que está acontecendo</h2>
+                {data.insights.length ? (
+                  data.insights.map((ins) => {
+                    const s = SEVERITY[ins.severity]
+                    const Icon = s.icon
+                    return (
+                      <Link key={ins.id} href={ins.href} className={cn("flex items-start gap-3 rounded-2xl border px-4 py-3 transition hover:opacity-90", s.tone)}>
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">{ins.title}</span>
+                          <span className="block text-sm opacity-90">{ins.detail}</span>
                         </span>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </section>
-
-              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                  <h2 className="text-sm font-semibold">WhatsApp oficial no mês</h2>
-                  <span className="text-xs text-[var(--wq-text-muted)]">
-                    {ops?.whatsapp?.configured ? "Meta configurada" : "Meta não configurada"}
-                  </span>
-                </div>
-                <ul className="max-h-72 divide-y divide-[var(--wq-border)] overflow-y-auto">
-                  {(ops?.whatsapp?.shops || []).length === 0 ? (
-                    <li className="px-4 py-3 text-sm text-[var(--wq-text-muted)]">Nenhuma loja com número conectado.</li>
-                  ) : (
-                    ops?.whatsapp?.shops.map((row) => (
-                      <li key={row.shopId} className="px-4 py-2.5 text-sm">
-                        <p className="flex items-center justify-between gap-2">
-                          <span className="truncate font-medium">{row.name}</span>
-                          <span className="tabular-nums">Meta R$ {row.metaCostBrl.toFixed(2)}</span>
-                        </p>
-                        <p className="text-xs text-[var(--wq-text-muted)]">
-                          {row.status}
-                          {row.paymentOk ? " · cartão ok" : " · sem cartão"} · {row.counts.utility} avisos ·{" "}
-                          {row.counts.marketing} retomadas
-                          {row.overageBrl > 0 ? ` · excedente R$ ${row.overageBrl.toFixed(2)}` : ""}
-                          {row.overageDue ? ` · em aberto ${row.overageDue.month}: R$ ${row.overageDue.amountBrl.toFixed(2)}` : ""}
-                        </p>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </section>
-            </div>
-
-            <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">Operação da API</p>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {WINDOWS.map((item) => (
-                <Button
-                  key={item.id}
-                  type="button"
-                  size="sm"
-                  variant={windowId === item.id ? "default" : "outline"}
-                  className={`rounded-[10px] ${windowId === item.id ? "bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90" : ""}`}
-                  onClick={() => setWindowId(item.id)}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi label="Usuários ativos" value={ops?.activeUsers} hint="request nos últimos 30 min" />
-              <Kpi label="Chamadas" value={view?.calls} hint={WINDOWS.find((w) => w.id === windowId)?.label} />
-              <Kpi label="Erros 5xx" value={view?.errors} hint="nessa janela" />
-              <Kpi label="Tempo médio" value={view ? `${view.avgMs} ms` : "—"} hint="dentro da API" />
-            </section>
-
-            <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                <h2 className="text-sm font-semibold">Endpoints</h2>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["calls", "Chamadas"],
-                      ["slow", "Mais lentos"],
-                      ["errors", "Mais erros"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <Button
-                      key={id}
-                      type="button"
-                      size="sm"
-                      variant={sort === id ? "default" : "outline"}
-                      className={`h-8 rounded-[10px] ${sort === id ? "bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90" : ""}`}
-                      onClick={() => setSort(id)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wide text-[var(--wq-text-muted)]">
-                    <tr>
-                      <th className="px-4 py-2 font-medium">Rota</th>
-                      <th className="px-4 py-2 font-medium">Chamadas</th>
-                      <th className="px-4 py-2 font-medium">Média</th>
-                      <th className="px-4 py-2 font-medium">Máximo</th>
-                      <th className="px-4 py-2 font-medium">2xx</th>
-                      <th className="px-4 py-2 font-medium">4xx</th>
-                      <th className="px-4 py-2 font-medium">5xx</th>
-                      <th className="px-4 py-2 font-medium">4xx %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.length === 0 ? (
-                      <tr>
-                        <td className="px-4 py-6 text-[var(--wq-text-muted)]" colSpan={8}>
-                          Nenhuma chamada nessa janela.
-                        </td>
-                      </tr>
-                    ) : (
-                      rows.map((row) => (
-                        <tr key={`${row.method} ${row.route}`} className="border-t border-[var(--wq-border)]">
-                          <td className="px-4 py-2 font-mono text-xs">
-                            {row.method} {row.route}
-                          </td>
-                          <td className="px-4 py-2 tabular-nums">{row.count}</td>
-                          <td className="px-4 py-2 tabular-nums">{row.avgMs} ms</td>
-                          <td className="px-4 py-2 tabular-nums">{row.maxMs} ms</td>
-                          <td className="px-4 py-2 tabular-nums">{row.ok}</td>
-                          <td className="px-4 py-2 tabular-nums">{row.clientErrors}</td>
-                          <td className="px-4 py-2 tabular-nums">{row.errors}</td>
-                          <td className="px-4 py-2 tabular-nums">{row.clientErrorRate ?? 0}%</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-              <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">E-mails</h2>
-              <ul className="max-h-[420px] divide-y divide-[var(--wq-border)] overflow-y-auto">
-                {(ops?.mail || []).length === 0 ? (
-                  <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">
-                    Nenhum envio registrado ainda. Laudo, pronto e andamento passam a aparecer aqui, inclusive quando não saem.
-                  </li>
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide opacity-70">{s.label}</span>
+                      </Link>
+                    )
+                  })
                 ) : (
-                  ops?.mail?.map((row) => (
-                    <li key={row.id} className="px-4 py-2.5 text-sm">
-                      <p className="font-medium">
-                        {mailKind(row.kind)}
-                        {row.code ? ` · #${row.code}` : ""}
-                        {" · "}
-                        {mailStatus(row)}
-                      </p>
-                      <p className="text-xs text-[var(--wq-text-muted)]">
-                        {row.to || "sem destinatário"}
-                        {row.shopName ? ` · ${row.shopName}` : ""}
-                        {row.provider && row.provider !== "console" ? ` · ${row.provider}` : ""}
-                        {" · "}
-                        {formatWhen(row.at)}
-                      </p>
-                    </li>
-                  ))
+                  <p className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+                    <CheckCircle2 className="h-4 w-4" /> Nada fora do normal no período.
+                  </p>
                 )}
-              </ul>
-            </section>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
-              <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">
-                  Últimos erros (4xx e 5xx)
-                </h2>
-                <ul className="max-h-[520px] divide-y divide-[var(--wq-border)] overflow-y-auto">
-                  {(ops?.errors || []).length === 0 ? (
-                    <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">
-                      Nenhum 4xx ou 5xx guardado ainda. A coluna 4xx conta o volume; o texto do erro entra daqui pra frente.
-                    </li>
-                  ) : (
-                    ops?.errors.map((err) => (
-                      <li key={err.id} className="px-4 py-2.5 text-sm">
-                        <p className="font-medium">
-                          {err.status} · {err.message}
-                          {(err.count || 1) > 1 ? ` · ${err.count}×` : ""}
-                        </p>
-                        <p className="font-mono text-xs text-[var(--wq-text-muted)]">
-                          {err.method} {err.route}
-                          {err.shopName ? ` · ${err.shopName}` : ""}
-                          {" · "}
-                          {formatWhen(err.at)}
-                        </p>
-                      </li>
-                    ))
-                  )}
-                </ul>
               </section>
 
               <div className="space-y-4">
-                <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                  <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                    <h2 className="text-sm font-semibold">Notícias no ar</h2>
-                    <Link href="/admin/plataforma/noticias" className="text-xs font-medium text-[var(--wq-brand-text)] underline">
-                      Publicar
-                    </Link>
+                <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Saúde do sistema</h2>
+                    <HealthDot status={data.health.status} label={data.health.label} />
                   </div>
-                  <ul className="divide-y divide-[var(--wq-border)]">
-                    {(ops?.notices || []).length === 0 ? (
-                      <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">Nenhuma notícia vigente.</li>
-                    ) : (
-                      ops?.notices.map((notice) => (
-                        <li key={notice.id} className="px-4 py-3">
-                          <p className="text-sm font-medium">{notice.title}</p>
-                          <p className="text-xs text-[var(--wq-text-muted)]">
-                            {notice.platform === "all" ? "todas as plataformas" : notice.platform}
-                            {notice.endsAt ? ` · até ${formatWhen(notice.endsAt)}` : " · sem expiração"}
-                          </p>
-                        </li>
-                      ))
-                    )}
-                  </ul>
+                  <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums">
+                    {data.health.score}
+                    <span className="text-base font-normal text-[var(--wq-text-muted)]">/100</span>
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--wq-text-muted)]">
+                    Erro {data.health.errorRate.toLocaleString("pt-BR")}% · p95 {nf(data.health.p95Ms)} ms · fila de coleta {nf(data.health.queue)}
+                  </p>
+                  <Link href="/admin/metricas" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--wq-brand-text)] hover:underline">
+                    Ver métricas <ArrowRight className="h-3 w-3" />
+                  </Link>
                 </section>
 
                 <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-                  <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
-                    <h2 className="text-sm font-semibold">Desligado no global</h2>
-                    <Link href="/admin/plataforma/parametros" className="text-xs font-medium text-[var(--wq-brand-text)] underline">
-                      Parâmetros
+                  <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-4 py-3">
+                    <h2 className="text-sm font-semibold">Pendências</h2>
+                    <Link href="/admin/operacao" className="text-xs font-semibold text-[var(--wq-brand-text)] hover:underline">
+                      Abrir filas →
                     </Link>
                   </div>
                   <ul className="divide-y divide-[var(--wq-border)]">
-                    {(ops?.disabled || []).length === 0 ? (
-                      <li className="px-4 py-4 text-sm text-[var(--wq-text-muted)]">
-                        Funções e serviços globais estão ligados.
+                    {data.queues.map((q) => (
+                      <li key={q.key}>
+                        <Link href={`/admin/operacao#${q.key}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--wq-paper)]">
+                          <span className={cn("h-2 w-2 rounded-full", q.count ? SLA_TONE[q.sla] : "bg-[var(--wq-border)]")} />
+                          <span className="min-w-0 flex-1 truncate">{q.label}</span>
+                          <span className="tabular-nums font-semibold">{nf(q.count)}</span>
+                          <span className="w-16 text-right text-xs tabular-nums text-[var(--wq-text-muted)]">{q.count ? `${nf(q.oldestHours)} h` : "—"}</span>
+                        </Link>
                       </li>
-                    ) : (
-                      ops?.disabled.map((item) => (
-                        <li key={`${item.kind}-${item.key}`} className="px-4 py-2.5 text-sm">
-                          <p className="font-medium">{item.label}</p>
-                          <p className="text-xs text-[var(--wq-text-muted)]">Fora do menu da oficina</p>
-                        </li>
-                      ))
-                    )}
+                    ))}
                   </ul>
                 </section>
               </div>
             </div>
           </>
-        ) : null}
+        )}
       </div>
     </div>
-  )
-}
-
-function Kpi({
-  label,
-  value,
-  hint,
-  href,
-}: {
-  label: string
-  value?: number | string | null
-  hint?: string
-  href?: string
-}) {
-  const body = (
-    <>
-      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">{label}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">{value ?? "—"}</p>
-      {hint ? <p className="mt-1 text-xs text-[var(--wq-text-muted)]">{hint}</p> : null}
-    </>
-  )
-  const className = "rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4 text-left"
-  if (!href) return <div className={className}>{body}</div>
-  return (
-    <Link href={href} className={`${className} transition hover:border-[var(--wq-brand)]/40`}>
-      {body}
-    </Link>
   )
 }

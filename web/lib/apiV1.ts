@@ -1161,6 +1161,22 @@ export async function createCheckoutSessionV1(body: {
   })
 }
 
+export type BillingPayment = {
+  id: string | null
+  dueDate: string | null
+  paidAt: string | null
+  value: number
+  status: "paid" | "open" | "overdue" | "refunded"
+  statusLabel: string
+  method: string
+  invoiceUrl: string | null
+  receiptUrl: string | null
+}
+
+export async function listBillingPaymentsV1() {
+  return v1Fetch<{ payments: BillingPayment[] }>("/billing/payments")
+}
+
 export async function cancelSubscriptionV1() {
   return v1Fetch<{ subscription: any }>("/billing/cancel", { method: "POST", body: "{}" })
 }
@@ -1842,4 +1858,172 @@ export async function logoutV1() {
     // still clear local
   }
   clearSession()
+}
+
+/** Worqera team admin reads (`/platform/*`, platform admins only). */
+export async function platformGetV1<T>(path: string) {
+  return v1Fetch<T>(`/platform${path}`)
+}
+
+export async function platformPostV1<T>(path: string, body: unknown = {}) {
+  return v1Fetch<T>(`/platform${path}`, { method: "POST", body: JSON.stringify(body) })
+}
+
+/* ---------- Worqera admin (platform) — métricas, análises e operação ---------- */
+
+export type MetricDelta = { value: number; prev: number; pct: number | null }
+export type DayPoint = { day: string; value: number }
+
+export type PlatformTech = {
+  days: number
+  client: string
+  kpis: Record<"requests" | "activeUsers" | "errors5xx" | "errorRate" | "avgMs" | "p95Ms" | "maxMs", MetricDelta>
+  series: { requests: DayPoint[]; errors: DayPoint[]; activeUsers: DayPoint[]; halfHours: Array<{ at: string; value: number }> }
+  topEndpoints: Array<{ method: string; route: string; count: number; avgMs: number; p95Ms: number; maxMs: number; errors4xx: number; errors5xx: number; errorRate: number }>
+  slowest: PlatformTech["topEndpoints"]
+  recentErrors: Array<{ at: string; method: string; route: string; status: number; code: string; message: string; correlationId: string; client: string }>
+  byRegion: Array<{ region: string; users: number; pct: number }>
+  byClient: Array<{ client: string; users: number }>
+  appVersions: { latest: string | null; mobileUsers: number; onLatestPct: number; rows: Array<{ platform: string; version: string; users: number; pct: number }> }
+  health: { status: "healthy" | "degraded" | "down"; label: string; db: string; queue: number; dropped: number; lastFlushAt: string | null; lastError: string | null; errorRateLastHour: number; requestsLastHour: number; collecting: boolean }
+}
+
+export type BusinessMetric = { key: string; label: string; total: number | null; money?: boolean; new: MetricDelta; series: DayPoint[] }
+export type PlatformBusiness = {
+  days: number
+  metrics: BusinessMetric[]
+  mrr: { mrr: number; paying: number; byPlan: Record<string, number> }
+  subscriptions: Record<string, number>
+}
+
+export type PlatformProduct = {
+  days: number
+  activeShops: number
+  verticals: Array<{ key: string; count: number }>
+  regions: Array<{ key: string; count: number }>
+  coverage: Array<{ key: string; label: string; shops: number; pct: number }>
+  topServices: Array<{ name: string; count: number }>
+}
+
+export async function getPlatformTechV1(days: number, client = "all") {
+  return v1Fetch<PlatformTech>(`/platform/metrics/tech?days=${days}&client=${encodeURIComponent(client)}`)
+}
+export async function getPlatformBusinessV1(days: number) {
+  return v1Fetch<PlatformBusiness>(`/platform/metrics/business?days=${days}`)
+}
+export async function getPlatformProductV1(days: number) {
+  return v1Fetch<PlatformProduct>(`/platform/metrics/product?days=${days}`)
+}
+
+export type PlatformInsight = { id: string; severity: "critical" | "warn" | "info" | "positive"; title: string; detail: string; href: string }
+export type QueueItem = { id: string; shopId: string | null; title: string; detail: string; since: string; hours: number; sla: "ok" | "warn" | "late"; action: "extendTrial" | "openShop" | "metrics" }
+export type PlatformQueue = { key: string; label: string; hint: string; count: number; oldestHours: number; sla: "ok" | "warn" | "late"; items: QueueItem[] }
+
+export type PlatformOverview = {
+  days: number
+  kpis: {
+    activeUsers30: MetricDelta
+    ordersCreated: MetricDelta
+    ordersDelivered: MetricDelta
+    activeShops30: MetricDelta
+    mrr: { value: number; paying: number }
+  }
+  health: { score: number; label: string; status: "healthy" | "degraded" | "down"; errorRate: number; p95Ms: number; queue: number }
+  insights: PlatformInsight[]
+  queues: Array<Omit<PlatformQueue, "items">>
+}
+
+export type FunnelStep = { key: string; label: string; count: number; pctOfPrev: number; pctOfTotal?: number; medianHours?: number | null }
+
+export type PlatformShopHealth = {
+  id: string
+  name: string
+  status: string
+  plan: string | null
+  subscription: string | null
+  mrr: number
+  members: number
+  lastActivity: string | null
+  idleDays: number | null
+  orders: number
+  ordersPrev: number
+  change: number | null
+  atRisk: boolean
+  riskReason: string | null
+  createdAt: string
+  stage: "created" | "configured" | "paid" | "using"
+}
+
+export type PlatformAccountRow = {
+  id: string
+  name: string
+  email: string
+  createdAt: string
+  verified: boolean
+  lastActivity: string | null
+  shops: Array<{ id: string; name: string; role: string }>
+}
+
+export type PlatformAccount360 = {
+  account: { id: string; name: string; email: string; createdAt: string; verified: boolean; sessionsRevoked: number }
+  shops: Array<{ id: string; name: string; role: string; active: boolean; status: string | null; plan: string | null; subscription: string | null; cycle: string | null; trialEndsAt: string | null; paidUntil: string | null }>
+  activity: Array<{ client: string; appVersion: string | null; lastSeen: string; days: number }>
+  lastActivity: string | null
+  counters: { ordersCreated30: number; logins30: number; activeDays30: number }
+  security: Array<{ at: string; kind: string; device: string; ip: string; client: string }>
+}
+
+export async function getPlatformOverviewV1(days: number) {
+  return v1Fetch<PlatformOverview>(`/platform/overview?days=${days}`)
+}
+export async function getPlatformQueuesV1() {
+  return v1Fetch<{ queues: PlatformQueue[] }>("/platform/queues")
+}
+export async function getPlatformFunnelV1(days: number) {
+  return v1Fetch<{ days: number; shops: number; steps: FunnelStep[] }>(`/platform/analytics/funnel?days=${days}`)
+}
+export async function getPlatformCohortsV1(weeks = 8) {
+  return v1Fetch<{ weeks: number; rows: Array<{ week: string; size: number; cells: number[] }>; historyDays: number; lowHistory: boolean }>(
+    `/platform/analytics/cohorts?weeks=${weeks}`
+  )
+}
+export async function getPlatformEngagementV1(days: number) {
+  return v1Fetch<{
+    days: number
+    dau: number
+    wau: number
+    mau: number
+    stickiness: number
+    newUsers: number
+    returningUsers: number
+    byClient: Array<{ client: string; users: number }>
+    series: DayPoint[]
+  }>(`/platform/analytics/engagement?days=${days}`)
+}
+export async function getPlatformAdoptionV1(days: number) {
+  return v1Fetch<{ days: number; activeShops: number; adoption: Array<{ key: string; label: string; shops: number; pct: number }> }>(
+    `/platform/analytics/adoption?days=${days}`
+  )
+}
+export async function getPlatformTransactionsV1(days: number) {
+  return v1Fetch<{
+    days: number
+    orders: { steps: FunnelStep[]; cancelled: number; medianHoursToDeliver: number | null; valueBands: Array<{ label: string; count: number }>; topServices: Array<{ name: string; count: number }> }
+    quotes: { steps: FunnelStep[]; lost: number; value: number; wonValue: number; medianHoursToFirstContact: number | null }
+  }>(`/platform/analytics/transactions?days=${days}`)
+}
+export async function getPlatformShopsHealthV1(days: number) {
+  return v1Fetch<{ days: number; pipeline: Array<{ stage: string; label: string; count: number }>; atRisk: number; shops: PlatformShopHealth[] }>(
+    `/platform/shops-health?days=${days}`
+  )
+}
+export async function listPlatformAccountsV1(params: { segment?: string; q?: string; page?: number }) {
+  const qs = new URLSearchParams()
+  if (params.segment) qs.set("segment", params.segment)
+  if (params.q) qs.set("q", params.q)
+  if (params.page) qs.set("page", String(params.page))
+  return v1Fetch<{ segment: string; counts: Record<string, number>; total: number; page: number; accounts: PlatformAccountRow[] }>(`/platform/accounts?${qs}`)
+}
+export async function getPlatformAccountV1(id: string) {
+  return v1Fetch<PlatformAccount360>(`/platform/accounts/${encodeURIComponent(id)}`)
 }

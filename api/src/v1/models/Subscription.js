@@ -28,5 +28,7 @@ const subscriptionSchema = new mongoose.Schema(
 
 subscriptionSchema.index({ shopId: 1 }, { unique: true });
 
+subscriptionSchema.index({ status: 1, planCode: 1 });
+
 module.exports =
   mongoose.models.Subscription || mongoose.model('Subscription', subscriptionSchema);

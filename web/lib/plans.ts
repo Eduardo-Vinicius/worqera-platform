@@ -49,8 +49,23 @@ export const PLANS: Plan[] = [
 /** One-time setup with the Worqera team: sectors, history import and training. */
 export const IMPLANTACAO = 497
 
+/** Yearly = 10 months: 2 free, shown as a percentage. */
+export const YEARLY_OFF = Math.round((1 - 10 / 12) * 100)
+
+/** What the yearly plan costs per month. */
+export const yearlyMonthly = (p: Plan) => p.yearly / 12
+
+/** Whole reais without cents; cents only when the value has them (R$ 247,50). */
 export const formatBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+  v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(v) ? 0 : 2,
+  })
+
+/** The plan the visitor chose on the signup page ("Assinar agora"), read once by /billing. */
+export const CHECKOUT_INTENT_KEY = "wq-checkout-intent"
 
 export function planOf(code?: string | null) {
   const raw = String(code || "").toUpperCase()

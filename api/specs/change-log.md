@@ -2,10 +2,23 @@
 
 ## 2026-10-31
 
+- **Painel da plataforma** (só admin Worqera; detalhes em [admin-metrics](admin-metrics.md)):
+  - **Coleta no Mongo** (`lib/metricsStore.js`): cada resposta entra numa fila em memória gravada a cada 5 s em `metricbuckets` (30 min × rota × método × status × cliente, faixas de latência), `errorsamples` (5xx) e `activeaccounts` (dia × usuário × cliente, versão do app, UF da loja). Expiram em 90, 30 e 120 dias. Grava o que falta no `SIGTERM`. Desliga com `WORQERA_Metrics__Enabled=false`. O `/platform/ops` antigo passou a ler daqui; o Redis não guarda mais métricas.
+  - Cliente pela requisição: app (`X-Worqera-Client/Platform/App-Version`), admin, site ou API.
+  - `GET /platform/metrics/tech|business|product`, `/insights`, `/queues`, `/overview` (saúde 0–100), `/analytics/funnel|cohorts|engagement|adoption|transactions`, `/shops-health`, `/accounts` e `/accounts/:id`. Comparação com o período anterior e cache de 60 s.
+  - **Eventos de conta** (`securityevents`, 180 dias): login, aparelho novo, senha errada, troca de senha, senha definida pelo admin, sessões encerradas.
+  - Índices de `createdAt` em pedidos, orçamentos, lojas e usuários, e de status em assinaturas, criados no boot.
+  - Redis de produção com `maxmemory 256mb` (`volatile-lru`) e rotação de log no `docker-compose.prod.yml`.
+  - Testes: `metricsStore`, `periods`, `insights`, `analytics` (49 no total) e smoke com banco descartável (HTTP real com 200/409/500, gravação, todas as rotas). O smoke achou e corrigiu a saúde das lojas lendo a assinatura pela chave errada (toda loja aparecia sem plano e com MRR zero).
+
+- **E-mail de assinatura com a marca da Worqera** (`services/platformEmails.js`, `mailer.sendMail({ platform: true })`): remetente "Worqera", assunto sem `[loja]`, recibo com plano, ciclo, valor, forma de pagamento, validade e botão "Ver meu plano". Antes saía com o nome e o layout da própria loja.
+- `GET /billing/payments` (dono/admin): últimas 12 cobranças da assinatura no Asaas (`paymentView`: status e forma em português, links de fatura e comprovante).
+
 - **Preços novos** (`billingService.PRODUCTS`): Basic R$ 147, Pro R$ 297, Business R$ 597; anual 10× (`yearlyPriceCents`). Fundador do Business segue R$ 499.
 - **IA em todos os planos** (`lib/planCap.planHas`, `aiService.monthlyCap(planCode, status)`): teste 30, Basic 50, Pro 300, Business 1.500 usos por mês (envs `WORQERA_AI_CAP_*`). Leitura semanal (`/metrics/insights`) e WhatsApp oficial seguem só no Business; WhatsApp oficial também fica fora do teste. Basic passa de 100 para **150 pedidos** por mês.
 - **Asaas no lugar do AbacatePay** (`services/asaas.js` só HTTP; regras em `billingService`):
   - Checkout: valida o CPF/CNPJ (`lib/cpfCnpj.js`, salvo em `Shop.billing.cpfCnpj`), cria ou reaproveita o cliente e a assinatura (`billingType UNDEFINED`, mensal ou anual, `externalReference = shopId`) e devolve o link da fatura. Em teste, o 1º vencimento é o último dia do teste. Troca de plano ou ciclo atualiza a assinatura existente; CPF/CNPJ novo apaga a antiga antes de criar outra (não cobra duas vezes).
+  - Se o Asaas recusar o link de volta ao site (domínio não cadastrado em Minha Conta → Informações), a assinatura é criada sem ele em vez de falhar o checkout.
   - `POST /billing/cancel` (dono). Só dono e admin abrem checkout.
   - Webhook `POST /webhooks/asaas`: token no header `asaas-access-token` comparado em tempo constante (sem token configurado, recusa tudo), idempotente pelo `id` do evento. Pago → ativa com +1 mês/ano; vencido → `past_due` com a fatura; estorno/chargeback → `past_due`; assinatura removida → `canceled`.
   - `Subscription` ganhou `cycle` e `lastInvoiceUrl`; `provider` aceita `Asaas`.

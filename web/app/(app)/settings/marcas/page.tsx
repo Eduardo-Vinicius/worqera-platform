@@ -113,7 +113,7 @@ export default function MarcasSettingsPage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="catalogo"
         title="Marcas"
         subtitle="Lista da loja. Corrigir o nome também corrige os pedidos que usam essa marca."
       />

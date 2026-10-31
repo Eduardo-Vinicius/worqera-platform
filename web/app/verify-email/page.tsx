@@ -15,7 +15,11 @@ function enterApp(platformAdmin?: boolean) {
   try {
     localStorage.setItem("wq-needs-onboarding", "1")
   } catch {}
-  window.location.href = platformAdmin ? "/admin/shops" : "/onboarding"
+  let wantsToPay = false
+  try {
+    wantsToPay = Boolean(localStorage.getItem("wq-checkout-intent"))
+  } catch {}
+  window.location.href = platformAdmin ? "/admin/shops" : wantsToPay ? "/billing" : "/onboarding"
 }
 
 function VerifyEmailInner() {

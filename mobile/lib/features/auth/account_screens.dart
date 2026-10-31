@@ -6,6 +6,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../ops/ops_screens.dart' show pendingCheckoutPlan;
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key, required this.api, required this.session});
@@ -22,6 +23,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final password = TextEditingController();
   bool loading = false;
   String plan = 'pro';
+  bool payNow = false;
   String? error;
 
   static const _plans = {
@@ -61,6 +63,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() { loading = true; error = null; });
     try {
       final chosen = _plans[plan]!;
+      pendingCheckoutPlan = payNow ? chosen.$3 : null;
       final res = await widget.api.dio.post('/auth/signup', data: {
         'name': name.text.trim(),
         'shopName': shop.text.trim(),
@@ -76,7 +79,7 @@ class _SignupScreenState extends State<SignupScreen> {
       await widget.session.apply(body);
       final me = await widget.api.dio.get('/auth/me');
       await widget.session.apply(Map<String, dynamic>.from(me.data as Map), keep: widget.session);
-      if (mounted) context.go('/onboarding');
+      if (mounted) context.go(payNow ? '/plano?plan=${chosen.$3}' : '/onboarding');
     } catch (e) {
       setState(() => error = widget.api.message(e));
     } finally {
@@ -125,6 +128,24 @@ class _SignupScreenState extends State<SignupScreen> {
             ]),
           ),
           const SizedBox(height: 12),
+          const Text('Como quer começar?', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: false, label: Text('Testar 7 dias grátis')),
+              ButtonSegment(value: true, label: Text('Assinar agora')),
+            ],
+            selected: {payNow},
+            onSelectionChanged: (v) => setState(() => payNow = v.first),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              payNow ? 'Pix, boleto ou cartão. Os 7 dias continuam valendo: a cobrança vence no fim deles.' : 'Sem cartão. Decide no fim do teste.',
+              style: const TextStyle(color: Wq.muted, fontSize: 12),
+            ),
+          ),
           TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Seu nome')),
           TextField(controller: shop, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nome da empresa')),
           TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
@@ -187,7 +208,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       await widget.session.apply(Map<String, dynamic>.from(res.data as Map));
       final me = await widget.api.dio.get('/auth/me');
       await widget.session.apply(Map<String, dynamic>.from(me.data as Map), keep: widget.session);
-      if (mounted) context.go('/onboarding');
+      if (mounted) context.go(pendingCheckoutPlan != null ? '/plano?plan=$pendingCheckoutPlan' : '/onboarding');
     } catch (e) {
       code.clear();
       setState(() => error = widget.api.message(e));

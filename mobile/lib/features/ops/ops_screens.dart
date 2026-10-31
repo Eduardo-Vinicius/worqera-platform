@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -437,9 +438,14 @@ class _MetricsScreenState extends State<MetricsScreen> {
   }
 }
 
+/// Plan chosen on signup with "Assinar agora"; the verify screen reads it to send the owner to /plano.
+String? pendingCheckoutPlan;
+
 class BillingScreen extends StatefulWidget {
-  const BillingScreen({super.key, required this.api});
+  const BillingScreen({super.key, required this.api, this.initialPlan, this.fromSignup = false});
   final WorqeraApi api;
+  final String? initialPlan;
+  final bool fromSignup;
   @override
   State<BillingScreen> createState() => _BillingScreenState();
 }
@@ -466,11 +472,15 @@ class _BillingScreenState extends State<BillingScreen> {
   String planCode = 'WORQERA_PRO';
   String cycle = 'monthly';
   String busy = '';
+  List<Map>? payments;
   final doc = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    final start = widget.initialPlan;
+    if (start != null && _billingPlans.any((p) => p.$1 == start)) planCode = start;
+    pendingCheckoutPlan = null;
     load();
   }
 
@@ -491,7 +501,7 @@ class _BillingScreenState extends State<BillingScreen> {
       setState(() {
         sub = next;
         final code = _code(next['planCode']);
-        if (_billingPlans.any((p) => p.$1 == code)) planCode = code;
+        if (widget.initialPlan == null && _billingPlans.any((p) => p.$1 == code)) planCode = code;
         if (next['cycle'] == 'yearly') cycle = 'yearly';
       });
     } catch (e) {
@@ -501,19 +511,54 @@ class _BillingScreenState extends State<BillingScreen> {
       final body = res.data;
       if (mounted && body is Map && body['quota'] is Map) setState(() => aiQuota = body['quota'] as Map);
     }).catchError((_) {});
+    widget.api.dio.get('/billing/payments').then((res) {
+      final body = res.data;
+      final list = body is Map && body['payments'] is List ? (body['payments'] as List).whereType<Map>().toList() : <Map>[];
+      if (mounted) setState(() => payments = list);
+    }).catchError((_) {
+      if (mounted) setState(() => payments = []);
+    });
   }
 
   bool get _founder => (sub?['price'] as Map?)?['founderUntil'] != null && cycle == 'monthly';
 
-  int _price((String, String, int, int, String) p) {
-    if (cycle == 'yearly') return p.$4;
+  static const _yearlyOff = 17;
+
+  /// What the shop pays per month in the chosen cycle (yearly = 10 months spread over 12).
+  num _perMonth((String, String, int, int, String) p) {
+    if (cycle == 'yearly') return p.$4 / 12;
     if (p.$1 == 'WORQERA_BUSINESS' && _founder) return 499;
     return p.$3;
   }
 
-  String _money(int v) => 'R\$ ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]}.')}';
+  String _money(num v) {
+    final whole = v == v.roundToDouble();
+    final fixed = whole ? v.round().toString() : v.toStringAsFixed(2).replaceAll('.', ',');
+    final parts = fixed.split(',');
+    final reais = parts[0].replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]}.');
+    return 'R\$ $reais${parts.length > 1 ? ',${parts[1]}' : ''}';
+  }
 
-  String _per() => cycle == 'yearly' ? '/ano' : '/mês';
+  String _buttonPrice((String, String, int, int, String) p) => cycle == 'yearly' ? '${_money(p.$4)}/ano' : '${_money(_perMonth(p))}/mês';
+
+  String _shortDay(dynamic iso) {
+    final d = DateTime.tryParse('$iso');
+    if (d == null) return '';
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  }
+
+  Color _paymentColor(String status) {
+    switch (status) {
+      case 'paid':
+        return Wq.success;
+      case 'overdue':
+        return Wq.danger;
+      case 'refunded':
+        return Wq.muted;
+      default:
+        return Wq.brand;
+    }
+  }
 
   Future<void> subscribe() async {
     setState(() => busy = 'checkout');
@@ -578,12 +623,25 @@ class _BillingScreenState extends State<BillingScreen> {
     return WqPage(
       title: 'Plano e assinatura',
       subtitle: 'Basic R\$ 147 · Pro R\$ 297 · Business R\$ 597',
+      actions: [
+        if (widget.fromSignup) TextButton(onPressed: () => context.go('/onboarding'), child: const Text('Entrar no app')),
+      ],
       child: RefreshIndicator(
         onRefresh: load,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
           children: [
             if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
+            if (widget.fromSignup)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: WqCard(
+                  child: const Text(
+                    'Conta criada. Falta só o pagamento: confira o plano, informe o CPF ou CNPJ e toque em Assinar. Os 7 dias grátis continuam valendo.',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             WqCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('SEU PLANO', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
@@ -615,7 +673,7 @@ class _BillingScreenState extends State<BillingScreen> {
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(value: 'monthly', label: Text('Mensal')),
-                ButtonSegment(value: 'yearly', label: Text('Anual · 2 meses grátis')),
+                ButtonSegment(value: 'yearly', label: Text('Anual · −$_yearlyOff%')),
               ],
               selected: {cycle},
               onSelectionChanged: (v) => setState(() => cycle = v.first),
@@ -636,10 +694,15 @@ class _BillingScreenState extends State<BillingScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(p.$5, style: const TextStyle(color: Wq.muted, fontSize: 13)),
+                        if (cycle == 'yearly') Text('${_money(p.$4)} por ano', style: const TextStyle(color: Wq.muted, fontSize: 12)),
                       ]),
                     ),
                     const SizedBox(width: 8),
-                    Text('${_money(_price(p))}${_per()}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text('${_money(_perMonth(p))}/mês', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      if (cycle == 'yearly')
+                        const Text('−$_yearlyOff%', style: TextStyle(color: Wq.success, fontWeight: FontWeight.w800, fontSize: 12)),
+                    ]),
                   ]),
                 ),
               ),
@@ -659,7 +722,9 @@ class _BillingScreenState extends State<BillingScreen> {
               onPressed: busy.isNotEmpty || sameAsCurrent ? null : subscribe,
               child: busy == 'checkout'
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text(sameAsCurrent ? 'Este já é o seu plano' : 'Assinar ${chosen.$2} · ${_money(_price(chosen))}${_per()}'),
+                  : Text(sameAsCurrent
+                      ? 'Este já é o seu plano'
+                      : 'Assinar ${chosen.$2}${cycle == 'yearly' ? ' anual' : ''} · ${_buttonPrice(chosen)}'),
             ),
             const SizedBox(height: 6),
             const Text(
@@ -673,6 +738,43 @@ class _BillingScreenState extends State<BillingScreen> {
                 'Implantação com a Worqera (setores, carga do histórico e treinamento): R\$ 497 uma vez. Toque para falar com a gente.',
                 style: TextStyle(fontSize: 13),
               ),
+            ),
+            const SizedBox(height: 12),
+            WqCard(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('ÚLTIMOS PAGAMENTOS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.brand, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                if (payments == null)
+                  const Padding(padding: EdgeInsets.all(8), child: Center(child: CircularProgressIndicator()))
+                else if (payments!.isEmpty)
+                  const Text('Os pagamentos aparecem aqui depois da primeira cobrança.', style: TextStyle(color: Wq.muted, fontSize: 13))
+                else
+                  for (final pay in payments!)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(_money(num.tryParse('${pay['value']}') ?? 0), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text(
+                              [
+                                pay['paidAt'] != null ? 'Pago em ${_shortDay(pay['paidAt'])}' : 'Vence em ${_shortDay(pay['dueDate'])}',
+                                if ('${pay['method'] ?? ''}'.isNotEmpty) '${pay['method']}',
+                              ].join(' · '),
+                              style: const TextStyle(color: Wq.muted, fontSize: 12),
+                            ),
+                          ]),
+                        ),
+                        Text('${pay['statusLabel'] ?? ''}', style: TextStyle(color: _paymentColor('${pay['status']}'), fontWeight: FontWeight.w700, fontSize: 12)),
+                        if ('${pay['receiptUrl'] ?? pay['invoiceUrl'] ?? ''}'.startsWith('http'))
+                          IconButton(
+                            tooltip: pay['receiptUrl'] != null ? 'Comprovante' : 'Fatura',
+                            onPressed: () => launchUrl(Uri.parse('${pay['receiptUrl'] ?? pay['invoiceUrl']}'), mode: LaunchMode.externalApplication),
+                            icon: const Icon(Icons.receipt_long_outlined, size: 20),
+                          ),
+                      ]),
+                    ),
+              ]),
             ),
             if (aiQuota != null) ...[
               const SizedBox(height: 12),

@@ -134,6 +134,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final newEmail = TextEditingController();
   final observations = TextEditingController();
   final discountField = TextEditingController(text: '0');
+  /// How the desk types the discount; the order always stores it in R$ (`pricing.discount`).
+  bool discountInPct = true;
   final valueField = TextEditingController();
   final warrantyField = TextEditingController(text: '0');
   final signalField = TextEditingController(text: '0');
@@ -401,6 +403,8 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     warranty = warrantyMap['active'] == true || warrantyMap['ativa'] == true;
     warrantyField.text = '${warrantyMap['preco'] ?? warrantyMap['price'] ?? 0}';
     discountField.text = '${pricing['discount'] ?? 0}';
+    // A saved discount is in R$; keep it exact instead of turning it into a rounded %.
+    discountInPct = (num.tryParse('${pricing['discount'] ?? 0}') ?? 0) <= 0;
     final deposit = double.tryParse('${pricing['deposit'] ?? 0}') ?? 0;
     final total = double.tryParse('${pricing['total'] ?? 0}') ?? 0;
     if (total > 0 && deposit >= total) {
@@ -485,7 +489,9 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   double get discount {
     final raw = _money(discountField.text);
     if (raw < 0) return 0;
-    return raw > subtotal ? subtotal : raw;
+    final value = discountInPct ? subtotal * (raw > 100 ? 100 : raw) / 100 : raw;
+    final rounded = (value * 100).round() / 100;
+    return rounded > subtotal ? subtotal : rounded;
   }
 
   double get total {
@@ -1494,13 +1500,36 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 ),
                 if (warranty) TextField(controller: warrantyField, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Preço da garantia (R\$)'), onChanged: (_) => setState(() {})),
                 const SizedBox(height: 8),
-                TextField(controller: discountField, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Desconto (R\$)'), onChanged: (_) => setState(() {})),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Expanded(
+                    child: TextField(
+                      controller: discountField,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(labelText: discountInPct ? 'Desconto (%)' : 'Desconto (R\$)'),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [ButtonSegment(value: true, label: Text('%')), ButtonSegment(value: false, label: Text('R\$'))],
+                    selected: {discountInPct},
+                    onSelectionChanged: (v) => setState(() {
+                      discountInPct = v.first;
+                      discountField.text = '0';
+                    }),
+                  ),
+                ]),
                 const SizedBox(height: 8),
                 _box(context, [
                   Text(stockIndexes.isEmpty ? 'Soma dos serviços: ${brl(servicesSum)}' : 'Serviços e produtos: ${brl(servicesSum)}', style: TextStyle(color: context.wqMuted)),
                   if (warranty) Text('Garantia (3 meses): ${brl(warrantyPrice)}', style: TextStyle(color: context.wqMuted)),
                   Text('Subtotal: ${brl(subtotal)}', style: TextStyle(color: context.wqMuted)),
-                  if (discount > 0) Text('Desconto: − ${brl(discount)}', style: TextStyle(color: context.wqMuted)),
+                  if (discount > 0)
+                    Text(
+                      discountInPct ? 'Desconto ${discountField.text.trim()}%: − ${brl(discount)}' : 'Desconto: − ${brl(discount)}',
+                      style: TextStyle(color: context.wqMuted),
+                    ),
                   Text('Total: ${brl(total)}', style: const TextStyle(fontWeight: FontWeight.w800)),
                 ]),
                 const SizedBox(height: 8),

@@ -237,7 +237,7 @@ export default function EquipePage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="equipe"
         title="Equipe"
         subtitle="Logins da oficina (owner / admin / atendimento / setor)"
         actions={

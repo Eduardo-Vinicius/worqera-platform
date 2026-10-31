@@ -16,9 +16,31 @@ function assertProductionSecrets() {
   }
 }
 
+/** Indexes the admin metrics rely on. A conflict or a slow build is logged, never stops the boot. */
+async function ensureMetricIndexes() {
+  const names = ['MetricBucket', 'ErrorSample', 'ActiveAccount', 'SecurityEvent', 'Order', 'Shop', 'User', 'Quote', 'Subscription'];
+  for (const name of names) {
+    try {
+      const model = require(`./v1/models/${name}`);
+      await model.createIndexes();
+    } catch (err) {
+      console.warn(`[Worqera API] índice ${name}:`, err.message);
+    }
+  }
+}
+
 async function main() {
   assertProductionSecrets();
   await connectMongo();
+  ensureMetricIndexes().catch(() => {});
+  const metricsStore = require('./v1/lib/metricsStore');
+  metricsStore.start();
+  const shutdown = (signal) => {
+    console.log(`[Worqera API] ${signal}: gravando métricas pendentes`);
+    metricsStore.stop().finally(() => process.exit(0));
+  };
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
   app.listen(PORT, () => {
     console.log(`[Worqera API] listening on http://127.0.0.1:${PORT}`);
     console.log(`[Worqera API] health  → http://127.0.0.1:${PORT}/health`);

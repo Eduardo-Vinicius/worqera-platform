@@ -165,12 +165,17 @@ async function createCheckoutSession(shopId, { planCode, cycle, cpfCnpj, success
     if (onAsaas && sub?.providerSubscriptionId) {
       await asaas.deleteSubscription(sub.providerSubscriptionId).catch(() => {});
     }
-    const created = await asaas.createSubscription({
-      ...body,
-      customer: customerId,
-      nextDueDate: firstDueDate(sub),
-      callback: successUrl ? { successUrl, autoRedirect: true } : undefined,
-    });
+    const fresh = { ...body, customer: customerId, nextDueDate: firstDueDate(sub) };
+    let created;
+    try {
+      created = await asaas.createSubscription(successUrl ? { ...fresh, callback: { successUrl, autoRedirect: true } } : fresh);
+    } catch (err) {
+      // Asaas only accepts a return link for a site registered in the account (Minha Conta → Informações).
+      // Without it, still charge: the payer just isn't sent back to the site.
+      if (!successUrl || !/dom[ií]nio/i.test(err.message)) throw err;
+      console.warn('[billing] Asaas refused the return link; register the site in the Asaas account', err.message);
+      created = await asaas.createSubscription(fresh);
+    }
     subscriptionId = created.id;
   }
 
@@ -202,6 +207,53 @@ async function cancelSubscription(shopId) {
     { $set: { status: 'canceled', lastInvoiceUrl: null } },
     { new: true }
   ).lean();
+}
+
+const PAYMENT_STATUS = {
+  RECEIVED: ['paid', 'Pago'],
+  RECEIVED_IN_CASH: ['paid', 'Pago'],
+  CONFIRMED: ['paid', 'Confirmado'],
+  PENDING: ['open', 'Em aberto'],
+  AWAITING_RISK_ANALYSIS: ['open', 'Em análise'],
+  OVERDUE: ['overdue', 'Vencido'],
+  REFUNDED: ['refunded', 'Estornado'],
+  REFUND_REQUESTED: ['refunded', 'Estorno pedido'],
+  REFUND_IN_PROGRESS: ['refunded', 'Estornando'],
+  CHARGEBACK_REQUESTED: ['refunded', 'Contestado'],
+  CHARGEBACK_DISPUTE: ['refunded', 'Contestado'],
+};
+
+/** One Asaas charge as the plan page shows it. */
+function paymentView(p) {
+  const { methodLabel } = require('./platformEmails');
+  const [status, statusLabel] = PAYMENT_STATUS[p?.status] || ['open', 'Em aberto'];
+  return {
+    id: p?.id || null,
+    dueDate: p?.dueDate || null,
+    paidAt: p?.paymentDate || p?.clientPaymentDate || p?.confirmedDate || null,
+    value: Number(p?.value) || 0,
+    status,
+    statusLabel,
+    method: methodLabel(p?.billingType),
+    invoiceUrl: p?.invoiceUrl || null,
+    receiptUrl: p?.transactionReceiptUrl || null,
+  };
+}
+
+/** Latest charges of the shop's Asaas subscription (newest first). Empty when there is none yet. */
+async function listPayments(shopId) {
+  const sub = await Subscription.findOne({ shopId }).lean();
+  if (sub?.provider !== 'Asaas' || !sub.providerSubscriptionId || !asaas.configured()) return [];
+  try {
+    const res = await asaas.listSubscriptionPayments(sub.providerSubscriptionId);
+    return (res?.data || [])
+      .map(paymentView)
+      .sort((a, b) => String(b.dueDate).localeCompare(String(a.dueDate)))
+      .slice(0, 12);
+  } catch (err) {
+    console.warn('[billing] could not list Asaas payments', err.message);
+    return [];
+  }
 }
 
 /** Asaas sends the token set on the webhook in `asaas-access-token`. No token configured = nothing gets in. */
@@ -267,7 +319,7 @@ async function handleAsaasWebhook(payload) {
   if (!set) return { ok: true, duplicate: false, matched: true };
   const updated = await Subscription.findOneAndUpdate({ _id: sub._id }, { $set: set }, { new: true }).lean();
   if (set.status === 'active' && sub.status !== 'active') {
-    await notifyBillingActivated(sub.shopId, updated).catch(() => {});
+    await notifyBillingActivated(sub.shopId, updated, payload.payment).catch(() => {});
   }
   return { ok: true, duplicate: false, matched: true };
 }
@@ -297,13 +349,18 @@ async function completeCheckoutDev(shopId, { planCode } = {}) {
   return sub;
 }
 
-async function notifyBillingActivated(shopId, sub) {
+/** Worqera receipt to the owner and admins when a payment turns the subscription active. */
+async function notifyBillingActivated(shopId, sub, payment = null) {
   try {
     const Membership = require('../models/Membership');
     const User = require('../models/User');
     const { sendMail } = require('./mailer');
+    const { subscriptionActiveEmail } = require('./platformEmails');
     const shop = await Shop.findById(shopId).lean();
-    const plan = PRODUCTS.find((p) => p.code === normalizePlanCode(sub?.planCode))?.name || 'Worqera';
+    const code = normalizePlanCode(sub?.planCode);
+    const planName = PRODUCTS.find((p) => p.code === code)?.name || 'Worqera';
+    const amountBrl = Number(payment?.value) || (priceCents(code, sub?.cycle) || 0) / 100;
+    const base = (process.env.PUBLIC_WEB_URL || 'https://worqera.com').replace(/\/+$/, '');
     const owners = await Membership.find({
       shopId,
       role: { $in: ['owner', 'admin'] },
@@ -312,13 +369,17 @@ async function notifyBillingActivated(shopId, sub) {
     const users = await User.find({ _id: { $in: owners.map((m) => m.userId) } }).lean();
     for (const u of users) {
       if (!u.email) continue;
-      await sendMail({
-        to: u.email,
-        shop,
-        subject: 'Assinatura ativa',
-        text: `Olá ${u.name || ''},\n\nSua assinatura ${plan} está ativa para ${shop?.name || 'sua empresa'}.\n`,
-        html: `<p>Assinatura <strong>${plan}</strong> ativa para <strong>${shop?.name || 'sua empresa'}</strong>.</p>`,
+      const mail = subscriptionActiveEmail({
+        ownerName: u.name,
+        shopName: shop?.branding?.displayName || shop?.name,
+        planName,
+        cycle: sub?.cycle,
+        amountBrl,
+        paidUntil: sub?.currentPeriodEnd,
+        method: payment?.billingType,
+        billingUrl: `${base}/billing`,
       });
+      await sendMail({ to: u.email, platform: true, ...mail });
     }
   } catch (err) {
     console.error('[billing] receipt email failed', err.message);
@@ -333,6 +394,8 @@ module.exports = {
   firstDueDate,
   createCheckoutSession,
   cancelSubscription,
+  paymentView,
+  listPayments,
   authorizeAsaasWebhook,
   webhookUpdate,
   handleAsaasWebhook,

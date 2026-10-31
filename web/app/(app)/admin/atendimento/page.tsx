@@ -98,8 +98,8 @@ export default function AtendimentoReportPage() {
 
   return (
     <div className="-mx-2.5 -mt-3 sm:-mx-5 sm:-mt-5 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-6">
-      <AppHeader
-        title="Atendimento"
+      <AppHeader group="relatorios"
+        title="Desempenho da equipe"
         subtitle="Quem abriu cada pedido, quanto vendeu e a nota do cliente"
         actions={
           <div className="flex gap-1.5">

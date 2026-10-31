@@ -99,9 +99,9 @@ Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp Clou
 
 ## Propostas backend (trimestre)
 
-- **Audit log** platform admin (suspend shop, extend trial)
-- **Portal plataforma:** Redis (métricas 30 dias, usuários ativos), erros no Mongo, `runtime/config`, sessão `tokenVersion`  
+- **Audit log** platform admin (suspend shop, extend trial). Eventos de conta (login, aparelho novo, senha, sessões) já em `securityevents`
+- [x] **Painel da plataforma** (2026-10-31): coleta no Mongo (`metricbuckets`, `activeaccounts`, `errorsamples`), métricas técnicas/negócio/produto, insights, filas com prazo, funis, coortes, saúde das lojas e conta 360°. Ver [admin-metrics](admin-metrics.md)
 - **Rate limit** consulta pública `/public/orders` anti-scrape  
-- **Webhook retry** AbacatePay idempotente (dedupe event id)  
+- [x] **Webhook** Asaas idempotente pelo id do evento (2026-10-31)
 - **Soft delete** shop vs hard delete (LGPD export antes)  
 - Unificar metrics legado `src/routes` → só v1

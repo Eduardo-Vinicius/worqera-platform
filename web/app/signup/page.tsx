@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signupV1 } from "@/lib/apiV1"
 import { BUSINESS_TYPES } from "@/lib/itemNoun"
-import { IMPLANTACAO, PLANS as CATALOG, formatBRL } from "@/lib/plans"
+import { CHECKOUT_INTENT_KEY, IMPLANTACAO, PLANS as CATALOG, formatBRL } from "@/lib/plans"
 import { toast } from "sonner"
 import { Check, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
@@ -52,6 +52,7 @@ export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [plan, setPlan] = useState<PlanId>("pro")
+  const [start, setStart] = useState<"trial" | "pay">("trial")
   const [beat, setBeat] = useState(0)
   const [partnerCode, setPartnerCode] = useState("")
   const [form, setForm] = useState({
@@ -67,6 +68,7 @@ export default function SignupPage() {
       const q = new URLSearchParams(window.location.search)
       const picked = (q.get("plan") || "").toLowerCase()
       if (picked === "basic" || picked === "pro" || picked === "business") setPlan(picked)
+      if (q.get("start") === "pay") setStart("pay")
       const ref = q.get("ref") || q.get("partner") || ""
       if (ref) setPartnerCode(ref.toUpperCase())
     } catch {}
@@ -90,6 +92,10 @@ export default function SignupPage() {
     e.preventDefault()
     setLoading(true)
     try {
+      try {
+        if (start === "pay") localStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify({ planCode: chosen.code, cycle: "monthly" }))
+        else localStorage.removeItem(CHECKOUT_INTENT_KEY)
+      } catch {}
       const data = await signupV1({
         ...form,
         planCode: chosen.code,
@@ -106,7 +112,12 @@ export default function SignupPage() {
       try {
         localStorage.setItem("wq-needs-onboarding", "1")
       } catch {}
-      toast.success("Conta criada — 7 dias de trial liberados!")
+      if (start === "pay") {
+        toast.success("Conta criada. Agora é só escolher a forma de pagamento.")
+        router.push("/billing")
+        return
+      }
+      toast.success("Conta criada — 7 dias de teste liberados!")
       router.push("/onboarding")
     } catch (err: any) {
       toast.error(err?.message || "Falha no cadastro")
@@ -264,6 +275,30 @@ export default function SignupPage() {
               </p>
             ) : null}
 
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Como quer começar?</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["trial", "Testar 7 dias grátis", "Sem cartão. Decide no fim do teste."],
+                  ["pay", "Assinar agora", "Pix, boleto ou cartão. Os 7 dias continuam valendo."],
+                ] as const).map(([id, title, hint]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setStart(id)}
+                    aria-pressed={start === id}
+                    className={cn(
+                      "rounded-xl border px-3 py-2.5 text-left transition-colors",
+                      start === id ? "border-[var(--ink)] bg-[var(--surface)]" : "border-[var(--border)] hover:border-[var(--primary)]"
+                    )}
+                  >
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="block text-xs text-[var(--muted-foreground)]">{hint}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
             <Button type="submit" disabled={loading} className="lp-cta h-12 w-full text-base">
               {loading ? (
                 <>
@@ -271,11 +306,17 @@ export default function SignupPage() {
                   Abrindo {shopLabel}…
                 </>
               ) : (
-                shop ? `Abrir ${shop} no ${chosen.name}` : `Abrir sua empresa no ${chosen.name}`
+                start === "pay"
+                  ? `Criar conta e assinar o ${chosen.name} · ${chosen.price}/mês`
+                  : shop
+                    ? `Abrir ${shop} no ${chosen.name}`
+                    : `Abrir sua empresa no ${chosen.name}`
               )}
             </Button>
             <p className="text-center text-xs leading-relaxed text-[var(--muted-foreground)]">
-              Sem cartão. Cancele quando quiser. Os dados ficam na sua empresa.
+              {start === "pay"
+                ? "A primeira cobrança vence no fim dos 7 dias. Cancele quando quiser."
+                : "Sem cartão. Cancele quando quiser. Os dados ficam na sua empresa."}
             </p>
           </form>
         </section>

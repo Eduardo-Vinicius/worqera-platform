@@ -429,7 +429,7 @@ async function resetPassword({ token, password }) {
   user.passwordResetExpires = null;
   await user.save();
   await revokeSession(user._id);
-  return { ok: true };
+  return { ok: true, userId: user._id };
 }
 
 function verifyError(detail) {

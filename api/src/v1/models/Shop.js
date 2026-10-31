@@ -144,4 +144,6 @@ shopSchema.index(
   { unique: true, partialFilterExpression: { partnerCode: { $type: 'string' } } }
 );
 
+shopSchema.index({ createdAt: 1 });
+
 module.exports = mongoose.models.Shop || mongoose.model('Shop', shopSchema);

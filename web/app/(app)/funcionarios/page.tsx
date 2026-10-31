@@ -148,7 +148,7 @@ export default function FuncionariosPage() {
 
   return (
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
-      <AppHeader
+      <AppHeader group="equipe"
         title="Funcionários"
         subtitle="Cadastre e associe por setor"
         actions={

@@ -2,6 +2,13 @@
 
 ## 2026-10-31
 
+- **Identificação no painel da plataforma:** toda requisição manda `X-Worqera-Client: mobile`, `X-Worqera-Platform` (android/ios) e `X-Worqera-App-Version` (`package_info_plus`). Precisa de build nova do app (plugin nativo); versões antigas aparecem como "API".
+
+- **Plano:** anual por mês com −17%, últimos pagamentos do Asaas e rota `/plano` para quem escolhe "Assinar agora" no cadastro (botão "Entrar no app" depois de pagar).
+- **Cadastro:** "Testar 7 dias grátis" ou "Assinar agora".
+- **Pedido:** desconto em % ou R$ (pedido salvo com desconto abre em R$ para manter o valor exato).
+- **Menus** (lateral e Mais): Operação · Clientes · Gestão · Configurações, com telas de grupo para Catálogo, Equipe e Relatórios (`more/hub_screen.dart`).
+
 - **Preços e Asaas:** tela de plano com Basic/Pro/Business, Mensal/Anual, CPF/CNPJ, "Assinar" abrindo a fatura do Asaas no navegador, "Pagar fatura em aberto" e "Cancelar assinatura". Cadastro com os três planos e os preços novos (147/297/597). Textos de IA sem "só no Business".
 
 - **Visão geral enxuta:** um só bloco **Operação de hoje** (`DailyBriefCard` em `ai_widgets.dart`) com a frase da IA, os quatro números clicáveis (Em andamento, Atrasados, Prontos, Ligar hoje), "Comece por aqui" e "Fila por setor".

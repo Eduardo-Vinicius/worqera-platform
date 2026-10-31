@@ -27,7 +27,7 @@ export function ClientsSection() {
         <p className="mt-3 max-w-xl text-base text-[var(--muted-foreground)] sm:text-lg">{t.clients.subtitle}</p>
 
         <figure
-          className="relative mt-10 overflow-hidden border border-[var(--border)] bg-[var(--surface)] px-5 py-8 sm:px-10 sm:py-12"
+          className="relative mt-8 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] px-5 py-7 sm:px-10 sm:py-10"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
@@ -71,17 +71,6 @@ export function ClientsSection() {
           </div>
         </figure>
 
-        <ul className="mt-6 grid gap-4 sm:grid-cols-3">
-          {t.clients.items.map((client) => (
-            <li key={client.name} className="border border-[var(--border)] bg-[var(--surface)] px-5 py-5">
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--primary)] uppercase">
-                {client.trade}
-              </p>
-              <p className="lp-display mt-2 text-lg font-semibold tracking-tight text-[var(--ink)]">{client.name}</p>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--muted-foreground)]">{client.line}</p>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   )

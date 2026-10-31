@@ -59,6 +59,7 @@ const quoteSchema = new mongoose.Schema(
 
 quoteSchema.index({ shopId: 1, stage: 1, followUpAt: 1 });
 quoteSchema.index({ shopId: 1, createdAt: -1 });
+quoteSchema.index({ createdAt: 1 });
 quoteSchema.index({ shopId: 1, clientId: 1 });
 quoteSchema.index({ shopId: 1, orderId: 1 });
 quoteSchema.index({ shopId: 1, stage: 1, wonAt: -1 });

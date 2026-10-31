@@ -196,6 +196,8 @@ function MobileBottomNav({ hidden }: { hidden?: boolean }) {
   )
 }
 
+const PLATFORM_ROUTES = ["/admin/shops", "/admin/plataforma", "/admin/metricas", "/admin/analises", "/admin/operacao", "/admin/contas"]
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ""
   const fullBleed = isFullBleed(pathname)
@@ -207,9 +209,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const isPlatform = localStorage.getItem("platformAdmin") === "1"
       const noShop = !localStorage.getItem("shopId")
       setPlatformConsole(
-        (isPlatform && noShop) ||
-          pathname.startsWith("/admin/shops") ||
-          pathname.startsWith("/admin/plataforma")
+        (isPlatform && noShop) || PLATFORM_ROUTES.some((r) => pathname.startsWith(r))
       )
     } catch {
       setPlatformConsole(pathname.startsWith("/admin/shops"))
@@ -256,6 +256,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     // Allow settings while onboarding so "editar setores" doesn't loop back
     if (pathname.startsWith("/settings")) return
     if (pathname.startsWith("/verify-email")) return
+    // Someone who chose "Assinar agora" pays first and does onboarding after.
+    if (pathname.startsWith("/billing")) return
     try {
       if (localStorage.getItem("platformAdmin") === "1") return
       if (localStorage.getItem("wq-needs-onboarding") === "1") {

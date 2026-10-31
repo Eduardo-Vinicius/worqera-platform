@@ -21,6 +21,10 @@ exports.createCheckoutSession = wrap(async (req, res) => {
   res.status(201).json(session);
 });
 
+exports.listPayments = wrap(async (req, res) => {
+  res.status(200).json({ payments: await billingService.listPayments(req.shopId) });
+});
+
 exports.cancelSubscription = wrap(async (req, res) => {
   res.status(200).json({ subscription: await billingService.cancelSubscription(req.shopId) });
 });

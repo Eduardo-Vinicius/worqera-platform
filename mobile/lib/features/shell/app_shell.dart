@@ -16,7 +16,7 @@ import '../lookup/simple_lists.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../comms/comms_screen.dart';
-import '../ops/attendance_screen.dart';
+import '../more/hub_screen.dart';
 import '../ops/ops_screens.dart';
 import '../products/products_screen.dart';
 import '../quotes/quotes_screen.dart';
@@ -431,27 +431,19 @@ class _Drawer extends StatelessWidget {
               if (flags.on('reviews')) _item(context, Icons.star_outline, 'Avaliações', () => _open('reviews', ReviewsScreen(api: api))),
               _item(context, Icons.forum_outlined, 'WhatsApp e e-mail', () => _open('comunicacao', CommsScreen(api: api, session: session))),
             ],
-            if (inShop && setup) ...[
-              const _Section('Estoque e cadastros'),
-              if (admin) _item(context, Icons.shopping_bag_outlined, 'Produtos e estoque', () => _open('produtos', ProductsScreen(api: api))),
-              _item(context, Icons.build_outlined, 'Serviços', () => _open('servicos', CatalogScreen(api: api, title: 'Serviços', subtitle: 'O que entra no pedido', path: '/services', price: true))),
-              _item(context, Icons.view_column_outlined, 'Setores do kanban', () => _open('setores', CatalogScreen(api: api, title: 'Setores', subtitle: 'Colunas do kanban', path: '/sectors', sector: true))),
-              _item(context, Icons.sell_outlined, 'Marcas', () => _open('marcas', CatalogScreen(api: api, title: 'Marcas', subtitle: 'Catálogo usado no pedido', path: '/brands'))),
-              _item(context, Icons.inventory_2_outlined, 'Acessórios', () => _open('acessorios', CatalogScreen(api: api, title: 'Acessórios', subtitle: 'Itens que acompanham o pedido', path: '/accessories'))),
-            ],
             if (inShop && (admin || (setup && flags.on('tv')))) ...[
               const _Section('Gestão'),
               if (admin && flags.on('finance')) _item(context, Icons.account_balance_wallet_outlined, 'Financeiro', () => _open('financeiro', FinanceScreen(api: api, stock: true))),
-              if (admin && flags.on('metrics')) _item(context, Icons.bar_chart, 'Métricas', () => _open('metricas', MetricsScreen(api: api))),
-              if (admin && flags.on('metrics')) _item(context, Icons.how_to_reg_outlined, 'Atendimento', () => _open('atendimento', AttendanceScreen(api: api))),
+              if (admin && flags.on('metrics'))
+                _item(context, Icons.bar_chart, 'Relatórios', () => _open('relatorios', HubScreen(title: 'Relatórios', subtitle: 'Métricas e desempenho da equipe', entries: reportEntries(api)))),
               if (setup && flags.on('tv')) _item(context, Icons.tv_outlined, 'Telas da loja', () => _open('tvs', TvScreen(api: api))),
               if (admin && flags.on('finance')) _item(context, Icons.monitor, 'TV Financeiro', () => _open('tv-financeiro', TvFinanceBoard(api: api))),
             ],
             if (inShop && setup) ...[
-              const _Section('Administração'),
+              const _Section('Configurações'),
               _item(context, Icons.apartment_outlined, 'Empresa', () => _open('empresa', EmpresaScreen(api: api))),
-              if (admin) _item(context, Icons.group_outlined, 'Equipe e acessos', () => _open('equipe', TeamScreen(api: api))),
-              if (admin) _item(context, Icons.badge_outlined, 'Funcionários', () => _open('funcionarios', EmployeesScreen(api: api))),
+              _item(context, Icons.inventory_2_outlined, 'Catálogo', () => _open('catalogo', HubScreen(title: 'Catálogo', subtitle: 'Serviços, produtos, setores, marcas e acessórios', entries: catalogEntries(api, session)))),
+              if (admin) _item(context, Icons.group_outlined, 'Equipe', () => _open('equipe-hub', HubScreen(title: 'Equipe', subtitle: 'Acessos e funcionários', entries: teamEntries(api)))),
               if (admin) _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),
             ],
             if (session.visiting)
