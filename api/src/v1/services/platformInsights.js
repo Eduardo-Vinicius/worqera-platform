@@ -8,9 +8,37 @@ const { range } = require('../lib/periods');
 const pct = (cur, prev) => (prev ? Math.round(((cur - prev) / prev) * 100) : null);
 const n = (v) => Number(v || 0).toLocaleString('pt-BR');
 
+const CATEGORY = [
+  [/^system-/, 'Confiabilidade'],
+  [/^route-/, 'Confiabilidade'],
+  [/^signups-|^growth/, 'Crescimento'],
+  [/^activation-|^onboarding-/, 'Ativação'],
+  [/^app-/, 'App'],
+  [/^shops-stalled|^churn-/, 'Retenção'],
+  [/^queue-/, 'Operação'],
+];
+
+/** Number of rules `rules()` evaluates, shown as "N regras avaliadas". */
+const RULES_EVALUATED = 10;
+
+function categoryOf(id) {
+  return CATEGORY.find(([rx]) => rx.test(id))?.[1] || 'Operação';
+}
+
 function rules(f) {
   const out = [];
   const period = f.days === 1 ? 'hoje' : `nos últimos ${f.days} dias`;
+
+  // The system itself is degraded or down
+  if (f.health && f.health.status !== 'healthy') {
+    out.push({
+      id: `system-${f.health.status}`,
+      severity: f.health.status === 'down' ? 'critical' : 'warn',
+      title: f.health.status === 'down' ? 'Sistema fora do ar' : 'Sistema degradado',
+      detail: (f.health.reasons || []).join(' · ') || 'Veja a saúde em Métricas.',
+      href: '/admin/metricas',
+    });
+  }
 
   // Signups ±25% (only with a meaningful base)
   const signupChange = pct(f.signups.cur, f.signups.prev);
@@ -124,8 +152,14 @@ function rules(f) {
     });
   }
 
-  const order = { critical: 0, warn: 1, info: 2, positive: 3 };
-  return out.sort((x, y) => order[x.severity] - order[y.severity]);
+  const order = { critical: 0, warn: 1, positive: 2, info: 3 };
+  return out.map((i) => ({ ...i, category: categoryOf(i.id) })).sort((x, y) => order[x.severity] - order[y.severity]);
+}
+
+function countBySeverity(items) {
+  const counts = { critical: 0, warn: 0, info: 0, positive: 0 };
+  for (const i of items) counts[i.severity] = (counts[i.severity] || 0) + 1;
+  return counts;
 }
 
 const VERTICAL_LABEL = {
@@ -201,9 +235,10 @@ async function collectFacts({ days }) {
     queues: queues.map((q) => ({ key: q.key, label: q.label, count: q.count, oldestHours: q.oldestHours })),
     cancellations: { cur: cancelCur, prev: cancelPrev },
     growth: verticalGrowth[0] ? { label: VERTICAL_LABEL[verticalGrowth[0]._id] || verticalGrowth[0]._id || 'Geral', count: verticalGrowth[0].count } : null,
+    health: tech.health,
     tech,
     queuesFull: queues,
   };
 }
 
-module.exports = { rules, collectFacts };
+module.exports = { rules, collectFacts, countBySeverity, categoryOf, RULES_EVALUATED };

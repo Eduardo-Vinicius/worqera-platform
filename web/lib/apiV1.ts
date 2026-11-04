@@ -1889,6 +1889,7 @@ export type PlatformTech = {
   series: { requests: DayPoint[]; errors: DayPoint[]; activeUsers: DayPoint[]; halfHours: Array<{ at: string; value: number }> }
   topEndpoints: Array<{ method: string; route: string; count: number; avgMs: number; p95Ms: number; maxMs: number; errors4xx: number; errors5xx: number; errorRate: number }>
   slowest: PlatformTech["topEndpoints"]
+  allEndpoints: PlatformTech["topEndpoints"]
   recentErrors: Array<{ at: string; method: string; route: string; status: number; code: string; message: string; correlationId: string; client: string }>
   byRegion: Array<{ region: string; users: number; pct: number }>
   byClient: Array<{ client: string; users: number }>
@@ -1923,9 +1924,21 @@ export async function getPlatformProductV1(days: number) {
   return v1Fetch<PlatformProduct>(`/platform/metrics/product?days=${days}`)
 }
 
-export type PlatformInsight = { id: string; severity: "critical" | "warn" | "info" | "positive"; title: string; detail: string; href: string }
+export type PlatformInsight = { id: string; severity: "critical" | "warn" | "info" | "positive"; title: string; detail: string; href: string; category: string }
 export type QueueItem = { id: string; shopId: string | null; title: string; detail: string; since: string; hours: number; sla: "ok" | "warn" | "late"; action: "extendTrial" | "openShop" | "metrics" }
-export type PlatformQueue = { key: string; label: string; hint: string; count: number; oldestHours: number; sla: "ok" | "warn" | "late"; items: QueueItem[] }
+export type PlatformQueue = {
+  key: string
+  label: string
+  hint: string
+  count: number
+  oldestHours: number
+  oldestAt: string | null
+  sla: "ok" | "warn" | "late"
+  slaHours: number
+  overdueCount: number
+  severity: "ok" | "warn" | "critical"
+  items: QueueItem[]
+}
 
 export type PlatformOverview = {
   days: number
@@ -1936,10 +1949,68 @@ export type PlatformOverview = {
     activeShops30: MetricDelta
     mrr: { value: number; paying: number }
   }
-  health: { score: number; label: string; status: "healthy" | "degraded" | "down"; errorRate: number; p95Ms: number; queue: number }
+  tiles: Array<MetricDelta & { key: string; label: string; href: string; hint?: string; unit?: "brl"; daily?: DayPoint[] }>
+  health: {
+    score: number
+    grade: "excellent" | "good" | "attention" | "critical"
+    label: string
+    status: "healthy" | "degraded" | "down"
+    errorRate: number
+    p95Ms: number
+    queue: number
+    requests: number
+    reasons: string[]
+    components: Array<{ key: string; label: string; value: string; penalty: number }>
+  }
   insights: PlatformInsight[]
+  insightCounts: { critical: number; warn: number; info: number; positive: number }
+  rulesEvaluated: number
   queues: Array<Omit<PlatformQueue, "items">>
+  billing: PlatformBillingSummary
 }
+
+export type PlatformBillingSummary = {
+  days: number
+  mrr: number
+  paying: number
+  counts: { active: number; founder: number; trialing: number; past_due: number; canceled: number; expired: number }
+  byPlan: Array<{ code: string; label: string; count: number; mrr: number }>
+  received: MetricDelta & { payments: number }
+}
+
+export type PlatformSubscriptionRow = {
+  id: string
+  shopId: string
+  shopName: string
+  shopStatus: string | null
+  owner: { id: string; name: string; email: string } | null
+  planCode: string
+  planLabel: string
+  status: "trialing" | "active" | "past_due" | "canceled" | "expired"
+  cycle: "monthly" | "yearly"
+  provider: string
+  mrr: number
+  founderUntil: string | null
+  trialEndsAt: string | null
+  currentPeriodEnd: string | null
+  invoiceUrl: string | null
+  updatedAt: string
+}
+
+export type PlatformAuditRow = {
+  id: string
+  at: string
+  actorEmail: string
+  action: string
+  actionLabel: string
+  targetType: string
+  targetId: string | null
+  targetName: string
+  summary: string
+  changes: Record<string, unknown> | null
+}
+
+export type PlatformRitualStep = MetricDelta & { key: string; label: string; hint: string; unit: "count" | "brl" }
 
 export type FunnelStep = { key: string; label: string; count: number; pctOfPrev: number; pctOfTotal?: number; medianHours?: number | null }
 
@@ -1960,6 +2031,9 @@ export type PlatformShopHealth = {
   riskReason: string | null
   createdAt: string
   stage: "created" | "configured" | "paid" | "using"
+  owner: { id: string; name: string; email: string } | null
+  trialEndsAt: string | null
+  flags: Array<"at_risk" | "no_onboarding" | "trial_ending" | "past_due" | "no_orders_30d">
 }
 
 export type PlatformAccountRow = {
@@ -1978,6 +2052,7 @@ export type PlatformAccount360 = {
   activity: Array<{ client: string; appVersion: string | null; lastSeen: string; days: number }>
   lastActivity: string | null
   counters: { ordersCreated30: number; logins30: number; activeDays30: number }
+  days30: Array<{ day: string; active: boolean }>
   security: Array<{ at: string; kind: string; device: string; ip: string; client: string }>
 }
 
@@ -2062,4 +2137,46 @@ export async function listPlatformEmailsV1(params: { days: number; group?: strin
   return v1Fetch<{ days: number; total: number; page: number; counts: { total: number; sent: number; skipped: number; failed: number }; emails: PlatformEmail[] }>(
     `/platform/emails?${qs}`
   )
+}
+
+export async function getPlatformSubscriptionsV1(params: { status?: string; plan?: string; q?: string; page?: number; days?: number }) {
+  const qs = new URLSearchParams()
+  if (params.status && params.status !== "all") qs.set("status", params.status)
+  if (params.plan) qs.set("plan", params.plan)
+  if (params.q) qs.set("q", params.q)
+  if (params.page) qs.set("page", String(params.page))
+  if (params.days) qs.set("days", String(params.days))
+  return v1Fetch<{ summary: PlatformBillingSummary; total: number; page: number; items: PlatformSubscriptionRow[] }>(`/platform/subscriptions?${qs}`)
+}
+
+export async function getPlatformRitualV1(days: 7 | 30) {
+  return v1Fetch<{ days: number; generatedAt: string; totals: { shops: number; clients: number; orders: number }; steps: PlatformRitualStep[] }>(
+    `/platform/ritual?days=${days}`
+  )
+}
+
+export async function listPlatformAuditV1(params: { action?: string; targetType?: string; targetId?: string; q?: string; page?: number }) {
+  const qs = new URLSearchParams()
+  if (params.action) qs.set("action", params.action)
+  if (params.targetType) qs.set("targetType", params.targetType)
+  if (params.targetId) qs.set("targetId", params.targetId)
+  if (params.q) qs.set("q", params.q)
+  if (params.page) qs.set("page", String(params.page))
+  return v1Fetch<{ total: number; page: number; actions: Array<{ key: string; label: string; count: number }>; items: PlatformAuditRow[] }>(`/platform/audit?${qs}`)
+}
+
+export async function transferPlatformAccountEmailV1(id: string, newEmail: string) {
+  return v1Fetch<{ accountId: string; previousEmail: string; newEmail: string; sessionsEnded: boolean; passwordEmailSent: boolean }>(
+    `/platform/accounts/${encodeURIComponent(id)}/transfer-email`,
+    { method: "POST", body: JSON.stringify({ newEmail }) }
+  )
+}
+
+export type PlatformErrorRow = { at: string; method: string; route: string; status: number; code: string; message: string; correlationId: string; client: string; shopId: string | null }
+
+export async function listPlatformErrorsV1(params: { days: number; client?: string; q?: string }) {
+  const qs = new URLSearchParams({ days: String(params.days) })
+  if (params.client && params.client !== "all") qs.set("client", params.client)
+  if (params.q) qs.set("q", params.q)
+  return v1Fetch<{ days: number; errors: PlatformErrorRow[] }>(`/platform/errors?${qs}`)
 }

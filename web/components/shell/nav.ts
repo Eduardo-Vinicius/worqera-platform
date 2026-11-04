@@ -23,6 +23,11 @@ import {
   ListChecks,
   Contact,
   Mail,
+  Zap,
+  Bug,
+  CalendarCheck,
+  History,
+  Server,
   Tv,
   Star,
   HandCoins,
@@ -58,10 +63,14 @@ export type NavItem = {
   group?: NavGroup
   /** Other routes that light up this item (pages reached through its tabs). */
   alsoActive?: string[]
+  /** Platform queue whose count shows as a badge (`/platform/queues` key, or "all"). */
+  queue?: string
 }
 
 export type NavSection = {
   title: string
+  /** Worqera platform console group (titled "Worqera · …" while visiting a shop). */
+  platform?: boolean
   items: NavItem[]
 }
 
@@ -117,17 +126,46 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Worqera",
+    title: "Visão geral",
+    platform: true,
     items: [
       { href: "/admin/plataforma", label: "Visão geral", icon: Activity, platformOnly: true },
-      { href: "/admin/metricas", label: "Métricas", icon: Gauge, platformOnly: true },
-      { href: "/admin/analises", label: "Análises", icon: TrendingUp, platformOnly: true },
-      { href: "/admin/operacao", label: "Operação", icon: ListChecks, platformOnly: true },
+      { href: "/admin/acoes", label: "Ações rápidas", icon: Zap, platformOnly: true },
+    ],
+  },
+  {
+    title: "Métricas",
+    platform: true,
+    items: [
+      { href: "/admin/metricas", label: "Painel de métricas", icon: Gauge, platformOnly: true },
+      { href: "/admin/erros", label: "Erros e rotas", icon: Bug, platformOnly: true },
+      { href: "/admin/ritual", label: "Ritual semanal", icon: CalendarCheck, platformOnly: true },
+    ],
+  },
+  {
+    title: "Análises",
+    platform: true,
+    items: [{ href: "/admin/analises", label: "Produto, transações e lojas", icon: TrendingUp, platformOnly: true }],
+  },
+  {
+    title: "Operação",
+    platform: true,
+    items: [
+      { href: "/admin/operacao", label: "Filas", icon: ListChecks, platformOnly: true, queue: "all" },
       { href: "/admin/shops", label: "Oficinas", icon: Shield, platformOnly: true },
       { href: "/admin/contas", label: "Contas", icon: Contact, platformOnly: true },
+      { href: "/admin/assinaturas", label: "Assinaturas", icon: CreditCard, platformOnly: true, queue: "overdue" },
       { href: "/admin/emails", label: "E-mails", icon: Mail, platformOnly: true },
+    ],
+  },
+  {
+    title: "Configuração",
+    platform: true,
+    items: [
       { href: "/admin/plataforma/parametros", label: "Parâmetros", icon: SlidersHorizontal, platformOnly: true },
       { href: "/admin/plataforma/noticias", label: "Notícias", icon: Megaphone, platformOnly: true },
+      { href: "/admin/auditoria", label: "Auditoria", icon: History, platformOnly: true },
+      { href: "/admin/plataforma/portal", label: "Portal técnico", icon: Server, platformOnly: true },
     ],
   },
 ]

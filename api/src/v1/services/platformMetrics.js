@@ -73,8 +73,15 @@ async function health() {
   const stale = store.queued > 0 && store.lastFlushAt && Date.now() - new Date(store.lastFlushAt).getTime() > 60000;
   const errorsHigh = lastHour.requests >= 50 && lastHour.errorRate > 2;
   const status = !dbOk ? 'down' : errorsHigh || stale || store.lastError ? 'degraded' : 'healthy';
+  const reasons = [
+    !dbOk && 'O banco não respondeu',
+    errorsHigh && `${lastHour.errorRate}% de erro 5xx na última hora`,
+    stale && 'A coleta de métricas está parada há mais de 1 minuto',
+    store.lastError && `A coleta falhou: ${String(store.lastError).slice(0, 120)}`,
+  ].filter(Boolean);
   return {
     status,
+    reasons,
     label: status === 'healthy' ? 'Saudável' : status === 'degraded' ? 'Degradado' : 'Fora do ar',
     db: dbOk ? 'ok' : 'falhou',
     queue: store.queued,
@@ -198,6 +205,7 @@ async function tech({ days, client = 'all' }) {
         halfHours: halfHours.map((h) => ({ at: h._id, value: h.value })),
       },
       topEndpoints: endpointRows.slice(0, 10),
+      allEndpoints: endpointRows.slice(0, 300),
       slowest: [...endpointRows].filter((e) => e.count >= 5).sort((a, b) => b.p95Ms - a.p95Ms || b.avgMs - a.avgMs).slice(0, 10),
       recentErrors: errors.map((e) => ({
         at: e.at,
@@ -391,4 +399,28 @@ async function product({ days }) {
   });
 }
 
-module.exports = { tech, business, product, health, currentMrr, compareVersion, clientMatch };
+/** Last 5xx errors (up to 500) for "Erros e rotas", searchable by route, code, message or correlation id. */
+async function errorList({ days = 7, client = 'all', q = '' } = {}) {
+  const ErrorSample = require('../models/ErrorSample');
+  const p = range(days);
+  const filter = { at: { $gte: p.from }, ...clientMatch(client) };
+  const term = String(q || '').trim();
+  if (term) {
+    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ route: rx }, { code: rx }, { message: rx }, { correlationId: rx }];
+  }
+  const rows = await ErrorSample.find(filter).sort({ at: -1 }).limit(500).lean();
+  return rows.map((e) => ({
+    at: e.at,
+    method: e.method,
+    route: e.route,
+    status: e.status,
+    code: e.code || '',
+    message: e.message || '',
+    correlationId: e.correlationId || '',
+    client: e.client,
+    shopId: e.shopId || null,
+  }));
+}
+
+module.exports = { tech, business, product, health, currentMrr, compareVersion, clientMatch, errorList };

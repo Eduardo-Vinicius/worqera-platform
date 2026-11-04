@@ -261,3 +261,26 @@ export const LONG_PERIODS = [
   { id: 30, label: "30d" },
   { id: 90, label: "90d" },
 ]
+
+/** Tiny inline trend for KPI tiles (no axes, no labels). */
+export function MiniSpark({ points, color = "var(--wq-brand)" }: { points: Array<{ value: number }>; color?: string }) {
+  if (points.length < 2) return null
+  const w = 120
+  const h = 28
+  const max = Math.max(1, ...points.map((p) => p.value))
+  const step = w / (points.length - 1)
+  const line = points.map((p, i) => `${i ? "L" : "M"}${(i * step).toFixed(1)},${(h - (p.value / max) * (h - 4) - 2).toFixed(1)}`).join(" ")
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-7 w-full" preserveAspectRatio="none" aria-hidden>
+      <path d={`${line} L${w},${h} L0,${h} Z`} fill={color} opacity={0.1} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+/** Age of the oldest item: "45 min", "6 h", "3 dias". */
+export function ageLabel(hours: number) {
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} min`
+  if (hours < 48) return `${Math.round(hours)} h`
+  return `${Math.round(hours / 24)} dias`
+}

@@ -196,7 +196,7 @@ function MobileBottomNav({ hidden }: { hidden?: boolean }) {
   )
 }
 
-const PLATFORM_ROUTES = ["/admin/shops", "/admin/plataforma", "/admin/metricas", "/admin/analises", "/admin/operacao", "/admin/contas", "/admin/emails"]
+const PLATFORM_ROUTES = ["/admin/shops", "/admin/plataforma", "/admin/metricas", "/admin/analises", "/admin/operacao", "/admin/contas", "/admin/emails", "/admin/acoes", "/admin/erros", "/admin/ritual", "/admin/assinaturas", "/admin/auditoria"]
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ""

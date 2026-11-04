@@ -116,6 +116,8 @@ export default function PlatformShopsPage() {
 
   useEffect(() => {
     load()
+    const open = new URLSearchParams(window.location.search).get("open")
+    if (open) setOpenId(open)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

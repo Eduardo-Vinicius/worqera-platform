@@ -61,5 +61,36 @@ test('queue SLA: green under 24 h, yellow under 48 h, red after', () => {
   assert.equal(slaOf(new Date(now - 30 * 3600000), now).sla, 'warn');
   assert.equal(slaOf(new Date(now - 50 * 3600000), now).sla, 'late');
   const s = summarize([{ since: new Date(now - 10 * 3600000) }, { since: new Date(now - 50 * 3600000) }], now);
-  assert.deepEqual(s, { count: 2, oldestHours: 50, sla: 'late' });
+  assert.equal(s.count, 2);
+  assert.equal(s.oldestHours, 50);
+  assert.equal(s.sla, 'late');
+  assert.equal(s.slaHours, 48);
+  assert.equal(s.overdueCount, 1, 'only the 50 h item is past the SLA');
+  assert.equal(s.severity, 'critical');
+  assert.equal(summarize([{ since: new Date(now - 10 * 3600000) }], now).severity, 'warn');
+  assert.equal(summarize([], now).severity, 'ok');
+});
+
+test('insights get a category, the system rule fires when degraded', () => {
+  const { rules, countBySeverity } = require('../services/platformInsights');
+  const base = {
+    days: 7,
+    signups: { cur: 0, prev: 0 },
+    routes: [],
+    overallErrorRate: 0,
+    activation: { curRate: 0, prevRate: 0, curBase: 0, prevBase: 0 },
+    app: { latest: null, onLatestPct: 100, mobileUsers: 0 },
+    stalledShops: 0,
+    stuckOnboarding: 0,
+    queues: [],
+    cancellations: { cur: 0, prev: 0 },
+    growth: null,
+  };
+  const out = rules({ ...base, health: { status: 'degraded', reasons: ['A coleta falhou'] }, stalledShops: 2 });
+  const system = out.find((i) => i.id === 'system-degraded');
+  assert.equal(system.category, 'Confiabilidade');
+  assert.equal(system.detail, 'A coleta falhou');
+  assert.equal(out.find((i) => i.id === 'shops-stalled').category, 'Retenção');
+  assert.deepEqual(countBySeverity(out), { critical: 0, warn: 2, info: 0, positive: 0 });
+  assert.equal(rules({ ...base, health: { status: 'healthy' } }).length, 0);
 });

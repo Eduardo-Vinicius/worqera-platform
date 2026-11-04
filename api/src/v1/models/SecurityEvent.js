@@ -6,7 +6,7 @@ const securityEventSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     kind: {
       type: String,
-      enum: ['login', 'login_new_device', 'login_failed', 'logout', 'password_reset', 'password_set_by_admin', 'sessions_revoked'],
+      enum: ['login', 'login_new_device', 'login_failed', 'logout', 'password_reset', 'password_set_by_admin', 'sessions_revoked', 'account_transferred'],
       required: true,
     },
     at: { type: Date, default: Date.now },

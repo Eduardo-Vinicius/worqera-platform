@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react"
 import { NAV_SECTIONS, isItemActive } from "./nav"
 import { cn } from "@/lib/utils"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
-import { logoutV1 } from "@/lib/apiV1"
+import { getPlatformQueuesV1, logoutV1, type PlatformQueue } from "@/lib/apiV1"
 import { featureOn, runtimeSnapshot, serviceOn } from "@/lib/runtimeFlags"
 import { sealLabel } from "./PlatformNoticeBanner"
 
@@ -42,6 +42,7 @@ export function AppSidebar({
   const [shopId, setShopId] = useState("")
   const [seal, setSeal] = useState("")
   const [, setRuntimeTick] = useState(0)
+  const [queues, setQueues] = useState<PlatformQueue[]>([])
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "Worqera"
 
   useEffect(() => {
@@ -74,6 +75,29 @@ export function AppSidebar({
       window.removeEventListener("wq-runtime-config", onRuntime)
     }
   }, [])
+
+  useEffect(() => {
+    if (!platformAdmin) return
+    let alive = true
+    const load = () =>
+      getPlatformQueuesV1()
+        .then((res) => alive && setQueues(res.queues || []))
+        .catch(() => {})
+    load()
+    const t = window.setInterval(load, 60000)
+    return () => {
+      alive = false
+      window.clearInterval(t)
+    }
+  }, [platformAdmin])
+
+  const badgeFor = (key?: string) => {
+    if (!key) return null
+    const list = key === "all" ? queues : queues.filter((q) => q.key === key)
+    const count = list.reduce((sum, q) => sum + q.count, 0)
+    if (!count) return null
+    return { count, critical: list.some((q) => q.overdueCount > 0) }
+  }
 
   const isOwner = role === "owner"
   const visitingShop = platformAdmin && role === "platform" && Boolean(shopId)
@@ -139,7 +163,7 @@ export function AppSidebar({
               )}
             >
               <div className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {isPlatformOnly ? "Plataforma" : section.title}
+                {section.platform && !isPlatformOnly ? `Worqera · ${section.title}` : section.title}
               </div>
               <ul className="space-y-0.5">
                 {items.map((item) => {
@@ -172,6 +196,21 @@ export function AppSidebar({
                           strokeWidth={1.7}
                         />
                         <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {(() => {
+                          const badge = badgeFor(item.queue)
+                          if (!badge) return null
+                          return (
+                            <span
+                              className={cn(
+                                "min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums",
+                                badge.critical ? "bg-rose-500 text-white" : "bg-amber-300 text-slate-900"
+                              )}
+                              title={badge.critical ? "Há itens fora do prazo" : "Itens na fila"}
+                            >
+                              {badge.count > 99 ? "99+" : badge.count}
+                            </span>
+                          )
+                        })()}
                         {emphasize ? (
                           <span
                             className={cn(

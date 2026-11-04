@@ -2,6 +2,18 @@
 
 ## 2026-11-04
 
+- **Console admin no padrão do Procedy** (ver [admin-metrics](admin-metrics.md)):
+  - **Saúde 0–100 igual ao Procedy** (`lib/healthScore.js`): componentes com o desconto de cada um e os motivos de "degradado" (`health.reasons`).
+  - **Insights:** categoria (Confiabilidade, Crescimento, Ativação, App, Retenção, Operação), contagem por gravidade, "N regras avaliadas" e a regra nova "sistema degradado ou fora do ar".
+  - **Filas:** prazo de 48 h, itens atrasados, item mais antigo e gravidade.
+  - **Visão geral:** números com link e série diária (usuários ativos, pedidos criados e entregues, lojas ativas, lojas novas, MRR) e o painel de assinaturas.
+  - **Assinaturas** (`services/platformBilling.js`, `GET /platform/subscriptions`): MRR por plano, quantas em cada situação, fundadores e o recebido no Asaas (sem contar o mesmo pagamento duas vezes). A lista traz loja e dono. Cancelar pelo admin uma assinatura do Asaas cancela lá também.
+  - **Ritual semanal** (`GET /platform/ritual`): um número por passo do negócio contra o período anterior.
+  - **Erros e rotas:** `allEndpoints` nas métricas técnicas e `GET /platform/errors` (até 500 erros 5xx com busca e filtro por sistema).
+  - **Auditoria** (`platformaudits`, `GET /platform/audit`): toda alteração de admin com quem, quando, alvo, resumo e o que foi enviado (sem segredos).
+  - **Transferir e-mail da conta** (`POST /platform/accounts/:id/transfer-email`): valida, encerra as sessões, manda o link de senha e registra.
+  - **Conta 360°** ganha os últimos 30 dias dia a dia. **Saúde das lojas** ganha sinais (em risco, sem onboarding, teste acabando, em atraso, sem pedido em 30 dias) e o dono.
+  - Testes: `healthScore.test.js`, `adminConsole.test.js` e insights (69 no total), mais smoke com banco descartável de todas as rotas novas.
 - **E-mail validado em todo lugar** (`lib/email.js`): criar pedido e criar/editar cliente recusam e-mail sem @ ou domínio (400, mensagem em português); sai sem espaços e em minúsculas. E-mail quebrado antigo no cadastro do cliente não trava o pedido (o pedido nasce sem e-mail).
 - **Último envio do laudo no pedido:** `GET /orders/:id` traz `lastEmail` (quando, para quem, enviado/não enviado/falhou e o motivo), lido de `platformmaillogs` (`mailLog.lastForOrder`).
 - **CRM com dinheiro e ação** (`crmService`):

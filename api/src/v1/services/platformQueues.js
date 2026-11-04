@@ -10,10 +10,23 @@ function slaOf(since, now = new Date()) {
   return { hours, sla: hours < 24 ? 'ok' : hours < 48 ? 'warn' : 'late' };
 }
 
+const SLA_HOURS = 48;
+
+/** Count, oldest age, how many passed the 48 h SLA and the severity the sidebar badge uses. */
 function summarize(items, now = new Date()) {
-  if (!items.length) return { count: 0, oldestHours: 0, sla: 'ok' };
+  if (!items.length) return { count: 0, oldestHours: 0, oldestAt: null, sla: 'ok', slaHours: SLA_HOURS, overdueCount: 0, severity: 'ok' };
   const oldest = items.reduce((a, b) => (new Date(a.since) < new Date(b.since) ? a : b));
-  return { count: items.length, ...(() => { const s = slaOf(oldest.since, now); return { oldestHours: s.hours, sla: s.sla }; })() };
+  const s = slaOf(oldest.since, now);
+  const overdueCount = items.filter((i) => slaOf(i.since, now).sla === 'late').length;
+  return {
+    count: items.length,
+    oldestHours: s.hours,
+    oldestAt: oldest.since,
+    sla: s.sla,
+    slaHours: SLA_HOURS,
+    overdueCount,
+    severity: overdueCount ? 'critical' : 'warn',
+  };
 }
 
 async function shopNames(ids) {

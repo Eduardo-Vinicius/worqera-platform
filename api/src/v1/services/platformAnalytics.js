@@ -288,6 +288,17 @@ async function transactions({ days }) {
   });
 }
 
+/** Pure: the signals shown next to a shop (and used as filters in Lojas). */
+function shopFlags({ active, atRisk, onboarded, ageDays, trialLeft, pastDue, recentOrders }) {
+  const flags = [];
+  if (atRisk) flags.push('at_risk');
+  if (active && !onboarded && ageDays >= 7) flags.push('no_onboarding');
+  if (trialLeft != null && trialLeft <= 3) flags.push('trial_ending');
+  if (pastDue) flags.push('past_due');
+  if (active && ageDays >= 7 && recentOrders === 0) flags.push('no_orders_30d');
+  return flags;
+}
+
 async function shopsHealth({ days }) {
   return memo(`an:shops:${days}`, 60000, async () => {
     const Shop = require('../models/Shop');
@@ -297,7 +308,7 @@ async function shopsHealth({ days }) {
     const ActiveAccount = require('../models/ActiveAccount');
     const billing = require('./billingService');
     const p = range(days);
-    const [shops, subs, members, lastSeen, cur, prev, recent] = await Promise.all([
+    const [shops, subs, members, lastSeen, cur, prev, recent, owners] = await Promise.all([
       Shop.find({}).select('name branding.displayName status createdAt onboarding.completedAt vertical').lean(),
       Subscription.find({}).select('shopId planCode status cycle founder trialEndsAt').lean(),
       Membership.aggregate([{ $match: { active: true } }, { $group: { _id: '$shopId', members: { $sum: 1 } } }]),
@@ -305,7 +316,18 @@ async function shopsHealth({ days }) {
       Order.aggregate([{ $match: { ...LIVE, createdAt: { $gte: p.from, $lt: p.to } } }, { $group: { _id: '$shopId', n: { $sum: 1 } } }]),
       Order.aggregate([{ $match: { ...LIVE, createdAt: { $gte: p.prevFrom, $lt: p.prevTo } } }, { $group: { _id: '$shopId', n: { $sum: 1 } } }]),
       Order.aggregate([{ $match: { ...LIVE, createdAt: { $gte: new Date(Date.now() - 30 * DAY) } } }, { $group: { _id: '$shopId', n: { $sum: 1 } } }]),
+      Membership.find({ role: 'owner', active: true }).select('shopId userId').lean(),
     ]);
+    const ownerUsers = await require('../models/User')
+      .find({ _id: { $in: owners.map((o) => o.userId) } })
+      .select('name email')
+      .lean();
+    const ownerBy = new Map(
+      owners.map((o) => {
+        const u = ownerUsers.find((x) => String(x._id) === String(o.userId));
+        return [String(o.shopId), u ? { id: String(u._id), name: u.name, email: u.email } : null];
+      })
+    );
     const map = (rows, field) => new Map(rows.map((r) => [String(r._id || r.shopId), field ? r[field] : r]));
     const subBy = new Map(subs.map((sub) => [String(sub.shopId), sub]));
     const memBy = map(members, 'members');
@@ -330,6 +352,8 @@ async function shopsHealth({ days }) {
           )
         : 0;
       const drop = ordersBefore >= 10 && ordersNow < ordersBefore * 0.5;
+      const ageDays = (now - new Date(s.createdAt).getTime()) / DAY;
+      const trialLeft = sub?.status === 'trialing' && sub.trialEndsAt ? (new Date(sub.trialEndsAt).getTime() - now) / DAY : null;
       const idle = idleDays == null ? now - new Date(s.createdAt).getTime() > 30 * DAY : idleDays >= 30;
       return {
         id,
@@ -348,6 +372,17 @@ async function shopsHealth({ days }) {
         riskReason: idle ? 'Sem atividade há 30 dias' : drop ? 'Pedidos caíram mais de 50%' : null,
         createdAt: s.createdAt,
         stage: paying && (recentBy.get(id) || 0) > 0 ? 'using' : paying ? 'paid' : s.onboarding?.completedAt ? 'configured' : 'created',
+        owner: ownerBy.get(id) || null,
+        trialEndsAt: sub?.trialEndsAt || null,
+        flags: shopFlags({
+          active: s.status === 'active',
+          atRisk: s.status === 'active' && (idle || drop),
+          onboarded: Boolean(s.onboarding?.completedAt),
+          ageDays,
+          trialLeft,
+          pastDue: sub?.status === 'past_due',
+          recentOrders: recentBy.get(id) || 0,
+        }),
       };
     });
     const pipeline = ['created', 'configured', 'paid', 'using'].map((stage) => ({
@@ -503,11 +538,85 @@ async function account360(id) {
     activity: activity.map((a) => ({ client: a._id.client, appVersion: a._id.appVersion, lastSeen: a.last, days: a.days })),
     lastActivity: activity[0]?.last || null,
     counters: { ordersCreated30: ordersCreated, logins30, activeDays30: activeDays30.length },
+    days30: range(30).days.map((day) => ({ day, active: activeDays30.includes(day) })),
     security: events.map((e) => ({ at: e.at, kind: e.kind, device: e.device, ip: e.ip, client: e.client })),
   };
 }
 
+/**
+ * The weekly ritual: the numbers of every step of the business (sign up → use → order →
+ * laudo → delivery → review → quote recovered → payment), each against the previous period.
+ */
+async function ritual({ days = 7 } = {}) {
+  return memo(`an:ritual:${days}`, 60000, async () => {
+    const Shop = require('../models/Shop');
+    const Order = require('../models/Order');
+    const Quote = require('../models/Quote');
+    const Client = require('../models/Client');
+    const Subscription = require('../models/Subscription');
+    const ActiveAccount = require('../models/ActiveAccount');
+    const PlatformMailLog = require('../models/PlatformMailLog');
+    const WhatsAppMessage = require('../models/WhatsAppMessage');
+    const { received } = require('./platformBilling');
+    const p = range(days);
+    const cur = (field) => ({ [field]: { $gte: p.from, $lt: p.to } });
+    const prev = (field) => ({ [field]: { $gte: p.prevFrom, $lt: p.prevTo } });
+    const pair = async (count) => {
+      const [a, b] = await Promise.all([count(cur), count(prev)]);
+      return delta(a, b);
+    };
+    const sumWon = async (w) => {
+      const [row] = await Quote.aggregate([{ $match: { stage: 'won', ...w('wonAt') } }, { $group: { _id: null, value: { $sum: { $ifNull: ['$value', 0] } } } }]);
+      return Math.round(row?.value || 0);
+    };
+    const [shopsNew, activeCur, activePrev, created, delivered, laudos, ready, reviews, avgScore, won, wonValue, wonValuePrev, trials, paidCur, paidPrev, clientsNew, whatsapp, totals] =
+      await Promise.all([
+        pair((w) => Shop.countDocuments(w('createdAt'))),
+        ActiveAccount.distinct('shopId', { day: { $in: p.days }, shopId: { $ne: null } }),
+        ActiveAccount.distinct('shopId', { day: { $in: p.prevDays }, shopId: { $ne: null } }),
+        pair((w) => Order.countDocuments({ ...LIVE, ...w('createdAt') })),
+        pair((w) => Order.countDocuments({ ...LIVE, status: 'delivered', ...w('deliveredAt') })),
+        pair((w) => PlatformMailLog.countDocuments({ kind: 'created', ok: true, ...w('at') })),
+        pair((w) => PlatformMailLog.countDocuments({ kind: 'ready', ok: true, ...w('at') })),
+        pair((w) => Order.countDocuments({ ...LIVE, 'feedback.score': { $gte: 1 }, ...w('feedback.createdAt') })),
+        Order.aggregate([{ $match: { ...LIVE, 'feedback.score': { $gte: 1 }, ...cur('feedback.createdAt') } }, { $group: { _id: null, avg: { $avg: '$feedback.score' } } }]),
+        pair((w) => Quote.countDocuments({ stage: 'won', ...w('wonAt') })),
+        sumWon(cur),
+        sumWon(prev),
+        pair((w) => Subscription.countDocuments({ provider: { $ne: 'Dev' }, ...w('createdAt') })),
+        received(p.from, p.to),
+        received(p.prevFrom, p.prevTo),
+        pair((w) => Client.countDocuments(w('createdAt'))),
+        pair((w) => WhatsAppMessage.countDocuments({ direction: 'out', ...w('createdAt') })),
+        Promise.all([Shop.countDocuments({}), Client.countDocuments({}), Order.countDocuments(LIVE)]),
+      ]);
+    const step = (key, label, d, hint, unit = 'count') => ({ key, label, hint, unit, ...d });
+    return {
+      days,
+      generatedAt: new Date(),
+      totals: { shops: totals[0], clients: totals[1], orders: totals[2] },
+      steps: [
+        step('shopsNew', 'Lojas novas', shopsNew, 'cadastros de loja'),
+        step('trials', 'Testes e assinaturas iniciados', trials, 'assinaturas criadas'),
+        step('activeShops', 'Lojas que usaram', delta(activeCur.length, activePrev.length), 'alguém da loja entrou'),
+        step('clientsNew', 'Clientes cadastrados', clientsNew, 'nas lojas'),
+        step('ordersCreated', 'Pedidos criados', created, 'sem os de demonstração'),
+        step('laudos', 'Laudos enviados', laudos, 'e-mail de pedido criado que saiu'),
+        step('ready', 'Avisos de pronto', ready, 'e-mail de pronto que saiu'),
+        step('whatsapp', 'WhatsApp oficial enviado', whatsapp, 'mensagens automáticas'),
+        step('ordersDelivered', 'Pedidos entregues', delivered, 'ação de valor'),
+        step('reviews', 'Avaliações recebidas', reviews, avgScore[0]?.avg ? `nota média ${Math.round(avgScore[0].avg * 10) / 10}` : 'sem nota no período'),
+        step('quotesWon', 'Orçamentos recuperados', won, `R$ ${wonValue.toLocaleString('pt-BR')} recuperados`),
+        step('quotesWonValue', 'Valor recuperado', delta(wonValue, wonValuePrev), 'orçamentos que viraram pedido', 'brl'),
+        step('payments', 'Recebido em assinaturas', delta(paidCur.value, paidPrev.value), `${paidCur.count} pagamentos no Asaas`, 'brl'),
+      ],
+    };
+  });
+}
+
 module.exports = {
+  ritual,
+  shopFlags,
   median,
   funnelFrom,
   cohortTable,

@@ -24,23 +24,13 @@ const insights = require('../services/platformInsights');
 const queues = require('../services/platformQueues');
 const { memo, range, delta } = require('../lib/periods');
 
-/** 0–100 from the technical numbers: errors, p95 and the collection queue. */
-function healthScore(tech) {
-  let score = 100;
-  score -= Math.min(50, tech.kpis.errorRate.value * 10);
-  if (tech.kpis.p95Ms.value > 2500) score -= 25;
-  else if (tech.kpis.p95Ms.value > 1000) score -= 10;
-  if (tech.health.dropped) score -= 10;
-  if (tech.health.status === 'degraded') score -= 15;
-  if (tech.health.status === 'down') score = 0;
-  score = Math.max(0, Math.round(score));
-  return { score, label: score >= 85 ? 'Ótima' : score >= 65 ? 'Atenção' : 'Crítica' };
-}
+const { healthScore } = require('../lib/healthScore');
 
 exports.insights = wrap(async (req, res) => {
   const days = parseDays(req.query.days, LONG, 7);
   const facts = await memo(`facts:${days}`, 60000, () => insights.collectFacts({ days }));
-  res.status(200).json({ days, insights: insights.rules(facts) });
+  const items = insights.rules(facts);
+  res.status(200).json({ days, insights: items, counts: insights.countBySeverity(items), rulesEvaluated: insights.RULES_EVALUATED });
 });
 
 exports.queues = wrap(async (_req, res) => {
@@ -52,32 +42,69 @@ exports.overview = wrap(async (req, res) => {
   const data = await memo(`overview:${days}`, 60000, async () => {
     const Order = require('../models/Order');
     const ActiveAccount = require('../models/ActiveAccount');
-    const facts = await insights.collectFacts({ days });
+    const Shop = require('../models/Shop');
+    const { dayExpr, fillSeries } = require('../lib/periods');
+    const [facts, today, billing] = await Promise.all([
+      insights.collectFacts({ days }),
+      metrics.tech({ days: 1, client: 'all' }),
+      require('../services/platformBilling').summary({ days }),
+    ]);
     const p = range(days);
     const live = { deletedAt: null, clientName: { $ne: 'Cliente demonstração' } };
     const last30 = range(30);
-    const [created, createdPrev, delivered, deliveredPrev, users30, usersPrev30, shops30, mrr] = await Promise.all([
-      Order.countDocuments({ ...live, createdAt: { $gte: p.from, $lt: p.to } }),
-      Order.countDocuments({ ...live, createdAt: { $gte: p.prevFrom, $lt: p.prevTo } }),
-      Order.countDocuments({ ...live, status: 'delivered', deliveredAt: { $gte: p.from, $lt: p.to } }),
-      Order.countDocuments({ ...live, status: 'delivered', deliveredAt: { $gte: p.prevFrom, $lt: p.prevTo } }),
-      ActiveAccount.distinct('userId', { day: { $in: last30.days } }),
-      ActiveAccount.distinct('userId', { day: { $in: last30.prevDays } }),
-      ActiveAccount.distinct('shopId', { day: { $in: last30.days }, shopId: { $ne: null } }),
-      require('../services/platformMetrics').currentMrr(),
-    ]);
+    const [created, createdPrev, delivered, deliveredPrev, users30, usersPrev30, shops30, shopsPrev30, signups, signupsPrev, createdDaily, deliveredDaily, activeDaily, signupDaily] =
+      await Promise.all([
+        Order.countDocuments({ ...live, createdAt: { $gte: p.from, $lt: p.to } }),
+        Order.countDocuments({ ...live, createdAt: { $gte: p.prevFrom, $lt: p.prevTo } }),
+        Order.countDocuments({ ...live, status: 'delivered', deliveredAt: { $gte: p.from, $lt: p.to } }),
+        Order.countDocuments({ ...live, status: 'delivered', deliveredAt: { $gte: p.prevFrom, $lt: p.prevTo } }),
+        ActiveAccount.distinct('userId', { day: { $in: last30.days } }),
+        ActiveAccount.distinct('userId', { day: { $in: last30.prevDays } }),
+        ActiveAccount.distinct('shopId', { day: { $in: last30.days }, shopId: { $ne: null } }),
+        ActiveAccount.distinct('shopId', { day: { $in: last30.prevDays }, shopId: { $ne: null } }),
+        Shop.countDocuments({ createdAt: { $gte: p.from, $lt: p.to } }),
+        Shop.countDocuments({ createdAt: { $gte: p.prevFrom, $lt: p.prevTo } }),
+        Order.aggregate([{ $match: { ...live, createdAt: { $gte: p.from } } }, { $group: { _id: dayExpr('$createdAt'), value: { $sum: 1 } } }]),
+        Order.aggregate([{ $match: { ...live, status: 'delivered', deliveredAt: { $gte: p.from } } }, { $group: { _id: dayExpr('$deliveredAt'), value: { $sum: 1 } } }]),
+        ActiveAccount.aggregate([
+          { $match: { day: { $in: p.days } } },
+          { $group: { _id: { day: '$day', userId: '$userId' } } },
+          { $group: { _id: '$_id.day', value: { $sum: 1 } } },
+        ]),
+        Shop.aggregate([{ $match: { createdAt: { $gte: p.from } } }, { $group: { _id: dayExpr('$createdAt'), value: { $sum: 1 } } }]),
+      ]);
+    const health = healthScore({
+      requests: today.kpis.requests.value,
+      errorRate: today.kpis.errorRate.value,
+      p95Ms: today.kpis.p95Ms.value,
+      status: facts.tech.health.status,
+      reasons: facts.tech.health.reasons || [],
+    });
+    const kpi = (key, label, d, extra = {}) => ({ key, label, ...d, ...extra });
+    const items = insights.rules(facts);
     return {
       days,
       kpis: {
         activeUsers30: delta(users30.length, usersPrev30.length),
         ordersCreated: delta(created, createdPrev),
         ordersDelivered: delta(delivered, deliveredPrev),
-        activeShops30: delta(shops30.length, 0),
-        mrr: { value: mrr.mrr, paying: mrr.paying },
+        activeShops30: delta(shops30.length, shopsPrev30.length),
+        mrr: { value: billing.mrr, paying: billing.paying },
       },
-      health: { ...healthScore(facts.tech), status: facts.tech.health.status, errorRate: facts.tech.kpis.errorRate.value, p95Ms: facts.tech.kpis.p95Ms.value, queue: facts.tech.health.queue },
-      insights: insights.rules(facts),
-      queues: facts.queuesFull.map(({ items, ...q }) => q),
+      tiles: [
+        kpi('activeUsers', 'Usuários ativos · 30 dias', delta(users30.length, usersPrev30.length), { href: '/admin/analises', daily: fillSeries(p.days, activeDaily), hint: 'pessoas que usaram o sistema' }),
+        kpi('ordersCreated', `Pedidos criados · ${days}d`, delta(created, createdPrev), { href: '/admin/analises?tab=transacoes', daily: fillSeries(p.days, createdDaily) }),
+        kpi('ordersDelivered', `Pedidos entregues · ${days}d`, delta(delivered, deliveredPrev), { href: '/admin/analises?tab=transacoes', daily: fillSeries(p.days, deliveredDaily), hint: 'ação de valor' }),
+        kpi('activeShops', 'Lojas ativas · 30 dias', delta(shops30.length, shopsPrev30.length), { href: '/admin/analises?tab=lojas', hint: 'com alguém usando' }),
+        kpi('signups', `Lojas novas · ${days}d`, delta(signups, signupsPrev), { href: '/admin/shops', daily: fillSeries(p.days, signupDaily) }),
+        kpi('mrr', 'MRR', { value: billing.mrr, prev: billing.mrr, pct: null }, { unit: 'brl', href: '/admin/assinaturas', hint: `${billing.paying} pagantes` }),
+      ],
+      health: { ...health, status: facts.tech.health.status, errorRate: today.kpis.errorRate.value, p95Ms: today.kpis.p95Ms.value, queue: facts.tech.health.queue },
+      insights: items,
+      insightCounts: insights.countBySeverity(items),
+      rulesEvaluated: insights.RULES_EVALUATED,
+      queues: facts.queuesFull.map(({ items: _items, ...q }) => q),
+      billing,
     };
   });
   res.status(200).json(data);
@@ -122,4 +149,40 @@ exports.emails = wrap(async (req, res) => {
       page: req.query.page,
     })
   );
+});
+
+exports.audit = wrap(async (req, res) => {
+  const adminAudit = require('../services/adminAudit');
+  res.status(200).json(
+    await adminAudit.list({
+      action: String(req.query.action || ''),
+      targetType: String(req.query.targetType || ''),
+      targetId: String(req.query.targetId || ''),
+      q: req.query.q,
+      page: req.query.page,
+    })
+  );
+});
+
+exports.transferEmail = wrap(async (req, res) => {
+  const { transferEmail } = require('../services/adminAccounts');
+  res.status(200).json(await transferEmail(req.params.id, req.body?.newEmail, req));
+});
+
+exports.subscriptions = wrap(async (req, res) => {
+  const billing = require('../services/platformBilling');
+  const [summary, list] = await Promise.all([
+    billing.summary({ days: parseDays(req.query.days, LONG, 30) }),
+    billing.list({ status: String(req.query.status || 'all'), plan: String(req.query.plan || ''), q: req.query.q, page: req.query.page }),
+  ]);
+  res.status(200).json({ summary, ...list });
+});
+
+exports.ritual = wrap(async (req, res) => {
+  res.status(200).json(await analytics.ritual({ days: parseDays(req.query.days, [7, 30], 7) }));
+});
+
+exports.errors = wrap(async (req, res) => {
+  const days = parseDays(req.query.days, SHORT, 7);
+  res.status(200).json({ days, errors: await metrics.errorList({ days, client: String(req.query.client || 'all'), q: req.query.q }) });
 });

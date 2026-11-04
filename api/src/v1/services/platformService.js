@@ -182,6 +182,10 @@ async function patchShop(shopId, updates = {}) {
       err.code = 'VALIDATION_ERROR';
       throw err;
     }
+    // Canceling an Asaas subscription has to stop the charges there too.
+    if (updates.subscriptionStatus === 'canceled' && subscription?.provider === 'Asaas' && subscription.providerSubscriptionId) {
+      await require('./billingService').cancelSubscription(shopId);
+    }
     const $set = { status: updates.subscriptionStatus };
     if (updates.subscriptionStatus === 'active') {
       $set.trialEndsAt = null;

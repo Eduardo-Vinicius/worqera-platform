@@ -6,11 +6,16 @@ Só para admin da plataforma (`PLATFORM_ADMIN_EMAILS`): todas as rotas abaixo pa
 
 | Tela (web) | O que responde | Rotas |
 |---|---|---|
-| `/admin/plataforma` Visão geral | Como está a semana? | `GET /platform/overview` |
+| `/admin/plataforma` Visão geral | O que importa agora: números com link e série, saúde, insights, pendências, assinaturas | `GET /platform/overview` |
+| `/admin/acoes` Ações rápidas | Ligar/desligar módulos, aviso de 7 dias, achar loja (+7 dias, entrar), erros e rotas lentas | `GET/PUT /platform/config`, `POST /platform/notices`, `GET /platform/shops`, `GET /platform/metrics/tech` |
+| `/admin/erros` Erros e rotas | Todas as rotas (ordenáveis) e até 500 erros 5xx com busca, por sistema | `GET /platform/metrics/tech` (`allEndpoints`), `GET /platform/errors` |
+| `/admin/ritual` Ritual semanal | Um número por passo do negócio, contra o período anterior | `GET /platform/ritual?days=7\|30` |
+| `/admin/assinaturas` Assinaturas | MRR, recebido, situação; plano, +7 dias, ativar manual, cancelar | `GET /platform/subscriptions`, `PATCH /platform/shops/:id` |
+| `/admin/auditoria` Auditoria | Quem do time mudou o quê | `GET /platform/audit` |
 | `/admin/metricas` Métricas | Tecnologia · Negócio · Produto | `GET /platform/metrics/tech\|business\|product` |
 | `/admin/analises` Análises | Ativação, retenção, uso, transações, lojas | `GET /platform/analytics/funnel\|cohorts\|engagement\|adoption\|transactions`, `GET /platform/shops-health` |
 | `/admin/operacao` Operação | Quem precisa de um toque do time | `GET /platform/queues` |
-| `/admin/contas` e `/admin/contas/[id]` | Quem é, onde usa, o que fez | `GET /platform/accounts`, `GET /platform/accounts/:id` |
+| `/admin/contas` e `/admin/contas/[id]` | Quem é, onde usa (30 dias), o que fez; transferir e-mail | `GET /platform/accounts`, `GET /platform/accounts/:id`, `POST /platform/accounts/:id/transfer-email` |
 | `/admin/emails` E-mails | O que foi enviado e o que falhou | `GET /platform/emails` |
 | `/admin/plataforma/portal` Portal técnico | Tela anterior (IA, WhatsApp, e-mails, endpoints) | `GET /platform/ops` e afins |
 
@@ -61,9 +66,31 @@ Cliente da requisição (`clientOf`):
 - **Funil de orçamentos:** criados → com contato → recuperados.
 - **Estágio da loja:** Cadastrada → Configurada → Pagante → Pagante e usando (pedido nos últimos 30 dias).
 - **Loja em risco:** ativa e sem uso há 30 dias (ou nunca usou depois de 30 dias), ou pedidos caíram mais de 50% com base de 10+.
-- **Saúde (0–100):** começa em 100; −10 por ponto de taxa de erro (até −50); p95 > 1 s −10, > 2,5 s −25; amostras descartadas −10; degradado −15; fora do ar = 0. Ótima ≥ 85, Atenção ≥ 65.
+- **Saúde (0–100)** (`lib/healthScore.js`, igual ao Procedy, sobre o dia de hoje):
+  - Começa em 100.
+  - Erro 5xx, com 20 ou mais chamadas: ≥ 5% −40, ≥ 2% −25, ≥ 1% −15, ≥ 0,5% −5.
+  - p95, com 20 ou mais chamadas: > 2,5 s −25, > 1 s −15, > 500 ms −8.
+  - Fora do ar −100. Degradado −10 por motivo, até −30.
+  - Faixas: Excelente ≥ 90, Bom ≥ 75, Atenção ≥ 50, Crítico abaixo disso.
+  - Cada componente volta com o quanto descontou, e `health.reasons` diz por que está degradado (banco, erro na última hora, coleta parada ou com erro).
+- **MRR / assinaturas** (`services/platformBilling.js`):
+  - MRR = assinaturas ativas e em atraso (fora o provedor `Dev`). Mensal pelo preço do plano, ou de fundador enquanto durar; anual ÷ 12.
+  - **Recebido** = pagamentos `PAYMENT_RECEIVED`/`PAYMENT_CONFIRMED` do Asaas no período, cada pagamento contado uma vez (pelo id do pagamento).
+- **Sinais da loja** (`shopFlags`):
+  - `at_risk`: em risco.
+  - `no_onboarding`: 7+ dias sem concluir o onboarding.
+  - `trial_ending`: teste acaba em ≤ 3 dias.
+  - `past_due`: em atraso.
+  - `no_orders_30d`: loja com 7+ dias e nenhum pedido em 30 dias.
+- **Ritual:**
+  - Lojas novas, testes iniciados, lojas que usaram e clientes cadastrados.
+  - Pedidos criados, laudos e avisos de pronto que saíram, WhatsApp oficial e pedidos entregues.
+  - Avaliações (com nota média), orçamentos recuperados (quantidade e valor) e recebido.
+  - Tudo contra o período anterior de mesmo tamanho.
 
 ## Filas e prazo
+
+Cada fila volta com `count`, `oldestHours`, `oldestAt`, `slaHours` (48), `overdueCount` (itens além do prazo) e `severity`: `critical` se há atraso, `warn` se há itens, `ok` vazia. A barra lateral mostra o total em "Filas" e o de inadimplentes em "Assinaturas", em vermelho quando há atraso.
 
 Prazo pelo item mais antigo: **no prazo** < 24 h, **atenção** < 48 h, **atrasado** ≥ 48 h.
 
@@ -92,7 +119,26 @@ Prazo pelo item mais antigo: **no prazo** < 24 h, **atenção** < 48 h, **atrasa
 
 Ordem: crítico, atenção, informação, bom sinal.
 
+## Auditoria
+
+`platformaudits` (expira em 365 dias). Middleware `platformAudit.audited(action, describe)` grava depois que a rota respondeu 2xx: quem fez, quando, ação, alvo (loja/conta), um resumo em português e o que foi enviado (sem chaves, tokens ou senhas).
+
+Ações registradas:
+- `shop.update`: suspender ou reativar, estender teste, situação, plano, selo, nota.
+- `shop.whatsapp` e `shop.ai`.
+- `config.update`.
+- `notice.create` e `notice.delete`.
+- `account.transfer_email`.
+
+Cancelar pelo admin uma assinatura do Asaas cancela lá também.
+
 ## Contas
+
+**Transferir e-mail** (`POST /platform/accounts/:id/transfer-email {newEmail}`):
+- E-mail válido, diferente do atual (409 `EMAIL_UNCHANGED`) e livre (409 `EMAIL_ALREADY_EXISTS`).
+- Troca o login, marca o e-mail como não confirmado e encerra todas as sessões (`tokenVersion`).
+- Manda o link de criar senha e grava `account_transferred` no histórico de segurança e na auditoria.
+
 
 `GET /platform/accounts?segment=&q=&page=` — 50 por página, mais recentes primeiro; `q` busca nome ou e-mail. Segmentos com contagem: `all`, `active` (30 dias), `inactive`, `owners`, `no_activation` (dono de loja sem pedido), `plan:WORQERA_BASIC|PRO|BUSINESS`.
 

@@ -2,6 +2,33 @@
 
 ## 2026-11-04
 
+- **Console admin no padrão do Procedy:**
+  - **Menu da plataforma em grupos:**
+    - Visão geral: Visão geral, Ações rápidas.
+    - Métricas: Painel, Erros e rotas, Ritual semanal.
+    - Análises.
+    - Operação: Filas, Oficinas, Contas, Assinaturas, E-mails.
+    - Configuração: Parâmetros, Notícias, Auditoria, Portal técnico.
+
+    "Filas" e "Assinaturas" mostram a contagem, em vermelho quando há atraso, atualizada a cada minuto.
+  - **Visão geral:**
+    - números que abrem o detalhe, com minissérie diária;
+    - saúde em anel com o desconto de cada componente e os motivos;
+    - insights com filtro por gravidade, categoria e "Investigar →";
+    - pendências com o mais antigo, o prazo e os atrasados;
+    - painel de assinaturas (MRR, recebido, pagas, fundador, em teste, em atraso, MRR por plano);
+    - atalhos para as análises.
+  - **Ações rápidas** (`/admin/acoes`):
+    - ligar e desligar módulos para todas as lojas;
+    - aviso rápido de 7 dias;
+    - achar uma loja e dar +7 dias de teste ou entrar;
+    - erros recentes com busca e as rotas mais lentas.
+  - **Erros e rotas** (`/admin/erros`): filtro por sistema e período, todas as rotas ordenáveis e até 500 erros 5xx com busca e correlation para copiar.
+  - **Ritual semanal** (`/admin/ritual`): Entrada, Operação e Resultado, cada número contra o período anterior (7 ou 30 dias).
+  - **Assinaturas** (`/admin/assinaturas`): filtros por situação e plano, busca, troca de plano na linha, +7 dias, ativar manual, cancelar (com confirmação), fatura e entrar.
+  - **Auditoria** (`/admin/auditoria`): filtro por tipo de ação, busca, link para a loja ou conta e o que foi enviado.
+  - **Conta 360°:** faixa dos últimos 30 dias e **Transferir para outro e-mail**, que explica o que muda, pede "Entendi" e confirma.
+  - **Lojas** (Análises): chips de sinal com contagem (também por `?flag=`), busca, colunas ordenáveis e linha que abre o detalhe (dono → conta 360°, ver assinatura, entrar).
 - **Kanban no celular mais solto:** a página inteira rola (título, busca e filtros sobem junto com os cards, em vez de ficarem fixos espremendo a lista). A fileira de setores gruda no topo. **Deslizar para os lados em qualquer ponto da lista** troca para o setor anterior ou próximo (depois Entregues e Recusados), e o chip ativo vai sozinho para a vista. No computador nada muda: cada coluna continua com a própria rolagem.
 - **E-mail sem erro de digitação:** nos campos de e-mail do cliente (novo pedido, detalhe do pedido, kanban, novo e editar cliente) aparece "Você quis dizer …@gmail.com? Usar este" para os domínios comuns (gmail, hotmail, outlook, yahoo, icloud, uol, bol…) ou o aviso de que falta o @ (`lib/emailHints.ts`, `EmailHint`).
 - **Laudo no detalhe do pedido** (consulta e kanban): mostra o último envio ("Laudo enviado para … · 04/11 09:12" ou "não chegou a sair: motivo"). O kanban também corrige o e-mail e reenvia numa chamada só.
