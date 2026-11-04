@@ -13,6 +13,7 @@ import '../crm/crm_views.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/order_form_screen.dart';
 import '../quotes/quotes_screen.dart';
+import '../../design/motion.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key, required this.api, this.openClient, this.session, this.initialTab});
@@ -248,7 +249,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
         ),
         Expanded(
           child: loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonList()
               : Builder(builder: (context) {
                   final rows = visible;
                   // Builder list: only the rows on screen are built (smooth with hundreds of clients).
@@ -327,7 +328,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       title: '${client?['name'] ?? client?['nomeCompleto'] ?? 'Cliente'}',
       subtitle: '${client?['phone'] ?? client?['telefone'] ?? ''}',
       child: client == null
-          ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
+          ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -604,7 +605,7 @@ class _ConsultasScreenState extends State<ConsultasScreen> {
         if (error != null) Text(error!, style: const TextStyle(color: Wq.danger)),
         Expanded(
           child: loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonList()
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [

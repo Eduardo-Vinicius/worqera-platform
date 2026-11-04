@@ -6,6 +6,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../auth/delete_account.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import 'hub_screen.dart';
@@ -16,6 +17,8 @@ import '../orders/order_form_screen.dart';
 import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
+import '../../billing/store_policy.dart';
+import 'package:flutter/foundation.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key, required this.api, required this.session, required this.open});
@@ -33,7 +36,7 @@ class _MoreScreenState extends State<MoreScreen> {
   @override
   void initState() {
     super.initState();
-    widget.api.dio.get('/runtime/config').then((res) {
+    widget.api.dio.get('/runtime/config', queryParameters: {'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android'}).then((res) {
       if (!mounted || res.data is! Map) return;
       flags.apply(Map<String, dynamic>.from(res.data as Map));
       setState(() {});
@@ -102,7 +105,7 @@ class _MoreScreenState extends State<MoreScreen> {
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
             if (session.isAdmin)
               for (final e in teamShortcuts(api)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
-            if (session.isAdmin) _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
+            if (session.isAdmin && showPurchaseEntryPoints) _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
           ],
           if (session.visiting)
             _row(context, 'Voltar às oficinas', Icons.arrow_back, () {
@@ -116,6 +119,7 @@ class _MoreScreenState extends State<MoreScreen> {
           ],
           const SizedBox(height: 12),
           _row(context, 'Privacidade', Icons.privacy_tip_outlined, () => open(const PrivacyScreen())),
+          _row(context, 'Excluir minha conta', Icons.person_remove_outlined, () => confirmDeleteAccount(context, api)),
           ListTile(
             title: const Text('Sair', style: TextStyle(color: Wq.danger, fontWeight: FontWeight.w700)),
             leading: const Icon(Icons.logout, color: Wq.danger),

@@ -6,12 +6,13 @@ const User = require('../models/User');
 const { serializeOrder } = require('../serializers');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { asId, ensureItemSectors, pairLabel } = require('./itemSectors');
+const { isOrderLate, isItemLate } = require('../lib/lateness');
 
 /**
  * One kanban card per item. Sector is the item's column, not the order rollup.
  * Single-item orders keep the order code; multi-item orders use code-N.
  */
-function sectorItemCards(order) {
+function sectorItemCards(order, terminalIds = new Set(), now = new Date()) {
   if (!order || order.deletedAt) return [];
   hydrateItemsIfEmpty(order);
   ensureItemSectors(order);
@@ -22,12 +23,16 @@ function sectorItemCards(order) {
     if (!sectorId) return;
     const itemId = item._id ? String(item._id) : `idx-${index}`;
     const code = String(order.code || '');
+    const itemInTerminal = terminalIds.has(sectorId);
     cards.push({
       sectorId,
       id: `${order._id || order.id}:${itemId}`,
       code: items.length > 1 ? pairLabel(code, index + 1) : code,
       clientName: order.clientName || '',
       dueAt: order.dueAt || null,
+      status: order.status || null,
+      itemInTerminal,
+      late: isItemLate(order, itemInTerminal, now),
       priority: order.priority ?? null,
       sectorHistory:
         Array.isArray(item.sectorHistory) && item.sectorHistory.length
@@ -70,7 +75,7 @@ async function getSummary(shopId) {
         if (bySector[card.sectorId]) bySector[card.sectorId].count += 1;
       }
     }
-    if (o.dueAt && new Date(o.dueAt) < now) overdue += 1;
+    if (isOrderLate(o, now)) overdue += 1;
   }
 
   const startOfDay = new Date();
@@ -141,8 +146,10 @@ async function getSectorsStats(shopId, { includeOrders = false } = {}) {
   ]);
 
   const buckets = new Map(sectors.map((s) => [String(s._id), []]));
+  const terminalIds = new Set(sectors.filter((s) => s.isTerminal).map((s) => String(s._id)));
+  const now = new Date();
   for (const order of orders) {
-    for (const card of sectorItemCards(order)) {
+    for (const card of sectorItemCards(order, terminalIds, now)) {
       const list = buckets.get(card.sectorId);
       if (!list) continue;
       list.push(card);
@@ -158,6 +165,7 @@ async function getSectorsStats(shopId, { includeOrders = false } = {}) {
       slug: s.slug,
       color: s.color,
       order: s.order,
+      isTerminal: Boolean(s.isTerminal),
       count: cards.length,
     };
     if (includeOrders) item.orders = cards;

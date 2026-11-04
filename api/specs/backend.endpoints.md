@@ -49,6 +49,8 @@ POST /auth/logout                    # PLANEJADO
 GET  /auth/me                        # PLANEJADO — user + memberships + subscription summary
 POST /auth/verify-email              # {token} ou {email, code}. Confirma e devolve a sessão (como o login)
 POST /auth/resend-verification       # {email}. Novo código + link; 60 s entre envios (retryIn, throttled)
+POST /auth/apple                     # {identityToken, name?, shopName?, planCode?}. Entra, liga pelo e-mail ou cria conta + empresa; devolve a sessão e isNew
+DELETE /auth/account                 # {confirm: "EXCLUIR"}. Exclui a conta (App Store / Play Store); dono único cancela a assinatura e suspende a empresa
 ```
 
 LEGADO: `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh-token` (sem shop/trial).

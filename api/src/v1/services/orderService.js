@@ -10,6 +10,7 @@ const storageService = require('./storageService');
 const { asNumberList, numberListIsClean } = require('../lib/numberList');
 const { BASIC_ORDER_CAP, isBasicPlan, saoPauloMonthStart } = require('../lib/planCap');
 const Subscription = require('../models/Subscription');
+const { publicCustomerSummary } = require('../lib/customerSummary');
 const {
   normalizeItemsFromPayload,
   sumServices,
@@ -2196,7 +2197,7 @@ async function getPublicOrderByCode(code, { shopSlug, token } = {}) {
     currentSector,
     dueAt: order.dueAt,
     updatedAt: order.updatedAt,
-    customerSummary: order.customerSummary?.text || '',
+    customerSummary: publicCustomerSummary(order),
     /** First name only: the client sees who served them, not the full name. */
     attendedBy: String(order.openedByName || '').trim().split(/\s+/)[0] || '',
     feedback: order.feedback?.score

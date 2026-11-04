@@ -7,6 +7,7 @@ const Sector = require('../models/Sector');
 const storageService = require('./storageService');
 const { effectiveItems } = require('./orderItems');
 const { buildPublicOrderUrl, ensureOrderPublicToken } = require('../utils/publicOrderToken');
+const { publicCustomerSummary } = require('../lib/customerSummary');
 
 const MAX_FOTOS_PER_PAIR = Number(process.env.PDF_MAX_EMBEDDED_FOTOS || 10);
 const BRAND_RGB = [15, 23, 42]; // slate-900
@@ -343,7 +344,7 @@ async function generateOrderPdf(shopId, orderId) {
   if (address) y = kvLine(doc, 'Endereço', address, y, pageWidth);
   y += 6;
 
-  const summaryText = String(order.customerSummary?.text || '').trim();
+  const summaryText = publicCustomerSummary(order);
   if (summaryText) {
     const lines = doc.splitTextToSize(summaryText, pageWidth - 50);
     y = ensureSpace(doc, y, 14 + lines.length * 4.5, pageHeight, pageCtx);

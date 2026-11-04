@@ -8,6 +8,7 @@ import '../../design/ui.dart';
 import '../quotes/quote_kit.dart';
 import '../quotes/quotes_screen.dart';
 import 'closed_orders.dart';
+import '../../design/motion.dart';
 
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key, required this.api, required this.session, required this.openOrder});
@@ -167,7 +168,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
     final col = column;
     final term = query.text.trim().toLowerCase();
     final cards = (col == null ? <Map>[] : ordersOf(col)).where((card) {
-      final late = card['dueAt'] != null && DateTime.tryParse('${card['dueAt']}')?.isBefore(DateTime.now()) == true;
+      final late = isCardLate(card);
       if (lateOnly && !late) return false;
       if (entryDay != null) {
         final created = DateTime.tryParse('${card['createdAt']}')?.toLocal();
@@ -189,7 +190,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
         actions: [IconButton(onPressed: load, tooltip: 'Atualizar', icon: const Icon(Icons.refresh))],
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList()
           : error != null
               ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(error!, textAlign: TextAlign.center)))
               : Column(
@@ -335,7 +336,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
   }
 
   Widget _card(Map card, bool terminal) {
-    final late = card['dueAt'] != null && DateTime.tryParse('${card['dueAt']}')?.isBefore(DateTime.now()) == true;
+    final late = isCardLate(card);
     final pending = num.tryParse('${card['linePending'] ?? card['paymentRemaining'] ?? 0}') ?? 0;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -448,4 +449,12 @@ class _KanbanScreenState extends State<KanbanScreen> {
     if (text.length != 6) return Wq.brand;
     return Color(int.parse('FF$text', radix: 16));
   }
+}
+
+/// Late = past due and still in production. The item waiting for pickup in the final column is not late.
+bool isCardLate(Map card) {
+  final late = card['late'];
+  if (late is bool) return late;
+  if (card['itemInTerminal'] == true || card['status'] == 'ready' || card['status'] == 'delivered') return false;
+  return card['dueAt'] != null && DateTime.tryParse('${card['dueAt']}')?.isBefore(DateTime.now()) == true;
 }

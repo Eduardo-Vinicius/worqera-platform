@@ -12,6 +12,7 @@ import '../orders/order_form_screen.dart';
 import '../settings/settings_screens.dart';
 import 'shelf_card.dart';
 import 'tv_screens_card.dart';
+import '../../design/motion.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.api, required this.session});
@@ -169,12 +170,12 @@ class _HomeScreenState extends State<HomeScreen> {
         IconButton(tooltip: 'Novo pedido', onPressed: _openNew, icon: const Icon(Icons.add)),
       ],
       child: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList()
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                children: [
+                children: staggered([
                   if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w700))),
                   DailyBriefCard(api: widget.api, session: widget.session, open: open, overdue: overdue, sectors: sectors),
                   if (showChecklist) ...[
@@ -245,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                           ]),
                   ),
-                ],
+                ]),
               ),
             ),
     );

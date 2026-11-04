@@ -2,6 +2,15 @@
 
 ## 2026-11-04
 
+- **Atrasado só na produção:**
+  - No kanban, o filtro "Atrasados" e o selo usam o `late` do servidor; o card no atendimento final, esperando o cliente, não fica vermelho.
+  - O cabeçalho do pedido não marca atrasado quando está Pronto ou Cancelado.
+  - Na TV Oficina, o setor final mostra "Pronto · Xh" em vez de atrasado ou parado.
+  - O número de Atrasados da Visão geral e as Métricas seguem a mesma regra.
+- **"O que o cliente lê" sem IA:** saiu o botão de escrever com IA. Texto antigo da IA aparece riscado, com "não aparece para o cliente. Edite e salve para publicar."
+
+- **Excluir conta** (`/excluir-conta`, pública): logado, exclui pelo site (digitar EXCLUIR); sem login, mostra como entrar ou falar no WhatsApp. É a URL de exclusão de dados da Play Store. `/privacidade` e `/excluir-conta` abertas no middleware.
+
 - **Console admin no padrão do Procedy:**
   - **Menu da plataforma em grupos:**
     - Visão geral: Visão geral, Ações rápidas.

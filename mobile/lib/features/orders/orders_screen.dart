@@ -7,6 +7,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
+import '../../design/motion.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key, required this.api, required this.session, required this.openOrder, required this.openNew, this.initialTab});
@@ -230,7 +231,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
         Expanded(
           child: loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonList()
               : error != null
                   ? Center(child: Text(error!, style: const TextStyle(color: Wq.danger)))
                   : RefreshIndicator(

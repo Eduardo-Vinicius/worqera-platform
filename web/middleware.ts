@@ -64,6 +64,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/recursos/') ||
     pathname.startsWith('/p/') ||
     pathname.startsWith('/invite/') ||
+    pathname === '/privacidade' ||
+    pathname === '/excluir-conta' ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname.startsWith('/verify-email') ||

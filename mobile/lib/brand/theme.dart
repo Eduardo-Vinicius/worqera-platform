@@ -75,6 +75,13 @@ ThemeData buildWorqeraTheme({bool dark = false}) {
       indicatorColor: brand.withValues(alpha: 0.14),
       labelTextStyle: WidgetStatePropertyAll(text.labelMedium?.copyWith(color: ink, fontWeight: FontWeight.w600)),
     ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+      dragHandleColor: dark ? WqTokens.darkBorder : const Color(0xFFCBD5E1),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: dark ? WqTokens.darkInk2 : Wq.ink,

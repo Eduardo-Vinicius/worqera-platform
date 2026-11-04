@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../api/worqera_api.dart';
@@ -8,8 +9,10 @@ import '../../brand/theme.dart';
 import '../../brand/theme_store.dart';
 import '../../brand/tokens.dart';
 import '../../design/flow.dart';
+import '../../design/motion.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
+import '../auth/delete_account.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import '../orders/order_detail_screen.dart';
@@ -22,6 +25,8 @@ import '../quotes/quotes_screen.dart';
 import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
 import 'release_notes.dart';
+import '../../billing/store_policy.dart';
+import 'package:flutter/foundation.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.session, required this.api, required this.theme, required this.navigationShell});
@@ -40,22 +45,45 @@ class _AppShellState extends State<AppShell> {
   String? banner;
   int readyCount = 0;
   final List<_Pane> pages = [];
+  /// Top bar visible? Hides while scrolling down, comes back on scroll up.
+  bool chrome = true;
+  /// Bumped on every page change so the entering page always animates with a fresh key.
+  int paneEpoch = 0;
+
+  bool _onScroll(UserScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n.direction == ScrollDirection.reverse && chrome && n.metrics.pixels > 40) {
+      setState(() => chrome = false);
+    } else if (n.direction == ScrollDirection.forward && !chrome) {
+      setState(() => chrome = true);
+    }
+    return false;
+  }
 
   void openPage(String id, Widget page, {bool stack = false}) {
     setState(() {
       if (!stack) pages.clear();
       pages.add(_Pane(id, page));
+      chrome = true;
+      paneEpoch++;
     });
   }
 
   void popPage() {
     if (pages.isEmpty) return;
-    setState(() => pages.removeLast());
+    setState(() {
+      pages.removeLast();
+      chrome = true;
+      paneEpoch++;
+    });
   }
 
   void clearPages() {
     if (pages.isEmpty) return;
-    setState(() => pages.clear());
+    setState(() {
+      pages.clear();
+      chrome = true;
+    });
   }
 
   @override
@@ -67,7 +95,7 @@ class _AppShellState extends State<AppShell> {
   Future<void> loadChrome() async {
     List notices = const [];
     try {
-      final config = await widget.api.dio.get('/runtime/config', queryParameters: {'platform': 'ios'});
+      final config = await widget.api.dio.get('/runtime/config', queryParameters: {'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android'});
       final body = Map<String, dynamic>.from(config.data as Map);
       flags.apply(body);
       notices = body['notices'] is List ? body['notices'] as List : const [];
@@ -104,7 +132,7 @@ class _AppShellState extends State<AppShell> {
       if (!enforced) {
         banner = null;
       } else if (status == 'expired' || status == 'canceled' || status == 'past_due' || (status == 'trialing' && left != null && left <= 0)) {
-        banner = 'Plano parado. Abra Plano no menu para regularizar.';
+        banner = showPurchaseEntryPoints ? 'Plano parado. Abra Plano no menu para regularizar.' : 'Plano da empresa parado. Fale com o responsável pela conta.';
       } else if (status == 'trialing' && left != null && left <= 7) {
         banner = 'Trial acaba em $left dia${left == 1 ? '' : 's'}.';
       }
@@ -165,7 +193,13 @@ class _AppShellState extends State<AppShell> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final line = dark ? WqTokens.darkBorder : Wq.line;
     final surface = dark ? WqTokens.darkSurface : Wq.surface;
-    return ShellScope(
+    // Android back (and iOS edge swipe on panes): close the opened page before leaving the tab.
+    return PopScope(
+      canPop: pages.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) popPage();
+      },
+      child: ShellScope(
       openMenu: () => scaffoldKey.currentState?.openDrawer(),
       openPage: openPage,
       popPage: popPage,
@@ -200,7 +234,13 @@ class _AppShellState extends State<AppShell> {
                 child: Text(banner!, style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
-          Material(
+          ClipRect(
+            child: AnimatedAlign(
+            duration: Motion.medium,
+            curve: Motion.curve,
+            alignment: Alignment.bottomCenter,
+            heightFactor: chrome ? 1 : 0,
+            child: Material(
             color: Theme.of(context).scaffoldBackgroundColor,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
@@ -323,7 +363,21 @@ class _AppShellState extends State<AppShell> {
               ]),
             ),
           ),
-          Expanded(child: pages.isEmpty ? widget.navigationShell : pages.last.page),
+            ),
+          ),
+          Expanded(
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: _onScroll,
+              // The tab shell stays mounted (keeps each tab's state); only opened pages animate in.
+              child: Stack(children: [
+                Offstage(offstage: pages.isNotEmpty, child: TickerMode(enabled: pages.isEmpty, child: widget.navigationShell)),
+                if (pages.isNotEmpty)
+                  Positioned.fill(
+                    child: FadeSlideIn(key: ValueKey(paneEpoch), offset: 18, child: pages.last.page),
+                  ),
+              ]),
+            ),
+          ),
         ]),
         ),
         bottomNavigationBar: SafeArea(
@@ -333,6 +387,8 @@ class _AppShellState extends State<AppShell> {
             selected: selected,
             actionIndex: sector ? null : 2,
             onTap: (index) {
+              tapHaptic();
+              if (!chrome) setState(() => chrome = true);
               clearPages();
               if (!sector && index == 2) {
                 context.push('/orders/new');
@@ -343,6 +399,7 @@ class _AppShellState extends State<AppShell> {
             },
           ),
         ),
+      ),
       ),
     );
   }
@@ -447,7 +504,7 @@ class _Drawer extends StatelessWidget {
               _item(context, Icons.apartment_outlined, 'Empresa', () => _open('empresa', EmpresaScreen(api: api))),
               if (admin)
                 for (final e in teamShortcuts(api)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
-              if (admin) _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),
+              if (admin && showPurchaseEntryPoints) _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),
             ],
             if (session.visiting)
               _item(context, Icons.arrow_back, 'Voltar às oficinas', () {
@@ -460,6 +517,7 @@ class _Drawer extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             _item(context, Icons.privacy_tip_outlined, 'Privacidade', () => _open('privacidade', const PrivacyScreen())),
+            _item(context, Icons.person_remove_outlined, 'Excluir minha conta', () => confirmDeleteAccount(context, api)),
             _item(context, theme.dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, theme.dark ? 'Tema claro' : 'Tema escuro', () => theme.toggle()),
             _item(context, Icons.logout, 'Sair', () {
               Navigator.pop(context);

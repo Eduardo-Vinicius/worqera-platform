@@ -13,6 +13,7 @@ import '../quotes/quote_kit.dart';
 import 'label_screen.dart';
 import 'notify_client_sheet.dart';
 import 'public_order_screen.dart';
+import '../../design/motion.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   const OrderDetailScreen({super.key, required this.api, required this.session, required this.orderId, required this.onEdit});
@@ -237,7 +238,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final email = '${order!['clientEmail'] ?? ''}'.trim();
     final initials = name.isEmpty ? '?' : name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
     final due = DateTime.tryParse('${order!['dueAt'] ?? ''}');
-    final late = due != null && due.isBefore(DateTime.now()) && !delivered;
+    final status = '${order!['status'] ?? ''}';
+    final late = due != null && due.isBefore(DateTime.now()) && !delivered && status != 'ready' && status != 'cancelled';
     final total = num.tryParse('${pricing?['total'] ?? 0}') ?? 0;
     final remaining = num.tryParse('${pricing?['remaining'] ?? 0}') ?? 0;
     final next = _nextTarget;
@@ -354,7 +356,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (order == null) {
-      return WqPage(title: 'Pedido', child: Center(child: error == null ? const CircularProgressIndicator() : Text(error!)));
+      return WqPage(title: 'Pedido', child: error == null ? const SkeletonList(count: 3) : Center(child: Text(error!)));
     }
     final pricing = order!['pricing'] as Map?;
     final items = ((order!['items'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();

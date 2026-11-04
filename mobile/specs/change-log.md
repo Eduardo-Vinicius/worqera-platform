@@ -2,6 +2,30 @@
 
 ## 2026-11-04
 
+- **Atrasado só na produção:** filtro "Atrasados" e selo do kanban pelo `late` do servidor (o item no atendimento final não atrasa). O detalhe do pedido não marca atrasado quando está pronto. O número da Home segue a regra nova.
+
+- **App moderno, no padrão do Procedy:**
+  - Cabeçalhos das telas e barra do topo sobem ao rolar e voltam ao puxar para baixo.
+  - Telas abertas pelo menu entram deslizando.
+  - Folhas de baixo iguais em todo o app (`showWqSheet`, `showWqActions`).
+  - Cartões afundam no toque; vibração leve nas abas e nas confirmações.
+  - Esqueleto no lugar da rodinha nas telas principais; a Home entra em cascata.
+  - Rolagem elástica também no Android e teclado que fecha ao arrastar (`design/scroll_behavior.dart`).
+  - O botão voltar do Android fecha a tela aberta pelo menu antes de sair.
+- **Continuar com a Apple** (iPhone) no login e no cadastro. No cadastro, a empresa e o plano escolhidos vão junto. Conta nova segue para o onboarding.
+- **Excluir minha conta** em Mais e no menu lateral (digitar EXCLUIR). Página pública `worqera.com/excluir-conta` para a Play Store.
+- **Ler QR:**
+  - A câmera liga só com a aba visível e o app aberto.
+  - Pausa depois de ler, com vibração; tenta de novo se o código não for achado.
+  - Lanterna, moldura de mira e aviso quando a câmera está bloqueada.
+- **Pronto para as lojas:**
+  - Ícone e tela de abertura com a marca (gerados por `tool/render_icons.py`, `flutter_launcher_icons` e `flutter_native_splash`).
+  - Manifesto de privacidade do iOS (`PrivacyInfo.xcprivacy`); `ITSAppUsesNonExemptEncryption = false`; texto da câmera cobre QR e fotos.
+  - Build de produção aponta para `https://api.worqera.com/api/v1`; mensagens de desenvolvimento só em debug.
+  - No iPhone, preço, assinatura e tela de plano ficam escondidos (regra 3.1.1 da Apple; `billing/store_policy.dart`). "Plano parado" no iPhone pede para falar com o responsável.
+  - Android release assina com `android/key.properties` quando o arquivo existe.
+  - Links de WhatsApp, ligar e e-mail declarados para o Android 11 em diante.
+
 - **E-mail:** campo com aviso e correção de domínio digitado errado (`design/email_field.dart`) no cadastro rápido de cliente do pedido e no reenviar laudo. Detalhe do pedido mostra o último envio do laudo (enviado, não enviado ou falhou, com o motivo).
 - **CRM:** abas Devendo, Hora de voltar e VIP; na Base, cards A receber, Hora de voltar, Sumidos já gastaram e Melhores clientes, e de onde vêm os clientes. Na lista, WhatsApp com o texto do segmento (Cobrar, Lembrar, Boas-vindas…) e botão Ligar.
 - **Detalhe do pedido:** "Reenviar laudo" abre o e-mail para conferir ou corrigir; e-mail novo é salvo no pedido e no cliente antes de reenviar. Pedido sem e-mail mostra "Enviar laudo".

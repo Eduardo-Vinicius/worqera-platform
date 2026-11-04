@@ -11,6 +11,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../ai/ai_widgets.dart';
+import '../../design/motion.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key, required this.api});
@@ -224,7 +225,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       title: 'Financeiro',
       subtitle: 'Receita, pendente e ticket',
       child: data == null
-          ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
+          ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -403,7 +404,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
       title: 'Métricas',
       subtitle: 'Como a loja foi no período',
       child: data == null
-          ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
+          ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(

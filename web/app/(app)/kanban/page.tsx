@@ -115,6 +115,7 @@ type OrderCard = {
   feedbackScore?: number | null
   status?: string
   itemInTerminal?: boolean
+  late?: boolean
   photoThumb?: string | null
   hasPhotos?: boolean
   lineValue?: number
@@ -369,12 +370,19 @@ function sameLocalDay(value: string | undefined, day: string) {
   return `${date.getFullYear()}-${month}-${dateDay}` === day
 }
 
+/** Late = past due and still in production; waiting for pickup in the final column is not late. */
+function isCardLate(o: OrderCard, now = Date.now()) {
+  if (typeof o.late === "boolean") return o.late
+  if (o.itemInTerminal || o.status === "ready" || o.status === "delivered") return false
+  return Boolean(o.dueAt && new Date(o.dueAt).getTime() < now)
+}
+
 function filterOrders(orders: OrderCard[], filterLate: boolean, query = "", onDate = "") {
   const q = query.trim().toLowerCase()
   const qDigits = q.replace(/\D/g, "")
   const now = Date.now()
   return orders.filter((o) => {
-    if (filterLate && !(o.dueAt && new Date(o.dueAt).getTime() < now)) return false
+    if (filterLate && !isCardLate(o, now)) return false
     if (onDate && !sameLocalDay(o.createdAt, onDate)) return false
     if (!q) return true
     const phone = String(o.clientPhone || "").replace(/\D/g, "")
@@ -592,7 +600,7 @@ function KanbanCardBody({
   onNotifyReady?: (order: OrderCard) => void
   showPayment?: boolean
 }) {
-  const late = order.dueAt && new Date(order.dueAt).getTime() < Date.now()
+  const late = isCardLate(order)
   const pairs = pairCount(order)
   const cue = routeCue(order, columnSectorId || "", sectorNameById || new Map())
   const showDeliver =

@@ -85,6 +85,17 @@ exports.login = wrap(async (req, res) => {
   res.status(200).json(result);
 });
 
+exports.apple = wrap(async (req, res) => {
+  const { identityToken, name, shopName, kit, planCode, partnerCode, ref } = req.body || {};
+  if (!identityToken) {
+    return sendError(res, 400, { title: 'Validation Error', detail: 'identityToken is required', code: 'VALIDATION_ERROR' });
+  }
+  const result = await authService.appleLogin({ identityToken, name, shopName, kit, planCode, partnerCode, ref });
+  security.record(result.user?.id, 'login', req);
+  setRefreshCookie(res, result.refreshToken);
+  res.status(result.isNew ? 201 : 200).json(result);
+});
+
 exports.refresh = wrap(async (req, res) => {
   const refreshToken =
     req.body?.refreshToken || req.cookies?.[REFRESH_COOKIE] || null;
@@ -133,6 +144,13 @@ exports.verifyEmail = wrap(async (req, res) => {
 exports.resendVerification = wrap(async (req, res) => {
   const email = req.body?.email;
   const result = await authService.resendEmailVerification(email);
+  res.status(200).json(result);
+});
+
+exports.deleteAccount = wrap(async (req, res) => {
+  const { deleteAccount } = require('../services/accountDeletion');
+  const result = await deleteAccount(req.auth.userId, req.body || {}, req);
+  clearRefreshCookie(res);
   res.status(200).json(result);
 });
 

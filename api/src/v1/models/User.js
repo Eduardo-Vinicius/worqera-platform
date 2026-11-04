@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema(
     emailVerifySentAt: { type: Date, default: null },
     /** Incremented when the password changes. Older JWTs are rejected. Logout does not bump this. */
     tokenVersion: { type: Number, default: 0 },
+    /** Sign in with Apple user id (`sub`). */
+    appleSub: { type: String, default: null },
+    /** Set when the owner deleted the account in the app; the login no longer works. */
+    deletedAt: { type: Date, default: null },
     lastLocation: {
       lat: { type: Number, default: null },
       lng: { type: Number, default: null },
@@ -30,6 +34,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ appleSub: 1 }, { unique: true, partialFilterExpression: { appleSub: { $type: 'string' } } });
 
 userSchema.index({ createdAt: 1 });
 

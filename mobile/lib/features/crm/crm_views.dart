@@ -5,6 +5,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../quotes/quote_kit.dart' show Pill;
+import '../../design/motion.dart';
 
 String brl0(dynamic v) {
   final n = v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
@@ -67,7 +68,7 @@ class _CrmHomeViewState extends State<CrmHomeView> {
     if (d == null) {
       return Padding(
         padding: const EdgeInsets.only(top: 40),
-        child: Center(child: error == null ? const CircularProgressIndicator() : Text(error!, textAlign: TextAlign.center)),
+        child: error == null ? const SkeletonList(count: 3, padding: EdgeInsets.zero) : Center(child: Text(error!, textAlign: TextAlign.center)),
       );
     }
     final s = Map<String, dynamic>.from(d['summary'] as Map);
@@ -303,7 +304,7 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
         Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: SizedBox(width: double.infinity, child: _filters())),
       Expanded(
         child: list == null
-            ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
+            ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
             : list.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(24),

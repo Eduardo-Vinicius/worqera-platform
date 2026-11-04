@@ -75,10 +75,14 @@ String waMeUrl(String phone, String text) {
   return 'https://wa.me/$digits?text=${Uri.encodeComponent(text)}';
 }
 
-Future<void> openLink(String url) async {
+Future<bool> openLink(String url) async {
   final uri = Uri.tryParse(url);
-  if (uri == null) return;
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (uri == null) return false;
+  try {
+    return await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {
+    return false;
+  }
 }
 
 TextStyle monoStyle({double size = 16, FontWeight weight = FontWeight.w700, Color? color}) {

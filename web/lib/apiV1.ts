@@ -1773,10 +1773,10 @@ export async function getWeeklyInsightsV1(refresh = false) {
   }>(`/metrics/insights${refresh ? "?refresh=1" : ""}`)
 }
 
-/** `text` saves the team's wording; no text asks the AI (Business). */
+/** `text` saves the team's wording (the AI version is paused: 409 AI_SUMMARY_PAUSED). */
 export async function customerSummaryV1(orderId: string, text?: string) {
   return v1Fetch<{
-    customerSummary: { text: string; ai: boolean; edited: boolean } | null
+    customerSummary: { text: string; ai: boolean; edited: boolean; visibleToClient?: boolean } | null
     ai?: boolean
     aiQuota?: AiQuota | null
   }>(`/orders/${encodeURIComponent(orderId)}/customer-summary`, {
@@ -2179,4 +2179,9 @@ export async function listPlatformErrorsV1(params: { days: number; client?: stri
   if (params.client && params.client !== "all") qs.set("client", params.client)
   if (params.q) qs.set("q", params.q)
   return v1Fetch<{ days: number; errors: PlatformErrorRow[] }>(`/platform/errors?${qs}`)
+}
+
+/** Excluir a conta logada (mesma regra do app). */
+export async function deleteAccountV1() {
+  return v1Fetch<{ ok: boolean; suspendedShops: number }>("/auth/account", { method: "DELETE", body: JSON.stringify({ confirm: "EXCLUIR" }) })
 }

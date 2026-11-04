@@ -13,6 +13,7 @@ export type FloorFlag = "late" | "today" | "urgent" | null
 
 /** What the floor needs to see first on each order. */
 export function orderFlag(order: FloorOrder, now: number): { flag: FloorFlag; text: string } {
+  if (order.waiting) return { flag: null, text: `Pronto · ${formatHoursInSector(order.hoursInSector)}` }
   const due = dueTimestamp(order)
   if (due != null && due < now) {
     const hours = (now - due) / 3_600_000

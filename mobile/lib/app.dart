@@ -17,6 +17,8 @@ import 'features/orders/order_form_screen.dart';
 import 'features/orders/orders_screen.dart';
 import 'design/ui.dart';
 import 'features/shell/app_shell.dart';
+import 'billing/store_policy.dart';
+import 'design/scroll_behavior.dart';
 
 class WorqeraApp extends StatefulWidget {
   const WorqeraApp({super.key});
@@ -59,6 +61,7 @@ class _WorqeraAppState extends State<WorqeraApp> {
       GoRoute(path: '/onboarding', builder: (_, _) => OnboardingScreen(api: api)),
       GoRoute(
         path: '/plano',
+        redirect: (_, _) => showPurchaseEntryPoints ? null : '/home',
         builder: (_, state) => BillingScreen(api: api, initialPlan: state.uri.queryParameters['plan'], fromSignup: true),
       ),
       StatefulShellRoute.indexedStack(
@@ -169,6 +172,7 @@ class _WorqeraAppState extends State<WorqeraApp> {
         theme: buildWorqeraTheme(),
         darkTheme: buildWorqeraTheme(dark: true),
         themeMode: theme.mode,
+        scrollBehavior: const WqScrollBehavior(),
         routerConfig: router,
       ),
     );

@@ -67,7 +67,8 @@ function phoneLabel(raw: string) {
 export function OrderDetailHeader(props: OrderDetailHeaderProps) {
   const [editing, setEditing] = useState(false)
   const { contact, money } = props
-  const late = props.dueAt ? new Date(props.dueAt).getTime() < Date.now() : false
+  const waiting = props.statusLabel === "Entregue" || props.statusLabel === "Pronto" || props.statusLabel === "Cancelado"
+  const late = props.dueAt && !waiting ? new Date(props.dueAt).getTime() < Date.now() : false
   const digits = props.phone.replace(/\D/g, "")
 
   return (
@@ -229,12 +230,12 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
               <span
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                  late && props.statusLabel !== "Entregue"
+                  late
                     ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
                     : "border-[var(--wq-border)] text-[var(--wq-text-muted)]"
                 )}
               >
-                {late && props.statusLabel !== "Entregue" ? "Atrasado · " : "Prazo "}
+                {late ? "Atrasado · " : "Prazo "}
                 {new Date(props.dueAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
               </span>
             ) : null}

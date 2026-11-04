@@ -6,6 +6,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../quotes/quote_kit.dart' show Pill;
+import '../../design/motion.dart';
 
 const _web = 'https://worqera.com';
 
@@ -223,7 +224,7 @@ class _CommsScreenState extends State<CommsScreen> {
           ),
       ],
       child: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList()
           : error != null
               ? Center(child: Text(error!))
               : ListView(

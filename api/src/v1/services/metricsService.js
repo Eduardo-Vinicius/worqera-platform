@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Sector = require('../models/Sector');
 const Employee = require('../models/Employee');
+const { isOrderLate } = require('../lib/lateness');
 
 const FINAL_STATUSES = new Set(['delivered', 'cancelled']);
 const DEFAULT_FUNC_LIMIT = 10;
@@ -99,7 +100,7 @@ function isInsidePeriod(date, range) {
 }
 
 async function loadOrders(shopId, { openOnly = false } = {}) {
-  const filter = { shopId };
+  const filter = { shopId, deletedAt: null };
   if (openOnly) filter.status = { $nin: ['delivered', 'cancelled'] };
   return Order.find(filter).lean();
 }
@@ -371,9 +372,8 @@ async function getDelays(shopId, filters = {}) {
   const orders = await loadOrders(shopId, { openOnly: true });
   const filtrados = orders.filter((o) => isInsidePeriod(parseData(o.createdAt), periodo));
   const atrasados = filtrados
-    .map((order) => ({ order, dueAt: parseData(order.dueAt) }))
-    .filter((item) => item.dueAt && item.dueAt.getTime() < now)
-    .map((item) => ({ order: item.order, delayMs: now - item.dueAt.getTime() }))
+    .filter((order) => isOrderLate(order, now))
+    .map((order) => ({ order, delayMs: now - parseData(order.dueAt).getTime() }))
     .sort((a, b) => b.delayMs - a.delayMs);
 
   const totalDelayed = atrasados.length;
@@ -416,7 +416,8 @@ async function getSummary(shopId, filters = {}) {
     }
     const dueAt = parseData(order.dueAt);
     if (!dueAt) return;
-    if (dueAt.getTime() < now) delayed += 1;
+    // Ready and waiting for pickup is not a production delay.
+    if (isOrderLate(order, now)) delayed += 1;
     else onTime += 1;
   });
 

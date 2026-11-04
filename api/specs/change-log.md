@@ -2,6 +2,22 @@
 
 ## 2026-11-04
 
+- **Atrasado só na produção** (`lib/lateness.js`, pedido da Galeria Sapataria Paulista):
+  - Atrasado = prazo vencido com o pedido aberto ou em andamento. Pronto esperando retirada não conta; fica na Prateleira.
+  - Mesma regra em todos estes pontos:
+    - número de Atrasados do `/dashboard`;
+    - alertas e e-mails de atraso;
+    - `/metrics/delays` e `/metrics/summary`;
+    - resumo do dia, incluindo o da conta de setor;
+    - leitura semanal.
+  - Apagados deixam de contar.
+  - O card do kanban e o `/dashboard/sectors` trazem `late` (o item no setor final nunca atrasa), `itemInTerminal` e `status`. O setor traz `isTerminal`.
+  - **No prazo** da leitura semanal = ficou pronto (entrou no setor final) até a data prevista. Retirada tardia não derruba a métrica. Sem passagem pelo setor final, vale a data de entrega.
+- **Texto da IA fora do QR, por ora** (`lib/customerSummary.js`): não gera mais "O que vamos fazer" ao criar o pedido; a página pública e o laudo PDF só mostram texto escrito pela equipe; pedir para a IA gerar devolve `409 AI_SUMMARY_PAUSED`. `customerSummary.visibleToClient` no pedido. Religar: `WORQERA_AI__CustomerSummary=1`.
+
+- **Entrar com a Apple** (`POST /auth/apple`, `lib/appleAuth.js`): confere o token com as chaves públicas da Apple (emissor, público `WORQERA_Apple__ClientIds`, padrão `com.worqera.worqeraMobile`, validade). Acha pelo `User.appleSub`, depois liga pelo e-mail, senão cria o usuário e a empresa (mesmo caminho do cadastro, `createShopFor`). Devolve a sessão e `isNew` (201 quando nova). Sem e-mail no primeiro acesso: `APPLE_EMAIL_MISSING`.
+- **Excluir a conta** (`DELETE /auth/account` com `{confirm: "EXCLUIR"}`, `services/accountDeletion.js`): dono único cancela a assinatura e suspende a empresa; os acessos são desligados; o usuário é anonimizado, as sessões caem e fica o evento `account_deleted`.
+
 - **Console admin no padrão do Procedy** (ver [admin-metrics](admin-metrics.md)):
   - **Saúde 0–100 igual ao Procedy** (`lib/healthScore.js`): componentes com o desconto de cada um e os motivos de "degradado" (`health.reasons`).
   - **Insights:** categoria (Confiabilidade, Crescimento, Ativação, App, Retenção, Operação), contagem por gravidade, "N regras avaliadas" e a regra nova "sistema degradado ou fora do ar".

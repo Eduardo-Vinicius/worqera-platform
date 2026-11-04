@@ -11,6 +11,7 @@ const Sector = require('../models/Sector');
 const Shop = require('../models/Shop');
 const AiBrief = require('../models/AiBrief');
 const { chatJson } = require('./aiService');
+const { lateOrderFilter, isOrderLate, producedOnTime } = require('../lib/lateness');
 const { saoPauloDayKey } = require('../lib/planCap');
 const { endOfSaoPauloDay, isDueToday, followUpState, REASON_LABEL, formatMoney } = require('../lib/quotePriority');
 
@@ -45,7 +46,7 @@ async function dailyMoney(shopId, now = new Date()) {
     Order.find({ shopId, deletedAt: null, status: 'delivered', 'pricing.remaining': { $gt: 0.009 } })
       .select('pricing.remaining')
       .lean(),
-    Order.findOne({ shopId, deletedAt: null, status: { $in: ['open', 'in_progress'] }, dueAt: { $lt: now } })
+    Order.findOne({ shopId, ...lateOrderFilter(now) })
       .sort({ dueAt: 1 })
       .select('code clientName dueAt')
       .lean(),
@@ -241,7 +242,7 @@ async function dailyNumbers(shopId, now = new Date()) {
   const [ready, open, overdue, dueTomorrow, quotes, sectors, money] = await Promise.all([
     Order.countDocuments({ shopId, deletedAt: null, status: 'ready' }),
     Order.countDocuments({ shopId, deletedAt: null, status: { $in: OPEN } }),
-    Order.countDocuments({ shopId, deletedAt: null, status: { $in: ['open', 'in_progress'] }, dueAt: { $lt: now } }),
+    Order.countDocuments({ shopId, ...lateOrderFilter(now) }),
     Order.find({
       shopId,
       deletedAt: null,
@@ -366,10 +367,10 @@ async function sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now }) {
         status: { $in: OPEN },
         $or: [{ 'items.currentSectorId': { $in: oids } }, { currentSectorId: { $in: oids } }],
       })
-        .select('code clientName dueAt priority')
+        .select('code clientName dueAt priority status')
         .lean()
     : [];
-  const late = orders.filter((o) => o.dueAt && new Date(o.dueAt) < now).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+  const late = orders.filter((o) => isOrderLate(o, now)).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
   const dueToday = orders.filter((o) => o.dueAt && new Date(o.dueAt) >= now && new Date(o.dueAt) <= todayEnd);
   const dueTomorrow = orders.filter((o) => o.dueAt && new Date(o.dueAt) > todayEnd && new Date(o.dueAt) <= tomorrowEnd);
   const urgent = orders.filter((o) => o.priority != null && Number(o.priority) <= 1);
@@ -555,11 +556,11 @@ async function weeklyNumbers(shopId, now = new Date()) {
   const [created, delivered, late, quotes, sectors, openBySector] = await Promise.all([
     Order.countDocuments({ shopId, deletedAt: null, createdAt: { $gte: since } }),
     Order.find({ shopId, deletedAt: null, status: 'delivered', deliveredAt: { $gte: since } })
-      .select('pricing dueAt deliveredAt')
+      .select('pricing dueAt deliveredAt items.sectorHistory')
       .lean(),
-    Order.countDocuments({ shopId, deletedAt: null, status: { $in: ['open', 'in_progress'] }, dueAt: { $lt: now } }),
+    Order.countDocuments({ shopId, ...lateOrderFilter(now) }),
     Quote.find({ shopId, updatedAt: { $gte: since } }).select('stage reason value wonAt lostAt createdAt').lean(),
-    Sector.find({ shopId }).select('name').lean(),
+    Sector.find({ shopId }).select('name isTerminal').lean(),
     Order.aggregate([
       { $match: { shopId: new mongoose.Types.ObjectId(String(shopId)), deletedAt: null, status: { $in: OPEN } } },
       { $group: { _id: '$currentSectorId', count: { $sum: 1 } } },
@@ -569,7 +570,8 @@ async function weeklyNumbers(shopId, now = new Date()) {
   ]);
   const sectorName = new Map(sectors.map((s) => [String(s._id), s.name]));
   const revenue = delivered.reduce((sum, o) => sum + (Number(o.pricing?.total) || 0), 0);
-  const onTime = delivered.filter((o) => !o.dueAt || (o.deliveredAt && new Date(o.deliveredAt) <= new Date(o.dueAt))).length;
+  const terminalIds = new Set(sectors.filter((s) => s.isTerminal).map((s) => String(s._id)));
+  const onTime = delivered.filter((o) => producedOnTime(o, terminalIds)).length;
   const reasons = {};
   for (const q of quotes) {
     if (q.reason && q.createdAt >= since) reasons[q.reason] = (reasons[q.reason] || 0) + 1;

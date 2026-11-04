@@ -217,7 +217,7 @@ Pedido recusado: `status=cancelled` + `quoteRefusal: { quoteId, refusedAt, reaso
 
 Índices: `(shopId, stage, followUpAt)`; `(shopId, createdAt)`; `(shopId, clientId)`; `(shopId, orderId)`. A prioridade não é gravada: sai calculada na leitura.
 
-Pedido também guarda `customerSummary: { text, ai, edited, at }` (texto para o cliente no laudo e na consulta).
+Pedido também guarda `customerSummary: { text, ai, edited, at }` (texto para o cliente no laudo e na consulta). O texto da IA está pausado (`WORQERA_AI__CustomerSummary`): o cliente só vê o que a equipe escreveu.
 
 ### `ai_usages` / `ai_briefs`
 

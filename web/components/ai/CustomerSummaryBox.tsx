@@ -1,16 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Loader2, Pencil, Sparkles } from "lucide-react"
+import { Check, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { customerSummaryV1 } from "@/lib/apiV1"
-import { WORQERA_AI_CONTACT, resetLabel } from "./AiQuotaNotice"
 
 /**
  * "O que vamos fazer" in the customer's words: shown on the laudo PDF and the
- * public tracking page. AI writes it (every plan, within the quota); the team can always edit.
+ * public tracking page. Written by the team; the AI version is paused (it said
+ * things different from what was agreed at the counter), so old AI texts stay hidden.
  */
 export function CustomerSummaryBox({
   orderId,
@@ -18,84 +18,48 @@ export function CustomerSummaryBox({
   onSaved,
 }: {
   orderId: string
-  summary: { text: string; ai?: boolean; edited?: boolean } | null | undefined
+  summary: { text: string; ai?: boolean; edited?: boolean; visibleToClient?: boolean } | null | undefined
   onSaved?: (text: string) => void
 }) {
+  const hiddenAi = (s: typeof summary) => Boolean(s?.text) && (s?.visibleToClient === false || (s?.visibleToClient == null && s?.ai && !s?.edited))
   const [text, setText] = useState(summary?.text || "")
-  const [ai, setAi] = useState(Boolean(summary?.ai))
+  const [hidden, setHidden] = useState(hiddenAi(summary))
   const [editing, setEditing] = useState(false)
-  const [busy, setBusy] = useState("")
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     setText(summary?.text || "")
-    setAi(Boolean(summary?.ai))
-  }, [summary?.text, summary?.ai])
+    setHidden(hiddenAi(summary))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary?.text, summary?.ai, summary?.edited, summary?.visibleToClient])
 
   const save = async () => {
-    setBusy("save")
+    setBusy(true)
     try {
       const res = await customerSummaryV1(orderId, text.trim())
-      setAi(false)
+      setHidden(false)
       setEditing(false)
       onSaved?.(res.customerSummary?.text || "")
       toast.success("Texto do cliente salvo")
     } catch (err: any) {
       toast.error(err?.message || "Não salvou")
     } finally {
-      setBusy("")
-    }
-  }
-
-  const generate = async () => {
-    setBusy("ai")
-    try {
-      const res = await customerSummaryV1(orderId)
-      if (res.customerSummary?.text) {
-        setText(res.customerSummary.text)
-        setAi(true)
-        onSaved?.(res.customerSummary.text)
-      } else if (res.aiQuota?.blocked) {
-        toast.message("Limite de IA do mês atingido", {
-          description: `Volta em ${resetLabel(res.aiQuota.resetsAt)}. Para mais usos, fale com a Worqera.`,
-          action: { label: "Falar", onClick: () => window.open(WORQERA_AI_CONTACT, "_blank") },
-        })
-      } else {
-        toast.message("A IA não respondeu agora. Escreva à mão ou tente de novo.")
-      }
-    } catch (err: any) {
-      toast.message(err?.message || "Disponível no Business")
-    } finally {
-      setBusy("")
+      setBusy(false)
     }
   }
 
   return (
     <section className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-paper)]/60 px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
-          O que o cliente lê
-          {ai ? <span className="rounded-full bg-[var(--wq-brand)] px-1.5 py-0.5 text-[9px] font-bold text-white">IA</span> : null}
-        </p>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-surface)]"
-            onClick={() => void generate()}
-            disabled={Boolean(busy)}
-            title="Escrever com IA"
-            aria-label="Escrever com IA"
-          >
-            {busy === "ai" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-surface)]"
-            onClick={() => setEditing((v) => !v)}
-            aria-label="Editar"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">O que o cliente lê</p>
+        <button
+          type="button"
+          className="rounded-lg p-1.5 text-[var(--wq-text-muted)] hover:bg-[var(--wq-surface)]"
+          onClick={() => setEditing((v) => !v)}
+          aria-label="Editar"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
       </div>
       {editing ? (
         <div className="mt-2 space-y-2">
@@ -109,16 +73,21 @@ export function CustomerSummaryBox({
             type="button"
             size="sm"
             className="rounded-[10px] bg-[var(--wq-action)] text-white"
-            disabled={busy === "save"}
+            disabled={busy}
             onClick={() => void save()}
           >
             <Check className="mr-1 h-4 w-4" /> Salvar
           </Button>
         </div>
       ) : (
-        <p className="mt-1 text-sm leading-relaxed text-[var(--wq-text)]">
-          {text || <span className="text-[var(--wq-text-muted)]">Sem texto. Vai no laudo e na consulta do cliente.</span>}
-        </p>
+        <>
+          <p className={`mt-1 text-sm leading-relaxed ${hidden ? "text-[var(--wq-text-muted)] line-through" : "text-[var(--wq-text)]"}`}>
+            {text || <span className="text-[var(--wq-text-muted)]">Sem texto. Se escrever, vai no laudo e na consulta do cliente.</span>}
+          </p>
+          {hidden ? (
+            <p className="mt-1 text-xs text-[var(--wq-text-muted)]">Texto da IA: não aparece para o cliente. Edite e salve para publicar.</p>
+          ) : null}
+        </>
       )}
     </section>
   )

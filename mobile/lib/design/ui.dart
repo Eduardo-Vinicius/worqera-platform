@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../brand/theme.dart';
 import '../brand/tokens.dart';
+import 'motion.dart';
 
 String brl(dynamic value) {
   final n = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
@@ -178,29 +179,42 @@ class WqPage extends StatelessWidget {
     final paper = dark ? WqTokens.darkPaper : Wq.paper;
     final ink = dark ? WqTokens.darkText : Wq.ink;
     final muted = dark ? WqTokens.darkMuted : Wq.muted;
+    // The title scrolls away with the content and comes back on the first scroll up.
     return Scaffold(
       backgroundColor: paper,
       floatingActionButton: floating,
-      appBar: AppBar(
-        backgroundColor: paper,
-        foregroundColor: ink,
-        toolbarHeight: subtitle == null ? 56 : 68,
-        automaticallyImplyLeading: false,
-        leading: nested
-            ? IconButton(tooltip: 'Voltar', onPressed: scope.popPage, icon: const Icon(Icons.arrow_back_rounded))
-            : scope == null && Navigator.canPop(context)
-                ? const BackButton()
-                : null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(fontSize: 22, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: ink)),
-            if (subtitle != null) Text(subtitle!, style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w500)),
-          ],
-        ),
-        actions: actions,
+      body: NestedScrollView(
+        floatHeaderSlivers: true,
+        headerSliverBuilder: (context, innerScrolled) => [
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            backgroundColor: paper,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: ink,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            forceElevated: innerScrolled,
+            shadowColor: Colors.black26,
+            toolbarHeight: subtitle == null ? 56 : 68,
+            automaticallyImplyLeading: false,
+            leading: nested
+                ? IconButton(tooltip: 'Voltar', onPressed: scope.popPage, icon: const Icon(Icons.arrow_back_rounded))
+                : scope == null && Navigator.canPop(context)
+                    ? const BackButton()
+                    : null,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 22, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: ink)),
+                if (subtitle != null) Text(subtitle!, style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w500)),
+              ],
+            ),
+            actions: actions,
+          ),
+        ],
+        body: child,
       ),
-      body: child,
     );
   }
 }
@@ -235,7 +249,7 @@ class WqCard extends StatelessWidget {
         ),
       ),
     );
-    return box;
+    return onTap == null ? box : PressableScale(scale: 0.98, child: box);
   }
 }
 

@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-10-28 ("Aberto por" no pedido e etapas numeradas; Recuperados em Orçamentos e no Financeiro; Métricas → Atendimento; Repor estoque; Conferir prontos)
+**Atualizado:** 2026-11-04 (console admin no padrão do Procedy; página pública Excluir conta)
 
 ## Em uma frase
 
@@ -46,6 +46,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Consulta `/p/o/{token}` (antigo `/p/{slug}/{code}?t=` segue válido) + `#avaliar` | LIVE |
 | Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos) |
 | TV Cliente / TV Oficina | LIVE |
+| Privacidade `/privacidade` e Excluir conta `/excluir-conta` (públicas) | LIVE |
 
 ## Próximo
 

@@ -102,7 +102,9 @@ class WorqeraApi {
         return detail;
       }
       if (error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout) {
-        return 'A API não está no ar em ${AppConfig.apiBase}. Sobe com make api-dev.';
+        return kDebugMode
+            ? 'A API não está no ar em ${AppConfig.apiBase}. Sobe com make api-dev.'
+            : 'Sem conexão com a Worqera. Confira a internet e tente de novo.';
       }
       return error.message ?? 'Falha na API';
     }
@@ -116,6 +118,27 @@ class WorqeraApi {
     final me = await dio.get('/auth/me');
     await session.apply(Map<String, dynamic>.from(me.data as Map), keep: session);
     return body;
+  }
+
+  /// Sign in with Apple: same session flow as e-mail login. `isNew` = conta e loja criadas agora.
+  Future<Map<String, dynamic>> appleLogin({required String identityToken, String? name, String? shopName, String? planCode}) async {
+    final res = await dio.post('/auth/apple', data: {
+      'identityToken': identityToken,
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (shopName != null && shopName.isNotEmpty) 'shopName': shopName,
+      if (planCode != null && planCode.isNotEmpty) 'planCode': planCode,
+    });
+    final body = Map<String, dynamic>.from(res.data as Map);
+    await session.apply(body);
+    final me = await dio.get('/auth/me');
+    await session.apply(Map<String, dynamic>.from(me.data as Map), keep: session);
+    return body;
+  }
+
+  /// Excluir a conta (exigência da App Store e da Play Store). Encerra a sessão em seguida.
+  Future<void> deleteAccount() async {
+    await dio.delete('/auth/account', data: {'confirm': 'EXCLUIR'});
+    await session.clear();
   }
 
   Future<void> forgot(String email) async {

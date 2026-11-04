@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../api/worqera_api.dart';
 import '../../brand/theme.dart';
 import '../../design/ui.dart';
+import '../../design/motion.dart';
 
 class ShopsScreen extends StatefulWidget {
   const ShopsScreen({super.key, required this.api});
@@ -264,7 +265,7 @@ class _PortalScreenState extends State<PortalScreen> {
         IconButton(tooltip: 'Atualizar', onPressed: loading ? null : load, icon: const Icon(Icons.refresh)),
       ],
       child: loading && data == null
-          ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
+          ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [

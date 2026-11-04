@@ -36,6 +36,7 @@ const refreshLimit = rateLimit({
 
 router.post('/signup', signupLimit, authController.signup);
 router.post('/login', loginLimit, authController.login);
+router.post('/apple', loginLimit, authController.apple);
 router.post('/refresh', refreshLimit, authController.refresh);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', forgotLimit, authController.forgotPassword);
@@ -44,5 +45,6 @@ router.post('/verify-email', forgotLimit, authController.verifyEmail);
 router.get('/verify-email', forgotLimit, authController.verifyEmail);
 router.post('/resend-verification', forgotLimit, authController.resendVerification);
 router.get('/me', auth, authController.me);
+router.delete('/account', auth, authController.deleteAccount);
 
 module.exports = router;

@@ -5,6 +5,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import 'restock_card.dart';
+import '../../design/motion.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key, required this.api});
@@ -215,7 +216,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       title: 'Produtos',
       subtitle: 'O que a loja vende. No pedido, em Produtos da loja: reserva e a entrega baixa.',
       child: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList()
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [

@@ -11,6 +11,8 @@ export type FloorOrder = {
   hoursInSector: number
   dueAt?: string | null
   priority?: number | null
+  /** In the final sector, waiting for the customer: not a production delay. */
+  waiting?: boolean
 }
 
 export type FloorSector = {
@@ -42,6 +44,9 @@ type OrderLike = {
   priority?: number | string | null
   prioridade?: number | string | null
   sectorHistory?: HistoryEntry[]
+  itemInTerminal?: boolean
+  status?: string | null
+  waiting?: boolean
   createdAt?: string | Date | null
   updatedAt?: string | Date | null
 }
@@ -57,6 +62,7 @@ type SectorLike = {
   count?: number
   quantidade?: number
   order?: number
+  isTerminal?: boolean
   orders?: OrderLike[]
   pedidos?: OrderLike[]
 }
@@ -85,6 +91,7 @@ export function dueTimestamp(order: OrderLike): number | null {
 }
 
 export function isOverdue(order: OrderLike, now: number = Date.now()): boolean {
+  if (order.waiting || order.itemInTerminal || order.status === "ready") return false
   const due = dueTimestamp(order)
   if (due != null && due < now) return true
   return hoursInSector(order, now) >= OVERDUE_HOURS_IN_SECTOR
@@ -113,7 +120,7 @@ function asId(value: unknown, fallback = ""): string {
   return String(value)
 }
 
-function asOrder(raw: OrderLike, now: number): FloorOrder {
+function asOrder(raw: OrderLike, now: number, terminal = false): FloorOrder {
   const id = asId(raw.id || raw._id || raw.code || raw.codigo)
   return {
     id,
@@ -126,11 +133,12 @@ function asOrder(raw: OrderLike, now: number): FloorOrder {
     hoursInSector: hoursInSector(raw, now),
     dueAt: raw.dueAt ? String(raw.dueAt) : raw.dataPrevistaEntrega ? String(raw.dataPrevistaEntrega) : raw.expectedDate ? String(raw.expectedDate) : null,
     priority: raw.priority != null && raw.priority !== "" ? Number(raw.priority) : raw.prioridade != null && raw.prioridade !== "" ? Number(raw.prioridade) : null,
+    waiting: terminal || Boolean(raw.itemInTerminal) || raw.status === "ready",
   }
 }
 
 function asSector(id: string, raw: SectorLike, now: number): FloorSector {
-  const orders = (raw.orders || raw.pedidos || []).map((order) => asOrder(order, now))
+  const orders = (raw.orders || raw.pedidos || []).map((order) => asOrder(order, now, Boolean(raw.isTerminal)))
   const count = typeof raw.count === "number" ? raw.count : typeof raw.quantidade === "number" ? raw.quantidade : orders.length
   return {
     id,

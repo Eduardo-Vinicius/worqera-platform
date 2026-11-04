@@ -11,6 +11,7 @@ import '../../design/ui.dart';
 import '../ai/ai_widgets.dart';
 import 'quote_kit.dart';
 import 'recovered_view.dart';
+import '../../design/motion.dart';
 
 const _preview = 5;
 
@@ -255,7 +256,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
               else
                 for (final q in results) _row(context, q, stageMenu: true),
             ] else if (loading)
-              const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: CircularProgressIndicator()))
+              const SkeletonList(count: 4, padding: EdgeInsets.only(top: 12))
             else if (error != null)
               Padding(padding: const EdgeInsets.only(top: 32), child: Text(error!, textAlign: TextAlign.center))
             else ...[
@@ -612,7 +613,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
   Widget build(BuildContext context) {
     final q = quote;
     if (q == null) {
-      return WqPage(title: 'Orçamento', child: Center(child: error == null ? const CircularProgressIndicator() : Text(error!)));
+      return WqPage(title: 'Orçamento', child: error == null ? const SkeletonList(count: 3) : Center(child: Text(error!)));
     }
     final open = quoteOpen(q);
     final activity = ((q['activity'] as List?) ?? const []).whereType<Map>().toList();

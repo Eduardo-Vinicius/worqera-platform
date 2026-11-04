@@ -21,7 +21,7 @@ class PrivacyScreen extends StatelessWidget {
           const _Block('Pedidos', 'Itens, valores, fotos do serviço e o andamento no kanban. As fotos ficam ligadas ao pedido da empresa.'),
           const _Block('Consulta do cliente', 'O link público é /p/o/ e um código opaco. Não leva o nome da empresa na barra de endereço. A página mostra o primeiro nome do cliente e o telefone da oficina, para ele saber com quem fala.'),
           const _Block('Localização', 'Este app não lê a localização do aparelho.'),
-          const _Block('Apagar', 'A equipe remove cliente e pedido dentro da oficina. Para encerrar a conta de quem faz login, use Sair e peça ao dono da empresa.'),
+          const _Block('Apagar', 'A equipe remove cliente e pedido dentro da oficina. Para apagar a sua conta, use Mais › Excluir minha conta (ou worqera.com/excluir-conta): nome, e-mail e senha são apagados e você sai de todos os aparelhos.'),
         ],
       ),
     );

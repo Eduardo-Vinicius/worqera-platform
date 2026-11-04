@@ -5,6 +5,7 @@ const { planHas } = require('../lib/planCap');
 const { wrap } = require('./helpers');
 
 const { quotaFor, aiConfigured } = require('../services/aiService');
+const { customerSummaryAiEnabled } = require('../lib/customerSummary');
 
 function aiAllowed(req) {
   return planHas(req.subscription, 'ai');
@@ -60,6 +61,13 @@ exports.customerSummary = wrap(async (req, res) => {
       return res.status(404).json({ title: 'Not Found', detail: 'Order not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ customerSummary: serializeOrder(order).customerSummary });
+  }
+  if (!customerSummaryAiEnabled()) {
+    return res.status(409).json({
+      title: 'Conflict',
+      detail: 'O texto pela IA está pausado. Escreva o texto para o cliente.',
+      code: 'AI_SUMMARY_PAUSED',
+    });
   }
   if (!aiAllowed(req)) {
     return res.status(403).json({

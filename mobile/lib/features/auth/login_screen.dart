@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
+import '../../auth/apple_sign_in_flow.dart';
+import '../../design/motion.dart';
+import 'apple_continue_button.dart';
 import 'privacy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -62,6 +65,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> apple() async {
+    setState(() {
+      loading = true;
+      error = null;
+      info = null;
+    });
+    try {
+      final identity = await AppleIdentitySource.request();
+      final body = await widget.api.appleLogin(identityToken: identity.identityToken, name: identity.fullName);
+      successHaptic();
+      if (mounted && body['isNew'] == true) context.go('/onboarding');
+    } on AppleSignInCancelled {
+      // Fechou a folha da Apple: nada a mostrar.
+    } on AppleSignInFailure catch (e) {
+      setState(() => error = e.message);
+    } catch (e) {
+      setState(() => error = widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-          children: [
+          children: staggered([
             Container(
               width: 56,
               height: 56,
@@ -105,13 +130,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (info != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(info!, style: const TextStyle(color: Wq.action))),
                 const SizedBox(height: 16),
                 FilledButton(onPressed: loading ? null : submit, child: Text(loading ? 'Entrando…' : forgot ? 'Enviar link' : 'Entrar')),
+                if (!forgot) AppleContinueButton(onPressed: apple, enabled: !loading, dark: context.wqDark, divider: true),
               ]),
             ),
             TextButton(onPressed: () => setState(() => forgot = !forgot), child: Text(forgot ? 'Voltar ao login' : 'Esqueci a senha')),
             TextButton(onPressed: () => context.go('/signup'), child: const Text('Criar empresa')),
             TextButton(onPressed: () => context.go('/invite'), child: const Text('Tenho um convite')),
             TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())), child: const Text('Privacidade')),
-          ],
+          ]),
         ),
       ),
     );

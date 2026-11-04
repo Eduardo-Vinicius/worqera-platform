@@ -7,6 +7,10 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../ops/ops_screens.dart' show pendingCheckoutPlan;
+import '../../billing/store_policy.dart';
+import '../../auth/apple_sign_in_flow.dart';
+import '../../design/motion.dart';
+import 'apple_continue_button.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key, required this.api, required this.session});
@@ -87,6 +91,37 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  Future<void> apple() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final chosen = _plans[plan]!;
+      final identity = await AppleIdentitySource.request();
+      pendingCheckoutPlan = payNow ? chosen.$3 : null;
+      final typed = name.text.trim();
+      final body = await widget.api.appleLogin(
+        identityToken: identity.identityToken,
+        name: typed.isNotEmpty ? typed : identity.fullName,
+        shopName: shop.text.trim(),
+        planCode: chosen.$3,
+      );
+      successHaptic();
+      if (!mounted) return;
+      if (body['isNew'] == true) {
+        context.go(payNow ? '/plano?plan=${chosen.$3}' : '/onboarding');
+      } else {
+        context.go('/home');
+      }
+    } on AppleSignInCancelled {
+      // Fechou a folha da Apple: nada a mostrar.
+    } on AppleSignInFailure catch (e) {
+      setState(() => error = e.message);
+    } catch (e) {
+      setState(() => error = widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chosen = _plans[plan]!;
@@ -106,7 +141,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     onTap: () => setState(() => plan = id),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(_plans[id]!.$1, style: TextStyle(fontWeight: FontWeight.w800, color: plan == id ? Wq.brand : null)),
-                      FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(_plans[id]!.$2, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+                      if (showPurchaseEntryPoints)
+                        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(_plans[id]!.$2, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
                       Text(id == 'pro' ? 'Recomendado' : id == 'basic' ? 'Começar' : 'Automático', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Wq.muted, fontSize: 12)),
                     ]),
                   ),
@@ -128,6 +164,7 @@ class _SignupScreenState extends State<SignupScreen> {
             ]),
           ),
           const SizedBox(height: 12),
+          if (showPurchaseEntryPoints) ...[
           const Text('Como quer começar?', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           SegmentedButton<bool>(
@@ -146,6 +183,7 @@ class _SignupScreenState extends State<SignupScreen> {
               style: const TextStyle(color: Wq.muted, fontSize: 12),
             ),
           ),
+          ],
           TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Seu nome')),
           TextField(controller: shop, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nome da empresa')),
           TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
@@ -155,6 +193,7 @@ class _SignupScreenState extends State<SignupScreen> {
             onPressed: loading ? null : submit,
             child: Text(loading ? 'Abrindo…' : 'Abrir $shopLabel no ${chosen.$1}'),
           ),
+          AppleContinueButton(onPressed: apple, enabled: !loading, dark: context.wqDark, divider: true),
           const SizedBox(height: 8),
           const Text('Sem cartão. Cancele quando quiser. O endereço da empresa a gente cria.', style: TextStyle(color: Wq.muted, fontSize: 12)),
         ],

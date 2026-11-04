@@ -1,5 +1,6 @@
 const { effectiveItems } = require('./services/orderItems');
 const { resolvePhotoUrl } = require('./services/storageService');
+const { publicCustomerSummary } = require('./lib/customerSummary');
 
 function idOf(doc) {
   if (!doc) return null;
@@ -199,6 +200,7 @@ function serializeOrder(order, { hidePrices = false } = {}) {
           ai: Boolean(order.customerSummary.ai),
           edited: Boolean(order.customerSummary.edited),
           at: order.customerSummary.at || null,
+          visibleToClient: Boolean(publicCustomerSummary(order)),
         }
       : null,
     quoteRefusal: order.quoteRefusal?.refusedAt

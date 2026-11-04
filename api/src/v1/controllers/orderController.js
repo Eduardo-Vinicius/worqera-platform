@@ -6,6 +6,7 @@ const storageService = require('../services/storageService');
 const { presentOrder } = require('../serializers');
 const { wrap } = require('./helpers');
 const { planHas } = require('../lib/planCap');
+const { customerSummaryAiEnabled } = require('../lib/customerSummary');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -51,7 +52,7 @@ exports.create = wrap(async (req, res) => {
     templateKey: 'created',
   }).catch(() => null);
   const emailNotify = order.emailNotify || null;
-  if (planHas(req.subscription, 'ai')) {
+  if (planHas(req.subscription, 'ai') && customerSummaryAiEnabled()) {
     require('../services/aiFeatures').generateCustomerSummarySafe(req.shopId, order._id, { aiAllowed: true });
   }
   res.status(201).json({

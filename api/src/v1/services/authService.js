@@ -84,51 +84,9 @@ async function allocateSlug(base) {
   return `${root}-${crypto.randomBytes(2).toString('hex')}`;
 }
 
-async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref, planCode, kit }) {
+/** The owner's shop, trial, default sectors and starter kit. Used by e-mail signup and Sign in with Apple. */
+async function createShopFor(user, { shopName, slug, partnerCode, ref, planCode, kit }) {
   const { generatePartnerCode } = require('./shopService');
-  const normalizedEmail = String(email).toLowerCase().trim();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) {
-    const err = new Error('User already exists');
-    err.status = 409;
-    err.code = 'CONFLICT';
-    err.title = 'Conflict';
-    err.detail = 'Email already registered';
-    throw err;
-  }
-
-  const slug = shopSlug
-    ? slugify(shopSlug)
-    : await allocateSlug(shopName || name);
-  if (!slug) {
-    const err = new Error('Invalid shop slug');
-    err.status = 400;
-    err.code = 'VALIDATION_ERROR';
-    throw err;
-  }
-
-  if (shopSlug) {
-    const slugTaken = await Shop.findOne({ slug }).select('_id').lean();
-    if (slugTaken) {
-      const err = new Error('Shop slug taken');
-      err.status = 409;
-      err.code = 'CONFLICT';
-      err.detail = 'Shop slug already in use';
-      throw err;
-    }
-  }
-
-  const passwordHash = await hashPassword(password);
-  const user = new User({
-    email: normalizedEmail,
-    passwordHash,
-    name: name || normalizedEmail.split('@')[0],
-    emailVerifiedAt: null,
-    emailVerifyRequired: true,
-  });
-  const verification = issueEmailVerification(user);
-  await user.save();
-
   const referredBy = String(partnerCode || ref || '')
     .trim()
     .toUpperCase() || null;
@@ -181,6 +139,55 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
       await applyStarterKit(shop._id, { kit }).catch((err) => console.warn('[signup] kit', err.message));
     }
   }
+
+  return { shop, membership, subscription };
+}
+
+async function signup({ email, password, name, shopName, shopSlug, partnerCode, ref, planCode, kit }) {
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) {
+    const err = new Error('User already exists');
+    err.status = 409;
+    err.code = 'CONFLICT';
+    err.title = 'Conflict';
+    err.detail = 'Email already registered';
+    throw err;
+  }
+
+  const slug = shopSlug
+    ? slugify(shopSlug)
+    : await allocateSlug(shopName || name);
+  if (!slug) {
+    const err = new Error('Invalid shop slug');
+    err.status = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+
+  if (shopSlug) {
+    const slugTaken = await Shop.findOne({ slug }).select('_id').lean();
+    if (slugTaken) {
+      const err = new Error('Shop slug taken');
+      err.status = 409;
+      err.code = 'CONFLICT';
+      err.detail = 'Shop slug already in use';
+      throw err;
+    }
+  }
+
+  const passwordHash = await hashPassword(password);
+  const user = new User({
+    email: normalizedEmail,
+    passwordHash,
+    name: name || normalizedEmail.split('@')[0],
+    emailVerifiedAt: null,
+    emailVerifyRequired: true,
+  });
+  const verification = issueEmailVerification(user);
+  await user.save();
+
+  const { shop, membership, subscription } = await createShopFor(user, { shopName, slug, partnerCode, ref, planCode, kit });
 
   await sendEmailVerificationMail(user.email, verification);
 
@@ -306,6 +313,49 @@ async function sessionFor(user) {
     accessToken,
     refreshToken,
   };
+}
+
+/**
+ * Sign in with Apple. Same Apple id → same account; an existing e-mail gets linked;
+ * otherwise a new owner account and shop are created (e-mail already verified by Apple).
+ */
+async function appleLogin({ identityToken, name, shopName, kit, planCode, partnerCode, ref }) {
+  const { verifyIdentityToken } = require('../lib/appleAuth');
+  const apple = await verifyIdentityToken(identityToken);
+  let user = await User.findOne({ appleSub: apple.sub });
+  let isNew = false;
+  if (!user && apple.email) {
+    user = await User.findOne({ email: apple.email });
+    if (user) {
+      user.appleSub = apple.sub;
+      if (!user.emailVerifiedAt && apple.emailVerified) user.emailVerifiedAt = new Date();
+      await user.save();
+    }
+  }
+  if (!user) {
+    if (!apple.email) {
+      const err = new Error('A Apple não enviou o e-mail');
+      err.status = 400;
+      err.code = 'APPLE_EMAIL_MISSING';
+      err.detail =
+        'A Apple não enviou o e-mail desta conta. No iPhone, abra Ajustes › seu nome › Iniciar Sessão com a Apple, remova o Worqera e entre de novo.';
+      throw err;
+    }
+    const displayName = String(name || '').trim().slice(0, 80) || apple.email.split('@')[0];
+    user = new User({
+      email: apple.email,
+      passwordHash: await hashPassword(crypto.randomBytes(24).toString('hex')),
+      name: displayName,
+      appleSub: apple.sub,
+      emailVerifiedAt: new Date(),
+      emailVerifyRequired: false,
+    });
+    await user.save();
+    const slug = await allocateSlug(shopName || displayName);
+    await createShopFor(user, { shopName: String(shopName || '').trim() || displayName, slug, partnerCode, ref, planCode, kit });
+    isNew = true;
+  }
+  return { ...(await sessionFor(user)), isNew };
 }
 
 async function login({ email, password }) {
@@ -582,6 +632,7 @@ async function revokeSession(userId) {
 module.exports = {
   signup,
   login,
+  appleLogin,
   refresh,
   me,
   requestPasswordReset,

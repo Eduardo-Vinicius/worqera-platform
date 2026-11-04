@@ -4,6 +4,7 @@ const Sector = require('../models/Sector');
 const User = require('../models/User');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { resolvePhotoUrl } = require('./storageService');
+const { isItemLate } = require('../lib/lateness');
 const {
   asId,
   ensureItemSectors,
@@ -328,6 +329,7 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
     pricePending: (Number(order?.pricing?.total) || 0) <= 0.009,
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
+    late: isItemLate(order, Boolean(sectorsById.get(String(itemSector))?.isTerminal)),
     ...(money
       ? {
           lineValue: roundMoney(money.lineValue),

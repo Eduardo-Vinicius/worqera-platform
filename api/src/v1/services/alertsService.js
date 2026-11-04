@@ -4,14 +4,11 @@ const Shop = require('../models/Shop');
 const Membership = require('../models/Membership');
 const User = require('../models/User');
 const { sendMail } = require('./mailer');
+const { lateOrderFilter } = require('../lib/lateness');
 
 async function listDelayAlerts(shopId) {
   const now = new Date();
-  const orders = await Order.find({
-    shopId,
-    status: { $nin: ['delivered', 'cancelled'] },
-    dueAt: { $lt: now },
-  })
+  const orders = await Order.find({ shopId, ...lateOrderFilter(now) })
     .sort({ dueAt: 1 })
     .limit(50)
     .lean();
