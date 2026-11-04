@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
 import Link from "next/link"
 import {
   DndContext,
@@ -870,8 +870,8 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex h-full min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border bg-[var(--wq-paper)]/60 md:min-h-[calc(100vh-11rem)]",
-        compact ? "w-full max-w-full" : "min-w-[280px] w-[min(360px,28vw)] flex-1",
+        "flex flex-col rounded-2xl border bg-[var(--wq-paper)]/60",
+        compact ? "w-full max-w-full" : "h-full min-h-[calc(100vh-11rem)] min-w-[280px] w-[min(360px,28vw)] flex-1 overflow-hidden",
         isOver ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]/30" : "border-[var(--wq-border)]"
       )}
     >
@@ -906,7 +906,7 @@ function DroppableColumn({
           </div>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+      <div className={cn("flex flex-1 flex-col gap-2 p-2", !compact && "overflow-y-auto")}>
         {orders.length === 0 && (
           <p className="px-2 py-8 text-center text-xs text-[var(--wq-text-muted)]">
             {query.trim() ? "Nenhum pedido" : "Vazio"}
@@ -1098,6 +1098,40 @@ export default function KanbanPage() {
     [columns, activeSectorId]
   )
   const activeColumn = activeIndex >= 0 ? columns[activeIndex] : null
+
+  // Phone: swipe anywhere on the list to go to the previous / next sector (then Entregues, Recusados).
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const swipe = useRef<{ x: number; y: number; at: number } | null>(null)
+  const onSwipeStart = (e: TouchEvent) => {
+    swipe.current = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now() } : null
+  }
+  const onSwipeEnd = (e: TouchEvent) => {
+    const start = swipe.current
+    swipe.current = null
+    if (!start || !e.changedTouches.length) return
+    const dx = e.changedTouches[0].clientX - start.x
+    const dy = e.changedTouches[0].clientY - start.y
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - start.at > 800) return
+    const tabs: Array<{ sector?: string; closed?: ClosedKind }> = [
+      ...columns.map((c) => ({ sector: c.sector._id })),
+      ...(!isSectorRole && closed.data ? (["delivered", "refused"] as ClosedKind[]).map((k) => ({ closed: k })) : []),
+    ]
+    const current = closedView ? tabs.findIndex((t) => t.closed === closedView) : activeIndex
+    const next = tabs[Math.min(tabs.length - 1, Math.max(0, current + (dx < 0 ? 1 : -1)))]
+    if (!next || next === tabs[current]) return
+    if (next.closed) {
+      setClosedView(next.closed)
+    } else {
+      setClosedView(null)
+      setActiveSectorId(next.sector || null)
+    }
+  }
+  useEffect(() => {
+    const row = tabsRef.current
+    const chip = row?.querySelector<HTMLElement>("[data-tab-active]")
+    if (!row || !chip) return
+    row.scrollTo({ left: chip.offsetLeft - row.clientWidth / 2 + chip.clientWidth / 2, behavior: "smooth" })
+  }, [activeSectorId, closedView])
   const sectorNameById = useMemo(() => {
     const map = new Map<string, string>()
     forwardTargets.forEach((t) => map.set(t.id, t.name))
@@ -1714,7 +1748,7 @@ export default function KanbanPage() {
   }
 
   return (
-      <div className="relative flex h-[calc(100dvh-3.5rem-5.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[280px] max-h-[100dvh] max-w-[100vw] flex-col overflow-hidden md:h-full md:max-h-full md:min-h-0 md:flex-1">
+      <div className="relative flex max-w-[100vw] flex-col md:h-full md:max-h-full md:min-h-0 md:flex-1 md:overflow-hidden">
         <div className="shrink-0 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-2 pt-0 sm:px-4 md:px-6">
           <AppHeader
             title="Kanban"
@@ -1724,7 +1758,7 @@ export default function KanbanPage() {
                 ? "Sua fila · abra o pedido para encaminhar"
                 : dragEnabled
                   ? "Board · arraste · atalhos j/k · 1-9 · Enter · n"
-                  : "Toque no pedido para abrir e mover"
+                  : "Toque no pedido para abrir · deslize para trocar de setor"
             }
         actions={
           <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:items-center">
@@ -1840,7 +1874,7 @@ export default function KanbanPage() {
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {/* Mobile: sector chips + one column */}
             <div className="flex min-h-0 flex-1 flex-col space-y-3 md:hidden">
-              <div className="flex shrink-0 gap-2 overflow-x-auto pb-1">
+              <div ref={tabsRef} className="sticky top-0 z-20 -mx-2 flex shrink-0 gap-2 overflow-x-auto bg-[var(--wq-paper)] px-2 py-2 shadow-[0_6px_8px_-8px_rgba(15,23,42,0.25)] [scrollbar-width:none] sm:-mx-3 sm:px-3">
                 {columns.map((col) => {
                   const active = !closedView && col.sector._id === activeSectorId
                   const visible = filterOrders(col.orders, filterLate, codeQuery, filterDate)
@@ -1850,6 +1884,7 @@ export default function KanbanPage() {
                     <button
                       key={col.sector._id}
                       type="button"
+                      data-tab-active={active || undefined}
                       onClick={() => {
                         setClosedView(null)
                         setActiveSectorId(col.sector._id)
@@ -1888,6 +1923,7 @@ export default function KanbanPage() {
                         <button
                           key={kind}
                           type="button"
+                          data-tab-active={on || undefined}
                           onClick={() => setClosedView(on ? null : kind)}
                           className={cn(
                             "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium",
@@ -1906,6 +1942,7 @@ export default function KanbanPage() {
                     })
                   : null}
               </div>
+              <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} className="flex min-h-[60vh] flex-col">
               {closedView && closed.data ? (
                 <ClosedColumn
                   compact
@@ -1932,6 +1969,7 @@ export default function KanbanPage() {
                   onNotifyReady={notifyReady}
                 />
               )}
+              </div>
               {focusedCardId && !closedView && (
                 <div className="flex shrink-0 gap-2">
                   <Button

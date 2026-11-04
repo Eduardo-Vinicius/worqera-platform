@@ -2,6 +2,7 @@
 
 ## 2026-11-04
 
+- **Kanban no celular mais solto:** a página inteira rola (título, busca e filtros sobem junto com os cards, em vez de ficarem fixos espremendo a lista). A fileira de setores gruda no topo. **Deslizar para os lados em qualquer ponto da lista** troca para o setor anterior ou próximo (depois Entregues e Recusados), e o chip ativo vai sozinho para a vista. No computador nada muda: cada coluna continua com a própria rolagem.
 - **E-mail sem erro de digitação:** nos campos de e-mail do cliente (novo pedido, detalhe do pedido, kanban, novo e editar cliente) aparece "Você quis dizer …@gmail.com? Usar este" para os domínios comuns (gmail, hotmail, outlook, yahoo, icloud, uol, bol…) ou o aviso de que falta o @ (`lib/emailHints.ts`, `EmailHint`).
 - **Laudo no detalhe do pedido** (consulta e kanban): mostra o último envio ("Laudo enviado para … · 04/11 09:12" ou "não chegou a sair: motivo"). O kanban também corrige o e-mail e reenvia numa chamada só.
 - **CRM:**

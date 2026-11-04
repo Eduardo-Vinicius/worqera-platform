@@ -127,7 +127,7 @@ export function ClosedColumn({
           {money > 0 ? <span className="font-mono text-xs text-[var(--wq-text-muted)]">{formatBRL(money)}</span> : null}
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+      <div className={cn("flex flex-1 flex-col gap-2 p-2", !compact && "overflow-y-auto")}>
         {cards.length === 0 ? <p className="px-2 py-8 text-center text-xs text-[var(--wq-text-muted)]">{meta.empty}</p> : null}
         {cards.map((c) => (
           <div key={c.id} className="rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-3 text-sm shadow-sm">

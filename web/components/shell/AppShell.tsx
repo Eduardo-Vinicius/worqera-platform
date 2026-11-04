@@ -334,7 +334,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-x-hidden",
             // Native momentum scroll and no scroll-chaining to the page behind.
-            fullBleed ? "overflow-hidden" : "overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+            // Kanban: the whole page scrolls on phones (header goes away); on larger screens each column scrolls.
+            fullBleed
+              ? "overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] md:overflow-hidden"
+              : "overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
           )}
         >
           <div
