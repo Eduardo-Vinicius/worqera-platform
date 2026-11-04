@@ -10,7 +10,6 @@ import '../../brand/tokens.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
 import '../../design/ui.dart';
-import '../admin/admin_screens.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import '../orders/order_detail_screen.dart';
@@ -431,19 +430,23 @@ class _Drawer extends StatelessWidget {
               if (flags.on('reviews')) _item(context, Icons.star_outline, 'Avaliações', () => _open('reviews', ReviewsScreen(api: api))),
               _item(context, Icons.forum_outlined, 'WhatsApp e e-mail', () => _open('comunicacao', CommsScreen(api: api, session: session))),
             ],
+            if (inShop && setup) ...[
+              const _Section('Catálogo e estoque'),
+              for (final e in catalogShortcuts(api, session)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
+            ],
             if (inShop && (admin || (setup && flags.on('tv')))) ...[
               const _Section('Gestão'),
               if (admin && flags.on('finance')) _item(context, Icons.account_balance_wallet_outlined, 'Financeiro', () => _open('financeiro', FinanceScreen(api: api, stock: true))),
               if (admin && flags.on('metrics'))
-                _item(context, Icons.bar_chart, 'Relatórios', () => _open('relatorios', HubScreen(title: 'Relatórios', subtitle: 'Métricas e desempenho da equipe', entries: reportEntries(api)))),
+                for (final e in reportShortcuts(api)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
               if (setup && flags.on('tv')) _item(context, Icons.tv_outlined, 'Telas da loja', () => _open('tvs', TvScreen(api: api))),
               if (admin && flags.on('finance')) _item(context, Icons.monitor, 'TV Financeiro', () => _open('tv-financeiro', TvFinanceBoard(api: api))),
             ],
             if (inShop && setup) ...[
               const _Section('Configurações'),
               _item(context, Icons.apartment_outlined, 'Empresa', () => _open('empresa', EmpresaScreen(api: api))),
-              _item(context, Icons.inventory_2_outlined, 'Catálogo', () => _open('catalogo', HubScreen(title: 'Catálogo', subtitle: 'Serviços, produtos, setores, marcas e acessórios', entries: catalogEntries(api, session)))),
-              if (admin) _item(context, Icons.group_outlined, 'Equipe', () => _open('equipe-hub', HubScreen(title: 'Equipe', subtitle: 'Acessos e funcionários', entries: teamEntries(api)))),
+              if (admin)
+                for (final e in teamShortcuts(api)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
               if (admin) _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),
             ],
             if (session.visiting)
@@ -453,10 +456,7 @@ class _Drawer extends StatelessWidget {
               }),
             if (session.platformAdmin) ...[
               const _Section('Plataforma'),
-              _item(context, Icons.shield_outlined, 'Oficinas', () => _open('oficinas', ShopsScreen(api: api))),
-              _item(context, Icons.monitor_heart_outlined, 'Portal', () => _open('portal', PortalScreen(api: api))),
-              _item(context, Icons.tune, 'Parâmetros', () => _open('parametros', ParamsScreen(api: api))),
-              _item(context, Icons.campaign_outlined, 'Notícias', () => _open('noticias', NoticesScreen(api: api))),
+              for (final e in platformShortcuts(api)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
             ],
             const SizedBox(height: 8),
             _item(context, Icons.privacy_tip_outlined, 'Privacidade', () => _open('privacidade', const PrivacyScreen())),

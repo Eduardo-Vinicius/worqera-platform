@@ -7,6 +7,7 @@ const platformMailLogSchema = new mongoose.Schema(
     kind: { type: String, default: '' },
     code: { type: String, default: '' },
     to: { type: String, default: '' },
+    subject: { type: String, default: '' },
     ok: { type: Boolean, default: false },
     skipped: { type: Boolean, default: false },
     reason: { type: String, default: '' },
@@ -17,6 +18,8 @@ const platformMailLogSchema = new mongoose.Schema(
 );
 
 platformMailLogSchema.index({ at: -1 });
+platformMailLogSchema.index({ at: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+platformMailLogSchema.index({ kind: 1, at: -1 });
 
 module.exports =
   mongoose.models.PlatformMailLog || mongoose.model('PlatformMailLog', platformMailLogSchema);

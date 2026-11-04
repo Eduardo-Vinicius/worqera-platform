@@ -120,10 +120,36 @@ function summarize(rows, now = new Date()) {
     lostCount30d: 0,
     recoveryRate: 0,
     byStage: { new: 0, contact: 0, followup: 0, lost: 0, won: 0 },
+    openValueByStage: { new: 0, contact: 0, followup: 0 },
+    cooling: { count: 0, value: 0 },
+    lostReasons90d: [],
+    medianDaysToWin90d: null,
   };
+  const since90 = new Date(now.getTime() - 90 * DAY);
+  const coolBefore = new Date(now.getTime() - 7 * DAY);
+  const reasons = new Map();
+  const winDays = [];
   for (const q of rows) {
     const stage = normalizeStage(q.stage);
     summary.byStage[stage] += 1;
+    if (OPEN_STAGES.includes(stage)) {
+      summary.openValueByStage[stage] += Number(q.value) || 0;
+      // Open and nobody talked to the client for a week: the value that is going cold.
+      if (new Date(q.lastContactAt || q.createdAt) < coolBefore) {
+        summary.cooling.count += 1;
+        summary.cooling.value += Number(q.value) || 0;
+      }
+    }
+    if (stage === 'lost' && q.lostAt && new Date(q.lostAt) >= since90) {
+      const key = q.reason || 'other';
+      const row = reasons.get(key) || { reason: key, label: REASON_LABEL[key] || 'Outro', count: 0, value: 0 };
+      row.count += 1;
+      row.value += Number(q.value) || 0;
+      reasons.set(key, row);
+    }
+    if (stage === 'won' && q.wonAt && new Date(q.wonAt) >= since90 && q.createdAt) {
+      winDays.push(Math.max(0, (new Date(q.wonAt) - new Date(q.createdAt)) / DAY));
+    }
     if (OPEN_STAGES.includes(stage)) {
       summary.openCount += 1;
       summary.openValue += Number(q.value) || 0;
@@ -140,6 +166,17 @@ function summarize(rows, now = new Date()) {
   summary.recoveryRate = closed ? Math.round((summary.wonCount30d / closed) * 100) : 0;
   summary.openValue = Math.round(summary.openValue * 100) / 100;
   summary.wonValue30d = Math.round(summary.wonValue30d * 100) / 100;
+  summary.cooling.value = Math.round(summary.cooling.value * 100) / 100;
+  for (const k of Object.keys(summary.openValueByStage)) summary.openValueByStage[k] = Math.round(summary.openValueByStage[k] * 100) / 100;
+  summary.lostReasons90d = [...reasons.values()]
+    .map((r) => ({ ...r, value: Math.round(r.value * 100) / 100 }))
+    .sort((a, b) => b.count - a.count || b.value - a.value);
+  if (winDays.length) {
+    winDays.sort((a, b) => a - b);
+    const mid = Math.floor(winDays.length / 2);
+    const median = winDays.length % 2 ? winDays[mid] : (winDays[mid - 1] + winDays[mid]) / 2;
+    summary.medianDaysToWin90d = Math.round(median * 10) / 10;
+  }
   return summary;
 }
 

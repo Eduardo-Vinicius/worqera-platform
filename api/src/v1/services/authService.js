@@ -241,6 +241,7 @@ async function sendEmailVerificationMail(to, { token, code }) {
     await sendMail({
       to,
       subject: `${code} é o seu código Worqera`,
+      log: { kind: 'verify_email' },
       text: `Seu código para ativar a conta Worqera: ${code}\n\nOu confirme pelo link:\n${url}\n\nVálido por 48 horas. Se não foi você, ignore este e-mail.`,
       html: `<p>Seu código para ativar a conta <strong>Worqera</strong>:</p>
         <p style="font-size:32px;font-weight:700;letter-spacing:8px;margin:12px 0;color:#110f17">${code}</p>
@@ -397,6 +398,7 @@ async function requestPasswordReset(email) {
     await sendMail({
       to: user.email,
       subject: 'Redefinir senha',
+      log: { kind: 'password_reset' },
       text: `Redefina sua senha: ${resetUrl}\n\nToken válido por 1 hora.`,
       html: `<p>Redefina sua senha:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Válido por 1 hora.</p>`,
     });

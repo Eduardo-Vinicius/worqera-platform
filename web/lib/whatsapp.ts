@@ -8,7 +8,7 @@ export function digitsOnlyPhone(phone: string): string {
 
 /** BR: if 10–11 digits without country, prefix 55 */
 export function toWhatsAppE164Digits(phone: string): string {
-  let d = digitsOnlyPhone(phone)
+  const d = digitsOnlyPhone(phone)
   if (!d) return ""
   if (d.startsWith("55") && d.length >= 12) return d
   if (d.length === 10 || d.length === 11) return `55${d}`

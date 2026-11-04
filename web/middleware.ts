@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/api/auth'];
 const ADMIN_PREFIX = '/admin';
-const PLATFORM_PREFIXES = ['/admin/shops', '/admin/plataforma', '/admin/metricas', '/admin/analises', '/admin/operacao', '/admin/contas'];
+const PLATFORM_PREFIXES = ['/admin/shops', '/admin/plataforma', '/admin/metricas', '/admin/analises', '/admin/operacao', '/admin/contas', '/admin/emails'];
 
 function isPlatformPath(pathname: string) {
   return PLATFORM_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

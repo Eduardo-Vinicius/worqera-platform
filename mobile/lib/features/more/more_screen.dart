@@ -6,7 +6,6 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
-import '../admin/admin_screens.dart';
 import '../auth/privacy_screen.dart';
 import '../lookup/simple_lists.dart';
 import 'hub_screen.dart';
@@ -86,19 +85,23 @@ class _MoreScreenState extends State<MoreScreen> {
             if (flags.on('reviews')) _row(context, 'Avaliações', Icons.star_outline, () => open(ReviewsScreen(api: api))),
             _row(context, 'WhatsApp e e-mail', Icons.forum_outlined, () => open(CommsScreen(api: api, session: session))),
           ],
+          if (inShop && session.seesShopSetup) ...[
+            const _Heading('Catálogo e estoque'),
+            for (final e in catalogShortcuts(api, session)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
+          ],
           if (inShop && (session.isAdmin || (session.seesShopSetup && flags.on('tv')))) ...[
             const _Heading('Gestão'),
             if (session.isAdmin && flags.on('finance')) _row(context, 'Financeiro', Icons.account_balance_wallet_outlined, () => open(FinanceScreen(api: api, stock: true))),
             if (session.isAdmin && flags.on('metrics'))
-              _row(context, 'Relatórios', Icons.bar_chart, () => open(HubScreen(title: 'Relatórios', subtitle: 'Métricas e desempenho da equipe', entries: reportEntries(api)))),
+              for (final e in reportShortcuts(api)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
             if (session.seesShopSetup && flags.on('tv')) _row(context, 'Telas da loja', Icons.tv_outlined, () => open(TvScreen(api: api))),
             if (session.isAdmin && flags.on('finance')) _row(context, 'TV Financeiro', Icons.monitor, () => open(TvFinanceBoard(api: api))),
           ],
           if (inShop && session.seesShopSetup) ...[
             const _Heading('Configurações'),
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
-            _row(context, 'Catálogo', Icons.inventory_2_outlined, () => open(HubScreen(title: 'Catálogo', subtitle: 'Serviços, produtos, setores, marcas e acessórios', entries: catalogEntries(api, session)))),
-            if (session.isAdmin) _row(context, 'Equipe', Icons.group_outlined, () => open(HubScreen(title: 'Equipe', subtitle: 'Acessos e funcionários', entries: teamEntries(api)))),
+            if (session.isAdmin)
+              for (final e in teamShortcuts(api)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
             if (session.isAdmin) _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),
           ],
           if (session.visiting)
@@ -109,10 +112,7 @@ class _MoreScreenState extends State<MoreScreen> {
             }),
           if (session.platformAdmin) ...[
             const _Heading('Plataforma'),
-            _row(context, 'Oficinas', Icons.shield_outlined, () => open(ShopsScreen(api: api))),
-            _row(context, 'Portal', Icons.monitor_heart_outlined, () => open(PortalScreen(api: api))),
-            _row(context, 'Parâmetros', Icons.tune, () => open(ParamsScreen(api: api))),
-            _row(context, 'Notícias', Icons.campaign_outlined, () => open(NoticesScreen(api: api))),
+            for (final e in platformShortcuts(api)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
           ],
           const SizedBox(height: 12),
           _row(context, 'Privacidade', Icons.privacy_tip_outlined, () => open(const PrivacyScreen())),

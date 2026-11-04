@@ -82,8 +82,29 @@ function wrapCompanyHtml(shop, bodyHtml) {
 /**
  * `platform: true` = Worqera writing to the shop owner (billing): Worqera as sender,
  * plain subject and the html sent as is (already a full Worqera layout).
+ * `log: { kind, shopId?, code? }` records the attempt for the platform admin (e-mails tab).
  */
-async function sendMail({ to, subject, html, text, shop, attachments, platform = false }) {
+async function sendMail(opts) {
+  if (!opts?.log) return deliver(opts);
+  const mailLog = require('./mailLog');
+  const entry = {
+    kind: opts.log.kind,
+    shopId: opts.log.shopId || opts.shop?._id || null,
+    code: opts.log.code || '',
+    to: opts.to,
+    subject: opts.subject,
+  };
+  try {
+    const result = await deliver(opts);
+    await mailLog.record({ ...entry, ...mailLog.outcome(result) });
+    return result;
+  } catch (err) {
+    await mailLog.record({ ...entry, ok: false, reason: 'failed', error: err?.message || String(err) });
+    throw err;
+  }
+}
+
+async function deliver({ to, subject, html, text, shop, attachments, platform = false }) {
   if (!to) {
     return { ok: false, skipped: true, reason: 'no-recipient' };
   }

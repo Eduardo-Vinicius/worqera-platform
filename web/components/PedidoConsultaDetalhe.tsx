@@ -35,11 +35,14 @@ import {
 } from "@/components/ui/dialog"
 import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { toast } from "sonner"
-import { pairCount } from "@/lib/utils"
+import { cn, pairCount } from "@/lib/utils"
 import { AccessoryPicker } from "@/components/orders/AccessoryPicker"
 import { buildOrderWaFromShop, type ShopWaDoc } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { resolveItemNoun } from "@/lib/itemNoun"
+import { EmailHint } from "@/components/EmailHint"
+import { LaudoStatus } from "@/components/LaudoStatus"
+import { isEmail } from "@/lib/emailHints"
 
 const TAG_LABEL: Record<string, string> = {
   qualidade: "Qualidade",
@@ -152,6 +155,11 @@ export function PedidoConsultaDetalhe({
   const [warrantyPrice, setWarrantyPrice] = useState("")
   const [shopDoc, setShopDoc] = useState<ShopWaDoc | null>(null)
   const [itemSingular, setItemSingular] = useState("peça")
+
+  const savedEmail = String(order?.clientEmail || "").trim().toLowerCase()
+  const typedEmail = clientEmail.trim().toLowerCase()
+  const emailChanged = typedEmail !== savedEmail
+  const emailInvalid = Boolean(typedEmail) && !isEmail(typedEmail)
 
   const syncForm = (fresh: any) => {
     setOrder(fresh)
@@ -595,30 +603,36 @@ export function PedidoConsultaDetalhe({
                     <Input
                       className="rounded-[10px]"
                       type="email"
+                      inputMode="email"
+                      autoCapitalize="none"
                       value={clientEmail}
                       onChange={(e) => setClientEmail(e.target.value)}
                       placeholder="cliente@email.com"
                     />
                     <Button
                       type="button"
-                      variant="outline"
-                      className="shrink-0 rounded-[10px]"
-                      disabled={resendingEmail || !clientEmail.trim()}
+                      variant={emailChanged ? "default" : "outline"}
+                      className={cn("shrink-0 rounded-[10px]", emailChanged && "bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90")}
+                      disabled={resendingEmail || !clientEmail.trim() || emailInvalid}
                       onClick={async () => {
                         if (!orderId) return
-                        const email = clientEmail.trim()
+                        const email = clientEmail.trim().toLowerCase()
                         setResendingEmail(true)
                         try {
-                          const updated = await updateOrderService(orderId, { clientEmail: email })
-                          syncForm(updated)
-                          const result = await resendOrderEmailV1(orderId, "created")
+                          const result = await resendOrderEmailV1(orderId, "created", emailChanged ? email : undefined)
+                          const fresh = await getPedidoService(orderId)
+                          syncForm(fresh)
+                          onSaved?.(fresh)
                           const notify = result?.emailNotify || result
-                          if (notify?.queued) {
-                            toast.success(`Laudo a caminho para ${email}`)
+                          const fixed = emailChanged ? "E-mail corrigido no pedido e no cadastro do cliente. " : ""
+                          if (notify?.waiting) {
+                            toast.message(`${fixed}O laudo sai quando ${notify?.reason === "awaiting-price" ? "o preço for definido" : "as fotos terminarem de subir"}.`)
+                          } else if (notify?.queued) {
+                            toast.success(`${fixed}Laudo a caminho para ${email}`)
                           } else if (notify?.ok && notify?.provider !== "console") {
-                            toast.success(`Laudo reenviado para ${email}`)
+                            toast.success(`${fixed}Laudo reenviado para ${email}`)
                           } else if (notify?.ok) {
-                            toast.message("E-mail só foi para o log da API")
+                            toast.message(`${fixed}E-mail só foi para o log da API`)
                           } else {
                             toast.error(notify?.error || notify?.reason || "Não enviou o laudo")
                           }
@@ -630,9 +644,16 @@ export function PedidoConsultaDetalhe({
                       }}
                     >
                       <Mail className="mr-1.5 h-3.5 w-3.5" />
-                      {resendingEmail ? "…" : "Reenviar laudo"}
+                      {resendingEmail ? "Enviando…" : emailChanged ? "Salvar e reenviar laudo" : "Reenviar laudo"}
                     </Button>
                   </div>
+                  <EmailHint value={clientEmail} onFix={setClientEmail} />
+                  {emailChanged && !emailInvalid && typedEmail ? (
+                    <p className="text-xs text-[var(--wq-text-muted)]">
+                      {savedEmail ? `Antes: ${savedEmail}. ` : ""}Corrige também o cadastro do cliente para os próximos pedidos.
+                    </p>
+                  ) : null}
+                  {!emailChanged ? <LaudoStatus last={order?.lastEmail} /> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Modelo / {itemSingular} (par 1)</Label>

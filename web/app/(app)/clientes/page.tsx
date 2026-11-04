@@ -16,6 +16,7 @@ import { CrmList } from "@/components/crm/CrmList"
 import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 import { CRM_TABS, birthdayLabel, type CrmTab } from "@/components/crm/crmUi"
 import { cn } from "@/lib/utils"
+import { EmailHint } from "@/components/EmailHint"
 
 const maskCpf = (value?: string) => {
   const digits = (value || "").replace(/\D/g, "");
@@ -169,7 +170,7 @@ export default function ClientsPage() {
     <div className="-mx-3 -mt-4 sm:-mx-5 sm:-mt-6 md:-mx-8 md:-mt-7">
       <AppHeader
         title="Clientes"
-        subtitle="Base, aniversariantes, sumidos e recorrentes"
+        subtitle="Quem deve, quem já devia ter voltado, quem sumiu e quem mais compra"
         actions={
           <Button asChild size="sm" className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90">
             <Link href="/clientes/novo">
@@ -181,14 +182,14 @@ export default function ClientsPage() {
       />
 
       <div className="mx-auto max-w-[1320px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
-        <nav className="grid grid-cols-3 gap-1 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 sm:grid-cols-6" aria-label="CRM">
+        <nav className="flex gap-1 overflow-x-auto rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 [scrollbar-width:none]" aria-label="CRM">
           {CRM_TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "min-w-0 truncate rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm",
+                "shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition sm:flex-1 sm:text-sm",
                 tab === t.id ? "bg-[var(--wq-brand)] text-white shadow-sm" : "text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
               )}
             >
@@ -331,6 +332,7 @@ export default function ClientsPage() {
                   value={editForm.email || ""}
                   onChange={(e) => setEditForm({...editForm, email: e.target.value})}
                 />
+                <EmailHint value={editForm.email || ""} onFix={(email) => setEditForm({ ...editForm, email })} />
               </div>
             </div>
 

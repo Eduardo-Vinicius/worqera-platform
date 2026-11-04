@@ -76,7 +76,8 @@ exports.exportCsv = wrap(async (req, res) => {
 
 exports.get = wrap(async (req, res) => {
   const order = await orderService.getOrder(req.shopId, req.params.id);
-  res.status(200).json(presentOrder(req, order));
+  const lastEmail = await require('../services/mailLog').lastForOrder(req.shopId, order.code).catch(() => null);
+  res.status(200).json({ ...presentOrder(req, order), lastEmail });
 });
 
 exports.patch = wrap(async (req, res) => {
@@ -255,6 +256,10 @@ exports.notifyCreated = wrap(async (req, res) => {
 });
 
 exports.resendEmail = wrap(async (req, res) => {
+  // Optional `email`: fix a wrong address (order + client record) and resend in one step.
+  if (req.body?.email != null) {
+    await orderService.patchOrder(req.shopId, req.params.id, req.auth.userId, { clientEmail: req.body.email });
+  }
   const order = await orderService.getOrder(req.shopId, req.params.id);
   const Shop = require('../models/Shop');
   const shop = await Shop.findById(req.shopId).lean();
@@ -268,7 +273,7 @@ exports.resendEmail = wrap(async (req, res) => {
   }
   if (kind === 'created') {
     const emailNotify = await orderService.sendLaudoNow(req.shopId, req.params.id);
-    res.status(200).json({ ok: Boolean(emailNotify?.ok), emailNotify });
+    res.status(200).json({ ok: Boolean(emailNotify?.ok), email: order.clientEmail || '', emailNotify });
     return;
   }
   const { enqueueNotifyOrderStatus } = require('../services/orderNotify');

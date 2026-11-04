@@ -39,8 +39,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
   static const _tabs = <(String, String)>[
     ('base', 'Base'),
-    ('birthdays', 'Aniversariantes'),
+    ('owing', 'Devendo'),
+    ('due', 'Hora de voltar'),
     ('inactive', 'Sumidos'),
+    ('birthdays', 'Aniversariantes'),
+    ('vip', 'VIP'),
     ('recurring', 'Recorrentes'),
     ('new', 'Novos'),
     ('all', 'Todos'),

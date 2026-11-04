@@ -147,12 +147,13 @@ export async function loginV1(email: string, password: string) {
   return data
 }
 
-export async function resendOrderEmailV1(orderId: string, kind: "created" | "moved" | "ready" = "created") {
-  return v1Fetch<{ ok: boolean; emailNotify?: any }>(
+/** `email` fixes a wrong address first (order and client record), then resends. */
+export async function resendOrderEmailV1(orderId: string, kind: "created" | "moved" | "ready" = "created", email?: string) {
+  return v1Fetch<{ ok: boolean; email?: string; emailNotify?: any }>(
     `/orders/${encodeURIComponent(orderId)}/resend-email`,
     {
       method: "POST",
-      body: JSON.stringify({ kind }),
+      body: JSON.stringify(email == null ? { kind } : { kind, email }),
     }
   )
 }
@@ -297,15 +298,16 @@ export async function createAttendantV1(name: string) {
   return { id: String(e.id || e._id || ""), name: e.name } as Attendant
 }
 
-export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" | "never" | "all"
+export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" | "owing" | "due" | "never" | "all"
 
 export type CrmSummary = {
   inactiveDays: number
-  counts: { clients: number; active90: number; recurring: number; new30: number; inactive: number; never: number; once: number; vip: number }
+  counts: { clients: number; active90: number; recurring: number; new30: number; inactive: number; never: number; once: number; vip: number; owing: number; due: number }
   buckets: { one: number; two_three: number; four_plus: number }
   birthdays: { today: number; week: number; registered: number }
-  rates: { repeat: number; active: number; birthdayCoverage: number }
-  money?: { spent: number; avgTicket: number; perClient: number }
+  rates: { repeat: number; active: number; birthdayCoverage: number; sourceCoverage: number }
+  sources: Array<{ source: string; clients: number; spent?: number }>
+  money?: { spent: number; avgTicket: number; perClient: number; owed: number; inactiveSpent: number; topShare: number | null }
 }
 
 export type CrmRow = {
@@ -315,6 +317,8 @@ export type CrmRow = {
   orders: number
   spent?: number
   ticket?: number
+  owed?: number
+  avgGapDays: number | null
   lastOrderAt: string | null
   daysSince: number | null
   openOrders: number
@@ -1546,6 +1550,10 @@ export type QuoteSummary = {
   lostCount30d: number
   recoveryRate: number
   byStage: Record<QuoteStage, number>
+  openValueByStage: { new: number; contact: number; followup: number }
+  cooling: { count: number; value: number }
+  lostReasons90d: Array<{ reason: string; label: string; count: number; value: number }>
+  medianDaysToWin90d: number | null
 }
 
 export type QuotePrefill = {
@@ -2026,4 +2034,32 @@ export async function listPlatformAccountsV1(params: { segment?: string; q?: str
 }
 export async function getPlatformAccountV1(id: string) {
   return v1Fetch<PlatformAccount360>(`/platform/accounts/${encodeURIComponent(id)}`)
+}
+
+export type PlatformEmail = {
+  id: string
+  at: string
+  kind: string
+  kindLabel: string
+  group: "orders" | "account" | "billing" | "alerts" | "other"
+  to: string
+  subject: string
+  code: string
+  shopId: string | null
+  shopName: string | null
+  status: "sent" | "skipped" | "failed"
+  reason: string
+  error: string
+  provider: string
+}
+
+export async function listPlatformEmailsV1(params: { days: number; group?: string; status?: string; q?: string; page?: number }) {
+  const qs = new URLSearchParams({ days: String(params.days) })
+  if (params.group && params.group !== "all") qs.set("group", params.group)
+  if (params.status && params.status !== "all") qs.set("status", params.status)
+  if (params.q) qs.set("q", params.q)
+  if (params.page) qs.set("page", String(params.page))
+  return v1Fetch<{ days: number; total: number; page: number; counts: { total: number; sent: number; skipped: number; failed: number }; emails: PlatformEmail[] }>(
+    `/platform/emails?${qs}`
+  )
 }

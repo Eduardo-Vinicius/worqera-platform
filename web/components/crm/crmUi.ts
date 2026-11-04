@@ -1,11 +1,14 @@
 import type { CrmRow, CrmSegment } from "@/lib/apiV1"
 
-export type CrmTab = "base" | "aniversariantes" | "sumidos" | "recorrentes" | "novos" | "todos"
+export type CrmTab = "base" | "devendo" | "voltar" | "sumidos" | "aniversariantes" | "vip" | "recorrentes" | "novos" | "todos"
 
 export const CRM_TABS: Array<{ id: CrmTab; label: string; short: string; segment?: CrmSegment }> = [
   { id: "base", label: "Visão da base", short: "Base" },
-  { id: "aniversariantes", label: "Aniversariantes", short: "Aniver.", segment: "birthdays" },
+  { id: "devendo", label: "Devendo", short: "Devendo", segment: "owing" },
+  { id: "voltar", label: "Hora de voltar", short: "Voltar", segment: "due" },
   { id: "sumidos", label: "Sumidos", short: "Sumidos", segment: "inactive" },
+  { id: "aniversariantes", label: "Aniversariantes", short: "Aniver.", segment: "birthdays" },
+  { id: "vip", label: "VIP", short: "VIP", segment: "vip" },
   { id: "recorrentes", label: "Recorrentes", short: "Fiéis", segment: "recurring" },
   { id: "novos", label: "Novos", short: "Novos", segment: "new" },
   { id: "todos", label: "Todos", short: "Todos" },
@@ -15,7 +18,9 @@ export const SEGMENT_TAB: Record<string, CrmTab> = {
   birthdays: "aniversariantes",
   inactive: "sumidos",
   recurring: "recorrentes",
-  vip: "recorrentes",
+  vip: "vip",
+  owing: "devendo",
+  due: "voltar",
   new: "novos",
   all: "todos",
   never: "todos",

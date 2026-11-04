@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 import { AppHeader } from "@/components/shell/AppHeader"
+import { EmailHint } from "@/components/EmailHint"
 
 const fieldClass = "rounded-[10px] border-[var(--wq-border)] bg-white"
 const errorClass = "border-[var(--wq-danger)]"
@@ -224,7 +225,11 @@ export default function NewClientPage() {
                 placeholder="cliente@email.com"
                 className={`${fieldClass} ${errors.email ? errorClass : ""}`}
               />
-              {errors.email && <p className="text-sm text-[var(--wq-danger)]">{errors.email}</p>}
+              {errors.email ? (
+                <p className="text-sm text-[var(--wq-danger)]">{errors.email}</p>
+              ) : (
+                <EmailHint value={formData.email} onFix={(email) => setFormData((prev) => ({ ...prev, email }))} />
+              )}
             </div>
           </div>
 

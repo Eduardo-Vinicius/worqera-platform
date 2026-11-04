@@ -76,9 +76,15 @@ class _CrmHomeViewState extends State<CrmHomeView> {
     final bdays = Map<String, dynamic>.from(s['birthdays'] as Map);
     final money = s['money'] is Map ? Map<String, dynamic>.from(s['money'] as Map) : null;
     final cards = <(String, String, String, Color, String)>[
+      if (money != null) ...[
+        ('A receber', brl0(money['owed']), '${c['owing'] ?? 0} com saldo · cobrar', const Color(0xFFD97706), 'owing'),
+        ('Hora de voltar', '${c['due'] ?? 0}', 'passaram do tempo de voltar', Wq.brand, 'due'),
+        ('Sumidos já gastaram', brl0(money['inactiveSpent']), '${c['inactive']} sem pedido há ${s['inactiveDays']}+ dias', const Color(0xFFE11D48), 'inactive'),
+        ('Melhores clientes', money['topShare'] == null ? '—' : '${money['topShare']}%', 'da receita vem dos 20% que mais gastam', Wq.success, 'vip'),
+      ],
       ('Clientes', '${c['clients']}', '${c['active90']} ativos em 90 dias', context.wqInk, 'all'),
       ('Recorrentes', '${c['recurring']}', '${rates['repeat']}% voltaram', Wq.success, 'recurring'),
-      ('Sumidos', '${c['inactive']}', 'sem pedido há ${s['inactiveDays']}+ dias', const Color(0xFFD97706), 'inactive'),
+      if (money == null) ('Sumidos', '${c['inactive']}', 'sem pedido há ${s['inactiveDays']}+ dias', const Color(0xFFD97706), 'inactive'),
       ('Novos', '${c['new30']}', 'primeiro pedido em 30 dias', Wq.brand, 'new'),
       ('Aniversariantes', '${bdays['today']}', '${bdays['week']} na semana', const Color(0xFFE11D48), 'birthdays'),
       if (money != null) ('Ticket médio', brl0(money['avgTicket']), 'gasto/cliente ${brl0(money['perClient'])}', context.wqInk, ''),
@@ -132,6 +138,20 @@ class _CrmHomeViewState extends State<CrmHomeView> {
                 ),
             ]);
           }),
+          if (((s['sources'] as List?) ?? const []).isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const WqSectionTitle('De onde vêm os clientes'),
+            for (final src in ((s['sources'] as List?) ?? const []).whereType<Map>())
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  Expanded(child: Text('${src['source']}')),
+                  Text('${src['clients']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  if (src['spent'] != null) Text('  ${brl0(src['spent'])}', style: TextStyle(fontSize: 12, color: context.wqMuted)),
+                ]),
+              ),
+            Text('${rates['sourceCoverage'] ?? 0}% com origem cadastrada.', style: TextStyle(fontSize: 12, color: context.wqMuted)),
+          ],
         ],
       ),
     );
@@ -261,6 +281,8 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
         sinceLabel(r['daysSince']),
       '${r['orders'] ?? 0} pedido${r['orders'] == 1 ? '' : 's'}',
       if (r['spent'] != null && (r['orders'] ?? 0) != 0) brl0(r['spent']),
+      if (widget.segment == 'owing' && r['owed'] != null) 'deve ${brl0(r['owed'])}',
+      if (widget.segment == 'due' && r['avgGapDays'] != null) 'volta a cada ${r['avgGapDays']} dias',
     ];
     return parts.join(' · ');
   }
@@ -268,11 +290,14 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
   @override
   Widget build(BuildContext context) {
     final list = rows;
-    final action = widget.segment == 'birthdays'
-        ? 'Parabéns'
-        : widget.segment == 'inactive'
-            ? 'Chamar'
-            : 'Agradecer';
+    final action = switch (widget.segment) {
+      'birthdays' => 'Parabéns',
+      'inactive' => 'Chamar',
+      'owing' => 'Cobrar',
+      'due' => 'Lembrar',
+      'new' => 'Boas-vindas',
+      _ => 'Agradecer',
+    };
     return Column(children: [
       if (widget.segment == 'birthdays' || widget.segment == 'inactive')
         Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: SizedBox(width: double.infinity, child: _filters())),
@@ -317,6 +342,12 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
                                   Text(_line(r), style: TextStyle(color: context.wqMuted, fontSize: 12)),
                                 ]),
                               ),
+                              if ('${r['phone'] ?? ''}'.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'Ligar',
+                                  onPressed: () => openLink('tel:${'${r['phone']}'.replaceAll(RegExp(r'\D'), '')}'),
+                                  icon: const Icon(Icons.phone_outlined),
+                                ),
                               if (wa != null)
                                 FilledButton.icon(
                                   style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: const Color(0xFF073018), padding: const EdgeInsets.symmetric(horizontal: 12)),

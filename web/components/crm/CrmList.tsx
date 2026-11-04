@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Cake, Loader2, MessageCircle } from "lucide-react"
+import { Cake, ClipboardPlus, Loader2, MessageCircle, Phone } from "lucide-react"
 import { getCrmListV1, type CrmRow, type CrmSegment } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 import { birthdayLabel, birthdayWhen, brl, sinceLabel } from "./crmUi"
@@ -21,6 +21,32 @@ const EMPTY: Record<string, string> = {
   inactive: "Ninguém sumido nesse período. Ótimo sinal!",
   recurring: "Ainda ninguém voltou duas vezes. Os recorrentes aparecem aqui.",
   new: "Nenhum cliente novo nos últimos 30 dias.",
+  owing: "Ninguém devendo. Todo pedido pronto ou entregue está pago.",
+  due: "Ninguém atrasado para voltar. Os clientes que passam do tempo em que costumam voltar aparecem aqui.",
+  vip: "Os VIPs aparecem quando houver clientes com 2 ou mais pedidos.",
+}
+
+const SORT_HINT: Partial<Record<CrmSegment, string>> = {
+  inactive: " · os que mais gastaram primeiro",
+  recurring: " · quem mais voltou primeiro",
+  vip: " · quem mais gastou primeiro",
+  owing: " · maior saldo primeiro",
+  due: " · os que mais gastam primeiro",
+}
+
+function waLabel(segment: CrmSegment, row: CrmRow) {
+  if (segment === "owing") return row.owed ? `Cobrar ${brl(row.owed)}` : "Cobrar"
+  if (segment === "due") return "Lembrar"
+  if (segment === "birthdays") return "Dar parabéns"
+  if (segment === "inactive") return "Chamar de volta"
+  if (segment === "new") return "Agradecer 1ª visita"
+  return "Agradecer"
+}
+
+function newOrderHref(row: CrmRow) {
+  const qs = new URLSearchParams({ clientId: row.id, clientName: row.name })
+  if (row.phone) qs.set("clientPhone", row.phone)
+  return `/pedidos/novo?${qs}`
 }
 
 /** One CRM segment with the ready WhatsApp message for each client. */
@@ -101,7 +127,7 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[var(--wq-text-muted)]">
           {rows ? `${total} cliente${total === 1 ? "" : "s"}` : "Carregando…"}
-          {segment === "inactive" ? " · os que mais gastaram primeiro" : segment === "recurring" ? " · quem mais voltou primeiro" : ""}
+          {SORT_HINT[segment] || ""}
         </p>
         {filters}
       </div>
@@ -132,6 +158,8 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
                       : sinceLabel(r.daysSince),
                     `${r.orders} pedido${r.orders === 1 ? "" : "s"}`,
                     r.spent != null && r.orders ? `${brl(r.spent)} no total` : "",
+                    segment === "owing" && r.owed ? `deve ${brl(r.owed)}` : "",
+                    segment === "due" && r.avgGapDays ? `costuma voltar a cada ${r.avgGapDays} dias` : "",
                     r.openOrders ? `${r.openOrders} em andamento` : "",
                   ]
                     .filter(Boolean)
@@ -147,20 +175,40 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
                   </span>
                 ) : null}
               </Link>
-              {r.whatsapp ? (
-                <a
-                  href={r.whatsapp.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-[#25D366] px-3 text-sm font-semibold text-[#073018] hover:bg-[#1ebe5d]"
-                  title={r.whatsapp.text}
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                {r.whatsapp ? (
+                  <a
+                    href={r.whatsapp.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#25D366] px-3 text-sm font-semibold text-[#073018] hover:bg-[#1ebe5d]"
+                    title={r.whatsapp.text}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {waLabel(segment, r)}
+                  </a>
+                ) : !r.phone ? (
+                  <span className="text-xs text-[var(--wq-text-muted)]">Sem telefone</span>
+                ) : null}
+                {r.phone ? (
+                  <a
+                    href={`tel:${r.phone.replace(/\D/g, "")}`}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--wq-border)] hover:bg-[var(--wq-paper)]"
+                    aria-label={`Ligar para ${r.name}`}
+                    title="Ligar"
+                  >
+                    <Phone className="h-4 w-4" />
+                  </a>
+                ) : null}
+                <Link
+                  href={newOrderHref(r)}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-[var(--wq-border)] px-3 text-sm font-semibold hover:bg-[var(--wq-paper)]"
+                  title="Novo pedido para este cliente"
                 >
-                  <MessageCircle className="h-4 w-4" />
-                  {segment === "birthdays" ? "Dar parabéns" : segment === "inactive" ? "Chamar de volta" : "Agradecer"}
-                </a>
-              ) : r.phone ? null : (
-                <span className="text-xs text-[var(--wq-text-muted)]">Sem telefone</span>
-              )}
+                  <ClipboardPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Novo pedido</span>
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

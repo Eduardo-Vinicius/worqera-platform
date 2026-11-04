@@ -186,7 +186,7 @@ export default function AdminMetricsPage() {
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === periodo)?.label.toLowerCase() || periodo
   const kpis = [
     { title: "Pedidos", value: String(derived.total), hint: `${derived.abertos} em aberto · ${derived.finalizados} finalizados`, icon: BarChart3 },
-    { title: "Entregues no prazo", value: formatPct(derived.onTimePct), hint: `${derived.noPrazo} de ${derived.total} pedidos`, icon: Award },
+    { title: "No prazo", value: formatPct(derived.onTimePct), hint: `${derived.noPrazo} de ${derived.total} sem atraso`, icon: Award },
     { title: "Atrasados", value: String(derived.atrasados), hint: derived.atrasados ? `atraso médio ${formatDuration(derived.atrasoMedioMs)}` : "nenhum agora", icon: AlertTriangle, warn: derived.atrasados > 0 },
     { title: "Recebido", value: formatCurrency(fin?.receitaRecebida || 0), hint: `ticket médio ${formatCurrency(fin?.ticketMedio || 0)}`, icon: DollarSign },
   ]

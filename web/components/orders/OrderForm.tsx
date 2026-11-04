@@ -63,6 +63,7 @@ import { MoneyField } from "./MoneyField"
 import { AccessoryPicker } from "./AccessoryPicker"
 import { BrandField } from "./BrandField"
 import { OpenedByBar, rememberOpenedBy } from "./OpenedByBar"
+import { EmailHint } from "@/components/EmailHint"
 
 export type OrderFormMode = "create" | "edit"
 
@@ -833,7 +834,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       prev.map((item, index) => {
         if (index !== itemIndex) return item
         let nextServices = item.selectedServices
-        let nextFlow = [...(item.flowOptionIds || [])]
+        const nextFlow = [...(item.flowOptionIds || [])]
         if (checked) {
           if (!service || item.selectedServices.find(s => s.id === serviceId)) return item
           const newService: SelectedService = {
@@ -1603,6 +1604,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                           onChange={(e) => setNewClient((prev) => ({ ...prev, email: e.target.value }))}
                           placeholder="cliente@email.com"
                         />
+                        <EmailHint value={newClient.email} onFix={(email) => setNewClient((prev) => ({ ...prev, email }))} />
                         <p className="text-[11px] text-[var(--wq-text-muted)]">Opcional. Com e-mail, o laudo sai ao criar.</p>
                       </div>
                     </div>

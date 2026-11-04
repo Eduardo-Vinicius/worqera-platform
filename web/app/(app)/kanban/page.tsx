@@ -78,6 +78,8 @@ import { OrderPricingSummary } from "@/components/orders/OrderPricingSummary"
 import { laudoSaveMessage, type LaudoNotice } from "@/components/orders/laudoNotice"
 import { RefuseQuoteDialog } from "@/components/quotes/RefuseQuoteDialog"
 import { OrderDetailHeader } from "@/components/kanban/OrderDetailHeader"
+import { isEmail } from "@/lib/emailHints"
+import { LaudoStatus, type LastOrderEmail } from "@/components/LaudoStatus"
 import { CLOSED_META, ClosedColumn, ClosedColumns, useClosedOrders, type ClosedKind } from "@/components/kanban/ClosedColumns"
 import { SectorBriefStrip } from "@/components/ai/DailyBriefCard"
 import type { ClosedCard } from "@/lib/apiV1"
@@ -142,6 +144,8 @@ type DetailOrder = {
   code?: string
   publicToken?: string | null
   clientName?: string
+  clientEmail?: string | null
+  lastEmail?: LastOrderEmail | null
   clientPhone?: string
   client?: { name?: string; nomeCompleto?: string; phone?: string; telefone?: string }
   shoeModel?: string
@@ -392,10 +396,11 @@ function filterOrders(orders: OrderCard[], filterLate: boolean, query = "", onDa
   })
 }
 
+/** Drag only with a mouse or trackpad. On phones and tablets a swipe must scroll the columns, not move orders. */
 function useDesktopKanbanDrag() {
   const [desktop, setDesktop] = useState(false)
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)")
+    const mq = window.matchMedia("(min-width: 768px) and (hover: hover) and (pointer: fine)")
     const apply = () => setDesktop(mq.matches)
     apply()
     mq.addEventListener("change", apply)
@@ -1980,7 +1985,7 @@ export default function KanbanPage() {
                   filterLate={filterLate}
                   query={codeQuery}
                   onDate={filterDate}
-                  dragEnabled
+                  dragEnabled={dragEnabled}
                   focusedCardId={focusedCardId}
                   onFocusCard={setFocusedCardId}
                   onOpenCard={openDetail}
@@ -2297,25 +2302,30 @@ export default function KanbanPage() {
                         disabled={resendingEmail}
                         onClick={async () => {
                           if (!detail.id) return
-                          const email = detailClientEmail.trim()
+                          const email = detailClientEmail.trim().toLowerCase()
                           if (!email) {
-                            toast.error("Informe o e-mail e salve antes de reenviar")
+                            toast.error("Informe o e-mail do cliente para enviar o laudo")
                             return
                           }
+                          if (!isEmail(email)) {
+                            toast.error("Confira o e-mail: falta o @ ou o domínio (ex.: nome@gmail.com)")
+                            return
+                          }
+                          const changed = email !== String(detail.clientEmail || "").trim().toLowerCase()
                           setResendingEmail(true)
                           try {
-                            const updated = await updateOrderService(String(detail.id), {
-                              clientEmail: email,
-                            })
-                            setDetail(updated as DetailOrder)
-                            const result = await resendOrderEmailV1(String(detail.id), "created")
+                            const result = await resendOrderEmailV1(String(detail.id), "created", changed ? email : undefined)
+                            setDetail((await getPedidoService(String(detail.id))) as DetailOrder)
                             const notify = result?.emailNotify || result
-                            if (notify?.queued) {
-                              toast.success(`Laudo a caminho para ${email}`)
+                            const fixed = changed ? "E-mail corrigido no pedido e no cliente. " : ""
+                            if (notify?.waiting) {
+                              toast.message(`${fixed}O laudo sai quando ${notify?.reason === "awaiting-price" ? "o preço for definido" : "as fotos terminarem de subir"}.`)
+                            } else if (notify?.queued) {
+                              toast.success(`${fixed}Laudo a caminho para ${email}`)
                             } else if (notify?.ok && notify?.provider !== "console") {
-                              toast.success(`Laudo reenviado para ${email}`)
+                              toast.success(`${fixed}Laudo reenviado para ${email}`)
                             } else if (notify?.ok) {
-                              toast.message("E-mail só foi para o log da API")
+                              toast.message(`${fixed}E-mail só foi para o log da API`)
                             } else {
                               toast.error(notify?.error || notify?.reason || "Não enviou o laudo")
                             }
@@ -2366,6 +2376,9 @@ export default function KanbanPage() {
                           Ver etiqueta
                         </Link>
                       </Button>
+                    </div>
+                    <div className="mt-2">
+                      <LaudoStatus last={detail.lastEmail} />
                     </div>
                     </DetailSection>
 

@@ -379,7 +379,7 @@ async function notifyBillingActivated(shopId, sub, payment = null) {
         method: payment?.billingType,
         billingUrl: `${base}/billing`,
       });
-      await sendMail({ to: u.email, platform: true, ...mail });
+      await sendMail({ to: u.email, platform: true, ...mail, log: { kind: 'billing_active', shopId } });
     }
   } catch (err) {
     console.error('[billing] receipt email failed', err.message);

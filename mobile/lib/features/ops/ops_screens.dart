@@ -343,10 +343,14 @@ class MetricsScreen extends StatefulWidget {
   State<MetricsScreen> createState() => _MetricsScreenState();
 }
 
+/// How the shop did in the period, in plain words — same blocks as the site.
 class _MetricsScreenState extends State<MetricsScreen> {
   Map? data;
+  List<Map<String, dynamic>> sectors = [];
   String? error;
   String period = '30d';
+
+  static const _periods = [('7d', '7 dias'), ('30d', '30 dias'), ('90d', '90 dias'), ('1y', '1 ano')];
 
   @override
   void initState() {
@@ -359,68 +363,140 @@ class _MetricsScreenState extends State<MetricsScreen> {
       final res = await widget.api.dio.get('/metrics/overview', queryParameters: {'period': period});
       final body = Map<String, dynamic>.from(res.data as Map);
       final inner = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
+      List<Map<String, dynamic>> bySector = [];
       try {
-        final delays = await widget.api.dio.get('/metrics/delays', queryParameters: {'period': period});
-        final delayBody = Map<String, dynamic>.from(delays.data as Map);
-        inner['delays'] = delayBody['data'] is Map ? delayBody['data'] : delayBody;
+        final dep = await widget.api.dio.get('/metrics/departments', queryParameters: {'period': period});
+        bySector = asMaps(dep.data)..sort((a, b) => (num.tryParse('${b['total']}') ?? 0).compareTo(num.tryParse('${a['total']}') ?? 0));
       } catch (_) {}
-      if (mounted) setState(() => data = inner);
+      if (mounted) {
+        setState(() {
+          data = inner;
+          sectors = bySector;
+          error = null;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
     }
   }
 
+  num _n(dynamic v) => num.tryParse('${v ?? 0}') ?? 0;
+
+  String _duration(num ms) {
+    final hours = ms / 3600000;
+    if (hours < 24) return '${hours.toStringAsFixed(1)} h';
+    return '${(hours / 24).toStringAsFixed(1)} dias';
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = data?['summary'] as Map? ?? {};
+    final delays = data?['delays'] as Map? ?? {};
+    final fin = (data?['finance'] as Map?)?['summary'] as Map? ?? {};
     final people = asMaps({'data': (data?['employees'] as Map?)?['topByOrders']});
-    final maxPeople = people.fold<double>(1, (max, row) {
-      final value = double.tryParse('${row['ordersParticipated'] ?? 0}') ?? 0;
-      return value > max ? value : max;
-    });
-    final bars = [
-      ('Abertos', double.tryParse('${summary['open'] ?? 0}') ?? 0, Wq.brand),
-      ('Finalizados', double.tryParse('${summary['completed'] ?? 0}') ?? 0, Wq.success),
-      ('Atrasados', double.tryParse('${summary['delayed'] ?? 0}') ?? 0, Wq.warn),
-    ];
-    final maxBar = bars.fold<double>(1, (max, row) => row.$2 > max ? row.$2 : max);
+    final total = _n(summary['total']);
+    final late = _n(summary['delayed']);
+    final onTimePct = total > 0 ? ((total - late) / total * 100) : 0;
+    final lateItems = asMaps({'data': delays['items']});
+    final maxSector = sectors.fold<num>(1, (m, r) => _n(r['total']) > m ? _n(r['total']) : m);
     return WqPage(
       title: 'Métricas',
-      subtitle: 'Operação do período',
+      subtitle: 'Como a loja foi no período',
       child: data == null
           ? Center(child: error == null ? const CircularProgressIndicator() : Text(error!))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Wrap(spacing: 8, children: [
-                  for (final item in [('7d', '7 dias'), ('30d', '30 dias'), ('90d', '90 dias')])
-                    ChoiceChip(
-                      label: Text(item.$2),
-                      selected: period == item.$1,
-                      onSelected: (_) {
-                        setState(() => period = item.$1);
-                        load();
-                      },
-                    ),
-                ]),
-                const SizedBox(height: 12),
-                _kpi('Pedidos', '${summary['total'] ?? 0}'),
-                _kpi('Atraso médio', '${(data?['delays'] as Map?)?['averageDelayHours'] ?? 0} h'),
-                for (final row in bars) _bar(row.$1, row.$2, maxBar, row.$3),
-                const WqSectionTitle('Quem mais participou'),
-                for (final row in people)
-                  _bar('${row['employeeName'] ?? ''}', double.tryParse('${row['ordersParticipated'] ?? 0}') ?? 0, maxPeople, Wq.action),
-              ],
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Wrap(spacing: 8, children: [
+                    for (final item in _periods)
+                      ChoiceChip(
+                        label: Text(item.$2),
+                        selected: period == item.$1,
+                        onSelected: (_) {
+                          setState(() => period = item.$1);
+                          load();
+                        },
+                      ),
+                  ]),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.55,
+                    children: [
+                      _kpi('Pedidos', '${total.toInt()}', '${_n(summary['open']).toInt()} em aberto · ${_n(summary['completed']).toInt()} finalizados'),
+                      _kpi('No prazo', '${onTimePct.toStringAsFixed(0)}%', '${(total - late).toInt()} de ${total.toInt()} sem atraso'),
+                      _kpi('Atrasados', '${late.toInt()}', late > 0 ? 'atraso médio ${_duration(_n(delays['averageDelayMs']))}' : 'nenhum agora', warn: late > 0),
+                      _kpi('Recebido', brl(fin['receivedRevenue']), 'ticket médio ${brl(fin['averageTicket'])}'),
+                    ],
+                  ),
+                  if (lateItems.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const WqSectionTitle('Atrasados para resolver'),
+                    for (final o in lateItems.take(10))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: WqCard(
+                          onTap: () => context.push('/orders/${o['id']}'),
+                          child: Row(children: [
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('#${o['code'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Text(statusLabel(o['status']), style: TextStyle(fontSize: 12, color: context.wqMuted)),
+                              ]),
+                            ),
+                            Text('${_n(o['daysLate']).toInt()} dia(s)', style: const TextStyle(color: Wq.danger, fontWeight: FontWeight.w800)),
+                          ]),
+                        ),
+                      ),
+                  ],
+                  if (sectors.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const WqSectionTitle('Onde estão os pedidos'),
+                    for (final row in sectors) _bar('${row['sectorName'] ?? ''}', _n(row['total']), maxSector, Wq.brand),
+                  ],
+                  const SizedBox(height: 16),
+                  const WqSectionTitle('Dinheiro'),
+                  WqCard(
+                    child: Column(children: [
+                      for (final row in [
+                        ('A receber', fin['pendingRevenue']),
+                        ('Previsto no total', fin['expectedRevenue']),
+                        ('Despesas', fin['expenses']),
+                        ('Lucro', fin['realizedProfit']),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(children: [
+                            Expanded(child: Text(row.$1, style: TextStyle(color: context.wqMuted))),
+                            Text(brl(row.$2), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          ]),
+                        ),
+                    ]),
+                  ),
+                  if (people.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const WqSectionTitle('Quem mais trabalhou nos pedidos'),
+                    for (final row in people)
+                      _bar('${row['employeeName'] ?? ''}', _n(row['ordersParticipated']), _n(people.first['ordersParticipated']), Wq.action),
+                  ],
+                ],
+              ),
             ),
     );
   }
 
-  Widget _bar(String label, double value, double max, Color color) {
-    final factor = max <= 0 ? 0.0 : (value / max).clamp(0.0, 1.0);
+  Widget _bar(String label, num value, num max, Color color) {
+    final factor = max <= 0 ? 0.0 : (value / max).clamp(0.0, 1.0).toDouble();
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Expanded(child: Text(label)), Text(value.toStringAsFixed(0), style: const TextStyle(fontWeight: FontWeight.w700))]),
+        Row(children: [Expanded(child: Text(label)), Text('${value.toInt()}', style: const TextStyle(fontWeight: FontWeight.w700))]),
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
@@ -430,10 +506,19 @@ class _MetricsScreenState extends State<MetricsScreen> {
     );
   }
 
-  Widget _kpi(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: WqCard(child: Row(children: [Expanded(child: Text(label, style: const TextStyle(color: Wq.muted))), Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))])),
+  Widget _kpi(String label, String value, String hint, {bool warn = false}) {
+    return WqCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(label, style: TextStyle(fontSize: 12, color: context.wqMuted)),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: warn ? Wq.warn : context.wqInk)),
+        ),
+        const SizedBox(height: 2),
+        Text(hint, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+      ]),
     );
   }
 }

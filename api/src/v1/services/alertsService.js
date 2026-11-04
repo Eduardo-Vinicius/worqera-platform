@@ -64,6 +64,7 @@ async function sendDelayDigest(shopId) {
       to: u.email,
       shop,
       subject: `${alerts.total} pedido(s) em atraso`,
+      log: { kind: 'late_alerts', shopId },
       text: `Olá ${u.name || ''},\n\nHá ${alerts.total} pedido(s) atrasados:\n\n${lines}\n\nAbra o painel Worqera para agir.`,
       html: `<p>Há <strong>${alerts.total}</strong> pedido(s) atrasados.</p><pre style="font-family:monospace">${lines}</pre>`,
     });
@@ -245,6 +246,7 @@ async function sendWeeklyDigest(shopId) {
       to: u.email,
       shop,
       subject,
+      log: { kind: 'weekly_digest', shopId },
       text: `Olá ${u.name || ''},\n\n${bodyText}`,
       html: `<p>Olá ${u.name || ''},</p>${html}`,
     });

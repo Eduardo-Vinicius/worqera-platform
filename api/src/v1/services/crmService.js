@@ -11,7 +11,8 @@ const { buildWaMeUrl } = require('./whatsappSuggest');
 
 const DAY = 24 * 60 * 60 * 1000;
 const OPEN = ['open', 'in_progress', 'ready'];
-const SEGMENTS = ['birthdays', 'inactive', 'recurring', 'new', 'vip', 'never', 'all'];
+const SEGMENTS = ['birthdays', 'inactive', 'recurring', 'new', 'vip', 'owing', 'due', 'never', 'all'];
+const OWED = ['ready', 'delivered'];
 
 function firstName(name) {
   return String(name || '').trim().split(/\s+/)[0] || '';
@@ -51,6 +52,17 @@ async function clientStats(shopId) {
         orders: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, 1] } },
         spent: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, { $ifNull: ['$pricing.total', 0] }] } },
         open: { $sum: { $cond: [{ $in: ['$status', OPEN] }, 1, 0] } },
+        ready: { $sum: { $cond: [{ $eq: ['$status', 'ready'] }, 1, 0] } },
+        // What the client still owes on work that is ready or already handed over.
+        owed: {
+          $sum: {
+            $cond: [
+              { $and: [{ $in: ['$status', OWED] }, { $gt: [{ $ifNull: ['$pricing.remaining', 0] }, 0.009] }] },
+              { $ifNull: ['$pricing.remaining', 0] },
+              0,
+            ],
+          },
+        },
         firstAt: { $min: '$createdAt' },
         lastAt: { $max: '$createdAt' },
       },
@@ -68,6 +80,23 @@ function segmentOf(stats, now, inactiveDays) {
   return 'once';
 }
 
+/** Average days between orders (2+ orders), or null. */
+function avgGap(stats) {
+  if (!stats || stats.orders < 2) return null;
+  return Math.round((new Date(stats.lastAt) - new Date(stats.firstAt)) / DAY / (stats.orders - 1));
+}
+
+/**
+ * "Hora de voltar": a returning client past their own usual gap (×1.3, at least 14 days),
+ * with nothing open and not yet counted as gone quiet.
+ */
+function isDue(stats, now, inactiveDays) {
+  const gap = avgGap(stats);
+  if (gap == null || stats.open) return false;
+  const since = (now - new Date(stats.lastAt)) / DAY;
+  return since >= Math.max(14, gap * 1.3) && since < inactiveDays;
+}
+
 function birthdayText(name, shop) {
   const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
   return `${hi} Aqui é da ${shop}. Passando para desejar um feliz aniversário! Que seu dia seja ótimo. Quando quiser dar um trato nos seus itens, estamos por aqui.`;
@@ -79,33 +108,59 @@ function comebackText(name, shop, days) {
   return `${hi} Aqui é da ${shop}. ${when[0].toUpperCase()}${when.slice(1)} que você não aparece, sentimos sua falta! Precisando de algo, é só chamar que a gente te atende rapidinho.`;
 }
 
+function owedText(name, shop, owed, ready, withValue = true) {
+  const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
+  const value = withValue ? ` de R$ ${money(owed).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '';
+  return ready
+    ? `${hi} Aqui é da ${shop}. Seu pedido está pronto para retirada! Fica um saldo${value}, pode acertar na retirada ou por Pix.`
+    : `${hi} Aqui é da ${shop}. Ficou um saldo${value} do seu último pedido. Consegue acertar por Pix quando puder? Qualquer dúvida, estamos aqui.`;
+}
+
+function dueText(name, shop, days) {
+  const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
+  return `${hi} Aqui é da ${shop}. Já faz ${days} dias desde a sua última visita, normalmente é por agora que você volta. Quer que a gente separe um horário para você?`;
+}
+
+function welcomeText(name, shop) {
+  const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
+  return `${hi} Aqui é da ${shop}. Obrigado por escolher a gente! Ficou tudo certo com o serviço? Quando precisar de novo, é só chamar.`;
+}
+
 function thanksText(name, shop) {
   const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
   return `${hi} Aqui é da ${shop}. Obrigado por sempre confiar na gente! Clientes como você fazem a diferença. Qualquer coisa, estamos à disposição.`;
 }
 
-function rowFor(client, stats, { now, shop, segment, showMoney }) {
+function rowFor(client, stats, { now, shop, segment, showMoney, moneyInText = showMoney }) {
   const orders = stats?.orders || 0;
   const daysSince = stats?.lastAt ? Math.floor((now - new Date(stats.lastAt)) / DAY) : null;
   const birthday = client.birthDay && client.birthMonth ? { day: client.birthDay, month: client.birthMonth, year: client.birthYear || null } : null;
   const inDays = birthday ? daysToBirthday(birthday.day, birthday.month, now) : null;
   // Age they turn on the next birthday.
   const age = birthday?.year ? spToday(now).year - birthday.year + (inDays != null && inDays > 0 && new Date(Date.UTC(spToday(now).year, birthday.month - 1, birthday.day)) < new Date(Date.UTC(spToday(now).year, spToday(now).month - 1, spToday(now).day)) ? 1 : 0) : null;
+  const owed = money(stats?.owed);
   const text =
     segment === 'birthdays'
       ? birthdayText(client.name, shop)
-      : segment === 'inactive'
-        ? comebackText(client.name, shop, daysSince || 90)
-        : segment === 'recurring' || segment === 'vip'
-          ? thanksText(client.name, shop)
-          : null;
+      : segment === 'owing'
+        ? owedText(client.name, shop, owed, stats?.ready > 0, moneyInText)
+        : segment === 'due'
+          ? dueText(client.name, shop, daysSince || 0)
+          : segment === 'inactive'
+            ? comebackText(client.name, shop, daysSince || 90)
+            : segment === 'new'
+              ? welcomeText(client.name, shop)
+              : segment === 'recurring' || segment === 'vip'
+                ? thanksText(client.name, shop)
+                : null;
   const waUrl = text && client.phone && !client.whatsappOptOut ? buildWaMeUrl(client.phone, text) : null;
   return {
     id: String(client._id),
     name: client.name || '',
     phone: client.phone || '',
     orders,
-    ...(showMoney ? { spent: money(stats?.spent), ticket: orders ? money((stats?.spent || 0) / orders) : 0 } : {}),
+    ...(showMoney ? { spent: money(stats?.spent), ticket: orders ? money((stats?.spent || 0) / orders) : 0, owed } : {}),
+    avgGapDays: avgGap(stats),
     lastOrderAt: stats?.lastAt || null,
     daysSince,
     openOrders: stats?.open || 0,
@@ -120,10 +175,13 @@ function rowFor(client, stats, { now, shop, segment, showMoney }) {
 /** Overview numbers for the CRM home. */
 async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = new Date() } = {}) {
   const [clients, stats] = await Promise.all([
-    Client.find({ shopId }).select('birthDay birthMonth createdAt').lean(),
+    Client.find({ shopId }).select('birthDay birthMonth createdAt source').lean(),
     clientStats(shopId),
   ]);
-  const counts = { clients: clients.length, active90: 0, recurring: 0, new30: 0, inactive: 0, never: 0, once: 0, vip: 0 };
+  const counts = { clients: clients.length, active90: 0, recurring: 0, new30: 0, inactive: 0, never: 0, once: 0, vip: 0, owing: 0, due: 0 };
+  let owed = 0;
+  let inactiveSpent = 0;
+  const bySource = new Map();
   const buckets = { one: 0, two_three: 0, four_plus: 0 };
   let spent = 0;
   let orders = 0;
@@ -138,6 +196,19 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
     if (seg === 'recurring') counts.recurring += 1;
     if (seg === 'new') counts.new30 += 1;
     if (seg === 'once') counts.once += 1;
+    if (seg === 'inactive') inactiveSpent += s?.spent || 0;
+    if (s?.owed > 0.009) {
+      counts.owing += 1;
+      owed += s.owed;
+    }
+    if (s && isDue(s, now, inactiveDays)) counts.due += 1;
+    const source = String(c.source || '').trim();
+    if (source) {
+      const row = bySource.get(source) || { source, clients: 0, spent: 0 };
+      row.clients += 1;
+      row.spent += s?.spent || 0;
+      bySource.set(source, row);
+    }
     if (s?.orders) {
       orders += s.orders;
       spent += s.spent || 0;
@@ -162,6 +233,10 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
   }
   const buyers = spends.length;
   const withBirthday = clients.filter((c) => c.birthDay && c.birthMonth).length;
+  // Share of revenue from the top 20% of buyers (spends is sorted high → low).
+  const topCount = Math.max(1, Math.ceil(buyers * 0.2));
+  const topShare = spent > 0 && buyers >= 5 ? Math.round((spends.slice(0, topCount).reduce((a, b) => a + b, 0) / spent) * 100) : null;
+  const withSource = [...bySource.values()].reduce((a, r) => a + r.clients, 0);
   return {
     inactiveDays,
     counts,
@@ -171,9 +246,23 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
       repeat: buyers ? Math.round(((buckets.two_three + buckets.four_plus) / buyers) * 100) : 0,
       active: counts.clients ? Math.round((counts.active90 / counts.clients) * 100) : 0,
       birthdayCoverage: counts.clients ? Math.round((withBirthday / counts.clients) * 100) : 0,
+      sourceCoverage: counts.clients ? Math.round((withSource / counts.clients) * 100) : 0,
     },
+    sources: [...bySource.values()]
+      .sort((a, b) => b.clients - a.clients)
+      .slice(0, 6)
+      .map((r) => ({ source: r.source, clients: r.clients, ...(showMoney ? { spent: money(r.spent) } : {}) })),
     ...(showMoney
-      ? { money: { spent: money(spent), avgTicket: orders ? money(spent / orders) : 0, perClient: buyers ? money(spent / buyers) : 0 } }
+      ? {
+          money: {
+            spent: money(spent),
+            avgTicket: orders ? money(spent / orders) : 0,
+            perClient: buyers ? money(spent / buyers) : 0,
+            owed: money(owed),
+            inactiveSpent: money(inactiveSpent),
+            topShare,
+          },
+        }
       : {}),
   };
 }
@@ -199,10 +288,14 @@ async function crmList(shopId, { segment = 'all', days, range = 'week', q, showM
     if (seg === 'all') keep = true;
     else if (seg === 'birthdays') keep = c.birthDay && c.birthMonth && daysToBirthday(c.birthDay, c.birthMonth, now) <= horizon;
     else if (seg === 'vip') keep = s && s.orders >= 2;
+    else if (seg === 'owing') keep = s && s.owed > 0.009;
+    else if (seg === 'due') keep = s && isDue(s, now, inactiveDays);
     else keep = own === seg;
-    if (keep) rows.push({ ...rowFor(c, s, { now, shop, segment: seg, showMoney: true }), segment: own });
+    if (keep) rows.push({ ...rowFor(c, s, { now, shop, segment: seg, showMoney: true, moneyInText: showMoney }), segment: own });
   }
   if (seg === 'birthdays') rows.sort((a, b) => a.birthdayIn - b.birthdayIn || a.name.localeCompare(b.name));
+  else if (seg === 'owing') rows.sort((a, b) => (b.owed || 0) - (a.owed || 0));
+  else if (seg === 'due') rows.sort((a, b) => (b.spent || 0) - (a.spent || 0) || (b.daysSince || 0) - (a.daysSince || 0));
   else if (seg === 'inactive') rows.sort((a, b) => (b.spent || 0) - (a.spent || 0) || (b.daysSince || 0) - (a.daysSince || 0));
   else if (seg === 'recurring' || seg === 'vip') rows.sort((a, b) => b.orders - a.orders || (b.spent || 0) - (a.spent || 0));
   else if (seg === 'new') rows.sort((a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0));
@@ -212,7 +305,7 @@ async function crmList(shopId, { segment = 'all', days, range = 'week', q, showM
   const start = Math.max(0, Math.floor(Number(offset) || 0));
   const size = Math.min(500, Math.max(1, Number(limit) || 200));
   rows = rows.slice(start, start + size);
-  if (!showMoney) rows = rows.map(({ spent, ticket, ...rest }) => rest); // eslint-disable-line no-unused-vars
+  if (!showMoney) rows = rows.map(({ spent, ticket, owed, ...rest }) => rest); // eslint-disable-line no-unused-vars
   return {
     segment: seg,
     inactiveDays,
@@ -278,6 +371,8 @@ async function crmInsight(shopId, { aiAllowed = false, refresh = false, showMone
   const summary = await crmSummary(shopId, { showMoney, now });
   const c = summary.counts;
   const moves = [];
+  if (c.owing && summary.money?.owed) moves.push({ id: 'owing', title: `Cobrar R$ ${Math.round(summary.money.owed).toLocaleString('pt-BR')} de ${c.owing} cliente${c.owing === 1 ? '' : 's'}`, segment: 'owing' });
+  if (c.due) moves.push({ id: 'due', title: `Lembrar ${c.due} cliente${c.due === 1 ? ' que já devia' : 's que já deviam'} ter voltado`, segment: 'due' });
   if (summary.birthdays.today) moves.push({ id: 'birthdays', title: `Parabenizar ${summary.birthdays.today} aniversariante${summary.birthdays.today === 1 ? '' : 's'} de hoje`, segment: 'birthdays' });
   if (c.inactive) moves.push({ id: 'inactive', title: `Chamar de volta ${c.inactive} cliente${c.inactive === 1 ? '' : 's'} sumido${c.inactive === 1 ? '' : 's'}`, segment: 'inactive' });
   if (c.new30) moves.push({ id: 'new', title: `Garantir a segunda visita de ${c.new30} cliente${c.new30 === 1 ? '' : 's'} novo${c.new30 === 1 ? '' : 's'}`, segment: 'new' });
@@ -330,4 +425,4 @@ async function birthdaysToday(shopId, now = new Date()) {
   return Client.countDocuments({ shopId, birthDay: t.day, birthMonth: t.month });
 }
 
-module.exports = { crmSummary, crmList, crmInsight, clientOverview, birthdaysToday, daysToBirthday, segmentOf, SEGMENTS };
+module.exports = { crmSummary, crmList, crmInsight, clientOverview, birthdaysToday, daysToBirthday, segmentOf, isDue, avgGap, SEGMENTS };

@@ -110,3 +110,16 @@ exports.accounts = wrap(async (req, res) => {
 exports.account = wrap(async (req, res) => {
   res.status(200).json(await analytics.account360(req.params.id));
 });
+
+exports.emails = wrap(async (req, res) => {
+  const mailLog = require('../services/mailLog');
+  res.status(200).json(
+    await mailLog.list({
+      days: parseDays(req.query.days, [1, 7, 14, 30], 7),
+      group: String(req.query.group || 'all'),
+      status: String(req.query.status || 'all'),
+      q: req.query.q,
+      page: req.query.page,
+    })
+  );
+});

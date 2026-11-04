@@ -115,37 +115,8 @@ function buildHtml({ kind, title, body, link, trackLink, code, primary, pdfAttac
   return parts.join('\n');
 }
 
-const MAIL_LOG_CAP = 200;
-
-async function recordMailLog(entry) {
-  try {
-    const PlatformMailLog = require('../models/PlatformMailLog');
-    await PlatformMailLog.create({
-      at: new Date(),
-      shopId: entry.shopId ? String(entry.shopId) : null,
-      kind: String(entry.kind || ''),
-      code: String(entry.code || ''),
-      to: String(entry.to || '').slice(0, 200),
-      ok: entry.ok === true,
-      skipped: Boolean(entry.skipped),
-      reason: String(entry.reason || '').slice(0, 80),
-      error: String(entry.error || '').slice(0, 300),
-      provider: String(entry.provider || '').slice(0, 40),
-    });
-    const count = await PlatformMailLog.countDocuments();
-    if (count > MAIL_LOG_CAP) {
-      const old = await PlatformMailLog.find()
-        .sort({ at: 1, _id: 1 })
-        .limit(count - MAIL_LOG_CAP)
-        .select('_id')
-        .lean();
-      if (old.length) {
-        await PlatformMailLog.deleteMany({ _id: { $in: old.map((row) => row._id) } });
-      }
-    }
-  } catch (err) {
-    console.warn('[mail] log', err?.message || err);
-  }
+function recordMailLog(entry) {
+  return require('./mailLog').record(entry);
 }
 
 async function listRecentMailLogs(limit = 40) {
@@ -291,11 +262,8 @@ async function notifyOrderStatus(shop, order, kind, { sectorName, pdfAttachment,
     await recordMailLog({
       ...mailContext(shop, order, kind),
       to,
-      ok: result?.ok === true && result?.provider !== 'console',
-      skipped: Boolean(result?.skipped) || result?.provider === 'console',
-      reason: result?.provider === 'console' ? 'smtp-off' : result?.reason || '',
-      error: result?.error || '',
-      provider: result?.provider || '',
+      subject,
+      ...require('./mailLog').outcome(result),
     });
     return result;
   } catch (err) {

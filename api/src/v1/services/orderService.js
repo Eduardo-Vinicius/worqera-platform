@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const OrderCounter = require('../models/OrderCounter');
 const Client = require('../models/Client');
+const { normalizeEmail, isEmail } = require('../lib/email');
 const Sector = require('../models/Sector');
 const ServiceCatalog = require('../models/ServiceCatalog');
 const storageService = require('./storageService');
@@ -223,7 +224,7 @@ async function createOrder(shopId, userId, data, options = {}) {
   const recoveredFrom = await recoveredFromQuote(shopId, data.fromQuoteId);
   let clientName = data.clientName || data.clienteNome || '';
   let clientPhone = data.clientPhone || data.telefone || null;
-  let clientEmail = data.clientEmail || data.email || null;
+  let clientEmail = normalizeEmail(data.clientEmail || data.email || '') || null;
   let clientId = data.clientId || data.clienteId || null;
 
   if (clientId) {
@@ -231,7 +232,8 @@ async function createOrder(shopId, userId, data, options = {}) {
     if (client) {
       clientName = clientName || client.name;
       clientPhone = clientPhone || client.phone;
-      clientEmail = clientEmail || client.email;
+      // An old, broken address on the client record must not block the counter.
+      if (!clientEmail && isEmail(client.email)) clientEmail = String(client.email).trim().toLowerCase();
     }
   }
 
@@ -962,6 +964,7 @@ function applyPricingFromUpdates(order, updates, recomputeFromItems) {
 
 async function patchOrder(shopId, id, userId, updates) {
   updates = updates || {};
+  if (updates.clientEmail != null) updates = { ...updates, clientEmail: normalizeEmail(updates.clientEmail) };
   await repairPhotoNotify(shopId, id);
   const order = await Order.findOne({ _id: id, shopId });
   if (!order) {
@@ -990,10 +993,21 @@ async function patchOrder(shopId, id, userId, updates) {
     'assigneeEmployeeId',
     'pdfUrl',
   ];
+  const previousEmail = String(order.clientEmail || '').trim().toLowerCase();
   fields.forEach((k) => {
     if (k === 'pricing') return;
     if (updates[k] != null) order[k] = updates[k];
   });
+  const emailChanged = updates.clientEmail != null && updates.clientEmail !== previousEmail;
+  if (emailChanged && previousEmail && updates.clientEmail) {
+    order.comments = order.comments || [];
+    order.comments.push({
+      text: `E-mail corrigido: ${previousEmail} → ${updates.clientEmail}`,
+      authorUserId: userId || null,
+      authorName: '',
+      createdAt: new Date(),
+    });
+  }
   applyPricingFromUpdates(order, updates, false);
   if (updates.clientId != null) order.clientId = updates.clientId;
   if (updates.currentSectorId != null) order.currentSectorId = updates.currentSectorId;
@@ -1107,6 +1121,10 @@ async function patchOrder(shopId, id, userId, updates) {
     order.markModified('items');
   }
   await order.save();
+  // The client's record keeps the corrected e-mail, so the next order already starts right.
+  if (emailChanged && updates.clientEmail && order.clientId) {
+    await Client.updateOne({ _id: order.clientId, shopId }, { $set: { email: updates.clientEmail } });
+  }
   const plain = order.toObject();
   if (updates.sendLaudo === true) {
     plain.emailNotify = await sendLaudoNow(shopId, order._id);
@@ -2310,6 +2328,7 @@ async function createDemoOrder(shopId, userId) {
 }
 
 module.exports = {
+  normalizeEmail,
   listOrders,
   createOrder,
   createDemoOrder,

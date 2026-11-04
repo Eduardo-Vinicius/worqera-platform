@@ -1,5 +1,24 @@
 # Worqera API — Change log
 
+## 2026-11-04
+
+- **E-mail validado em todo lugar** (`lib/email.js`): criar pedido e criar/editar cliente recusam e-mail sem @ ou domínio (400, mensagem em português); sai sem espaços e em minúsculas. E-mail quebrado antigo no cadastro do cliente não trava o pedido (o pedido nasce sem e-mail).
+- **Último envio do laudo no pedido:** `GET /orders/:id` traz `lastEmail` (quando, para quem, enviado/não enviado/falhou e o motivo), lido de `platformmaillogs` (`mailLog.lastForOrder`).
+- **CRM com dinheiro e ação** (`crmService`):
+  - Por cliente: `owed` (saldo de pedido pronto ou entregue) e `avgGapDays`.
+  - Segmentos novos em `/crm/list`: `owing` (devendo, maior saldo primeiro) e `due` (hora de voltar: recorrente que passou 1,3× o próprio intervalo, mínimo 14 dias, sem pedido aberto e ainda não sumido). `vip` passa a ter mensagem de agradecimento; `new` ganha mensagem de boas-vindas.
+  - Mensagens prontas: cobrança (pronto para retirada ou saldo de pedido entregue), lembrete de volta e boas-vindas. Sem permissão de ver valores, a cobrança sai sem o valor.
+  - `/crm/summary`: `counts.owing`, `counts.due`, `money.owed`, `money.inactiveSpent` (quanto os sumidos já gastaram), `money.topShare` (% da receita dos 20% que mais gastam), `sources` (origem dos clientes com quantos e quanto gastaram) e `rates.sourceCoverage`. A leitura da base sugere primeiro cobrar e lembrar quem já devia ter voltado.
+- **Orçamentos** (`quoteService.summarize`): `openValueByStage`, `cooling` (abertos sem contato há 7+ dias), `lostReasons90d` (motivo, quantidade e valor) e `medianDaysToWin90d`.
+- Testes: `crmDue.test.js`, `quoteSummary.test.js` (61 no total) e smoke com banco descartável do CRM (saldo, hora de voltar, origem, textos e valor escondido).
+- **Corrigir e-mail e reenviar o laudo:** `POST /orders/:id/resend-email` aceita `email`. Valida, grava no pedido e no cadastro do cliente (o próximo pedido já nasce certo), registra "E-mail corrigido: antigo → novo" nos comentários e reenvia. A edição comum do pedido (`PATCH`) faz a mesma validação e correção no cliente. E-mail sai sem espaços e em minúsculas; sem @ ou domínio volta 400 com a mensagem em português. Testes em `__tests__/orderEmail.test.js` (55 no total).
+
+## 2026-11-03
+
+- **Registro de todos os e-mails** (`services/mailLog.js`): `sendMail({ log: { kind, shopId } })` grava cada tentativa (enviado, não enviado ou falhou, com motivo e erro). Antes só os de pedido entravam, com limite de 200 linhas; agora também código de acesso, redefinir senha, convite, assinatura ativa, pedidos em atraso e resumo da semana. `PlatformMailLog` ganhou `subject` e expira em 30 dias (sai o limite de 200).
+- `GET /platform/emails?days=&group=orders|account|billing|alerts&status=sent|failed|skipped&q=&page=` (admin da plataforma): lista de 50 por página com nome da loja e contagem do período.
+- Testes: `__tests__/mailLog.test.js` (52 no total).
+
 ## 2026-10-31
 
 - **Painel da plataforma** (só admin Worqera; detalhes em [admin-metrics](admin-metrics.md)):

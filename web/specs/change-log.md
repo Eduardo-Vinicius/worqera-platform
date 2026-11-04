@@ -1,5 +1,23 @@
 # Worqera Web — Change log
 
+## 2026-11-04
+
+- **E-mail sem erro de digitação:** nos campos de e-mail do cliente (novo pedido, detalhe do pedido, kanban, novo e editar cliente) aparece "Você quis dizer …@gmail.com? Usar este" para os domínios comuns (gmail, hotmail, outlook, yahoo, icloud, uol, bol…) ou o aviso de que falta o @ (`lib/emailHints.ts`, `EmailHint`).
+- **Laudo no detalhe do pedido** (consulta e kanban): mostra o último envio ("Laudo enviado para … · 04/11 09:12" ou "não chegou a sair: motivo"). O kanban também corrige o e-mail e reenvia numa chamada só.
+- **CRM:**
+  - Visão da base com **Dinheiro na base**: A receber (cobrar no WhatsApp), Hora de voltar (lembrar agora), Já gastaram e sumiram (chamar de volta) e Seus melhores clientes (% da receita dos 20% que mais gastam). **De onde vêm os clientes** com quantos e quanto gastaram por origem.
+  - Abas novas: **Devendo**, **Hora de voltar** e **VIP** (barra de abas rola de lado no celular).
+  - Cada cliente da lista: WhatsApp com o texto do segmento ("Cobrar R$ 120", "Lembrar", "Agradecer 1ª visita"…), **Ligar** e **Novo pedido** já com o cliente.
+- **Orçamentos:** valor por etapa no funil; **Esfriando** (sem contato há 7+ dias, abre o funil); **Tempo até recuperar** (mediana); **Por que perdemos · 90 dias** com quantidade, valor e uma dica para o motivo nº 1.
+- **ESLint volta a rodar** (`eslint.config.mjs` no formato novo do `eslint-config-next` 16; `npm run lint` = `eslint .`). 0 erros; `any` liberado e as regras novas do React Compiler como aviso.
+- **Detalhe do pedido:** ao mudar o e-mail, o botão vira **Salvar e reenviar laudo** (uma chamada só: corrige o pedido e o cadastro do cliente e reenvia). Avisa antes se o e-mail parece incompleto e mostra o e-mail anterior. Se o laudo estiver esperando preço ou fotos, o aviso diz isso.
+- **Kanban e orçamentos sem arrastar no toque:** em celular e tablet o dedo rola as colunas e o toque abre o pedido (move por lá). Arrastar continua no computador e notebook (mouse ou trackpad). Antes o tablet, por ter tela larga, ganhava o arrastar e o deslizar para o lado movia o pedido de coluna.
+
+## 2026-11-03
+
+- **Admin da plataforma → E-mails** (`/admin/emails`): tudo que a Worqera enviou nos últimos 24 h a 30 dias, por tipo (pedidos, conta e convites, assinatura, alertas) e situação (enviado, não enviado, falhou), com busca por e-mail, código ou assunto e o motivo de cada falha.
+- **Métricas da loja:** o card "Entregues no prazo" virou "No prazo" (mostra os pedidos sem atraso, que é o que o número mede).
+
 ## 2026-10-31
 
 - **Admin da plataforma:** Métricas, Análises, Operação e Contas voltavam para Oficinas no menu; o `middleware.ts` só liberava `/admin/shops` e `/admin/plataforma` para o admin sem loja aberta. Agora libera todas as rotas do painel (`PLATFORM_PREFIXES`).

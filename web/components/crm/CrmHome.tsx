@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, Cake, Loader2, RefreshCw, Repeat, Sparkles, UserMinus, UserPlus, Users } from "lucide-react"
+import { ArrowRight, BellRing, Cake, Crown, HandCoins, Loader2, RefreshCw, Repeat, Sparkles, UserMinus, UserPlus, Users } from "lucide-react"
 import { getCrmInsightV1, type AiQuota, type CrmInsight } from "@/lib/apiV1"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
 import { cn } from "@/lib/utils"
@@ -47,6 +47,52 @@ export function CrmHome({ onTab }: { onTab: (tab: CrmTab) => void }) {
     { label: "Novos", value: String(c.new30), hint: "Primeiro pedido nos últimos 30 dias", icon: UserPlus, tab: "novos", tone: "text-[var(--wq-brand)]" },
     { label: "Aniversariantes", value: String(s.birthdays.today), hint: `${s.birthdays.week} na semana · ${s.rates.birthdayCoverage}% com aniversário`, icon: Cake, tab: "aniversariantes", tone: s.birthdays.today ? "text-rose-600 dark:text-rose-400" : undefined },
   ]
+  const money = s.money
+  const actions: Array<{ label: string; value: string; hint: string; cta: string; icon: typeof Users; tab: CrmTab; tone: string; hot: boolean }> = money
+    ? [
+        {
+          label: "A receber",
+          value: brl(money.owed),
+          hint: c.owing ? `${c.owing} cliente${c.owing === 1 ? "" : "s"} com saldo em aberto` : "Ninguém devendo",
+          cta: "Cobrar no WhatsApp",
+          icon: HandCoins,
+          tab: "devendo",
+          tone: "text-amber-600 dark:text-amber-400",
+          hot: c.owing > 0,
+        },
+        {
+          label: "Hora de voltar",
+          value: String(c.due),
+          hint: "Passaram do tempo em que costumam voltar",
+          cta: "Lembrar agora",
+          icon: BellRing,
+          tab: "voltar",
+          tone: "text-[var(--wq-brand)]",
+          hot: c.due > 0,
+        },
+        {
+          label: "Já gastaram e sumiram",
+          value: brl(money.inactiveSpent),
+          hint: `${c.inactive} cliente${c.inactive === 1 ? "" : "s"} sem pedido há ${s.inactiveDays}+ dias`,
+          cta: "Chamar de volta",
+          icon: UserMinus,
+          tab: "sumidos",
+          tone: "text-rose-600 dark:text-rose-400",
+          hot: c.inactive > 0,
+        },
+        {
+          label: "Seus melhores clientes",
+          value: money.topShare != null ? `${money.topShare}%` : "—",
+          hint: money.topShare != null ? "da receita vem dos 20% que mais gastam" : "Aparece com 5+ clientes com pedido",
+          cta: "Ver VIPs",
+          icon: Crown,
+          tab: "vip",
+          tone: "text-emerald-600 dark:text-emerald-400",
+          hot: false,
+        },
+      ]
+    : []
+  const sourceMax = Math.max(1, ...s.sources.map((x) => x.clients))
   const buyers = s.buckets.one + s.buckets.two_three + s.buckets.four_plus
   const bar = [
     { label: "1 pedido", value: s.buckets.one, color: "bg-slate-300 dark:bg-slate-600" },
@@ -96,6 +142,39 @@ export function CrmHome({ onTab }: { onTab: (tab: CrmTab) => void }) {
           </div>
         ) : null}
       </section>
+
+      {actions.length ? (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">Dinheiro na base</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {actions.map((a) => {
+              const Icon = a.icon
+              return (
+                <button
+                  key={a.label}
+                  type="button"
+                  onClick={() => onTab(a.tab)}
+                  className={cn(
+                    "group flex min-w-0 flex-col rounded-2xl border bg-[var(--wq-surface)] p-4 text-left transition hover:border-[var(--wq-brand)]/50",
+                    a.hot ? "border-[var(--wq-brand)]/30" : "border-[var(--wq-border)]"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--wq-text-muted)]">{a.label}</p>
+                    <Icon className={cn("h-4 w-4", a.tone)} />
+                  </div>
+                  <p className={cn("mt-1.5 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums sm:text-3xl", a.tone)}>{a.value}</p>
+                  <p className="mt-0.5 flex-1 text-xs leading-snug text-[var(--wq-text-muted)]">{a.hint}</p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--wq-brand-text)]">
+                    {a.cta}
+                    <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {cards.map((card) => {
@@ -174,6 +253,29 @@ export function CrmHome({ onTab }: { onTab: (tab: CrmTab) => void }) {
               </>
             ) : null}
           </ul>
+        </section>
+        <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4 lg:col-span-2">
+          <h3 className="text-sm font-semibold">De onde vêm os clientes</h3>
+          {s.sources.length ? (
+            <ul className="mt-3 space-y-2">
+              {s.sources.map((src) => (
+                <li key={src.source} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-2 text-sm">
+                  <span className="truncate">{src.source}</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-[var(--wq-paper)]">
+                    <span className="block h-full rounded-full bg-[var(--wq-brand)]" style={{ width: `${Math.max(4, (src.clients / sourceMax) * 100)}%` }} />
+                  </span>
+                  <span className="text-right text-xs tabular-nums text-[var(--wq-text-muted)]">
+                    <b className="font-semibold text-[var(--wq-text)]">{src.clients}</b>
+                    {src.spent != null ? ` · ${brl(src.spent)}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-3 text-xs text-[var(--wq-text-muted)]">
+            {s.rates.sourceCoverage}% dos clientes com origem cadastrada.
+            {s.rates.sourceCoverage < 50 ? " Pergunte “como conheceu a loja?” no balcão para saber onde vale investir." : ""}
+          </p>
         </section>
       </div>
     </div>

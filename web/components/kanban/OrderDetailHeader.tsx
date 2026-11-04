@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { formatBRL } from "@/lib/orderMoney"
 import { cn } from "@/lib/utils"
 import { RECOVERY_HOW_LABEL } from "@/lib/recovery"
+import { EmailHint } from "@/components/EmailHint"
 
 export type HeaderMoveTarget = { id: string; name: string; current: boolean; terminal?: boolean }
 
@@ -137,6 +138,7 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
             <Input value={contact.phone} onChange={(e) => contact.onPhone(e.target.value)} placeholder="Telefone" className="h-9 rounded-[10px] bg-[var(--wq-surface)] text-sm" />
             <Input type="email" value={contact.email} onChange={(e) => contact.onEmail(e.target.value)} placeholder="E-mail" className="h-9 rounded-[10px] bg-[var(--wq-surface)] text-sm" />
           </div>
+          <EmailHint value={contact.email} onFix={contact.onEmail} />
           <div className="flex justify-end gap-2">
             <Button type="button" size="sm" variant="ghost" className="rounded-[10px]" onClick={() => setEditing(false)}>
               Cancelar

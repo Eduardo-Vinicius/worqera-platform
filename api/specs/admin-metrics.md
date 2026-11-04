@@ -11,6 +11,7 @@ Só para admin da plataforma (`PLATFORM_ADMIN_EMAILS`): todas as rotas abaixo pa
 | `/admin/analises` Análises | Ativação, retenção, uso, transações, lojas | `GET /platform/analytics/funnel\|cohorts\|engagement\|adoption\|transactions`, `GET /platform/shops-health` |
 | `/admin/operacao` Operação | Quem precisa de um toque do time | `GET /platform/queues` |
 | `/admin/contas` e `/admin/contas/[id]` | Quem é, onde usa, o que fez | `GET /platform/accounts`, `GET /platform/accounts/:id` |
+| `/admin/emails` E-mails | O que foi enviado e o que falhou | `GET /platform/emails` |
 | `/admin/plataforma/portal` Portal técnico | Tela anterior (IA, WhatsApp, e-mails, endpoints) | `GET /platform/ops` e afins |
 
 `days` aceita `1, 7, 14, 30` nas métricas e `7, 14, 30, 90` no resto; fora da lista vale o padrão da rota. Dias são do fuso de São Paulo. Toda resposta com número comparável traz `{ value, prev, pct }` contra o período anterior de mesmo tamanho. Cada leitura fica 60 s em memória por processo.
@@ -96,6 +97,17 @@ Ordem: crítico, atenção, informação, bom sinal.
 `GET /platform/accounts?segment=&q=&page=` — 50 por página, mais recentes primeiro; `q` busca nome ou e-mail. Segmentos com contagem: `all`, `active` (30 dias), `inactive`, `owners`, `no_activation` (dono de loja sem pedido), `plan:WORQERA_BASIC|PRO|BUSINESS`.
 
 `GET /platform/accounts/:id` — conta, lojas com papel e assinatura, onde usa (cliente × versão), contadores de 30 dias (pedidos criados, logins, dias ativos) e os últimos 50 eventos de segurança. Id inválido ou inexistente: 404.
+
+## E-mails
+
+Todo `sendMail` com `log: { kind, shopId? }` grava em `platformmaillogs` (expira em 30 dias); os de pedido gravam pelo `orderNotify`. Situação: **enviado** (SMTP/SES aceitou), **não enviado** (sem destinatário, esperando foto ou preço, SMTP desligado) ou **falhou** (erro do provedor).
+
+| Grupo | Tipos |
+|---|---|
+| `orders` | `created`, `ready` |
+| `account` | `verify_email`, `password_reset`, `invite` |
+| `billing` | `billing_active` |
+| `alerts` | `late_alerts`, `weekly_digest` |
 
 ## Testes
 

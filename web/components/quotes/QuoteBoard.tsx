@@ -6,7 +6,6 @@ import {
   DragOverlay,
   KeyboardSensor,
   MouseSensor,
-  TouchSensor,
   pointerWithin,
   rectIntersection,
   useDraggable,
@@ -147,9 +146,9 @@ export function QuoteBoard({
   onOpen: (id: string) => void
   onMove: (quote: Quote, stage: QuoteStage) => void
 }) {
+  // No touch drag: on phones and tablets a swipe scrolls the columns; tap opens the quote to change its stage.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
     useSensor(KeyboardSensor)
   )
   const [activeId, setActiveId] = useState<string | null>(null)

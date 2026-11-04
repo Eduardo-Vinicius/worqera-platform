@@ -64,6 +64,7 @@ async function createInvite(shopId, createdByUserId, { email, role, sectorIds, a
     to: normalizedEmail,
     shop,
     subject: `Convite · ${company}`,
+    log: { kind: 'invite' },
     text: `Você foi convidado para ${company} no Worqera.\n\n${
       nextRole === 'sector'
         ? 'Conta de setor: você vê só a sua fila no kanban.\n\n'

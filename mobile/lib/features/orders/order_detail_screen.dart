@@ -7,6 +7,7 @@ import '../../api/worqera_api.dart';
 import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
+import '../../design/email_field.dart';
 import '../../design/ui.dart';
 import '../quotes/quote_kit.dart';
 import 'label_screen.dart';
@@ -101,15 +102,54 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Confirm or fix the client's e-mail, then send the laudo. A new address is saved on the order and on the client.
   Future<void> resendEmail() async {
+    final saved = '${order?['clientEmail'] ?? ''}'.trim().toLowerCase();
+    final field = TextEditingController(text: saved);
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(builder: (context, setLocal) {
+        final typed = field.text.trim().toLowerCase();
+        final invalid = typed.isNotEmpty && !isEmail(typed);
+        final changed = typed != saved;
+        return AlertDialog(
+          title: Text(saved.isEmpty ? 'Enviar laudo' : 'Reenviar laudo'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            EmailField(controller: field, label: 'E-mail do cliente', autofocus: saved.isEmpty, onChanged: () => setLocal(() {})),
+            if (changed && !invalid && typed.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '${saved.isEmpty ? '' : 'Antes: $saved. '}Corrige também o cadastro do cliente.',
+                  style: TextStyle(fontSize: 12, color: context.wqMuted),
+                ),
+              ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: typed.isEmpty || invalid ? null : () => Navigator.pop(context, typed),
+              child: Text(changed ? 'Salvar e reenviar' : 'Reenviar'),
+            ),
+          ],
+        );
+      }),
+    );
+    field.dispose();
+    if (email == null || !mounted) return;
+    final changed = email != saved;
     try {
-      final res = await widget.api.dio.post('/orders/${widget.orderId}/resend-email', data: {'kind': 'created'});
+      final res = await widget.api.dio.post('/orders/${widget.orderId}/resend-email', data: {'kind': 'created', if (changed) 'email': email});
       final body = Map<String, dynamic>.from(res.data as Map);
       final notify = body['emailNotify'] is Map ? Map<String, dynamic>.from(body['emailNotify'] as Map) : body;
+      await load();
       if (!mounted) return;
-      final queued = notify['queued'] == true;
-      final ok = notify['ok'] == true;
-      wqToast(context, queued || ok ? 'Laudo a caminho' : 'Não enviou o laudo');
+      final fixed = changed ? 'E-mail corrigido. ' : '';
+      if (notify['waiting'] == true) {
+        wqToast(context, '${fixed}O laudo sai quando ${notify['reason'] == 'awaiting-price' ? 'o preço for definido' : 'as fotos terminarem de subir'}.');
+      } else {
+        wqToast(context, notify['queued'] == true || notify['ok'] == true ? '${fixed}Laudo a caminho de $email' : '${fixed}Não enviou o laudo');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.api.message(e))));
@@ -365,10 +405,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ]),
             ),
           ],
+          if (!widget.session.isSector && order!['lastEmail'] is Map) ...[
+            const SizedBox(height: 10),
+            _LaudoStatus(Map<String, dynamic>.from(order!['lastEmail'] as Map)),
+          ],
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            if (!widget.session.isSector && '${order!['clientEmail'] ?? ''}'.trim().isNotEmpty)
-              OutlinedButton(onPressed: resendEmail, child: const Text('Reenviar laudo')),
+            if (!widget.session.isSector)
+              OutlinedButton.icon(
+                onPressed: resendEmail,
+                icon: const Icon(Icons.mail_outline, size: 18),
+                label: Text('${order!['clientEmail'] ?? ''}'.trim().isEmpty ? 'Enviar laudo' : 'Reenviar laudo'),
+              ),
             OutlinedButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LabelScreen(api: widget.api, session: widget.session, order: order!))),
               child: const Text('Etiqueta'),
@@ -453,5 +501,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+/// Last laudo/"pronto" e-mail of the order, so the counter knows if the client got it.
+class _LaudoStatus extends StatelessWidget {
+  const _LaudoStatus(this.last);
+  final Map<String, dynamic> last;
+
+  static const _reason = {
+    'smtp-off': 'e-mail desligado no servidor',
+    'no-recipient': 'pedido sem e-mail',
+    'awaiting-price': 'esperando o preço',
+    'awaiting-photos': 'esperando as fotos',
+    'pdf-failed': 'o PDF não gerou',
+    'failed': 'erro no envio',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final at = DateTime.tryParse('${last['at']}')?.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final when = at == null ? '' : '${two(at.day)}/${two(at.month)} ${two(at.hour)}:${two(at.minute)}';
+    final what = last['kind'] == 'ready' ? 'Aviso de pronto' : 'Laudo';
+    final status = '${last['status']}';
+    final why = '${last['error'] ?? ''}'.isNotEmpty ? '${last['error']}' : _reason[last['reason']] ?? '${last['reason'] ?? ''}';
+    final text = status == 'sent'
+        ? '$what enviado para ${last['to']} · $when'
+        : status == 'failed'
+            ? '$what não chegou a sair ($when): $why'
+            : '$what não enviado ($when): $why';
+    final color = status == 'sent' ? Wq.success : status == 'failed' ? Wq.danger : context.wqMuted;
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(status == 'sent' ? Icons.mark_email_read_outlined : Icons.error_outline, size: 16, color: color),
+      const SizedBox(width: 6),
+      Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: color))),
+    ]);
   }
 }

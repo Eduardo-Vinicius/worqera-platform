@@ -1,5 +1,17 @@
 # App celular
 
+## 2026-11-04
+
+- **E-mail:** campo com aviso e correção de domínio digitado errado (`design/email_field.dart`) no cadastro rápido de cliente do pedido e no reenviar laudo. Detalhe do pedido mostra o último envio do laudo (enviado, não enviado ou falhou, com o motivo).
+- **CRM:** abas Devendo, Hora de voltar e VIP; na Base, cards A receber, Hora de voltar, Sumidos já gastaram e Melhores clientes, e de onde vêm os clientes. Na lista, WhatsApp com o texto do segmento (Cobrar, Lembrar, Boas-vindas…) e botão Ligar.
+- **Detalhe do pedido:** "Reenviar laudo" abre o e-mail para conferir ou corrigir; e-mail novo é salvo no pedido e no cliente antes de reenviar. Pedido sem e-mail mostra "Enviar laudo".
+
+## 2026-11-03
+
+- **Menu igual ao do site** ("Mais" e barra lateral): Catálogo e estoque (Serviços, Produtos e estoque, Setores do kanban, Marcas e acessórios) · Gestão (Financeiro, Métricas, Desempenho da equipe, Telas da loja, TV Financeiro) · Configurações (Empresa, Equipe e acessos, Funcionários, Plano). Atalhos em `more/hub_screen.dart`.
+- **Métricas da loja** no formato do site: pedidos, no prazo, atrasados e recebido; "Atrasados para resolver" abrindo o pedido; onde estão os pedidos por setor; dinheiro; quem mais trabalhou.
+- **Painel da plataforma no app** (`features/admin/platform_screens.dart`): Visão geral (KPIs, saúde, insights, pendências), Métricas (Tecnologia, Negócio, Produto), Análises (Produto com retenção, Transações, Lojas), Operação (filas com +7 dias e Entrar), Contas com a conta 360° e E-mails. "Portal" passou a se chamar "Portal técnico".
+
 ## 2026-10-31
 
 - **Identificação no painel da plataforma:** toda requisição manda `X-Worqera-Client: mobile`, `X-Worqera-Platform` (android/ios) e `X-Worqera-App-Version` (`package_info_plus`). Precisa de build nova do app (plugin nativo); versões antigas aparecem como "API".

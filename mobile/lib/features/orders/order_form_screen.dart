@@ -10,6 +10,7 @@ import '../../auth/session.dart';
 import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/sheet.dart';
+import '../../design/email_field.dart';
 import '../../design/ui.dart';
 import '../quotes/quote_kit.dart' show Pill;
 import 'opened_by_bar.dart';
@@ -599,7 +600,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             const SizedBox(height: 8),
             TextField(controller: fields[2], decoration: const InputDecoration(labelText: 'CPF')),
             const SizedBox(height: 8),
-            TextField(controller: fields[3], keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail (PDF + link do pedido)')),
+            EmailField(controller: fields[3], label: 'E-mail (PDF + link do pedido)'),
             const SizedBox(height: 8),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Wq.action),

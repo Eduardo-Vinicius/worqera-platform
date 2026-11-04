@@ -33,5 +33,6 @@ router.get('/analytics/transactions', ...guard, admin.transactions);
 router.get('/shops-health', ...guard, admin.shopsHealth);
 router.get('/accounts', ...guard, admin.accounts);
 router.get('/accounts/:id', ...guard, admin.account);
+router.get('/emails', ...guard, admin.emails);
 
 module.exports = router;

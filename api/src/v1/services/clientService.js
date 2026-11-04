@@ -1,4 +1,5 @@
 const Client = require('../models/Client');
+const { normalizeEmail } = require('../lib/email');
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -131,7 +132,7 @@ async function createClient(shopId, data) {
     name: data.name || data.nome || data.nomeCompleto,
     cpf: data.cpf || null,
     phone: data.phone || data.telefone || null,
-    email: data.email || null,
+    email: normalizeEmail(data.email) || null,
     whatsappOptIn: Boolean(data.whatsappOptIn),
     address,
     notes: data.notes || data.observacoes || null,
@@ -167,7 +168,7 @@ async function patchClient(shopId, id, updates) {
   if (updates.phone != null || updates.telefone != null) {
     client.phone = updates.phone || updates.telefone || null;
   }
-  if (updates.email != null) client.email = updates.email || null;
+  if (updates.email != null) client.email = normalizeEmail(updates.email) || null;
   if (updates.whatsappOptIn != null) client.whatsappOptIn = Boolean(updates.whatsappOptIn);
   if (updates.notes != null || updates.observacoes != null) {
     client.notes = updates.notes || updates.observacoes || null;
