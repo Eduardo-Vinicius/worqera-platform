@@ -65,7 +65,7 @@ export function CrmRetention({ onTab }: { onTab: (tab: CrmTab) => void }) {
 
   return (
     <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--wq-border)] px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-4 pt-4 sm:px-5 sm:pt-5">
         <div>
           <h3 className="text-sm font-semibold">Quem volta</h3>
           <p className="text-[11px] text-[var(--wq-text-muted)]">
@@ -77,7 +77,7 @@ export function CrmRetention({ onTab }: { onTab: (tab: CrmTab) => void }) {
           Ver quem voltou <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="space-y-4 p-4 sm:p-5">
         <div>
           <div className="mb-2 flex flex-wrap gap-4 text-xs text-[var(--wq-text-muted)]">
             <span className="flex items-center gap-1.5">
@@ -113,7 +113,7 @@ export function CrmRetention({ onTab }: { onTab: (tab: CrmTab) => void }) {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 self-start">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {tiles.map((t) => {
             const body = (
               <>

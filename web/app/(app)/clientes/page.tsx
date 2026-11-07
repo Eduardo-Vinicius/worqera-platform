@@ -13,7 +13,7 @@ import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { CrmHome } from "@/components/crm/CrmHome"
 import { CrmFeedback } from "@/components/crm/CrmFeedback"
-import { CrmNav } from "@/components/crm/CrmNav"
+import { CrmNav, CrmSectionTitle } from "@/components/crm/CrmNav"
 import { getCrmSummaryV1, type CrmSummary } from "@/lib/apiV1"
 import { CrmList } from "@/components/crm/CrmList"
 import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
@@ -189,10 +189,11 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1320px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
-        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+      <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-5 sm:py-6 md:px-8">
+        <div className="grid gap-4 lg:grid-cols-[212px_minmax(0,1fr)] lg:items-start lg:gap-8">
         <CrmNav tab={tab} summary={crmSummary} onTab={setTab} />
         <div className="min-w-0 space-y-4">
+        <CrmSectionTitle tab={tab} />
 
         {tab === "base" ? <CrmHome onTab={setTab} /> : null}
         {tab === "feedback" ? <CrmFeedback /> : null}

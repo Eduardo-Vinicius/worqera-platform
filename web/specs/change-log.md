@@ -2,6 +2,16 @@
 
 ## 2026-11-07
 
+- **CRM redesenhado, mais limpo e mais largo:**
+  - Página até 1600 px.
+  - Menu lateral leve: ícone, nome e número numa linha; o item ativo com fundo suave e barra lateral; só "Fazer hoje" tem número em destaque.
+  - Título e explicação da seção uma vez, acima do conteúdo.
+  - Visão da base:
+    - a leitura vira uma faixa com os atalhos em chips;
+    - uma faixa única de números (antes eram nove cartões);
+    - "Quem volta" ao lado de **Oportunidades**, uma lista com o valor e o destino de cada item (a receber, hora de voltar, aniversariantes, sumiram, melhores clientes);
+    - embaixo, Perfil da base e De onde vêm os clientes.
+
 - **CRM com menu em grupos** (`components/crm/CrmNav.tsx`):
   - As 11 abas viraram quatro grupos: Visão geral; **Fazer hoje** (Devendo, Hora de voltar, Aniversariantes, Feedback); **Grupos de clientes** (Voltaram, Novos, Recorrentes, VIP, Sumidos); Cadastro (Todos).
   - Cada item tem uma explicação curta e um contador; os de "Fazer hoje" ficam destacados quando há clientes esperando.
