@@ -27,6 +27,7 @@ import '../settings/tv_boards.dart';
 import 'release_notes.dart';
 import '../../billing/store_policy.dart';
 import 'package:flutter/foundation.dart';
+import '../orders/label_print.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.session, required this.api, required this.theme, required this.navigationShell});
@@ -502,6 +503,7 @@ class _Drawer extends StatelessWidget {
             if (inShop && setup) ...[
               const _Section('Configurações'),
               _item(context, Icons.apartment_outlined, 'Empresa', () => _open('empresa', EmpresaScreen(api: api))),
+              _item(context, Icons.print_outlined, 'Etiqueta e impressora', () => _open('etiqueta', LabelSettingsScreen(api: api))),
               if (admin)
                 for (final e in teamShortcuts(api)) _item(context, e.$3, e.$2, () => _open(e.$1, e.$4())),
               if (admin && showPurchaseEntryPoints) _item(context, Icons.credit_card, 'Plano', () => _open('plano', BillingScreen(api: api))),

@@ -13,6 +13,8 @@ export type FloorOrder = {
   priority?: number | null
   /** In the final sector, waiting for the customer: not a production delay. */
   waiting?: boolean
+  /** Server rule (past due and still in production). */
+  late?: boolean
 }
 
 export type FloorSector = {
@@ -21,6 +23,8 @@ export type FloorSector = {
   color: string
   count: number
   orders: FloorOrder[]
+  /** Final sector (ready, waiting for pickup): not counted as production. */
+  terminal?: boolean
 }
 
 type HistoryEntry = {
@@ -47,6 +51,7 @@ type OrderLike = {
   itemInTerminal?: boolean
   status?: string | null
   waiting?: boolean
+  late?: boolean
   createdAt?: string | Date | null
   updatedAt?: string | Date | null
 }
@@ -90,11 +95,18 @@ export function dueTimestamp(order: OrderLike): number | null {
   return Number.isNaN(ts) ? null : ts
 }
 
+/** Late = past due and still in production (same rule as the API). Sitting long in a sector is "parado", not late. */
 export function isOverdue(order: OrderLike, now: number = Date.now()): boolean {
   if (order.waiting || order.itemInTerminal || order.status === "ready") return false
+  if (typeof order.late === "boolean") return order.late
   const due = dueTimestamp(order)
-  if (due != null && due < now) return true
-  return hoursInSector(order, now) >= OVERDUE_HOURS_IN_SECTOR
+  return due != null && due < now
+}
+
+/** In the same sector for too long (shop setting, hours). Shown on the card, never counted as late. */
+export function isStalled(order: OrderLike, now: number = Date.now(), hours: number = OVERDUE_HOURS_IN_SECTOR): boolean {
+  if (order.waiting || order.itemInTerminal || order.status === "ready") return false
+  return hoursInSector(order, now) >= Math.max(1, hours)
 }
 
 export function isHighPriority(priority?: number | string | null): boolean {
@@ -134,6 +146,7 @@ function asOrder(raw: OrderLike, now: number, terminal = false): FloorOrder {
     dueAt: raw.dueAt ? String(raw.dueAt) : raw.dataPrevistaEntrega ? String(raw.dataPrevistaEntrega) : raw.expectedDate ? String(raw.expectedDate) : null,
     priority: raw.priority != null && raw.priority !== "" ? Number(raw.priority) : raw.prioridade != null && raw.prioridade !== "" ? Number(raw.prioridade) : null,
     waiting: terminal || Boolean(raw.itemInTerminal) || raw.status === "ready",
+    ...(typeof raw.late === "boolean" ? { late: raw.late } : {}),
   }
 }
 
@@ -146,6 +159,7 @@ function asSector(id: string, raw: SectorLike, now: number): FloorSector {
     color: String(raw.color || raw.cor || "#7C6CF0"),
     count,
     orders,
+    terminal: Boolean(raw.isTerminal),
   }
 }
 

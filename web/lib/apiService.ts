@@ -274,6 +274,34 @@ export interface MetricsFinanceiroTopServico {
   servico: string;
   pedidos: number;
   receita: number;
+  /** % of the services revenue in the period. */
+  fatia?: number;
+  ticketMedio?: number;
+}
+
+export interface MetricsFinanceiroSetorValor {
+  sectorId: string;
+  name: string;
+  items: number;
+  value: number;
+  terminal: boolean;
+}
+
+export interface MetricsFinanceiroTopPedido {
+  id: string;
+  code: string;
+  clientName: string;
+  status: string;
+  total: number;
+  net: number;
+}
+
+export interface MetricsFinanceiroRanking {
+  name: string;
+  orders: number;
+  revenue: number;
+  clientId?: string | null;
+  averageTicket?: number;
 }
 
 export interface MetricsFinanceiroEvolucaoDiaria {
@@ -305,6 +333,11 @@ export interface MetricsFinanceiro {
   caixaHoje?: MetricsFinanceiroCaixaHoje;
   /** Pedidos recusados que voltaram por Orçamentos no período. */
   recovered?: { count: number; value: number };
+  /** Dinheiro dos pedidos abertos em cada setor, agora. */
+  sectorValue?: MetricsFinanceiroSetorValor[];
+  topOrders?: MetricsFinanceiroTopPedido[];
+  topClients?: MetricsFinanceiroRanking[];
+  byAttendant?: MetricsFinanceiroRanking[];
 }
 
 export interface MetricsFuncionariosPedidos {

@@ -1,5 +1,12 @@
 # App celular
 
+## 2026-11-07
+
+- **Etiqueta mais completa:** além do código e do QR, sai a marca e o modelo do item (ex.: Nike Air Force 1), os serviços (ex.: Higienização + Pintura da sola) e a data de entrega em destaque. O cliente aparece com o primeiro e o último nome. Na 50 × 30 mm os serviços ficam de fora por falta de espaço.
+
+- **Etiqueta e impressora** (Mais e menu lateral, `orders/label_print.dart`): o mesmo tamanho e "uma por item" do site; "Ao criar o pedido" por aparelho; imprimir teste. O PDF sai no tamanho do rolo, uma página por etiqueta (antes era sempre A6 e "Imprimir pares" não imprimia os pares).
+- **Pedido criado:** pergunta "Imprimir a etiqueta agora?" ou imprime direto, conforme o aparelho. O botão "Imprimir etiqueta" fica na tela.
+
 ## 2026-11-04
 
 - **Atrasado só na produção:** filtro "Atrasados" e selo do kanban pelo `late` do servidor (o item no atendimento final não atrasa). O detalhe do pedido não marca atrasado quando está pronto. O número da Home segue a regra nova.

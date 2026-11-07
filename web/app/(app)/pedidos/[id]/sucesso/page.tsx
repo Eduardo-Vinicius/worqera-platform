@@ -31,6 +31,8 @@ import { deepenHex, normalizeHex, readBrandFromStorage, resolveBrandColors } fro
 import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl } from "@/lib/publicOrderLink"
+import { resolveItemNoun } from "@/lib/itemNoun"
+import { LABEL_SIZES, printOrderLabels, printPdfUrl, readAfterCreate, readLabelSettings } from "@/lib/labelPrint"
 
 type OrderDoc = {
   id?: string
@@ -56,6 +58,8 @@ export default function PedidoSucessoPage() {
   const [ink, setInk] = useState("#0F172A")
   const [shopDoc, setShopDoc] = useState<any>(null)
   const [brandName, setBrandName] = useState("Worqera")
+  const [shopReady, setShopReady] = useState(false)
+  const [labelState, setLabelState] = useState<"idle" | "ask" | "printing" | "sent">("idle")
 
   const [pdfBlobUrl, setPdfBlobUrl] = useState("")
   const [pdfFileName, setPdfFileName] = useState("laudo.pdf")
@@ -106,6 +110,8 @@ export default function PedidoSucessoPage() {
         setInk(deepenHex(c.primary))
       } catch {
         // keep storage
+      } finally {
+        setShopReady(true)
       }
     })()
   }, [])
@@ -288,26 +294,44 @@ export default function PedidoSucessoPage() {
     toast.success("Download iniciado")
   }
 
-  const printPdf = () => {
+  const printPdf = async () => {
     if (!pdfBlobUrl) {
       toast.error("Laudo ainda não está pronto")
       return
     }
-    const w = window.open(pdfBlobUrl, "_blank", "noopener,noreferrer")
-    if (!w) {
-      toast.error("Permita pop-ups para imprimir o laudo")
-      return
-    }
-    const tryPrint = () => {
-      try {
-        w.focus()
-        w.print()
-      } catch {
-        // browser may block until load
-      }
-    }
-    setTimeout(tryPrint, 600)
+    const ok = await printPdfUrl(pdfBlobUrl)
+    if (!ok) toast.error("Permita pop-ups para imprimir o laudo")
   }
+
+  const printLabel = useCallback(async () => {
+    if (!order) return
+    setLabelState("printing")
+    try {
+      await printOrderLabels(order, shopDoc)
+      setLabelState("sent")
+      try {
+        sessionStorage.setItem(`wq-label-printed:${id}`, "1")
+      } catch {}
+    } catch (err: any) {
+      setLabelState("idle")
+      toast.error(err?.message || "Não foi possível imprimir a etiqueta")
+    }
+  }, [order, shopDoc, id])
+
+  // After creating: ask (default), print straight away, or nothing. Chosen per computer in Etiqueta e impressora.
+  const labelFlowStarted = useRef(false)
+  useEffect(() => {
+    if (labelFlowStarted.current || !order?.code || !shopReady) return
+    labelFlowStarted.current = true
+    let printed = false
+    try {
+      printed = sessionStorage.getItem(`wq-label-printed:${id}`) === "1"
+    } catch {}
+    if (printed) return
+    const mode = readAfterCreate()
+    if (mode === "auto") void printLabel()
+    else if (mode === "ask") setLabelState("ask")
+  }, [order, shopReady, id, printLabel])
 
   const openMailto = () => {
     if (!clientEmail) {
@@ -434,6 +458,34 @@ export default function PedidoSucessoPage() {
       />
 
       <div className="mx-auto max-w-[1100px] space-y-5 px-5 py-6 md:px-8">
+        {labelState === "ask" ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--wq-action)]/40 bg-[color-mix(in_srgb,var(--wq-action)_8%,white)] p-4">
+            <Printer className="h-5 w-5 shrink-0 text-[var(--wq-action)]" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[var(--wq-text)]">Imprimir a etiqueta agora?</p>
+              <p className="text-xs text-[var(--wq-text-muted)]">
+                {LABEL_SIZES[readLabelSettings(shopDoc).size].title}
+                {readLabelSettings(shopDoc).perItem && (order?.items?.length || 0) > 1 ? `, uma por ${resolveItemNoun(shopDoc).singular}` : ""}. Enter imprime.{" "}
+                <Link href="/settings/etiqueta" className="underline">
+                  Mudar
+                </Link>
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              autoFocus
+              className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
+              onClick={() => void printLabel()}
+            >
+              <Printer className="mr-1.5 h-4 w-4" />
+              Imprimir etiqueta
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="rounded-[10px]" onClick={() => setLabelState("idle")}>
+              Agora não
+            </Button>
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-5 md:p-6">
           <div className="flex flex-wrap items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-7 w-7 shrink-0 text-[var(--wq-success)]" />
@@ -488,12 +540,14 @@ export default function PedidoSucessoPage() {
                   type="button"
                   size="sm"
                   className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-                  asChild
+                  disabled={labelState === "printing"}
+                  onClick={() => void printLabel()}
                 >
-                  <Link href={`/pedidos/${id}/etiqueta?print=1`}>
-                    <Printer className="mr-1.5 h-4 w-4" />
-                    Imprimir etiqueta
-                  </Link>
+                  {labelState === "printing" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Printer className="mr-1.5 h-4 w-4" />}
+                  {labelState === "sent" ? "Imprimir de novo" : "Imprimir etiqueta"}
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="rounded-[10px]" asChild>
+                  <Link href={`/pedidos/${id}/etiqueta`}>Ver etiqueta</Link>
                 </Button>
                 <Button type="button" variant="outline" size="sm" className="rounded-[10px]" onClick={copyLink}>
                   <Copy className="mr-1.5 h-4 w-4" />

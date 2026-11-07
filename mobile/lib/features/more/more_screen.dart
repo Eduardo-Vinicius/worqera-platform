@@ -19,6 +19,7 @@ import '../settings/settings_screens.dart';
 import '../settings/tv_boards.dart';
 import '../../billing/store_policy.dart';
 import 'package:flutter/foundation.dart';
+import '../orders/label_print.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key, required this.api, required this.session, required this.open});
@@ -103,6 +104,7 @@ class _MoreScreenState extends State<MoreScreen> {
           if (inShop && session.seesShopSetup) ...[
             const _Heading('Configurações'),
             _row(context, 'Empresa', Icons.apartment_outlined, () => open(EmpresaScreen(api: api))),
+            _row(context, 'Etiqueta e impressora', Icons.print_outlined, () => open(LabelSettingsScreen(api: api))),
             if (session.isAdmin)
               for (final e in teamShortcuts(api)) _row(context, e.$2, e.$3, () => open(e.$4(), id: e.$1)),
             if (session.isAdmin && showPurchaseEntryPoints) _row(context, 'Plano', Icons.credit_card, () => open(BillingScreen(api: api)), emphasize: true),

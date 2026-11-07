@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { getSetoresEstatisticasService } from "@/lib/apiService"
 import {
   FLASH_MS,
+  OVERDUE_HOURS_IN_SECTOR,
   REFRESH_MS,
   detectIncreasedSectors,
   dueTimestamp,
@@ -65,6 +66,7 @@ function TvFloorInner() {
   const [logoUrl, setLogoUrl] = useState("")
   const [brandPrimary, setBrandPrimary] = useState("#7D26DE")
   const [floorTitle, setFloorTitle] = useState("TV Oficina")
+  const [stalledHours, setStalledHours] = useState(OVERDUE_HOURS_IN_SECTOR)
   const prevTotalsRef = useRef<Record<string, number>>({})
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -96,6 +98,7 @@ function TvFloorInner() {
         const cfg = doc?.tvSettings?.floor || {}
         if (cfg.refreshMs) setRefreshMs(Math.max(5000, Number(cfg.refreshMs) || REFRESH_MS))
         if (cfg.title) setFloorTitle(String(cfg.title))
+        if (Number(cfg.overdueHours) > 0) setStalledHours(Number(cfg.overdueHours))
         setBrandName(doc?.branding?.displayName || doc?.name || "")
         setLogoUrl(doc?.branding?.logoUrl || "")
         const { resolveBrandColors } = await import("@/lib/shopBrand")
@@ -164,9 +167,10 @@ function TvFloorInner() {
     }
   }, [])
 
-  const all = visible.flatMap((s) => s.orders)
-  const total = visible.reduce((sum, s) => sum + s.count, 0)
-  const late = all.filter((o) => orderFlag(o, now).flag === "late").length
+  // Production only: what waits for pickup in the final sector is neither "na produção" nor late.
+  const all = visible.flatMap((s) => s.orders).filter((o) => !o.waiting)
+  const total = visible.filter((s) => !s.terminal).reduce((sum, s) => sum + s.count, 0)
+  const late = all.filter((o) => orderFlag(o, now, stalledHours).flag === "late").length
   const today = all.filter((o) => {
     const due = dueTimestamp(o)
     return due != null && due >= now && due <= endOfToday(now)
@@ -267,6 +271,7 @@ function TvFloorInner() {
                 limit={limit}
                 flashing={flashIds.includes(sector.id)}
                 countColor={paintForBackground(sector.color, CARD, 3)}
+                stalledHours={stalledHours}
               />
             ))}
           </div>
@@ -275,13 +280,16 @@ function TvFloorInner() {
 
       <footer className="mt-[1.6vmin] flex shrink-0 items-center gap-[2.4vmin] text-[#8A8AA0]" style={{ fontSize: "var(--tv-tiny)" }}>
         <span className="flex items-center gap-[0.8vmin]">
-          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#E11D48]" /> Atrasado ou parado há 24h+
+          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#E11D48]" /> Atrasado: passou do prazo
         </span>
         <span className="flex items-center gap-[0.8vmin]">
           <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#F59E0B]" /> Vence hoje
         </span>
         <span className="flex items-center gap-[0.8vmin]">
           <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#7C3AED]" /> Urgente
+        </span>
+        <span className="flex items-center gap-[0.8vmin]">
+          <i className="block h-[1.6vmin] w-[1.6vmin] rounded-full bg-[#334155]" /> Parado há {stalledHours >= 48 && stalledHours % 24 === 0 ? `${stalledHours / 24} dias` : `${stalledHours}h`}+ no setor
         </span>
         <span className="ml-auto">Mais antigos e atrasados primeiro · Worqera</span>
       </footer>

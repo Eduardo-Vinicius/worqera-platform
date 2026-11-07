@@ -29,6 +29,7 @@ import {
   History,
   Server,
   Tv,
+  Printer,
   Star,
   HandCoins,
   ShoppingBag,
@@ -114,6 +115,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Configurações",
     items: [
       { href: "/settings/empresa", label: "Empresa", icon: Building2, hideForSector: true },
+      { href: "/settings/etiqueta", label: "Etiqueta e impressora", icon: Printer, hideForSector: true },
       { href: "/settings/equipe", label: "Equipe e acessos", icon: UsersRound, ownerAdminOnly: true },
       { href: "/funcionarios", label: "Funcionários", icon: UserCog, ownerAdminOnly: true },
       {

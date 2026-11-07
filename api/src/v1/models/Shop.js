@@ -58,6 +58,12 @@ const shopSchema = new mongoose.Schema(
         refreshMs: { type: Number, default: 15000 },
       },
     },
+    /** QR label printed after each order. Size = the roll in the shop's printer (mm) or an A4 sheet. */
+    labelSettings: {
+      size: { type: String, enum: ['a4', '50x30', '60x40', '62x40', '100x50'], default: 'a4' },
+      /** One label per item (each pair/peça gets its own QR), instead of one per order. */
+      perItem: { type: Boolean, default: false },
+    },
     notifications: {
       whatsapp: {
         enabled: { type: Boolean, default: false },

@@ -214,7 +214,7 @@ export default function TvSettingsPage() {
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Horas p/ atraso</Label>
+                  <Label>Parado no setor depois de (horas)</Label>
                   <Input
                     type="number"
                     value={floor.overdueHours}

@@ -1,5 +1,27 @@
 # Worqera API — Change log
 
+## 2026-11-07
+
+- **Financeiro (`/metrics/finance`):**
+  - O ranking de serviços deixa de fora o serviço das cargas antigas (`id: "import"`) e a linha "Sem serviço"; cada serviço traz a fatia (%) e a média.
+  - Itens novos:
+    - `sectorValue`: dinheiro dos pedidos abertos em cada setor, pelo setor do item;
+    - `topOrders`: maiores pedidos, com o líquido;
+    - `topClients`: melhores clientes, sem os importados;
+    - `byAttendant`: quanto vendeu cada pessoa do "Aberto por".
+
+- **Laudo novo, mais profissional** (`services/pdfLayout.js`, montado por `pdfService`):
+  - Cabeçalho com logo, nome, telefone e endereço; número da OS em destaque. Sem logo, usa as iniciais na cor da loja.
+  - Faixa com Entrada, Previsão de entrega (em destaque), Situação e quantidade de itens.
+  - Cartões Cliente e Atendimento (quem atendeu, setor, garantia, acessórios).
+  - Cada item com marca, modelo e valor; serviços com observações; fotos em grade.
+  - Total em destaque, com sinal pago e quanto falta na retirada.
+  - QR de acompanhamento, com um QR por item quando há mais de um.
+  - Linhas de assinatura e rodapé com a página em todas as folhas.
+  - Cor clara da marca é escurecida para o texto continuar legível.
+
+- **Etiqueta da empresa** (`Shop.labelSettings`): `size` (`a4`, `50x30`, `60x40`, `62x40`, `100x50`, em mm) e `perItem` (uma etiqueta por item). Gravado pelo `PATCH /shops/current`, com validação.
+
 ## 2026-11-04
 
 - **Atrasado só na produção** (`lib/lateness.js`, pedido da Galeria Sapataria Paulista):

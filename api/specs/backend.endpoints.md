@@ -70,7 +70,7 @@ GET  /billing/subscription           # LIVE — subscription do shop atual
 
 ```
 GET  /shops/current                  # LIVE
-PATCH /shops/current                 # LIVE — branding básico (admin/owner)
+PATCH /shops/current                 # LIVE — branding básico (admin/owner); labelSettings {size, perItem}
 GET  /shops/current/members          # LIVE
 POST /shops/current/members          # LIVE — criar user/membership (admin/owner)
 PATCH /shops/current/members/{id}    # LIVE — role / sectorIds / active

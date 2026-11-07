@@ -1,5 +1,29 @@
 # Worqera Web — Change log
 
+## 2026-11-07
+
+- **Financeiro redesenhado** (`components/finance/FinanceCharts.tsx`):
+  - Gráfico de faturamento com recebido e vendido: por dia até 30 dias, por mês em 90 dias e 1 ano.
+  - Rosca "Serviços que mais faturam" com fatia, quantidade e média; o serviço de importação saiu.
+  - "Dinheiro em cada setor": quanto está parado em cada coluna, com o pronto para receber em verde.
+  - Rankings de maiores pedidos (com líquido), melhores clientes e quem mais vendeu.
+- **TV Oficina:**
+  - "Atrasados" conta só o que passou do prazo e ainda está na produção (antes somava todo item parado há 24 h no setor).
+  - "Parado" virou uma etiqueta cinza, usando as horas de Telas da loja, que antes eram ignoradas.
+  - "Na produção" não conta o que já está pronto esperando o cliente.
+
+- **Etiqueta mais completa:** além do código e do QR, sai a marca e o modelo do item (ex.: Nike Air Force 1), os serviços (ex.: Higienização + Pintura da sola) e a data de entrega em destaque. O cliente aparece com o primeiro e o último nome. Na 50 × 30 mm os serviços ficam de fora por falta de espaço.
+
+- **Etiqueta para impressora térmica** (`lib/labelPrint.ts`):
+  - Etiqueta no tamanho do rolo (`@page` em mm), preta, com QR, código, cliente e modelo. Uma página por etiqueta; A4 vira grade para recortar.
+  - Imprime por um iframe escondido: não sai da tela e não precisa de pop-up.
+- **Configurações → Etiqueta e impressora** (`/settings/etiqueta`):
+  - Tamanho e "uma por item" valem para a empresa.
+  - "Ao criar o pedido" vale para cada computador: Perguntar (padrão), Imprimir direto ou Não imprimir.
+  - Botão de imprimir teste, guia de compra da impressora e dica do Chrome `--kiosk-printing` para imprimir sem a janela.
+- **Pedido criado:** aparece "Imprimir a etiqueta agora?" com o botão já em foco (Enter imprime), ou imprime direto, conforme o computador. "Imprimir etiqueta" imprime sem sair da página. "Imprimir laudo" voltou a funcionar (antes, o `noopener` bloqueava).
+- **Página da etiqueta:** "Imprimir agora" e `?print=1` usam o tamanho da empresa. Também mostra o tamanho em uso, com o link para trocar.
+
 ## 2026-11-04
 
 - **Atrasado só na produção:**

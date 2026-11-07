@@ -51,6 +51,8 @@ function normalizeHexColor(value) {
   return `#${h.toUpperCase()}`;
 }
 
+const LABEL_SIZES = new Set(['a4', '50x30', '60x40', '62x40', '100x50']);
+
 async function getCurrentShop(shopId) {
   return Shop.findById(shopId).lean();
 }
@@ -168,6 +170,13 @@ async function patchCurrentShop(shopId, updates) {
         ...updates.tvSettings.floor,
       };
     }
+  }
+
+  if (updates.labelSettings != null && typeof updates.labelSettings === 'object') {
+    const l = updates.labelSettings;
+    shop.labelSettings = shop.labelSettings || {};
+    if (LABEL_SIZES.has(String(l.size))) shop.labelSettings.size = String(l.size);
+    if (typeof l.perItem === 'boolean') shop.labelSettings.perItem = l.perItem;
   }
 
   if (updates.notifications != null && typeof updates.notifications === 'object') {

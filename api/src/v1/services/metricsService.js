@@ -227,29 +227,133 @@ function buildEvolucaoDiaria(orders) {
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** Legacy loads (scripts/import-cdt-*) write a placeholder service with id "import"; it is not a real service. */
+function isImportedService(service) {
+  return String(service?.id || '') === 'import';
+}
+
+function isImportedOrder(order) {
+  return flattenOrderServices(order).some(isImportedService);
+}
+
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+/** Real services only: no import placeholder, no "Sem serviço". Share = slice of the services revenue. */
 function buildTopServicos(orders, limit = 10) {
   const map = new Map();
+  let all = 0;
   orders.forEach((order) => {
-    const services = flattenOrderServices(order);
-    if (!services.length) {
-      const nome = 'Sem serviço';
+    if (String(order.status) === 'cancelled') return;
+    flattenOrderServices(order).forEach((s) => {
+      if (isImportedService(s)) return;
+      const nome = String(s.name || s.nome || '').trim();
+      if (!nome) return;
+      const price = toNumber(s.price, s.preco);
       const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
       atual.orders += 1;
-      atual.revenue += orderTotal(order);
-      map.set(nome, atual);
-      return;
-    }
-    services.forEach((s) => {
-      const nome = String(s.name || s.nome || 'Serviço').trim() || 'Serviço';
-      const atual = map.get(nome) || { service: nome, orders: 0, revenue: 0 };
-      atual.orders += 1;
-      atual.revenue += toNumber(s.price, s.preco);
+      atual.revenue += price;
+      all += price;
       map.set(nome, atual);
     });
   });
   return Array.from(map.values())
+    .filter((s) => s.revenue > 0.009)
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((s) => ({
+      ...s,
+      revenue: round2(s.revenue),
+      averageTicket: s.orders ? round2(s.revenue / s.orders) : 0,
+      share: all > 0 ? Math.round((s.revenue / all) * 1000) / 10 : 0,
+    }));
+}
+
+function itemValue(item) {
+  const services = Array.isArray(item?.services) ? item.services : [];
+  const serviceSum = services.filter((s) => !isImportedService(s)).reduce((sum, s) => sum + toNumber(s.price, s.preco), 0);
+  const stock = item?.origin === 'stock' ? toNumber(item.unitPrice, item.snapshot?.unitPrice) * Math.max(1, toNumber(item.quantity) || 1) : 0;
+  return serviceSum + stock;
+}
+
+/** Open orders: money sitting in each sector right now (item value in the item's current sector). */
+function buildSectorValue(orders, sectors) {
+  const rows = new Map(
+    sectors
+      .filter((s) => s.active !== false)
+      .map((s) => [String(s._id), { sectorId: String(s._id), name: s.name, order: Number(s.order) || 0, terminal: Boolean(s.isTerminal), items: 0, value: 0 }])
+  );
+  orders.forEach((order) => {
+    if (isFinalStatus(order.status)) return;
+    const items = Array.isArray(order.items) && order.items.length ? order.items : [{ ...order, currentSectorId: order.currentSectorId }];
+    const values = items.map(itemValue);
+    const sum = values.reduce((a, b) => a + b, 0);
+    const total = orderTotal(order);
+    items.forEach((item, index) => {
+      const row = rows.get(String(item.currentSectorId || order.currentSectorId || ''));
+      if (!row) return;
+      row.items += 1;
+      // Discounts / order-level prices: spread the order total by item weight (or evenly when items have no price).
+      row.value += sum > 0.009 ? (values[index] / sum) * total : total / items.length;
+    });
+  });
+  return Array.from(rows.values())
+    .sort((a, b) => a.order - b.order)
+    .map((r) => ({ ...r, value: round2(r.value) }));
+}
+
+/** Biggest orders of the period, with the net after expenses. */
+function buildTopOrders(orders, limit = 5) {
+  return orders
+    .filter((o) => String(o.status) !== 'cancelled' && orderTotal(o) > 0.009 && !isImportedOrder(o))
+    .sort((a, b) => orderTotal(b) - orderTotal(a))
+    .slice(0, limit)
+    .map((o) => ({
+      id: String(o._id),
+      code: o.code,
+      clientName: o.clientName || '',
+      status: o.status,
+      total: round2(orderTotal(o)),
+      net: round2(orderTotal(o) - orderExpenses(o)),
+    }));
+}
+
+function buildTopClients(orders, limit = 5) {
+  const map = new Map();
+  orders.forEach((o) => {
+    if (String(o.status) === 'cancelled' || isImportedOrder(o)) return;
+    const name = String(o.clientName || '').trim();
+    if (!name || /^cliente importado$/i.test(name)) return;
+    const key = o.clientId ? String(o.clientId) : name.toLowerCase();
+    const row = map.get(key) || { clientId: o.clientId ? String(o.clientId) : null, name, orders: 0, revenue: 0 };
+    row.orders += 1;
+    row.revenue += orderTotal(o);
+    map.set(key, row);
+  });
+  return Array.from(map.values())
+    .filter((r) => r.revenue > 0.009)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit)
+    .map((r) => ({ ...r, revenue: round2(r.revenue) }));
+}
+
+/** Who opened the orders (Aberto por) and how much they sold. */
+function buildByAttendant(orders, limit = 6) {
+  const map = new Map();
+  orders.forEach((o) => {
+    if (String(o.status) === 'cancelled') return;
+    const name = String(o.openedByName || '').trim();
+    if (!name) return;
+    const row = map.get(name) || { name, orders: 0, revenue: 0 };
+    row.orders += 1;
+    row.revenue += orderTotal(o);
+    map.set(name, row);
+  });
+  return Array.from(map.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit)
+    .map((r) => ({ ...r, revenue: round2(r.revenue), averageTicket: r.orders ? round2(r.revenue / r.orders) : 0 }));
 }
 
 /** Snapshot operacional do dia (independente do filtro de período). */
@@ -435,11 +539,15 @@ async function getSummary(shopId, filters = {}) {
 
 async function getFinance(shopId, filters = {}) {
   const periodo = resolvePeriodo(filters);
-  const orders = await loadOrders(shopId);
+  const [orders, sectors] = await Promise.all([loadOrders(shopId), Sector.find({ shopId }).lean()]);
   const filtrados = orders.filter((o) => isInsidePeriod(parseData(o.createdAt), periodo));
 
   return {
     period: periodInfo(periodo),
+    sectorValue: buildSectorValue(orders, sectors),
+    topOrders: buildTopOrders(filtrados),
+    topClients: buildTopClients(filtrados),
+    byAttendant: buildByAttendant(filtrados),
     summary: buildFinanceiroResumo(filtrados),
     revenueByStatus: buildReceitaPorStatus(filtrados),
     topServices: buildTopServicos(filtrados, Number(filters.servicesLimit || filters.limitServicos) || 10),
@@ -620,6 +728,10 @@ async function getAttendance(shopId, filters = {}) {
 }
 
 module.exports = {
+  buildTopServicos,
+  buildSectorValue,
+  buildTopClients,
+  buildTopOrders,
   getAttendance,
   getDepartmentDistribution,
   getEmployeeDistribution,

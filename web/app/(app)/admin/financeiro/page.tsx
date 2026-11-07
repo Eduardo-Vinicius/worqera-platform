@@ -8,14 +8,11 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
-  Layers,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
-  getMetricsDepartamentosService,
   getMetricsFinanceiroService,
-  type MetricsDepartamento,
   type MetricsFinanceiro,
   type MetricsPeriodo,
 } from "@/lib/apiService"
@@ -25,6 +22,7 @@ import { WeeklyInsightsCard } from "@/components/ai/WeeklyInsightsCard"
 import { ReceivablesCard } from "@/components/ai/ReceivablesCard"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Panel, RankList, RevenueChart, SectorMoney, ServicesShare, toRevenuePoints } from "@/components/finance/FinanceCharts"
 
 const PERIOD_OPTIONS: Array<{ value: MetricsPeriodo; label: string }> = [
   { value: "today", label: "Hoje" },
@@ -75,7 +73,6 @@ function exportFinanceCsv(data: MetricsFinanceiro) {
 export default function AdminFinanceiroPage() {
   const [periodo, setPeriodo] = useState<MetricsPeriodo>("30d")
   const [data, setData] = useState<MetricsFinanceiro | null>(null)
-  const [sectors, setSectors] = useState<MetricsDepartamento[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stock, setStock] = useState<Awaited<ReturnType<typeof productSummaryV1>>["summary"] | null>(null)
@@ -84,16 +81,11 @@ export default function AdminFinanceiroPage() {
     try {
       setLoading(true)
       setError(null)
-      const [finance, deps] = await Promise.all([
-        getMetricsFinanceiroService({ periodo: selectedPeriodo, limitServicos: 8 }),
-        getMetricsDepartamentosService({ periodo: selectedPeriodo }).catch(() => []),
-      ])
+      const finance = await getMetricsFinanceiroService({ periodo: selectedPeriodo, limitServicos: 8 })
       setData(finance)
-      setSectors(Array.isArray(deps) ? deps : [])
     } catch (err: any) {
       setError(err?.message || "Falha ao carregar financeiro")
       setData(null)
-      setSectors([])
     } finally {
       setLoading(false)
     }
@@ -116,8 +108,8 @@ export default function AdminFinanceiroPage() {
   const bruto = resumo?.receitaRecebida ?? 0
   const brutoPrevisto = resumo?.receitaPrevista ?? 0
   const vendidos = resumo?.pedidosFinalizados ?? 0
-  const maxService = Math.max(...(data?.topServicos || []).map((s) => s.receita || 0), 1)
-  const maxSector = Math.max(...sectors.map((s) => Number(s.total) || 0), 1)
+  const monthly = periodo === "90d" || periodo === "1y"
+  const points = useMemo(() => toRevenuePoints(data?.evolucaoDiaria || [], monthly), [data, monthly])
 
   const secondary = useMemo(
     () => [
@@ -237,9 +229,6 @@ export default function AdminFinanceiroPage() {
           })}
         </div>
 
-        <ReceivablesCard />
-        <WeeklyInsightsCard />
-
         {error ? (
           <Alert className="border-[var(--wq-danger)]/30 bg-[var(--wq-danger)]/5">
             <AlertDescription className="text-[var(--wq-danger)]">{error}</AlertDescription>
@@ -311,119 +300,71 @@ export default function AdminFinanceiroPage() {
           </div>
         </section>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-            <div className="flex items-center justify-between border-b border-[var(--wq-border)] px-4 py-3">
-              <div>
-                <h2 className="text-sm font-semibold text-[var(--wq-text)]">Setores (fila aberta)</h2>
-                <p className="text-[11px] text-[var(--wq-text-muted)]">Pedidos em andamento por coluna</p>
-              </div>
+        <Panel
+          title="Faturamento"
+          hint={monthly ? "Por mês · recebido e vendido no período" : "Por dia · recebido e vendido no período"}
+        >
+          <RevenueChart points={points} />
+        </Panel>
+
+        <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+          <Panel title="Serviços que mais faturam" hint="Fatia de cada serviço no faturamento do período">
+            <ServicesShare rows={data?.topServicos || []} />
+          </Panel>
+          <Panel
+            title="Dinheiro em cada setor"
+            hint="Pedidos abertos agora, pelo setor onde cada item está"
+            action={
               <Link href="/kanban" className="inline-flex items-center text-xs font-semibold text-[var(--wq-brand-text)]">
                 Kanban <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
-            </div>
-            <ul className="max-h-[320px] space-y-3 overflow-y-auto px-4 py-3">
-              {sectors.length === 0 && (
-                <li className="flex items-center gap-2 py-6 text-sm text-[var(--wq-text-muted)]">
-                  <Layers className="h-4 w-4" />
-                  Sem fila aberta no período.
-                </li>
-              )}
-              {sectors.map((s) => {
-                const name = s.setorNome || (s as any).name || "Setor"
-                const total = Number(s.total) || 0
-                return (
-                  <li key={String(s.setorId || name)} className="space-y-1.5">
-                    <div className="flex items-baseline justify-between gap-2 text-sm">
-                      <span className="truncate font-medium text-[var(--wq-text)]">{name}</span>
-                      <span className="font-mono text-[var(--wq-brand-text)]">{total}</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
-                      <div
-                        className="h-full rounded-full bg-[var(--wq-brand)]"
-                        style={{ width: `${Math.round((total / maxSector) * 100)}%` }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-
-          <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-            <div className="border-b border-[var(--wq-border)] px-4 py-3">
-              <h2 className="text-sm font-semibold text-[var(--wq-text)]">Top serviços</h2>
-              <p className="text-[11px] text-[var(--wq-text-muted)]">Receita bruta no período</p>
-            </div>
-            <ul className="max-h-[320px] space-y-3 overflow-y-auto px-4 py-3">
-              {(data?.topServicos || []).length === 0 && (
-                <li className="py-6 text-sm text-[var(--wq-text-muted)]">Sem serviços no período.</li>
-              )}
-              {(data?.topServicos || []).map((item) => (
-                <li key={item.servico} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate font-medium text-[var(--wq-text)]">{item.servico}</span>
-                    <span className="shrink-0 font-mono text-[var(--wq-brand-text)]">
-                      {formatCurrency(item.receita)}
-                    </span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
-                    <div
-                      className="h-full rounded-full bg-[var(--wq-brand)]"
-                      style={{ width: `${Math.round((item.receita / maxService) * 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-[var(--wq-text-muted)]">{item.pedidos}×</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+            }
+          >
+            <SectorMoney rows={data?.sectorValue || []} />
+          </Panel>
         </div>
 
-        <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-          <div className="border-b border-[var(--wq-border)] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[var(--wq-text)]">Últimos dias</h2>
-            <p className="text-[11px] text-[var(--wq-text-muted)]">Recebido vs previsto</p>
-          </div>
-          <div className="divide-y divide-[var(--wq-border)]">
-            {(data?.evolucaoDiaria || []).length === 0 && (
-              <p className="px-4 py-6 text-sm text-[var(--wq-text-muted)]">Sem evolução no período.</p>
-            )}
-            {(data?.evolucaoDiaria || [])
-              .slice()
-              .reverse()
-              .slice(0, 10)
-              .map((item) => {
-                const maxValue = Math.max(item.receitaPrevista || 0, item.receitaRecebida || 0, 1)
-                const receivedPct = Math.min(((item.receitaRecebida || 0) / maxValue) * 100, 100)
-                const day = item.data
-                  ? new Date(`${item.data}T12:00:00`).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                    })
-                  : "—"
-                return (
-                  <div key={item.data} className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-16 shrink-0 text-sm font-medium text-[var(--wq-text)]">{day}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="h-2 overflow-hidden rounded-full bg-[var(--wq-paper)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--wq-action)]"
-                          style={{ width: `${receivedPct}%` }}
-                        />
-                      </div>
-                      <p className="mt-1 text-[11px] text-[var(--wq-text-muted)]">
-                        {item.pedidos} pedido(s) · previsto {formatCurrency(item.receitaPrevista || 0)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right text-sm font-semibold tabular-nums text-[var(--wq-text)]">
-                      {formatCurrency(item.receitaRecebida || 0)}
-                    </div>
-                  </div>
-                )
-              })}
-          </div>
-        </section>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Panel title="Maiores pedidos" hint="Valor e líquido (menos despesas)">
+            <RankList
+              empty="Sem pedidos com valor no período."
+              rows={(data?.topOrders || []).map((o) => ({
+                key: o.id,
+                label: `#${o.code} · ${o.clientName || "Cliente"}`,
+                value: o.total,
+                sub: `líquido ${formatCurrency(o.net)}`,
+                href: `/pedidos?q=${encodeURIComponent(o.code)}`,
+              }))}
+            />
+          </Panel>
+          <Panel title="Melhores clientes" hint="Quem mais comprou no período">
+            <RankList
+              empty="Sem clientes no período."
+              rows={(data?.topClients || []).map((c) => ({
+                key: c.clientId || c.name,
+                label: c.name,
+                value: c.revenue,
+                sub: `${c.orders} ${c.orders === 1 ? "pedido" : "pedidos"}`,
+                href: c.clientId ? `/clientes/${c.clientId}` : undefined,
+              }))}
+            />
+          </Panel>
+          <Panel title="Quem mais vendeu" hint="Pelo “Aberto por” de cada pedido">
+            <RankList
+              empty="Os pedidos do período não têm “Aberto por”."
+              rows={(data?.byAttendant || []).map((a) => ({
+                key: a.name,
+                label: a.name,
+                value: a.revenue,
+                sub: `${a.orders} ${a.orders === 1 ? "pedido" : "pedidos"}`,
+                extra: `Ticket médio ${formatCurrencyFull(a.averageTicket || 0)}`,
+              }))}
+            />
+          </Panel>
+        </div>
+
+        <ReceivablesCard />
+        <WeeklyInsightsCard />
       </div>
     </div>
   )

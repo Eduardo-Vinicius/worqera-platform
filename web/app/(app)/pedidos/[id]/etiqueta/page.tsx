@@ -15,6 +15,7 @@ import { buildOrderWaFromShop } from "@/lib/orderWhatsApp"
 import { ENABLE_WA_ME } from "@/lib/featureFlags"
 import { buildPublicOrderUrl, withPublicOrderQuery } from "@/lib/publicOrderLink"
 import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
+import { LABEL_SIZES, printOrderLabels, readLabelSettings } from "@/lib/labelPrint"
 
 type OrderLabel = {
   id?: string
@@ -45,6 +46,8 @@ function PedidoEtiquetaInner() {
   const [waCreatedUrl, setWaCreatedUrl] = useState("")
   const [itemSingular, setItemSingular] = useState("peça")
   const [shopDoc, setShopDoc] = useState<any>(null)
+  const [shopReady, setShopReady] = useState(false)
+  const [printing, setPrinting] = useState(false)
 
   const code = order?.code || "—"
   const clientName =
@@ -80,6 +83,8 @@ function PedidoEtiquetaInner() {
         setInk(deepenHex(c.primary))
       } catch {
         // keep localStorage
+      } finally {
+        setShopReady(true)
       }
     })()
   }, [])
@@ -163,11 +168,28 @@ function PedidoEtiquetaInner() {
     setWaCreatedUrl(built?.url || "")
   }, [order, shopDoc])
 
+  const labelSettings = readLabelSettings(shopDoc)
+  const perItem = pairsMode || labelSettings.perItem
+
+  const print = async () => {
+    if (!order || printing) return
+    setPrinting(true)
+    try {
+      await printOrderLabels(order, shopDoc, { perItem })
+    } catch (err: any) {
+      toast.error(err?.message || "Não foi possível imprimir")
+    } finally {
+      setPrinting(false)
+    }
+  }
+
+  const [autoDone, setAutoDone] = useState(false)
   useEffect(() => {
-    if (!autoPrint || loading || !order || !qrDataUrl) return
-    const t = setTimeout(() => window.print(), 400)
-    return () => clearTimeout(t)
-  }, [autoPrint, loading, order, qrDataUrl])
+    if (!autoPrint || autoDone || loading || !order || !shopReady) return
+    setAutoDone(true)
+    void print()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint, autoDone, loading, order, shopReady])
 
   if (loading) {
     return <p className="p-8 text-[var(--wq-text-muted)]">Carregando etiqueta…</p>
@@ -238,7 +260,8 @@ function PedidoEtiquetaInner() {
                 type="button"
                 size="sm"
                 className="rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-                onClick={() => window.print()}
+                onClick={() => void print()}
+                disabled={printing}
               >
                 <Printer className="mr-1.5 h-4 w-4" />
                 Imprimir agora
@@ -268,6 +291,13 @@ function PedidoEtiquetaInner() {
         />
       </div>
 
+      <p className="mx-auto max-w-[900px] px-5 pt-4 text-xs text-[var(--wq-text-muted)] print:hidden md:px-8">
+        Sai em {LABEL_SIZES[labelSettings.size].title}
+        {perItem && items.length > 1 ? `, uma por ${itemSingular}` : ""}.{" "}
+        <Link href="/settings/etiqueta" className="underline">
+          Trocar tamanho ou impressora
+        </Link>
+      </p>
       <div className="wq-print-label mx-auto max-w-[900px] space-y-8 px-5 py-8 md:px-8">
         {!pairsMode ? (
           <div

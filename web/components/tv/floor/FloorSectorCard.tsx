@@ -1,4 +1,4 @@
-import { formatHoursInSector, isHighPriority, isOverdue, dueTimestamp, type FloorOrder, type FloorSector } from "@/lib/tvFloor"
+import { formatHoursInSector, isHighPriority, isOverdue, isStalled, dueTimestamp, OVERDUE_HOURS_IN_SECTOR, type FloorOrder, type FloorSector } from "@/lib/tvFloor"
 
 const CARD = "#151520"
 const ROW = "#1D1D2A"
@@ -9,29 +9,29 @@ function endOfToday(now: number) {
   return d.getTime()
 }
 
-export type FloorFlag = "late" | "today" | "urgent" | null
+export type FloorFlag = "late" | "today" | "urgent" | "stalled" | null
 
 /** What the floor needs to see first on each order. */
-export function orderFlag(order: FloorOrder, now: number): { flag: FloorFlag; text: string } {
+export function orderFlag(order: FloorOrder, now: number, stalledHours: number = OVERDUE_HOURS_IN_SECTOR): { flag: FloorFlag; text: string } {
   if (order.waiting) return { flag: null, text: `Pronto · ${formatHoursInSector(order.hoursInSector)}` }
   const due = dueTimestamp(order)
-  if (due != null && due < now) {
-    const hours = (now - due) / 3_600_000
+  if (isOverdue(order, now)) {
+    const hours = due != null ? (now - due) / 3_600_000 : 0
     return { flag: "late", text: hours >= 24 ? `Atrasado ${Math.floor(hours / 24)}d` : `Atrasado ${Math.max(1, Math.round(hours))}h` }
   }
-  if (isOverdue(order, now)) return { flag: "late", text: `Parado ${formatHoursInSector(order.hoursInSector)}` }
-  if (due != null && due <= endOfToday(now)) return { flag: "today", text: "Vence hoje" }
+  if (due != null && due >= now && due <= endOfToday(now)) return { flag: "today", text: "Vence hoje" }
   if (isHighPriority(order.priority)) return { flag: "urgent", text: "Urgente" }
+  if (isStalled(order, now, stalledHours)) return { flag: "stalled", text: `Parado ${formatHoursInSector(order.hoursInSector)}` }
   return { flag: null, text: formatHoursInSector(order.hoursInSector) }
 }
 
-const FLAG_RANK: Record<string, number> = { late: 0, urgent: 1, today: 2, none: 3 }
+const FLAG_RANK: Record<string, number> = { late: 0, urgent: 1, today: 2, stalled: 3, none: 4 }
 
 /** Late first, then urgent, due today, and the ones sitting the longest. */
-export function sortForFloor(orders: FloorOrder[], now: number) {
+export function sortForFloor(orders: FloorOrder[], now: number, stalledHours?: number) {
   return [...orders].sort((a, b) => {
-    const fa = FLAG_RANK[orderFlag(a, now).flag || "none"]
-    const fb = FLAG_RANK[orderFlag(b, now).flag || "none"]
+    const fa = FLAG_RANK[orderFlag(a, now, stalledHours).flag || "none"]
+    const fb = FLAG_RANK[orderFlag(b, now, stalledHours).flag || "none"]
     if (fa !== fb) return fa - fb
     const da = dueTimestamp(a) ?? Number.MAX_SAFE_INTEGER
     const db = dueTimestamp(b) ?? Number.MAX_SAFE_INTEGER
@@ -44,6 +44,7 @@ const FLAG_STYLE: Record<Exclude<FloorFlag, null>, { bg: string; fg: string }> =
   late: { bg: "#E11D48", fg: "#FFFFFF" },
   today: { bg: "#F59E0B", fg: "#1A1300" },
   urgent: { bg: "#7C3AED", fg: "#FFFFFF" },
+  stalled: { bg: "#334155", fg: "#E2E8F0" },
 }
 
 /** One sector: colored band, big queue count, the orders that need hands now. */
@@ -53,17 +54,19 @@ export function FloorSectorCard({
   limit,
   flashing,
   countColor,
+  stalledHours,
 }: {
   sector: FloorSector
   now: number
   limit: number
   flashing: boolean
   countColor: string
+  stalledHours?: number
 }) {
-  const orders = sortForFloor(sector.orders, now)
+  const orders = sortForFloor(sector.orders, now, stalledHours)
   const shown = orders.slice(0, limit)
   const rest = Math.max(0, sector.count - shown.length)
-  const late = orders.filter((o) => orderFlag(o, now).flag === "late").length
+  const late = orders.filter((o) => orderFlag(o, now, stalledHours).flag === "late").length
 
   return (
     <article
@@ -81,7 +84,15 @@ export function FloorSectorCard({
             {sector.name}
           </h2>
           <p className="mt-[0.4vmin] font-semibold" style={{ fontSize: "var(--tv-tiny)", color: late ? "#FB7185" : "#8A8AA0" }}>
-            {late ? `${late} atrasado${late === 1 ? "" : "s"}` : sector.count ? "Em dia" : "Fila vazia"}
+            {sector.terminal
+              ? sector.count
+                ? "Prontos para retirada"
+                : "Nada esperando"
+              : late
+                ? `${late} atrasado${late === 1 ? "" : "s"}`
+                : sector.count
+                  ? "Em dia"
+                  : "Fila vazia"}
           </p>
         </div>
         <p className="tv-code shrink-0 font-bold leading-none" style={{ fontSize: "var(--tv-count)", color: countColor }}>
@@ -91,7 +102,7 @@ export function FloorSectorCard({
 
       <ul className="flex min-h-0 flex-1 flex-col gap-[0.8vmin] overflow-hidden px-[1.4vmin] pb-[1.4vmin]">
         {shown.map((order) => {
-          const { flag, text } = orderFlag(order, now)
+          const { flag, text } = orderFlag(order, now, stalledHours)
           const style = flag ? FLAG_STYLE[flag] : null
           return (
             <li

@@ -328,6 +328,8 @@ export function adaptMetricsFinance(f: any) {
       servico: t.service || t.servico,
       pedidos: t.orders ?? t.pedidos,
       receita: t.revenue ?? t.receita,
+      fatia: t.share ?? t.fatia,
+      ticketMedio: t.averageTicket ?? t.ticketMedio,
     })),
     evolucaoDiaria: (f.dailyEvolution || f.evolucaoDiaria || []).map((e: any) => ({
       data: e.date || e.data,

@@ -10,6 +10,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import 'label_screen.dart';
+import 'label_print.dart';
 
 class SuccessScreen extends StatefulWidget {
   const SuccessScreen({super.key, required this.api, required this.session, required this.orderId});
@@ -27,6 +28,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
   String? error;
   bool pdfBusy = false;
   int photoWaits = 0;
+  bool labelFlowDone = false;
 
   @override
   void initState() {
@@ -45,6 +47,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
         final body = Map<String, dynamic>.from(shopRes.data as Map);
         shop = body['shop'] is Map ? Map<String, dynamic>.from(body['shop'] as Map) : body;
       });
+      _labelFlow();
       if (next['photosPending'] == true && photoWaits < 40) {
         photoWaits += 1;
         Future.delayed(const Duration(seconds: 2), () {
@@ -53,6 +56,43 @@ class _SuccessScreenState extends State<SuccessScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => error = widget.api.message(e));
+    }
+  }
+
+  /// After creating: ask (default), print straight away, or nothing. Chosen per device in Etiqueta e impressora.
+  Future<void> _labelFlow() async {
+    if (labelFlowDone || order == null || shop == null) return;
+    labelFlowDone = true;
+    final mode = await LabelAfterCreate.read();
+    if (!mounted || mode == 'off') return;
+    if (mode == 'auto') return printLabel();
+    final settings = LabelSettings.fromShop(shop);
+    final go = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Imprimir a etiqueta agora?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(labelSizes[settings.size]!.$1, style: TextStyle(color: sheet.wqMuted)),
+            const SizedBox(height: 16),
+            FilledButton.icon(onPressed: () => Navigator.pop(sheet, true), icon: const Icon(Icons.print_outlined), label: const Text('Imprimir etiqueta')),
+            TextButton(onPressed: () => Navigator.pop(sheet, false), child: const Text('Agora não')),
+          ]),
+        ),
+      ),
+    );
+    if (go == true) await printLabel();
+  }
+
+  Future<void> printLabel() async {
+    final row = order;
+    if (row == null) return;
+    try {
+      await printOrderLabels(widget.api, row, shop: shop, slug: widget.session.shopSlug);
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
     }
   }
 
@@ -139,9 +179,10 @@ class _SuccessScreenState extends State<SuccessScreen> {
                 const SizedBox(height: 8),
                 OutlinedButton(onPressed: whatsApp, child: const Text('Avisar no WhatsApp')),
                 const SizedBox(height: 8),
-                OutlinedButton(
+                OutlinedButton.icon(onPressed: printLabel, icon: const Icon(Icons.print_outlined), label: const Text('Imprimir etiqueta')),
+                TextButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LabelScreen(api: widget.api, session: widget.session, order: row))),
-                  child: const Text('Etiqueta'),
+                  child: const Text('Ver etiqueta'),
                 ),
                 const SizedBox(height: 8),
                 TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Voltar ao kanban')),

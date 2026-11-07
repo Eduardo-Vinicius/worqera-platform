@@ -9,6 +9,7 @@ import {
   isHighPriority,
   isHotOrder,
   isOverdue,
+  isStalled,
   isHotQuery,
   normalizeStats,
 } from "./tvFloor.ts"
@@ -71,10 +72,17 @@ describe("overdue and hot", () => {
     assert.equal(isOverdue({ waiting: true, hoursInSector: 72 }, now), false)
   })
 
-  it("marks 24h+ in sector as overdue", () => {
+  it("sitting 24h+ in a sector is stalled, not overdue", () => {
     assert.equal(hoursInSector({ tempoNoSetor: 24 }), 24)
-    assert.equal(isOverdue({ hoursInSector: OVERDUE_HOURS_IN_SECTOR }, now), true)
-    assert.equal(isOverdue({ hoursInSector: 3 }, now), false)
+    assert.equal(isOverdue({ hoursInSector: OVERDUE_HOURS_IN_SECTOR }, now), false)
+    assert.equal(isStalled({ hoursInSector: OVERDUE_HOURS_IN_SECTOR }, now), true)
+    assert.equal(isStalled({ hoursInSector: 30 }, now, 72), false, "shop setting raises the bar")
+    assert.equal(isStalled({ hoursInSector: 3 }, now), false)
+  })
+
+  it("follows the server late flag when present", () => {
+    assert.equal(isOverdue({ dueAt: "2026-09-13T12:00:00.000Z", late: false }, now), false)
+    assert.equal(isOverdue({ dueAt: "2026-09-15T12:00:00.000Z", late: true }, now), true)
   })
 
   it("treats Alta (1) as high priority", () => {
