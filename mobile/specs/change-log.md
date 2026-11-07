@@ -2,6 +2,32 @@
 
 ## 2026-11-07
 
+- **App no mesmo nível do site:**
+  - **Financeiro** (`ops/finance_screen.dart`):
+    - Líquido do período com margem, vendidos, caixa de hoje, prontos a receber e recuperado.
+    - Gráfico de faturamento com recebido e vendido: por dia, ou por mês em 90 dias e 1 ano. Toque no gráfico para ver cada ponto.
+    - Serviços que mais faturam, com fatia e média.
+    - Dinheiro em cada setor.
+    - Maiores pedidos, melhores clientes (abrem a ficha) e quem mais vendeu.
+    - Leitura da semana.
+    - Corrigido: "Setores" saía sem nome e com R$ 0.
+  - **CRM:**
+    - Aba Voltaram, com "voltou após N dias", o selo "voltou depois de sumir" e "Agradecer a volta". "Cobrar R$ X" nos que devem.
+    - Painel Quem volta na Base, mês a mês, com 2ª visita, tempo até voltar e quem voltou depois de sumir.
+    - Corrigido: VIP abria Recorrentes.
+  - **Ficha do cliente:**
+    - Botões WhatsApp e Ligar; "Veio por".
+    - Ticket médio e "Cliente desde".
+    - Bloco Relacionamento.
+    - Jornada com os selos de cada pedido.
+  - **Orçamentos:**
+    - Resumo: esfriando, tempo até recuperar, por que perdemos (90 dias, com a dica do motivo nº 1) e valor por etapa.
+    - Recuperados: "Depois da recuperação", "O que mais funciona para reverter" e o selo "voltou de novo".
+    - O detalhe mostra como foi a recuperação.
+  - **Pedidos:**
+    - Abas Recusados e Recuperados; Finalizados mostra só entregues.
+    - No detalhe, Avançar move todos os itens do setor atual (antes só o primeiro).
+
 - **Etiqueta mais completa:** além do código e do QR, sai a marca e o modelo do item (ex.: Nike Air Force 1), os serviços (ex.: Higienização + Pintura da sola) e a data de entrega em destaque. O cliente aparece com o primeiro e o último nome. Na 50 × 30 mm os serviços ficam de fora por falta de espaço.
 
 - **Etiqueta e impressora** (Mais e menu lateral, `orders/label_print.dart`): o mesmo tamanho e "uma por item" do site; "Ao criar o pedido" por aparelho; imprimir teste. O PDF sai no tamanho do rolo, uma página por etiqueta (antes era sempre A6 e "Imprimir pares" não imprimia os pares).

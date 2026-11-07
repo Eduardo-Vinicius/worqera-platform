@@ -50,6 +50,33 @@ class _RecoveredViewState extends State<RecoveredView> {
 
   String _dec(dynamic v) => '${v ?? 0}'.replaceAll('.', ',');
 
+  /// Depois da recuperação: did the recovered clients buy again?
+  Widget _after(BuildContext context, bool totals) {
+    final a = report?['after'] is Map ? report!['after'] as Map : const {};
+    final clients = (a['clients'] ?? 0) as num;
+    return WqCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.repeat, size: 18, color: Wq.success),
+          SizedBox(width: 6),
+          Text('Depois da recuperação', style: TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: 6),
+        if (clients == 0)
+          Text('Aparece quando os recuperados estiverem ligados a um cliente cadastrado.', style: TextStyle(color: context.wqMuted))
+        else ...[
+          Text('${a['rate'] ?? 0}%', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Wq.success)),
+          Text(
+            '${a['cameBack'] ?? 0} de $clients cliente${clients == 1 ? '' : 's'} recuperado${clients == 1 ? '' : 's'} voltaram a comprar'
+            '${totals && (a['value'] ?? 0) != 0 ? ' e gastaram mais ${money0(a['value'])}' : ''}.',
+          ),
+          const SizedBox(height: 4),
+          Text('Em 30 dias ainda é cedo; veja em 1 ano.', style: TextStyle(color: context.wqMuted, fontSize: 12)),
+        ],
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = report?['summary'] is Map ? report!['summary'] as Map : const {};
@@ -143,6 +170,36 @@ class _RecoveredViewState extends State<RecoveredView> {
               ]),
             ),
           const SizedBox(height: 10),
+          _after(context, totals),
+          if (_list('byHow').isNotEmpty) ...[
+            const SizedBox(height: 10),
+            WqCard(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('O que mais funciona para reverter', style: TextStyle(fontWeight: FontWeight.w800)),
+                for (final h in _list('byHow'))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Row(children: [
+                        Expanded(child: Text('${h['label']}', style: const TextStyle(fontWeight: FontWeight.w600))),
+                        Text('${h['count']}${totals && (h['value'] ?? 0) != 0 ? ' · ${money0(h['value'])}' : ''}', style: TextStyle(color: context.wqMuted)),
+                      ]),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (((h['count'] ?? 0) as num) / (((_list('byHow').first['count'] ?? 1) as num).clamp(1, 1 << 30))).toDouble().clamp(0.06, 1.0),
+                          minHeight: 6,
+                          color: Wq.brand,
+                          backgroundColor: context.wqLine,
+                        ),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ),
+          ],
+          const SizedBox(height: 10),
           for (final it in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -164,6 +221,11 @@ class _RecoveredViewState extends State<RecoveredView> {
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     if ('${it['reasonLabel'] ?? ''}'.isNotEmpty) Pill('${it['reasonLabel']}', color: context.wqMuted),
                     if ('${it['howLabel'] ?? ''}'.isNotEmpty) Pill('${it['howLabel']}', color: Wq.success),
+                    if ((it['ordersAfter'] ?? 0) != 0)
+                      Pill(
+                        'voltou de novo · ${it['ordersAfter']} pedido${it['ordersAfter'] == 1 ? '' : 's'}${(it['spentAfter'] ?? 0) != 0 ? ' · ${money0(it['spentAfter'])}' : ''}',
+                        color: const Color(0xFF0284C7),
+                      ),
                   ]),
                   const SizedBox(height: 4),
                   Text(

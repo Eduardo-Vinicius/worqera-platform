@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Loader2, Trophy, Users, PhoneCall, Percent } from "lucide-react"
+import { Loader2, Trophy, Users, PhoneCall, Percent, Repeat } from "lucide-react"
 import { getRecoveredV1, type RecoveredReport } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
 import { brl, relativeTime } from "./quoteUi"
@@ -142,6 +142,62 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
             </section>
           </div>
 
+          <div className="grid gap-3 lg:grid-cols-2">
+            <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <Repeat className="h-4 w-4 text-emerald-600" /> Depois da recuperação
+              </h3>
+              {report.after && report.after.clients ? (
+                <>
+                  <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {report.after.rate}%
+                  </p>
+                  <p className="text-sm text-[var(--wq-text-muted)]">
+                    {report.after.cameBack} de {report.after.clients} cliente{report.after.clients === 1 ? "" : "s"} recuperado{report.after.clients === 1 ? "" : "s"} voltaram a comprar
+                    {totals && report.after.value ? (
+                      <>
+                        {" "}e gastaram mais <b className="text-[var(--wq-text)]">{brl(report.after.value)}</b>
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                  <p className="mt-2 text-xs text-[var(--wq-text-muted)]">
+                    Recuperar não vale só o pedido: quem volta por Orçamentos tende a virar cliente da casa. Em 30 dias ainda é cedo; veja em 1 ano.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-[var(--wq-text-muted)]">Aparece quando os recuperados estiverem ligados a um cliente cadastrado.</p>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+              <h3 className="text-sm font-semibold">O que mais funciona para reverter</h3>
+              {report.byHow.length ? (
+                <ul className="mt-3 space-y-2.5">
+                  {report.byHow.map((h) => {
+                    const max = report.byHow[0]?.count || 1
+                    return (
+                      <li key={h.how} className="text-sm">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="truncate font-medium">{h.label}</span>
+                          <span className="shrink-0 tabular-nums text-[var(--wq-text-muted)]">
+                            {h.count}
+                            {totals && h.value ? ` · ${brl(h.value)}` : ""}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--wq-paper)]">
+                          <div className="h-full rounded-full bg-[var(--wq-brand)]" style={{ width: `${Math.max(6, (h.count / max) * 100)}%` }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-[var(--wq-text-muted)]">Ao marcar Recuperado, conte como foi.</p>
+              )}
+            </section>
+          </div>
+
           <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
             <h3 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">
               {showAll || report.items.length <= ITEMS_PREVIEW ? "Todos os recuperados" : "Últimos recuperados"}
@@ -168,6 +224,12 @@ export function RecoveredView({ onOpen }: { onOpen: (quoteId: string) => void })
                         {it.howLabel ? (
                           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
                             {it.howLabel}
+                          </span>
+                        ) : null}
+                        {it.ordersAfter ? (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
+                            voltou de novo · {it.ordersAfter} pedido{it.ordersAfter === 1 ? "" : "s"}
+                            {it.spentAfter ? ` · ${brl(it.spentAfter)}` : ""}
                           </span>
                         ) : null}
                       </span>

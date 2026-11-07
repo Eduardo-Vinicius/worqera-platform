@@ -298,7 +298,7 @@ export async function createAttendantV1(name: string) {
   return { id: String(e.id || e._id || ""), name: e.name } as Attendant
 }
 
-export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" | "owing" | "due" | "never" | "all"
+export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" | "owing" | "due" | "returned" | "never" | "all"
 
 export type CrmSummary = {
   inactiveDays: number
@@ -328,6 +328,23 @@ export type CrmRow = {
   tags: string[]
   whatsapp: { text: string; url: string } | null
   segment: string
+  /** Segment "returned": when the repeat order came and after how long. */
+  returnedAt?: string
+  returnedAfterDays?: number
+  reactivated?: boolean
+}
+
+export type CrmRetention = {
+  months: Array<{ month: string; newClients: number; returning: number; reactivated: number; returnRate: number; newValue?: number; returningValue?: number }>
+  inactiveDays: number
+  secondVisit: { rate: number | null; eligible: number; came: number; medianDays: number | null }
+  returned30: number
+  reactivated90: { clients: number; value?: number }
+  returningShare?: number
+}
+
+export async function getCrmRetentionV1(months = 6) {
+  return v1Fetch<CrmRetention>(`/crm/retention?months=${months}`)
 }
 
 export type CrmInsight = {
@@ -366,8 +383,31 @@ export async function getCrmInsightV1(refresh = false) {
 }
 
 export type ClientOverview = {
-  stats: CrmRow & { segment: string; firstOrderAt: string | null; avgGapDays: number | null }
-  orders: Array<{ id: string; code: string; status: string; what: string; total?: number; createdAt: string; deliveredAt: string | null; score: number | null }>
+  stats: CrmRow & {
+    segment: string
+    firstOrderAt: string | null
+    avgGapDays: number | null
+    returns: number
+    longestGapDays: number | null
+    favoriteServices: Array<{ name: string; count: number }>
+    avgScore: number | null
+    reviews: number
+    quotes: { open: number; won: number; lost: number }
+    recoveredOrders: number
+  }
+  orders: Array<{
+    id: string
+    code: string
+    status: string
+    what: string
+    total?: number
+    createdAt: string
+    deliveredAt: string | null
+    score: number | null
+    /** Days since the previous visit (null = first). */
+    gapDays: number | null
+    recovered: boolean
+  }>
 }
 
 export async function getClientOverviewV1(id: string) {
@@ -1653,6 +1693,8 @@ export async function winQuoteV1(id: string, recovery: RecoveryInput = {}) {
 export type RecoveredReport = {
   days: number
   summary: { count: number; value: number; rate: number; avgContacts: number; avgPeople: number; lost: number }
+  /** After the recovery: clients who bought again and how much. */
+  after?: { clients: number; cameBack: number; rate: number; value: number }
   byReason: Array<{ reason: QuoteReason | "none"; label: string; count: number; topHow: string; topHowLabel: string; hows: Array<{ how: string; label: string; count: number }> }>
   byHow: Array<{ how: string; label: string; count: number; value: number }>
   byPerson: Array<{ name: string; count: number; value: number }>
@@ -1669,6 +1711,9 @@ export type RecoveredReport = {
     contacts: number
     byName: string
     at: string
+    clientId?: string | null
+    ordersAfter?: number
+    spentAfter?: number
   }>
   showsTotals: boolean
 }

@@ -2,8 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/worqera_api.dart';
@@ -12,6 +10,8 @@ import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../ai/ai_widgets.dart';
 import '../../design/motion.dart';
+
+export 'finance_screen.dart' show FinanceScreen;
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key, required this.api});
@@ -147,191 +147,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               child: const Text('Próxima página'),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class FinanceScreen extends StatefulWidget {
-  const FinanceScreen({super.key, required this.api, this.stock = false});
-  final WorqeraApi api;
-  final bool stock;
-  @override
-  State<FinanceScreen> createState() => _FinanceScreenState();
-}
-
-class _FinanceScreenState extends State<FinanceScreen> {
-  Map? data;
-  List<Map<String, dynamic>> sectors = [];
-  Map<String, dynamic>? stock;
-  String? error;
-  String period = '30d';
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final res = await widget.api.dio.get('/metrics/finance', queryParameters: {'period': period});
-      final body = Map<String, dynamic>.from(res.data as Map);
-      final inner = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
-      List<Map<String, dynamic>> loaded = [];
-      try {
-        final sectorsRes = await widget.api.dio.get('/metrics/departments', queryParameters: {'period': period});
-        final sectorBody = Map<String, dynamic>.from(sectorsRes.data as Map);
-        loaded = asMaps(sectorBody['data'] is Map ? sectorBody['data'] : sectorBody);
-      } catch (_) {}
-      if (mounted) {
-        setState(() {
-          data = inner;
-          sectors = loaded;
-        });
-      }
-      if (widget.stock) {
-        try {
-          final res = await widget.api.dio.get('/products/summary');
-          final body = res.data;
-          final summary = body is Map && body['summary'] is Map ? Map<String, dynamic>.from(body['summary'] as Map) : null;
-          if (mounted) setState(() => stock = summary);
-        } catch (_) {}
-      }
-    } catch (e) {
-      if (mounted) setState(() => error = widget.api.message(e));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = data?['summary'] as Map? ?? {};
-    final top = asMaps({'data': data?['topServices']});
-    final days = asMaps({'data': data?['dailyEvolution']});
-    final byStatus = asMaps({'data': data?['revenueByStatus']});
-    final maxService = top.fold<double>(1, (max, row) {
-      final value = double.tryParse('${row['revenue'] ?? 0}') ?? 0;
-      return value > max ? value : max;
-    });
-    final maxDay = days.fold<double>(1, (max, row) {
-      final value = double.tryParse('${row['receivedRevenue'] ?? 0}') ?? 0;
-      return value > max ? value : max;
-    });
-    final maxStatus = byStatus.fold<double>(1, (max, row) {
-      final value = double.tryParse('${row['receivedRevenue'] ?? 0}') ?? 0;
-      return value > max ? value : max;
-    });
-    return WqPage(
-      title: 'Financeiro',
-      subtitle: 'Receita, pendente e ticket',
-      child: data == null
-          ? (error == null ? const SkeletonList() : Center(child: Text(error!)))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                ReceivablesCard(api: widget.api),
-                if (stock != null) ...[
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: Text('PRODUTOS', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: Wq.muted, fontWeight: FontWeight.w800)),
-                  ),
-                  _money('Vendido', stock!['salesTotal']),
-                  _money('Reservado', stock!['reservedValue']),
-                  _money('Estoque', stock!['stockValue']),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: WqCard(
-                      child: Row(children: [
-                        const Expanded(child: Text('Unidades disponíveis', style: TextStyle(color: Wq.muted))),
-                        Text('${stock!['availableUnits'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-                      ]),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Wrap(spacing: 8, children: [
-                  for (final item in ['today', '7d', '15d', '30d', '90d', '1y'])
-                    ChoiceChip(
-                      label: Text(item),
-                      selected: period == item,
-                      onSelected: (_) {
-                        setState(() {
-                          period = item;
-                          data = null;
-                        });
-                        load();
-                      },
-                    ),
-                ]),
-                const SizedBox(height: 12),
-                _money('Previsto', summary['expectedRevenue']),
-                _money('Recebido', summary['receivedRevenue']),
-                _money('Pendente', summary['pendingRevenue']),
-                _money('Ticket médio', summary['averageTicket']),
-                _money('Despesas', summary['expenses']),
-                _money('Lucro', summary['realizedProfit']),
-                const SizedBox(height: 8),
-                const WqSectionTitle('Por dia'),
-                for (final row in days)
-                  _bar('${row['date'] ?? ''}'.toString().substring('${row['date'] ?? ''}'.length > 5 ? 5 : 0), double.tryParse('${row['receivedRevenue'] ?? 0}') ?? 0, maxDay, Wq.action),
-                const WqSectionTitle('Setores'),
-                for (final row in sectors)
-                  _bar('${row['name'] ?? row['sector'] ?? ''}', double.tryParse('${row['revenue'] ?? row['expectedRevenue'] ?? row['count'] ?? 0}') ?? 0, sectors.fold<double>(1, (max, item) {
-                    final value = double.tryParse('${item['revenue'] ?? item['expectedRevenue'] ?? item['count'] ?? 0}') ?? 0;
-                    return value > max ? value : max;
-                  }), Wq.action),
-                Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: export, child: const Text('Exportar resumo'))),
-                const WqSectionTitle('Por status'),
-                for (final row in byStatus)
-                  _bar('${row['status'] ?? ''}', double.tryParse('${row['receivedRevenue'] ?? 0}') ?? 0, maxStatus, Wq.brand),
-                const WqSectionTitle('Serviços'),
-                for (final row in top)
-                  _bar('${row['name'] ?? row['service'] ?? ''}', double.tryParse('${row['revenue'] ?? row['total'] ?? 0}') ?? 0, maxService, Wq.brand),
-              ],
-            ),
-    );
-  }
-
-  Widget _bar(String label, double value, double max, Color color) {
-    final factor = max <= 0 ? 0.0 : (value / max).clamp(0.0, 1.0);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Text(brl(value), style: const TextStyle(fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(value: factor, minHeight: 8, color: color, backgroundColor: color.withValues(alpha: 0.15)),
-        ),
-      ]),
-    );
-  }
-
-  Future<void> export() async {
-    final summary = data?['summary'] as Map? ?? {};
-    final doc = pw.Document();
-    doc.addPage(pw.Page(build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text('Financeiro $period', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 12),
-      pw.Text('Previsto ${brl(summary['expectedRevenue'])}'),
-      pw.Text('Recebido ${brl(summary['receivedRevenue'])}'),
-      pw.Text('Pendente ${brl(summary['pendingRevenue'])}'),
-      pw.Text('Lucro ${brl(summary['realizedProfit'])}'),
-    ])));
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'financeiro-$period.pdf');
-  }
-
-  Widget _money(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: WqCard(
-        child: Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(color: Wq.muted))),
-          Text(brl(value), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        ]),
       ),
     );
   }

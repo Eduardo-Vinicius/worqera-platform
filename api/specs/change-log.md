@@ -2,6 +2,19 @@
 
 ## 2026-11-07
 
+- **CRM: quem volta.**
+  - `GET /crm/retention?months=6`, calculado em `retentionFrom`. Por mês: clientes novos, os que voltaram, os que voltaram depois de sumir e a taxa de retorno; com valores para dono e admin. Traz também:
+    - taxa de 2ª visita (só clientes com 60+ dias de casa);
+    - tempo mediano até voltar;
+    - quem voltou nos últimos 30 dias;
+    - quem voltou depois de sumir nos últimos 90 dias;
+    - fatia do faturamento que vem de quem volta.
+  - Novo segmento `returned` em `/crm/list`, com `returnedAfterDays`, `reactivated` e mensagem de agradecimento.
+  - `/clients/:id/overview` ganhou:
+    - `returns`, `longestGapDays`, `favoriteServices`, `avgScore`/`reviews`, `quotes` (aberto/recuperado/perdido) e `recoveredOrders`;
+    - em cada pedido, `gapDays` (dias desde a visita anterior) e `recovered`.
+- **Orçamentos recuperados** (`/quotes/recovered`): `after`, com quantos clientes recuperados voltaram a comprar e quanto gastaram depois. Em cada item, `ordersAfter`, `spentAfter` e `clientId`.
+
 - **Financeiro (`/metrics/finance`):**
   - O ranking de serviços deixa de fora o serviço das cargas antigas (`id: "import"`) e a linha "Sem serviço"; cada serviço traz a fatia (%) e a média.
   - Itens novos:

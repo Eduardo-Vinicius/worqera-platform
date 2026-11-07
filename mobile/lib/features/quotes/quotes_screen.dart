@@ -321,6 +321,7 @@ class _QuotesScreenState extends State<QuotesScreen> {
       ('Recuperação', '${summary['recoveryRate'] ?? 0}%', 'últimos 30 dias', Wq.action),
     ];
     final counts = [for (final s in quoteStages) (s.$1, s.$2, board.where((q) => q['stage'] == s.$1).length)];
+    final byStageValue = summary['openValueByStage'] is Map ? summary['openValueByStage'] as Map : const {};
     final total = counts.fold<int>(0, (sum, s) => sum + s.$3);
     Widget cell((String, String, String, Color) c) => Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -376,13 +377,81 @@ class _QuotesScreenState extends State<QuotesScreen> {
                     const SizedBox(width: 4),
                     Text('${s.$2} ', style: TextStyle(fontSize: 12, color: context.wqMuted)),
                     Text('${s.$3}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.wqInk)),
+                    if (byStageValue[s.$1] != null && (byStageValue[s.$1] as num) > 0)
+                      Text(' · ${money0(byStageValue[s.$1])}', style: TextStyle(fontSize: 12, color: context.wqMuted)),
                   ]),
               ]),
             ]),
           ),
         ],
+        ..._insights(context),
       ]),
     );
+  }
+
+  static const _reasonTip = {
+    'price': 'Ofereça parcelar ou uma opção mais simples do serviço.',
+    'deadline': 'Mostre o prazo real no orçamento e ofereça uma opção mais rápida.',
+    'thinking': 'Marque um retorno em 2 dias: quem está pensando decide com um lembrete.',
+    'other_shop': 'Pergunte o que pesou na escolha e mostre o que entra no seu serviço.',
+    'no_need': 'Deixe a porta aberta e chame de novo quando o item precisar.',
+    'other': 'Anote o motivo real ao marcar como perdido para entender o que acontece.',
+  };
+
+  /// Esfriando, tempo até recuperar e por que perdemos (90 dias), como no site.
+  List<Widget> _insights(BuildContext context) {
+    final cooling = summary['cooling'] is Map ? summary['cooling'] as Map : const {};
+    final median = summary['medianDaysToWin90d'];
+    final reasons = ((summary['lostReasons90d'] as List?) ?? const []).whereType<Map>().toList();
+    final lost = reasons.fold<num>(0, (t, r) => t + ((r['count'] ?? 0) as num));
+    if ((cooling['count'] ?? 0) == 0 && median == null && reasons.isEmpty) return const [];
+    final top = reasons.isEmpty ? null : reasons.first;
+    return [
+      Divider(height: 1, color: context.wqLine),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if ((cooling['count'] ?? 0) != 0)
+            Row(children: [
+              const Icon(Icons.ac_unit, size: 16, color: Color(0xFF0284C7)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Esfriando: ${cooling['count']} sem contato há 7+ dias${(cooling['value'] ?? 0) != 0 ? ' · ${money0(cooling['value'])} na mesa' : ''}',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
+          if (median != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(children: [
+                const Icon(Icons.timer_outlined, size: 16, color: Wq.success),
+                const SizedBox(width: 6),
+                Expanded(child: Text('Tempo até recuperar: $median dia${median == 1 ? '' : 's'} (mediana, 90 dias)', style: const TextStyle(fontSize: 12.5))),
+              ]),
+            ),
+          if (reasons.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('POR QUE PERDEMOS · 90 DIAS', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: context.wqMuted)),
+            const SizedBox(height: 4),
+            for (final r in reasons.take(4))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(children: [
+                  Expanded(child: Text('${r['label']}', style: const TextStyle(fontSize: 12.5))),
+                  Text('${r['count']}${(r['value'] ?? 0) != 0 ? ' · ${money0(r['value'])}' : ''}', style: TextStyle(fontSize: 12, color: context.wqMuted)),
+                ]),
+              ),
+            if (top != null && lost > 0)
+              Text(
+                '${top['label']} é o motivo nº 1 (${((top['count'] as num) / lost * 100).round()}%). ${_reasonTip['${top['reason']}'] ?? _reasonTip['other']}',
+                style: TextStyle(fontSize: 12, color: context.wqMuted),
+              ),
+          ],
+        ]),
+      ),
+    ];
   }
 
   Widget _empty(BuildContext context, String title, String text) {
@@ -685,6 +754,41 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
               ]),
             ]),
           ),
+          if (q['stage'] == 'won' && q['recovery'] is Map) ...[
+            const SizedBox(height: 10),
+            Builder(builder: (context) {
+              final rec = q['recovery'] as Map;
+              String label(List<(String, String)> list, dynamic id) => list.where((e) => e.$1 == '$id').map((e) => e.$2).firstOrNull ?? '';
+              final how = label(recoveryHows, rec['how']);
+              final reason = label(quoteReasons, rec['realReason']);
+              final people = ((rec['people'] as List?) ?? const []).map((p) => '$p').where((p) => p.isNotEmpty).toList();
+              return WqCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Icon(Icons.emoji_events_outlined, size: 18, color: Wq.success),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        [if (how.isNotEmpty) 'Recuperado com $how' else 'Recuperado', if (reason.isNotEmpty) 'problema: $reason'].join(' · '),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    [
+                      '${rec['contacts'] ?? q['contactCount'] ?? 0} contato(s)',
+                      if (people.isNotEmpty) people.join(', '),
+                      if ('${q['orderCode'] ?? ''}'.isNotEmpty) 'pedido #${q['orderCode']} voltou para a fila',
+                    ].join(' · '),
+                    style: TextStyle(color: context.wqMuted, fontSize: 12.5),
+                  ),
+                  if ('${rec['note'] ?? ''}'.isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(top: 4), child: Text('${rec['note']}', style: TextStyle(color: context.wqMuted, fontSize: 12.5, fontStyle: FontStyle.italic))),
+                ]),
+              );
+            }),
+          ],
           const SizedBox(height: 16),
           const WqSectionTitle('Etapa'),
           Wrap(spacing: 8, runSpacing: 8, children: [

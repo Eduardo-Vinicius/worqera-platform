@@ -42,6 +42,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     ('base', 'Base'),
     ('owing', 'Devendo'),
     ('due', 'Hora de voltar'),
+    ('returned', 'Voltaram'),
     ('inactive', 'Sumidos'),
     ('birthdays', 'Aniversariantes'),
     ('vip', 'VIP'),
@@ -67,7 +68,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     widget.openClient?.call(id);
   }
 
-  void setTab(String next) => setState(() => tab = next == 'vip' ? 'recurring' : next);
+  void setTab(String next) => setState(() => tab = _tabs.any((t) => t.$1 == next) ? next : 'all');
 
   Widget _tabBar(BuildContext context) {
     return SizedBox(
@@ -347,8 +348,23 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         ]),
                       ),
                     if ('${client!['notes'] ?? ''}'.isNotEmpty) Text('${client!['notes']}', style: const TextStyle(color: Wq.muted)),
+                    if ('${client!['source'] ?? ''}'.isNotEmpty) Text('Veio por: ${client!['source']}', style: const TextStyle(color: Wq.muted, fontSize: 12)),
                     const SizedBox(height: 8),
-                    OutlinedButton(
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      if (waMeUrl('${client!['phone'] ?? client!['telefone'] ?? ''}', '').isNotEmpty)
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: const Color(0xFF073018)),
+                          onPressed: () => openLink(waMeUrl('${client!['phone'] ?? client!['telefone'] ?? ''}', '').split('?').first),
+                          icon: const Icon(Icons.chat, size: 16),
+                          label: const Text('WhatsApp'),
+                        ),
+                      if ('${client!['phone'] ?? client!['telefone'] ?? ''}'.isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed: () => openLink('tel:${'${client!['phone'] ?? client!['telefone']}'.replaceAll(RegExp(r'\D'), '')}'),
+                          icon: const Icon(Icons.phone_outlined, size: 16),
+                          label: const Text('Ligar'),
+                        ),
+                      OutlinedButton(
                       onPressed: () async {
                         final initialName = '${client!['name'] ?? client!['nomeCompleto'] ?? ''}';
                         final initialPhone = maskPhone('${client!['phone'] ?? client!['telefone'] ?? ''}');
@@ -412,27 +428,54 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       },
                       child: const Text('Editar'),
                     ),
+                    ]),
                   ]),
                 ),
                 if (client!['stats'] is Map) ...[
                   const SizedBox(height: 10),
                   _stats(context, Map<String, dynamic>.from(client!['stats'] as Map)),
+                  const SizedBox(height: 10),
+                  _relationship(context, Map<String, dynamic>.from(client!['stats'] as Map)),
                 ],
                 if (widget.session?.isSector != true) ClientInsightCard(api: widget.api, clientId: widget.clientId),
                 if (widget.session != null)
                   ClientQuotesSection(api: widget.api, session: widget.session!, clientId: widget.clientId),
                 const SizedBox(height: 12),
-                const WqSectionTitle('Pedidos'),
-                for (final order in orders)
-                  ListTile(
+                const WqSectionTitle('Jornada na loja'),
+                for (var index = 0; index < orders.length; index++)
+                  Builder(builder: (context) {
+                    final order = orders[index];
+                    final gap = order['gapDays'];
+                    final first = gap == null && index == orders.length - 1 && orders.length < 30 && order['status'] != 'refused' && order['status'] != 'cancelled';
+                    final badges = <(String, Color)>[
+                      if (gap != null) ('voltou após ${gapLabel(gap)}${(gap is num ? gap : 0) >= 90 ? ' · estava sumido' : ''}', (gap is num ? gap : 0) >= 90 ? Wq.success : context.wqMuted),
+                      if (first) ('1ª visita', Wq.brand),
+                      if (order['recovered'] == true) ('recuperado por Orçamentos', const Color(0xFF0284C7)),
+                      if (order['score'] != null) ('nota ${order['score']}', const Color(0xFFD97706)),
+                    ];
+                    return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text('#${order['code'] ?? ''}${'${order['what'] ?? ''}'.isEmpty ? '' : ' · ${order['what']}'}', maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: order['createdAt'] == null
                         ? null
-                        : Text([
-                            dayLabel('${order['createdAt']}'),
-                            if (order['total'] != null) brl0(order['total']),
-                          ].join(' · ')),
+                        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text([
+                              dayLabel('${order['createdAt']}'),
+                              if (order['total'] != null) brl0(order['total']),
+                            ].join(' · ')),
+                            if (badges.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 3),
+                                child: Wrap(spacing: 4, runSpacing: 4, children: [
+                                  for (final b in badges)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(color: b.$2.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(99)),
+                                      child: Text(b.$1, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: b.$2)),
+                                    ),
+                                ]),
+                              ),
+                          ]),
                     trailing: order['status'] == 'refused' ? const Text('Não fechou', style: TextStyle(color: Wq.muted, fontSize: 12)) : StatusChip(order['status']),
                     onTap: widget.session == null
                         ? null
@@ -450,7 +493,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               stack: true,
                             );
                           },
-                  ),
+                  );
+                  }),
                 if (orders.isEmpty) const Text('Sem pedidos ligados a esta ficha.', style: TextStyle(color: Wq.muted)),
               ],
             ),
@@ -463,6 +507,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       if (s['spent'] != null) ('Gasto total', brl0(s['spent'])),
       ('Volta a cada', s['avgGapDays'] != null ? '${s['avgGapDays']} dias' : '—'),
       ('Último', sinceLabel(s['daysSince']).replaceFirst('Último pedido ', '')),
+      if (s['ticket'] != null) ('Ticket médio', brl0(s['ticket'])),
+      ('Cliente desde', _monthYear(s['firstOrderAt'])),
     ];
     return LayoutBuilder(builder: (context, box) {
       final w = (box.maxWidth - 8) / 2;
@@ -481,6 +527,80 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           ),
       ]);
     });
+  }
+
+  String _monthYear(dynamic raw) {
+    final d = DateTime.tryParse('${raw ?? ''}')?.toLocal();
+    if (d == null) return '—';
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    return '${months[d.month - 1]}/${d.year}';
+  }
+
+  /// Same "Relacionamento" block as the site: returns, rating, quotes, balance, favourite services.
+  Widget _relationship(BuildContext context, Map<String, dynamic> s) {
+    final returns = (s['returns'] as num?)?.toInt() ?? 0;
+    final orders = (s['orders'] as num?)?.toInt() ?? 0;
+    final quotes = s['quotes'] is Map ? s['quotes'] as Map : const {};
+    final favorites = ((s['favoriteServices'] as List?) ?? const []).whereType<Map>().toList();
+    final owed = (s['owed'] as num?)?.toDouble() ?? 0;
+    final quoteTotal = ((quotes['won'] ?? 0) as num) + ((quotes['lost'] ?? 0) as num) + ((quotes['open'] ?? 0) as num);
+    Widget fact(IconData icon, Color color, String title, String hint) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (hint.isNotEmpty) Text(hint, style: TextStyle(color: context.wqMuted, fontSize: 12)),
+              ]),
+            ),
+          ]),
+        );
+    return WqCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Relacionamento', style: TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 10),
+        fact(
+          Icons.repeat,
+          Wq.success,
+          returns > 0 ? 'Voltou $returns ${returns == 1 ? 'vez' : 'vezes'}' : orders > 0 ? 'Só a primeira visita' : 'Ainda sem pedido',
+          s['returnedAfterDays'] != null
+              ? 'Última volta após ${gapLabel(s['returnedAfterDays'])}${s['reactivated'] == true ? ' (estava sumido)' : ''}'
+              : s['longestGapDays'] != null
+                  ? 'Maior intervalo: ${gapLabel(s['longestGapDays'])}'
+                  : orders == 1
+                      ? 'Vale garantir a segunda visita'
+                      : '',
+        ),
+        fact(
+          Icons.star_rounded,
+          const Color(0xFFD97706),
+          s['avgScore'] != null ? 'Nota ${'${s['avgScore']}'.replaceAll('.', ',')} de 5' : 'Sem avaliação',
+          (s['reviews'] ?? 0) != 0 ? '${s['reviews']} avaliaç${s['reviews'] == 1 ? 'ão' : 'ões'}' : 'Peça a avaliação na entrega',
+        ),
+        fact(
+          Icons.undo_rounded,
+          Wq.brand,
+          quoteTotal > 0 ? '${quotes['won'] ?? 0} recuperado(s) · ${quotes['lost'] ?? 0} perdido(s)' : 'Nenhum orçamento',
+          (quotes['open'] ?? 0) != 0 ? '${quotes['open']} orçamento(s) em aberto' : (s['recoveredOrders'] ?? 0) != 0 ? '${s['recoveredOrders']} pedido(s) voltaram por Orçamentos' : '',
+        ),
+        if (s.containsKey('owed')) fact(Icons.payments_outlined, const Color(0xFFD97706), owed > 0.009 ? 'Deve ${brl0(owed)}' : 'Nada em aberto', owed > 0.009 ? 'Saldo de pedido pronto ou entregue' : 'Tudo pago'),
+        if (favorites.isNotEmpty) ...[
+          const Divider(),
+          Text('SERVIÇOS QUE MAIS FAZ', style: TextStyle(fontSize: 10.5, letterSpacing: 0.8, fontWeight: FontWeight.w800, color: context.wqMuted)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final f in favorites)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: Wq.brand.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(99)),
+                child: Text('${f['name']} ${f['count']}×', style: const TextStyle(color: Wq.brand, fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
+          ]),
+        ],
+      ]),
+    );
   }
 
   String _address(Map client) {

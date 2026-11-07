@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Cake, ClipboardPlus, Loader2, MessageCircle, Phone } from "lucide-react"
 import { getCrmListV1, type CrmRow, type CrmSegment } from "@/lib/apiV1"
 import { cn } from "@/lib/utils"
-import { birthdayLabel, birthdayWhen, brl, sinceLabel } from "./crmUi"
+import { birthdayLabel, birthdayWhen, brl, gapLabel, sinceLabel } from "./crmUi"
 
 const RANGES = [
   { id: "today", label: "Hoje" },
@@ -24,6 +24,7 @@ const EMPTY: Record<string, string> = {
   owing: "Ninguém devendo. Todo pedido pronto ou entregue está pago.",
   due: "Ninguém atrasado para voltar. Os clientes que passam do tempo em que costumam voltar aparecem aqui.",
   vip: "Os VIPs aparecem quando houver clientes com 2 ou mais pedidos.",
+  returned: "Ninguém voltou nos últimos 30 dias. Quem fizer o segundo pedido (ou voltar depois de sumir) aparece aqui.",
 }
 
 const SORT_HINT: Partial<Record<CrmSegment, string>> = {
@@ -32,6 +33,7 @@ const SORT_HINT: Partial<Record<CrmSegment, string>> = {
   vip: " · quem mais gastou primeiro",
   owing: " · maior saldo primeiro",
   due: " · os que mais gastam primeiro",
+  returned: " · voltaram nos últimos 30 dias; quem estava sumido primeiro",
 }
 
 function waLabel(segment: CrmSegment, row: CrmRow) {
@@ -40,6 +42,7 @@ function waLabel(segment: CrmSegment, row: CrmRow) {
   if (segment === "birthdays") return "Dar parabéns"
   if (segment === "inactive") return "Chamar de volta"
   if (segment === "new") return "Agradecer 1ª visita"
+  if (segment === "returned") return "Agradecer a volta"
   return "Agradecer"
 }
 
@@ -150,12 +153,19 @@ export function CrmList({ segment }: { segment: CrmSegment }) {
                 <p className="flex items-center gap-2 font-semibold">
                   <span className="truncate">{r.name}</span>
                   {segment === "birthdays" && r.birthdayIn === 0 ? <Cake className="h-4 w-4 shrink-0 text-rose-500" /> : null}
+                  {segment === "returned" && r.reactivated ? (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      voltou depois de sumir
+                    </span>
+                  ) : null}
                 </p>
                 <p className="text-xs text-[var(--wq-text-muted)] [overflow-wrap:anywhere]">
                   {[
                     segment === "birthdays"
                       ? `${birthdayWhen(r.birthdayIn)} · ${birthdayLabel(r.birthday)}${r.age ? ` · faz ${r.age} anos` : ""}`
-                      : sinceLabel(r.daysSince),
+                      : segment === "returned" && r.returnedAfterDays != null
+                        ? `Voltou após ${gapLabel(r.returnedAfterDays)}${r.returnedAt ? ` · em ${new Date(r.returnedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : ""}`
+                        : sinceLabel(r.daysSince),
                     `${r.orders} pedido${r.orders === 1 ? "" : "s"}`,
                     r.spent != null && r.orders ? `${brl(r.spent)} no total` : "",
                     segment === "owing" && r.owed ? `deve ${brl(r.owed)}` : "",

@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Cake, Loader2, Mail, MessageCircle, Phone, Plus } from "lucide-react";
+import { ArrowLeft, Cake, HandCoins, Loader2, Mail, MessageCircle, Phone, Plus, Repeat, Sparkles, Star, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { getClienteByIdService } from "@/lib/apiService";
 import { getClientOverviewV1, type ClientOverview } from "@/lib/apiV1";
 import { ClientQuotes } from "@/components/quotes/ClientQuotes";
 import { ClientInsightCard } from "@/components/ai/ClientInsightCard";
-import { SEGMENT_LABEL, birthdayLabel, birthdayWhen, brl, sinceLabel } from "@/components/crm/crmUi";
+import { SEGMENT_LABEL, birthdayLabel, birthdayWhen, brl, gapLabel, sinceLabel } from "@/components/crm/crmUi";
 
 const STATUS: Record<string, string> = {
   open: "Recebido",
@@ -80,6 +80,8 @@ export default function ClienteDetalhesPage() {
   const name = cliente.nomeCompleto || cliente.name || "Cliente";
   const phone = cliente.telefone || cliente.phone || "";
   const s = overview?.stats;
+  const quotes = s?.quotes || { open: 0, won: 0, lost: 0 };
+  const favorites = s?.favoriteServices || [];
   const address = [cliente.logradouro, cliente.numero, cliente.complemento, cliente.bairro, cliente.cidade, cliente.estado].filter(Boolean).join(", ");
   const wa = waLink(phone);
   const newOrderHref = `/pedidos/novo?clientId=${encodeURIComponent(cliente.id || id)}&clientName=${encodeURIComponent(name)}&clientPhone=${encodeURIComponent(phone)}`;
@@ -180,13 +182,84 @@ export default function ClienteDetalhesPage() {
           </section>
         ) : null}
 
+        {s ? (
+          <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">
+            <h2 className="text-sm font-semibold">Relacionamento</h2>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="flex gap-2.5">
+                <Repeat className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold">
+                    {s.returns ? `Voltou ${s.returns} ${s.returns === 1 ? "vez" : "vezes"}` : s.orders ? "Só a primeira visita" : "Ainda sem pedido"}
+                  </p>
+                  <p className="text-xs text-[var(--wq-text-muted)]">
+                    {s.returnedAfterDays != null
+                      ? `Última volta após ${gapLabel(s.returnedAfterDays)}${s.reactivated ? " (estava sumido)" : ""}`
+                      : s.longestGapDays != null
+                        ? `Maior intervalo: ${gapLabel(s.longestGapDays)}`
+                        : s.orders === 1
+                          ? "Vale garantir a segunda visita"
+                          : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <Star className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold">{s.avgScore != null ? `Nota ${s.avgScore.toLocaleString("pt-BR")} de 5` : "Sem avaliação"}</p>
+                  <p className="text-xs text-[var(--wq-text-muted)]">
+                    {s.reviews ? `${s.reviews} avaliaç${s.reviews === 1 ? "ão" : "ões"}` : "Peça a avaliação na entrega"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <Undo2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand)]" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold">
+                    {quotes.won + quotes.lost + quotes.open
+                      ? `${quotes.won} recuperado${quotes.won === 1 ? "" : "s"} · ${quotes.lost} perdido${quotes.lost === 1 ? "" : "s"}`
+                      : "Nenhum orçamento"}
+                  </p>
+                  <p className="text-xs text-[var(--wq-text-muted)]">
+                    {quotes.open ? `${quotes.open} orçamento${quotes.open === 1 ? "" : "s"} em aberto` : s.recoveredOrders ? `${s.recoveredOrders} pedido(s) voltaram por Orçamentos` : "Orçamentos que não fecharam"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <HandCoins className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold">{s.owed ? `Deve ${brl(s.owed)}` : "Nada em aberto"}</p>
+                  <p className="text-xs text-[var(--wq-text-muted)]">{s.owed ? "Saldo de pedido pronto ou entregue" : "Tudo pago"}</p>
+                </div>
+              </div>
+            </div>
+            {favorites.length ? (
+              <div className="mt-4 border-t border-[var(--wq-border)] pt-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--wq-text-muted)]">
+                  <Sparkles className="h-3.5 w-3.5" /> Serviços que mais faz
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {favorites.map((f) => (
+                    <span key={f.name} className="rounded-full bg-[var(--wq-brand-soft)] px-2.5 py-1 text-xs font-medium text-[var(--wq-brand-text)]">
+                      {f.name} <b className="ml-0.5">{f.count}×</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <ClientInsightCard clientId={cliente.id || id} />
 
         <section className="overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
-          <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">Histórico de pedidos</h2>
+          <h2 className="border-b border-[var(--wq-border)] px-4 py-3 text-sm font-semibold">
+            Jornada na loja
+            <span className="ml-2 text-xs font-normal text-[var(--wq-text-muted)]">cada pedido e quanto tempo levou para voltar</span>
+          </h2>
           {overview?.orders.length ? (
             <ul className="divide-y divide-[var(--wq-border)]">
-              {overview.orders.map((o) => (
+              {overview.orders.map((o, index) => (
                 <li key={o.id}>
                   <Link href={`/pedidos?q=${encodeURIComponent(o.code)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--wq-paper)]">
                     <span className="font-mono text-sm font-semibold">#{o.code}</span>
@@ -195,6 +268,19 @@ export default function ClienteDetalhesPage() {
                       <span className="block text-xs text-[var(--wq-text-muted)]">
                         {new Date(o.createdAt).toLocaleDateString("pt-BR")} · {STATUS[o.status] || o.status}
                         {o.score ? ` · nota ${o.score}` : ""}
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {o.gapDays != null ? (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${o.gapDays >= 90 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"}`}>
+                            voltou após {gapLabel(o.gapDays)}
+                            {o.gapDays >= 90 ? " · estava sumido" : ""}
+                          </span>
+                        ) : o.status !== "cancelled" && o.status !== "refused" && index === overview.orders.length - 1 && overview.orders.length < 30 ? (
+                          <span className="rounded-full bg-[var(--wq-brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--wq-brand-text)]">1ª visita</span>
+                        ) : null}
+                        {o.recovered ? (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">recuperado por Orçamentos</span>
+                        ) : null}
                       </span>
                     </span>
                     {o.total != null ? <span className="shrink-0 text-sm font-semibold tabular-nums">{brl(o.total)}</span> : null}

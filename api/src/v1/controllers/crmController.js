@@ -7,6 +7,11 @@ exports.summary = wrap(async (req, res) => {
   res.status(200).json(await crm.crmSummary(req.shopId, { inactiveDays: days, showMoney: seesMoney(req) }));
 });
 
+exports.retention = wrap(async (req, res) => {
+  const days = [30, 60, 90, 180, 365].includes(Number(req.query.days)) ? Number(req.query.days) : 90;
+  res.status(200).json(await crm.crmRetention(req.shopId, { months: req.query.months, inactiveDays: days, showMoney: seesMoney(req) }));
+});
+
 exports.list = wrap(async (req, res) => {
   res.status(200).json(
     await crm.crmList(req.shopId, {

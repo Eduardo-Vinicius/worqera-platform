@@ -7,6 +7,16 @@ import '../../design/ui.dart';
 import '../quotes/quote_kit.dart' show Pill;
 import '../../design/motion.dart';
 
+/// 45 → "45 dias", 120 → "4 meses", 400 → "1 ano".
+String gapLabel(dynamic raw) {
+  final days = raw is num ? raw.round() : int.tryParse('$raw') ?? 0;
+  if (days < 1) return 'no mesmo dia';
+  if (days < 60) return '$days dia${days == 1 ? '' : 's'}';
+  if (days < 365) return '${(days / 30).round()} meses';
+  final years = days ~/ 365;
+  return '$years ano${years == 1 ? '' : 's'}';
+}
+
 String brl0(dynamic v) {
   final n = v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
   final whole = n.round().toString();
@@ -139,6 +149,8 @@ class _CrmHomeViewState extends State<CrmHomeView> {
                 ),
             ]);
           }),
+          const SizedBox(height: 12),
+          CrmRetentionCard(api: widget.api, onSegment: widget.onSegment),
           if (((s['sources'] as List?) ?? const []).isNotEmpty) ...[
             const SizedBox(height: 14),
             const WqSectionTitle('De onde vêm os clientes'),
@@ -155,6 +167,127 @@ class _CrmHomeViewState extends State<CrmHomeView> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// "Quem volta": new vs returning clients per month and the return numbers (same as the site).
+class CrmRetentionCard extends StatefulWidget {
+  const CrmRetentionCard({super.key, required this.api, required this.onSegment});
+  final WorqeraApi api;
+  final ValueChanged<String> onSegment;
+
+  @override
+  State<CrmRetentionCard> createState() => _CrmRetentionCardState();
+}
+
+class _CrmRetentionCardState extends State<CrmRetentionCard> {
+  Map<String, dynamic>? data;
+
+  static const _months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  static const _newColor = Color(0xFFC4B5FD);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.dio.get('/crm/retention', queryParameters: {'months': 6}).then((res) {
+      if (mounted) setState(() => data = Map<String, dynamic>.from(res.data as Map));
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (d == null) return const SizedBox.shrink();
+    final months = ((d['months'] as List?) ?? const []).whereType<Map>().toList();
+    final second = d['secondVisit'] is Map ? d['secondVisit'] as Map : const {};
+    final react = d['reactivated90'] is Map ? d['reactivated90'] as Map : const {};
+    final maxTotal = months.fold<num>(1, (m, row) {
+      final t = ((row['newClients'] ?? 0) as num) + ((row['returning'] ?? 0) as num);
+      return t > m ? t : m;
+    });
+    final current = months.isEmpty ? null : months.last;
+    final tiles = <(String, String, String, String?)>[
+      ('Voltam p/ 2ª visita', second['rate'] == null ? '—' : '${second['rate']}%', (second['eligible'] ?? 0) != 0 ? '${second['came']} de ${second['eligible']} com 60+ dias' : 'Precisa de clientes com 60+ dias', null),
+      ('Tempo até voltar', second['medianDays'] == null ? '—' : gapLabel(second['medianDays']), 'metade volta antes disso', null),
+      ('Voltaram em 30 dias', '${d['returned30'] ?? 0}', 'fizeram mais um pedido', 'returned'),
+      ('Voltaram depois de sumir', '${react['clients'] ?? 0}', '${d['inactiveDays'] ?? 90}+ dias longe${react['value'] != null ? ' · ${brl0(react['value'])}' : ''}', 'returned'),
+    ];
+    return WqCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Expanded(child: Text('Quem volta', style: TextStyle(fontWeight: FontWeight.w800))),
+          TextButton(onPressed: () => widget.onSegment('returned'), child: const Text('Ver quem voltou')),
+        ]),
+        Text(
+          [
+            'Novos e quem voltou, por mês',
+            if (d['returningShare'] != null) 'quem volta faz ${d['returningShare']}% do faturamento',
+          ].join(' · '),
+          style: TextStyle(color: context.wqMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 130,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            for (final m in months)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    Text('${((m['newClients'] ?? 0) as num) + ((m['returning'] ?? 0) as num)}', style: TextStyle(fontSize: 10.5, color: context.wqMuted)),
+                    const SizedBox(height: 2),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Column(children: [
+                        Container(height: 96 * ((m['returning'] ?? 0) as num) / maxTotal, color: Wq.brand),
+                        Container(height: 96 * ((m['newClients'] ?? 0) as num) / maxTotal, color: _newColor),
+                      ]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(_months[((int.tryParse('${m['month']}'.split('-').last) ?? 1) - 1).clamp(0, 11)], style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                  ]),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: _newColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 4),
+          Text('Novos', style: TextStyle(fontSize: 11.5, color: context.wqMuted)),
+          const SizedBox(width: 12),
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: Wq.brand, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 4),
+          Text('Voltaram', style: TextStyle(fontSize: 11.5, color: context.wqMuted)),
+          const Spacer(),
+          if (current != null) Text('Este mês: ${current['returnRate']}% já eram da casa', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 12),
+        LayoutBuilder(builder: (context, box) {
+          final w = (box.maxWidth - 8) / 2;
+          return Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final t in tiles)
+              SizedBox(
+                width: w,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: t.$4 == null ? null : () => widget.onSegment(t.$4!),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: context.wqLine)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(t.$1.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9.5, letterSpacing: 0.6, fontWeight: FontWeight.w800, color: context.wqMuted)),
+                      const SizedBox(height: 2),
+                      Text(t.$2, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                      Text(t.$3, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                    ]),
+                  ),
+                ),
+              ),
+          ]);
+        }),
+      ]),
     );
   }
 }
@@ -275,8 +408,11 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
   }
 
   String _line(Map r) {
+    final returnedAt = DateTime.tryParse('${r['returnedAt'] ?? ''}')?.toLocal();
     final parts = <String>[
-      if (widget.segment == 'birthdays')
+      if (widget.segment == 'returned' && r['returnedAfterDays'] != null)
+        'Voltou após ${gapLabel(r['returnedAfterDays'])}${returnedAt != null ? ' · em ${returnedAt.day.toString().padLeft(2, '0')}/${returnedAt.month.toString().padLeft(2, '0')}' : ''}'
+      else if (widget.segment == 'birthdays')
         '${r['birthdayIn'] == 0 ? 'Hoje' : r['birthdayIn'] == 1 ? 'Amanhã' : 'Em ${r['birthdayIn']} dias'} · ${birthdayLabel(r['birthday'])}${r['age'] != null ? ' · faz ${r['age']} anos' : ''}'
       else
         sinceLabel(r['daysSince']),
@@ -297,6 +433,7 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
       'owing' => 'Cobrar',
       'due' => 'Lembrar',
       'new' => 'Boas-vindas',
+      'returned' => 'Agradecer a volta',
       _ => 'Agradecer',
     };
     return Column(children: [
@@ -340,6 +477,13 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
                               Expanded(
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text('${r['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                  if (widget.segment == 'returned' && r['reactivated'] == true)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 2, bottom: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(color: Wq.success.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(99)),
+                                      child: const Text('voltou depois de sumir', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Wq.success)),
+                                    ),
                                   Text(_line(r), style: TextStyle(color: context.wqMuted, fontSize: 12)),
                                 ]),
                               ),
@@ -354,7 +498,7 @@ class _CrmSegmentViewState extends State<CrmSegmentView> {
                                   style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: const Color(0xFF073018), padding: const EdgeInsets.symmetric(horizontal: 12)),
                                   onPressed: () => openLink('${wa['url']}'),
                                   icon: const Icon(Icons.chat, size: 16),
-                                  label: Text(action),
+                                  label: Text(widget.segment == 'owing' && r['owed'] != null ? 'Cobrar ${brl0(r['owed'])}' : action),
                                 ),
                             ]),
                           ),

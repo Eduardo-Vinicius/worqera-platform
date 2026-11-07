@@ -701,6 +701,24 @@ async function recoveredReport(shopId, { days = 30, showsTotals = true, now = ne
     }
   }
 
+  // After the recovery: did the client buy again (orders other than the recovered one)?
+  const clientIds = [...new Set(won.map((q) => q.clientId && String(q.clientId)).filter(Boolean))];
+  const later = clientIds.length
+    ? await Order.find({ shopId, deletedAt: null, status: { $ne: 'cancelled' }, clientId: { $in: clientIds } })
+        .select('clientId createdAt pricing.total')
+        .lean()
+    : [];
+  const afterOf = (q) => {
+    if (!q.clientId || !q.wonAt) return { ordersAfter: 0, spentAfter: 0 };
+    const skip = new Set([q.wonOrderId, q.orderId].filter(Boolean).map(String));
+    const list = later.filter((o) => String(o.clientId) === String(q.clientId) && new Date(o.createdAt) > new Date(q.wonAt) && !skip.has(String(o._id)));
+    return { ordersAfter: list.length, spentAfter: list.reduce((sum, o) => sum + (Number(o.pricing?.total) || 0), 0) };
+  };
+  const afterByQuote = new Map(won.map((q) => [String(q._id), afterOf(q)]));
+  const withClient = won.filter((q) => q.clientId);
+  const cameBack = withClient.filter((q) => afterByQuote.get(String(q._id)).ordersAfter > 0).length;
+  const valueAfter = [...afterByQuote.values()].reduce((sum, a) => sum + a.spentAfter, 0);
+
   const howLabel = (how) => RECOVERY_HOW_LABEL[how] || 'Sem registro';
   const money = (n) => (showsTotals ? round(n) : 0);
   const count = won.length;
@@ -714,6 +732,12 @@ async function recoveredReport(shopId, { days = 30, showsTotals = true, now = ne
       avgContacts: count ? Math.round((contacts / count) * 10) / 10 : 0,
       avgPeople: count ? Math.round((peopleSum / count) * 10) / 10 : 0,
       lost,
+    },
+    after: {
+      clients: withClient.length,
+      cameBack,
+      rate: withClient.length ? Math.round((cameBack / withClient.length) * 100) : 0,
+      value: money(valueAfter),
     },
     byReason: [...reasons.values()]
       .sort((a, b) => b.count - a.count)
@@ -750,6 +774,9 @@ async function recoveredReport(shopId, { days = 30, showsTotals = true, now = ne
       contacts: Number(q.recovery?.contacts ?? q.contactCount) || 0,
       byName: q.recovery?.byName || '',
       at: q.wonAt,
+      clientId: q.clientId ? String(q.clientId) : null,
+      ordersAfter: afterByQuote.get(String(q._id)).ordersAfter,
+      spentAfter: round(afterByQuote.get(String(q._id)).spentAfter),
     })),
   };
 }

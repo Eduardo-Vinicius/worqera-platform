@@ -2124,7 +2124,8 @@ export default function KanbanPage() {
                           }
                       : detailNextTarget
                         ? {
-                            label: `Avançar · ${detailNextTarget.name}`,
+                            label: "Avançar",
+                            detail: detailNextTarget.name,
                             kind: "advance",
                             onClick: () => void requestMove(detailNextTarget.id, detailCardKey),
                           }

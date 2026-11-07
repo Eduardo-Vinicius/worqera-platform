@@ -41,7 +41,8 @@ export type OrderDetailHeaderProps = {
     saving: boolean
     editable: boolean
   }
-  primary: { label: string; onClick: () => void; busy?: boolean; kind: "advance" | "deliver" } | null
+  /** `detail` = second, smaller line (e.g. the next sector), so the button never truncates on phones. */
+  primary: { label: string; detail?: string; onClick: () => void; busy?: boolean; kind: "advance" | "deliver" } | null
   onNotify: () => void
   onRefuse: (() => void) | null
   moveTargets: HeaderMoveTarget[]
@@ -248,14 +249,14 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
         </div>
       </div>
 
-      <div className={cn("mt-4 grid gap-2", props.primary && props.onRefuse ? "grid-cols-3" : "grid-cols-2")}>
+      <div className={cn("mt-4 grid grid-cols-2 gap-2", props.primary && props.onRefuse ? "sm:grid-cols-[1.4fr_1fr_1fr]" : props.primary ? "sm:grid-cols-[1.4fr_1fr]" : "")}>
         {props.primary ? (
           <Button
             type="button"
             disabled={props.primary.busy || props.moving}
             onClick={props.primary.onClick}
-            className="h-11 rounded-[10px] bg-[var(--wq-action)] text-white hover:bg-[var(--wq-action)]/90"
-            title={props.primary.label}
+            className="col-span-2 h-12 min-w-0 rounded-[10px] bg-[var(--wq-action)] px-3 text-white hover:bg-[var(--wq-action)]/90 sm:col-span-1"
+            title={props.primary.detail ? `${props.primary.label} · ${props.primary.detail}` : props.primary.label}
           >
             {props.primary.busy || props.moving ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -264,13 +265,16 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
             ) : (
               <ArrowRight className="mr-1.5 h-4 w-4" />
             )}
-            <span className="truncate">{props.primary.label}</span>
+            <span className="flex min-w-0 flex-col items-start leading-tight">
+              <span className="font-semibold">{props.primary.label}</span>
+              {props.primary.detail ? <span className="max-w-full truncate text-[11px] font-normal opacity-85">para {props.primary.detail}</span> : null}
+            </span>
           </Button>
         ) : null}
         <Button
           type="button"
           onClick={props.onNotify}
-          className="h-11 rounded-[10px] bg-[#25D366] text-[#073018] hover:bg-[#1ebe5d]"
+          className={cn("h-12 rounded-[10px] bg-[#25D366] text-[#073018] hover:bg-[#1ebe5d]", !props.onRefuse && "col-span-2 sm:col-span-1")}
         >
           <MessageCircle className="mr-1.5 h-4 w-4" /> Avisar
         </Button>
@@ -279,7 +283,7 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
             type="button"
             variant="outline"
             onClick={props.onRefuse}
-            className="h-11 rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
+            className="h-12 rounded-[10px] border-[var(--wq-brand)]/30 text-[var(--wq-brand)] hover:bg-[var(--wq-brand-soft)]"
             title="Cliente não fechou → vai para Orçamentos"
           >
             <PhoneOff className="mr-1.5 h-4 w-4" /> Não fechou

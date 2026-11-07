@@ -1,21 +1,21 @@
 # Web × app
 
-Atualizado em 04/11/2026. O app chama a mesma API, então números, regras por papel (dono, admin, atendimento, setor) e textos da IA são os mesmos do site.
+Atualizado em 07/11/2026. O app chama a mesma API, então números, regras por papel (dono, admin, atendimento, setor) e textos da IA são os mesmos do site.
 
 | Web | App | Nota |
 | --- | --- | --- |
 | Login, cadastro, esqueci a senha | Iguais | O link de redefinir senha do e-mail abre no site. No iPhone tem também "Continuar com a Apple" |
 | Visão geral ("Operação de hoje", prateleira, pedidos recentes) | Igual | Toque nas ações do resumo abre a tela certa (pedidos, orçamentos, clientes/aniversariantes, prateleira, estoque) |
 | Kanban | Kanban | Chips, uma coluna, setas, entregar com saldo |
-| Pedidos (abas, Aberto por, recuperados) | Pedidos | `/orders?tab=` abre direto na aba |
+| Pedidos (abas, Aberto por, recuperados) | Pedidos | `/orders?tab=` abre direto na aba. Abas Recusados e Recuperados; Finalizados = entregues |
 | Novo / editar pedido | Três passos | Cliente, item, pagamento; modo "eu produzo" |
 | Avisar cliente + Melhorar com IA | Igual | Folha "Avisar" no pedido |
-| Orçamentos (tela única) | Igual | No celular o funil filtra por etapa em vez de arrastar |
-| Clientes e CRM (abas, carregar mais) | Igual | |
-| Ficha do cliente + Raio-X (IA) | Igual | No app o Raio-X mostra a leitura e o próximo passo; os números já estão na ficha |
+| Orçamentos (tela única) | Igual | No celular o funil filtra por etapa em vez de arrastar. Esfriando, tempo até recuperar, por que perdemos e valor por etapa; Recuperados com "Depois da recuperação" e "O que mais funciona" |
+| Clientes e CRM (abas, carregar mais, Voltaram, Quem volta) | Igual | Aba Voltaram (voltou após N dias, voltou depois de sumir) e painel Quem volta na Base |
+| Ficha do cliente + Raio-X (IA) | Igual | Relacionamento (voltas, nota, orçamentos, saldo, serviços que mais faz) e Jornada (voltou após N dias, 1ª visita, recuperado) |
 | Avaliações + resposta com IA | Igual | CSV vai para a área de transferência |
 | WhatsApp e e-mail (Comunicação) | Igual, numa tela só | Conectar o WhatsApp oficial abre o cadastro da Meta no navegador |
-| Financeiro + cobrança com IA | Igual | Só dono e admin |
+| Financeiro + cobrança com IA | Igual | Só dono e admin. Líquido, gráfico recebido × vendido, serviços com fatia, dinheiro em cada setor, maiores pedidos, melhores clientes, quem mais vendeu, leitura da semana |
 | Métricas, Atendimento (quem abriu) | Iguais | Atendimento: CSV para a área de transferência |
 | Produtos e estoque, repor estoque | Igual | |
 | Configuração (empresa, ramo e kits, marcas, serviços, acessórios, setores, equipe, funcionários) | Mais | |

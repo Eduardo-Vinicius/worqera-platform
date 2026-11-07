@@ -6,6 +6,7 @@ import { getCrmInsightV1, type AiQuota, type CrmInsight } from "@/lib/apiV1"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
 import { cn } from "@/lib/utils"
 import { brl, SEGMENT_TAB, type CrmTab } from "./crmUi"
+import { CrmRetention } from "./CrmRetention"
 
 /** CRM → Visão da base: who the clients are, how they behave and what to do this week. */
 export function CrmHome({ onTab }: { onTab: (tab: CrmTab) => void }) {
@@ -196,6 +197,8 @@ export function CrmHome({ onTab }: { onTab: (tab: CrmTab) => void }) {
           )
         })}
       </section>
+
+      <CrmRetention onTab={onTab} />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-4">

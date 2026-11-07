@@ -2,6 +2,19 @@
 
 ## 2026-11-07
 
+- **CRM: quem volta.**
+  - Painel na Visão da base, com gráfico mês a mês de novos e de quem voltou, mais os cartões:
+    - taxa de 2ª visita;
+    - tempo até voltar;
+    - quem voltou em 30 dias;
+    - quem voltou depois de sumir.
+  - Nova aba **Voltaram**, com "voltou após N dias", o selo "voltou depois de sumir" e WhatsApp "Agradecer a volta".
+  - Ficha do cliente:
+    - bloco **Relacionamento**: quantas vezes voltou, maior intervalo, nota média, orçamentos recuperados e perdidos, saldo e serviços que mais faz;
+    - **Jornada na loja**: "1ª visita", "voltou após N dias" e "recuperado por Orçamentos" em cada pedido.
+- **Orçamentos → Recuperados:** "Depois da recuperação" (quantos voltaram a comprar e quanto gastaram depois) e "O que mais funciona para reverter". Em cada recuperado, o selo "voltou de novo".
+- **Kanban:** no celular, o botão Avançar ocupa a linha inteira e mostra o setor numa segunda linha ("para Costura"); não corta mais em "Avan…".
+
 - **Financeiro redesenhado** (`components/finance/FinanceCharts.tsx`):
   - Gráfico de faturamento com recebido e vendido: por dia até 30 dias, por mês em 90 dias e 1 ano.
   - Rosca "Serviços que mais faturam" com fatia, quantidade e média; o serviço de importação saiu.

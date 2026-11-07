@@ -9,6 +9,7 @@ const router = express.Router();
 const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin', 'atendimento')];
 
 router.get('/summary', ...guard, crmController.summary);
+router.get('/retention', ...guard, crmController.retention);
 router.get('/list', ...guard, crmController.list);
 router.get('/insight', ...guard, crmController.insight);
 

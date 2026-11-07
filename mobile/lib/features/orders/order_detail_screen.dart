@@ -164,16 +164,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     await load();
   }
 
+  /// Moves every item that sits in the order's current sector (not only the first one).
   Future<void> moveTo(Map target) async {
-    final items = (order?['items'] as List? ?? const []);
-    final itemId = items.isEmpty ? '' : '${(items.first as Map)['_id'] ?? (items.first as Map)['id'] ?? ''}';
-    if (itemId.isNotEmpty) {
-      await widget.api.dio.post('/kanban/orders/${widget.orderId}/items/$itemId/move', data: {'toSectorId': target['id']});
-    } else {
-      await widget.api.dio.post('/kanban/orders/${widget.orderId}/move', data: {'toSectorId': target['id']});
+    final items = (order?['items'] as List? ?? const []).whereType<Map>().toList();
+    String itemId(Map it) => '${it['_id'] ?? it['id'] ?? ''}';
+    var here = items.where((it) => _id(it['currentSectorId']) == _currentSector && itemId(it).isNotEmpty && _id(it['currentSectorId']) != '${target['id']}').toList();
+    if (here.isEmpty && items.isNotEmpty && itemId(items.first).isNotEmpty) here = [items.first];
+    try {
+      if (here.isEmpty) {
+        await widget.api.dio.post('/kanban/orders/${widget.orderId}/move', data: {'toSectorId': target['id']});
+      } else {
+        for (final it in here) {
+          await widget.api.dio.post('/kanban/orders/${widget.orderId}/items/${itemId(it)}/move', data: {'toSectorId': target['id']});
+        }
+      }
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+      await load();
+      return;
     }
     await load();
-    if (mounted) wqToast(context, 'Encaminhado');
+    if (mounted) wqToast(context, here.length > 1 ? '${here.length} itens encaminhados para ${target['name'] ?? 'o próximo setor'}' : 'Encaminhado');
   }
 
   Future<void> sharePdf() async {

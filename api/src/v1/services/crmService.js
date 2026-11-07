@@ -11,7 +11,9 @@ const { buildWaMeUrl } = require('./whatsappSuggest');
 
 const DAY = 24 * 60 * 60 * 1000;
 const OPEN = ['open', 'in_progress', 'ready'];
-const SEGMENTS = ['birthdays', 'inactive', 'recurring', 'new', 'vip', 'owing', 'due', 'never', 'all'];
+const SEGMENTS = ['birthdays', 'inactive', 'recurring', 'new', 'vip', 'owing', 'due', 'returned', 'never', 'all'];
+/** "Voltaram": a repeat order within this many days. */
+const RETURNED_DAYS = 30;
 const OWED = ['ready', 'delivered'];
 
 function firstName(name) {
@@ -65,10 +67,28 @@ async function clientStats(shopId) {
         },
         firstAt: { $min: '$createdAt' },
         lastAt: { $max: '$createdAt' },
+        dates: { $push: { $cond: [{ $eq: ['$status', 'cancelled'] }, '$$REMOVE', '$createdAt'] } },
       },
     },
   ]);
-  return new Map(rows.map((r) => [String(r._id), r]));
+  return new Map(
+    rows.map((r) => {
+      const dates = (r.dates || []).map((d) => new Date(d).getTime()).sort((a, b) => b - a);
+      // Visit before the latest one: how long the client took to come back.
+      const prevAt = dates.length >= 2 ? new Date(dates[1]) : null;
+      const lastBuyAt = dates.length ? new Date(dates[0]) : null;
+      delete r.dates;
+      return [String(r._id), { ...r, prevAt, lastBuyAt }];
+    })
+  );
+}
+
+/** Came back recently: a repeat order in the last RETURNED_DAYS days. */
+function returnedInfo(stats, now, inactiveDays) {
+  if (!stats?.prevAt || !stats.lastBuyAt) return null;
+  if ((now - stats.lastBuyAt) / DAY > RETURNED_DAYS) return null;
+  const after = Math.round((stats.lastBuyAt - stats.prevAt) / DAY);
+  return { returnedAt: stats.lastBuyAt, returnedAfterDays: after, reactivated: after >= inactiveDays };
 }
 
 function segmentOf(stats, now, inactiveDays) {
@@ -126,6 +146,11 @@ function welcomeText(name, shop) {
   return `${hi} Aqui é da ${shop}. Obrigado por escolher a gente! Ficou tudo certo com o serviço? Quando precisar de novo, é só chamar.`;
 }
 
+function returnedText(name, shop) {
+  const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
+  return `${hi} Aqui é da ${shop}. Que bom ter você de volta! Obrigado pela confiança de novo. Qualquer coisa no seu pedido, é só chamar.`;
+}
+
 function thanksText(name, shop) {
   const hi = firstName(name) ? `Oi, ${firstName(name)}!` : 'Oi!';
   return `${hi} Aqui é da ${shop}. Obrigado por sempre confiar na gente! Clientes como você fazem a diferença. Qualquer coisa, estamos à disposição.`;
@@ -150,6 +175,8 @@ function rowFor(client, stats, { now, shop, segment, showMoney, moneyInText = sh
             ? comebackText(client.name, shop, daysSince || 90)
             : segment === 'new'
               ? welcomeText(client.name, shop)
+              : segment === 'returned'
+                ? returnedText(client.name, shop)
               : segment === 'recurring' || segment === 'vip'
                 ? thanksText(client.name, shop)
                 : null;
@@ -169,6 +196,112 @@ function rowFor(client, stats, { now, shop, segment, showMoney, moneyInText = sh
     age,
     tags: client.tags || [],
     whatsapp: waUrl ? { text, url: waUrl } : null,
+  };
+}
+
+function monthKey(date) {
+  // São Paulo month (UTC-3) so late-evening orders land in the right month.
+  const local = new Date(new Date(date).getTime() - 3 * 60 * 60 * 1000);
+  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function median(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return Math.round(sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+/**
+ * Who comes back. Per month: new clients (first order), clients who returned,
+ * those who came back after going quiet, and the money from each group.
+ * Plus the second-visit rate (the hardest step) and the usual time to come back.
+ */
+async function crmRetention(shopId, opts = {}) {
+  const orders = await Order.find({ shopId, deletedAt: null, clientId: { $ne: null }, status: { $ne: 'cancelled' } })
+    .select('clientId createdAt pricing.total')
+    .sort({ createdAt: 1 })
+    .lean();
+  return retentionFrom(orders, opts);
+}
+
+/** Pure part of crmRetention: `orders` sorted by createdAt, cancelled already out. */
+function retentionFrom(orders, { months = 6, inactiveDays = 90, showMoney = true, now = new Date() } = {}) {
+  const span = Math.min(12, Math.max(3, Number(months) || 6));
+  const keys = [];
+  const cursor = new Date(Date.UTC(new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCFullYear(), new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCMonth(), 15));
+  for (let i = span - 1; i >= 0; i -= 1) {
+    const d = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - i, 15));
+    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+  }
+  const rows = new Map(keys.map((k) => [k, { month: k, newClients: new Set(), returning: new Set(), reactivated: new Set(), newValue: 0, returningValue: 0 }]));
+  const last = new Map();
+  const visits = new Map();
+  const gapsToSecond = [];
+  const firstAt = new Map();
+  const returned30Set = new Set();
+  const reactivated90 = new Set();
+  let reactivatedValue = 0;
+  for (const o of orders) {
+    const id = String(o.clientId);
+    const at = new Date(o.createdAt).getTime();
+    const value = Number(o.pricing?.total) || 0;
+    const prev = last.get(id);
+    const n = (visits.get(id) || 0) + 1;
+    visits.set(id, n);
+    if (!firstAt.has(id)) firstAt.set(id, at);
+    const row = rows.get(monthKey(o.createdAt));
+    if (prev == null) {
+      if (row) {
+        row.newClients.add(id);
+        row.newValue += value;
+      }
+    } else {
+      const gap = (at - prev) / DAY;
+      if (n === 2) gapsToSecond.push(gap);
+      if (row) {
+        row.returning.add(id);
+        row.returningValue += value;
+        if (gap >= inactiveDays) row.reactivated.add(id);
+      }
+      if ((now - at) / DAY <= RETURNED_DAYS && gap >= 1) returned30Set.add(id);
+      if ((now - at) / DAY <= 90 && gap >= inactiveDays) {
+        reactivated90.add(id);
+        reactivatedValue += value;
+      }
+    }
+    last.set(id, at);
+  }
+  const returned30 = returned30Set.size;
+  // Second visit: only clients whose first order is old enough to have had the chance (60+ days).
+  let eligible = 0;
+  let came = 0;
+  for (const [id, first] of firstAt) {
+    if ((now - first) / DAY < 60) continue;
+    eligible += 1;
+    if ((visits.get(id) || 0) >= 2) came += 1;
+  }
+  const monthsOut = keys.map((k) => {
+    const r = rows.get(k);
+    const active = new Set([...r.newClients, ...r.returning]).size;
+    return {
+      month: k,
+      newClients: r.newClients.size,
+      returning: r.returning.size,
+      reactivated: r.reactivated.size,
+      returnRate: active ? Math.round((r.returning.size / active) * 100) : 0,
+      ...(showMoney ? { newValue: money(r.newValue), returningValue: money(r.returningValue) } : {}),
+    };
+  });
+  const totalNew = monthsOut.reduce((a, m) => a + (m.newValue || 0), 0);
+  const totalRet = monthsOut.reduce((a, m) => a + (m.returningValue || 0), 0);
+  return {
+    months: monthsOut,
+    inactiveDays,
+    secondVisit: { rate: eligible ? Math.round((came / eligible) * 100) : null, eligible, came, medianDays: median(gapsToSecond) },
+    returned30,
+    reactivated90: { clients: reactivated90.size, ...(showMoney ? { value: money(reactivatedValue) } : {}) },
+    ...(showMoney && totalNew + totalRet > 0 ? { returningShare: Math.round((totalRet / (totalNew + totalRet)) * 100) } : {}),
   };
 }
 
@@ -290,8 +423,12 @@ async function crmList(shopId, { segment = 'all', days, range = 'week', q, showM
     else if (seg === 'vip') keep = s && s.orders >= 2;
     else if (seg === 'owing') keep = s && s.owed > 0.009;
     else if (seg === 'due') keep = s && isDue(s, now, inactiveDays);
+    else if (seg === 'returned') keep = Boolean(returnedInfo(s, now, inactiveDays));
     else keep = own === seg;
-    if (keep) rows.push({ ...rowFor(c, s, { now, shop, segment: seg, showMoney: true, moneyInText: showMoney }), segment: own });
+    if (keep) {
+      const back = returnedInfo(s, now, inactiveDays);
+      rows.push({ ...rowFor(c, s, { now, shop, segment: seg, showMoney: true, moneyInText: showMoney }), segment: own, ...(back || {}) });
+    }
   }
   if (seg === 'birthdays') rows.sort((a, b) => a.birthdayIn - b.birthdayIn || a.name.localeCompare(b.name));
   else if (seg === 'owing') rows.sort((a, b) => (b.owed || 0) - (a.owed || 0));
@@ -299,6 +436,7 @@ async function crmList(shopId, { segment = 'all', days, range = 'week', q, showM
   else if (seg === 'inactive') rows.sort((a, b) => (b.spent || 0) - (a.spent || 0) || (b.daysSince || 0) - (a.daysSince || 0));
   else if (seg === 'recurring' || seg === 'vip') rows.sort((a, b) => b.orders - a.orders || (b.spent || 0) - (a.spent || 0));
   else if (seg === 'new') rows.sort((a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0));
+  else if (seg === 'returned') rows.sort((a, b) => Number(b.reactivated) - Number(a.reactivated) || new Date(b.returnedAt || 0) - new Date(a.returnedAt || 0));
   else rows.sort((a, b) => new Date(b.lastOrderAt || 0) - new Date(a.lastOrderAt || 0) || a.name.localeCompare(b.name));
   if (seg === 'vip') rows = rows.slice(0, Math.max(10, Math.ceil(rows.length * 0.2)));
   const total = rows.length;
@@ -329,12 +467,47 @@ async function clientOverview(shopId, clientId, { showMoney = true, now = new Da
   const orders = await Order.find({ shopId, clientId: client._id, deletedAt: null })
     .sort({ createdAt: -1 })
     .limit(30)
-    .select('code status pricing createdAt deliveredAt items.shoeModel items.brand shoeModel feedback.score quoteRefusal.refusedAt')
+    .select('code status pricing createdAt deliveredAt items.shoeModel items.brand items.services.name items.services.id services.name shoeModel feedback.score quoteRefusal.refusedAt recovered.at')
     .lean();
-  const all = await clientStats(shopId);
+  const Quote = require('../models/Quote');
+  const [all, shop, quotes] = await Promise.all([
+    clientStats(shopId),
+    shopLabel(shopId),
+    Quote.find({ shopId, clientId: client._id }).select('stage value').lean(),
+  ]);
   const s = all.get(String(client._id));
   const segment = segmentOf(s, now, 90);
-  const shop = await shopLabel(shopId);
+
+  // Journey: days since the previous (non-cancelled) visit, oldest → newest.
+  const gapById = new Map();
+  let prevAt = null;
+  let longestGap = null;
+  for (const o of [...orders].reverse()) {
+    if (o.status === 'cancelled') continue;
+    const at = new Date(o.createdAt).getTime();
+    if (prevAt != null) {
+      const gap = Math.round((at - prevAt) / DAY);
+      gapById.set(String(o._id), gap);
+      longestGap = longestGap == null ? gap : Math.max(longestGap, gap);
+    }
+    prevAt = at;
+  }
+  const serviceCount = new Map();
+  const scores = [];
+  for (const o of orders) {
+    if (o.status === 'cancelled') continue;
+    const names = (o.items || []).flatMap((it) => (it.services || []).filter((x) => String(x.id || '') !== 'import').map((x) => x.name));
+    const list = names.length ? names : (o.services || []).map((x) => x.name);
+    for (const name of list.map((n) => String(n || '').trim()).filter(Boolean)) serviceCount.set(name, (serviceCount.get(name) || 0) + 1);
+    if (o.feedback?.score) scores.push(o.feedback.score);
+  }
+  const quoteStats = { open: 0, won: 0, lost: 0 };
+  for (const q of quotes) {
+    if (q.stage === 'won') quoteStats.won += 1;
+    else if (q.stage === 'lost') quoteStats.lost += 1;
+    else quoteStats.open += 1;
+  }
+  const back = returnedInfo(s, now, 90);
   return {
     stats: {
       ...rowFor(client, s, { now, shop, segment, showMoney }),
@@ -342,8 +515,21 @@ async function clientOverview(shopId, clientId, { showMoney = true, now = new Da
       firstOrderAt: s?.firstAt || null,
       avgGapDays:
         s && s.orders >= 2 ? Math.round((new Date(s.lastAt) - new Date(s.firstAt)) / DAY / (s.orders - 1)) : null,
+      returns: Math.max(0, (s?.orders || 0) - 1),
+      longestGapDays: longestGap,
+      favoriteServices: [...serviceCount.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([name, count]) => ({ name, count })),
+      avgScore: scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null,
+      reviews: scores.length,
+      quotes: quoteStats,
+      recoveredOrders: orders.filter((o) => o.recovered?.at).length,
+      ...(back || {}),
     },
     orders: orders.map((o) => ({
+      gapDays: gapById.has(String(o._id)) ? gapById.get(String(o._id)) : null,
+      recovered: Boolean(o.recovered?.at),
       id: String(o._id),
       code: o.code,
       status: o.quoteRefusal?.refusedAt ? 'refused' : o.status,
@@ -425,4 +611,4 @@ async function birthdaysToday(shopId, now = new Date()) {
   return Client.countDocuments({ shopId, birthDay: t.day, birthMonth: t.month });
 }
 
-module.exports = { crmSummary, crmList, crmInsight, clientOverview, birthdaysToday, daysToBirthday, segmentOf, isDue, avgGap, SEGMENTS };
+module.exports = { crmSummary, crmList, crmInsight, crmRetention, retentionFrom, clientOverview, returnedInfo, birthdaysToday, daysToBirthday, segmentOf, isDue, avgGap, SEGMENTS };

@@ -64,7 +64,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
       query['status'] = 'delivered';
       query['payment'] = 'due';
     }
-    if (tab == 'finalizados' || tab == 'garantia') query['status'] = 'delivered,open,in_progress,ready';
+    if (tab == 'finalizados') query['status'] = 'delivered';
+    if (tab == 'garantia') query['status'] = 'delivered,open,in_progress,ready';
+    if (tab == 'recusados') query['status'] = 'cancelled';
+    if (tab == 'recuperados') query['recovered'] = '1';
     if (tab == 'lixeira') query['deleted'] = '1';
     return query;
   }
@@ -164,6 +167,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (widget.session.seesMoney) ('a_pagar', 'Falta pagar'),
       if (widget.session.seesMoney) ('entregue_aberto', 'Entregue sem pagar'),
       ('finalizados', 'Finalizados'),
+      ('recusados', 'Recusados'),
+      ('recuperados', 'Recuperados'),
       ('garantia', 'Garantia'),
       ('todos', 'Todos'),
       ('lixeira', 'Lixeira'),
