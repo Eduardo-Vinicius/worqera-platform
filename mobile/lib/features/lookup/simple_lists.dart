@@ -58,6 +58,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     final start = widget.initialTab;
     if (start != null && _tabs.any((t) => t.$1 == start)) tab = start;
     load();
+    loadSummary();
   }
 
   void openClient(String id) {
@@ -69,26 +70,151 @@ class _ClientsScreenState extends State<ClientsScreen> {
     widget.openClient?.call(id);
   }
 
-  void setTab(String next) => setState(() => tab = _tabs.any((t) => t.$1 == next) ? next : 'all');
+  void setTab(String next) {
+    setState(() => tab = _tabs.any((t) => t.$1 == next) ? next : 'all');
+    loadSummary();
+  }
+
+  /// Same menu as the site: what to do today first, then the client groups.
+  static const _groups = <(String, List<String>)>[
+    ('Visão geral', ['base']),
+    ('Fazer hoje', ['owing', 'due', 'birthdays', 'feedback']),
+    ('Grupos de clientes', ['returned', 'new', 'recurring', 'vip', 'inactive']),
+    ('Cadastro', ['all']),
+  ];
+
+  static const _hints = <String, String>{
+    'base': 'Números, leitura e quem volta',
+    'owing': 'Saldo em aberto para cobrar',
+    'due': 'Passaram do tempo de voltar',
+    'birthdays': 'Dar parabéns hoje e na semana',
+    'feedback': 'Pedir avaliação e Google',
+    'returned': 'Voltaram nos últimos 30 dias',
+    'new': 'Primeiro pedido em 30 dias',
+    'recurring': 'Fizeram 2 ou mais pedidos',
+    'vip': 'Quem mais gasta',
+    'inactive': 'Sem pedido há 90+ dias',
+    'all': 'Buscar e editar clientes',
+  };
+
+  Map? crmSummary;
+
+  Future<void> loadSummary() async {
+    try {
+      final res = await widget.api.dio.get('/crm/summary');
+      if (mounted) setState(() => crmSummary = res.data is Map ? res.data as Map : null);
+    } catch (_) {}
+  }
+
+  int? _count(String id) {
+    final s = crmSummary;
+    if (s == null) return null;
+    final c = s['counts'] is Map ? s['counts'] as Map : const {};
+    final v = switch (id) {
+      'owing' => c['owing'],
+      'due' => c['due'],
+      'birthdays' => s['birthdays'] is Map ? (s['birthdays'] as Map)['today'] : null,
+      'feedback' => c['feedbackToAsk'],
+      'returned' => c['returned'],
+      'new' => c['new30'],
+      'recurring' => c['recurring'],
+      'vip' => c['vip'],
+      'inactive' => c['inactive'],
+      'all' => c['clients'],
+      _ => null,
+    };
+    return v is num ? v.toInt() : null;
+  }
+
+  Widget _badge(BuildContext context, String id, {bool onBrand = false}) {
+    final n = _count(id);
+    if (n == null) return const SizedBox.shrink();
+    final todo = _groups[1].$2.contains(id) && n > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: onBrand ? Colors.white24 : todo ? Wq.action : context.wqLine,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text('$n', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: onBrand || todo ? Colors.white : context.wqMuted)),
+    );
+  }
+
+  Future<void> _openMenu(BuildContext context) async {
+    final picked = await showWqSheet<String>(
+      context,
+      title: 'Clientes',
+      child: (sheet) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheet).size.height * 0.7),
+        child: ListView(shrinkWrap: true, children: [
+          for (final g in _groups) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
+              child: Text(g.$1.toUpperCase(), style: TextStyle(fontSize: 10.5, letterSpacing: 1.1, fontWeight: FontWeight.w800, color: sheet.wqMuted)),
+            ),
+            for (final id in g.$2)
+              Builder(builder: (_) {
+                final selected = tab == id;
+                final label = _tabs.firstWhere((t) => t.$1 == id).$2;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Material(
+                    color: selected ? Wq.brand : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.pop(sheet, id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(children: [
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? Colors.white : sheet.wqInk)),
+                              Text(_hints[id] ?? '', style: TextStyle(fontSize: 12, color: selected ? Colors.white70 : sheet.wqMuted)),
+                            ]),
+                          ),
+                          _badge(sheet, id, onBrand: selected),
+                        ]),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ]),
+      ),
+    );
+    if (picked != null) setTab(picked);
+  }
 
   Widget _tabBar(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: _tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (_, i) {
-          final t = _tabs[i];
-          return ChoiceChip(
-            label: Text(t.$2, style: TextStyle(fontWeight: FontWeight.w700, color: tab == t.$1 ? Colors.white : context.wqInk)),
-            selected: tab == t.$1,
-            selectedColor: Wq.brand,
-            showCheckmark: false,
-            onSelected: (_) => setTab(t.$1),
-          );
-        },
+    final group = _groups.firstWhere((g) => g.$2.contains(tab), orElse: () => _groups.first);
+    final label = _tabs.firstWhere((t) => t.$1 == tab, orElse: () => _tabs.first).$2;
+    final todo = _groups[1].$2.fold<int>(0, (n, id) => n + (_count(id) ?? 0));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: WqCard(
+        onTap: () => _openMenu(context),
+        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(group.$1.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 1.1, fontWeight: FontWeight.w800, color: context.wqMuted)),
+              Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            ]),
+          ),
+          if (todo > 0 && !_groups[1].$2.contains(tab))
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: Wq.action, borderRadius: BorderRadius.circular(99)),
+              child: Text('$todo para hoje', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Colors.white)),
+            )
+          else
+            _badge(context, tab),
+          const SizedBox(width: 4),
+          Icon(Icons.expand_more, color: context.wqMuted),
+        ]),
       ),
     );
   }

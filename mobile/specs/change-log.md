@@ -2,6 +2,8 @@
 
 ## 2026-11-07
 
+- **CRM com menu em grupos:** no lugar da fila de abas, um botão com a seção atual e "N para hoje". Ele abre a lista em grupos (Visão geral, Fazer hoje, Grupos de clientes, Cadastro), com explicação e contador em cada item.
+
 - **CRM → aba Feedback:** o mesmo funil e as mesmas etapas do site. Cada cliente tem o botão de WhatsApp da etapa (Pedir avaliação, Lembrar, Pedir no Google, Resolver) e "Já pedi"; o envio fica registrado.
 
 - **App no mesmo nível do site:**

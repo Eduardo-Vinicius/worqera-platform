@@ -13,10 +13,11 @@ import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { CrmHome } from "@/components/crm/CrmHome"
 import { CrmFeedback } from "@/components/crm/CrmFeedback"
+import { CrmNav } from "@/components/crm/CrmNav"
+import { getCrmSummaryV1, type CrmSummary } from "@/lib/apiV1"
 import { CrmList } from "@/components/crm/CrmList"
 import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 import { CRM_TABS, birthdayLabel, type CrmTab } from "@/components/crm/crmUi"
-import { cn } from "@/lib/utils"
 import { EmailHint } from "@/components/EmailHint"
 
 const maskCpf = (value?: string) => {
@@ -49,6 +50,12 @@ export default function ClientsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [tab, setTabState] = useState<CrmTab>("base");
+  const [crmSummary, setCrmSummary] = useState<CrmSummary | null>(null);
+
+  // Menu badges (how many to charge, remind, congratulate, ask for a review…).
+  useEffect(() => {
+    getCrmSummaryV1().then(setCrmSummary).catch(() => setCrmSummary(null));
+  }, [tab]);
   const [birthday, setBirthday] = useState<BirthdayValue>(null);
 
   useEffect(() => {
@@ -183,22 +190,9 @@ export default function ClientsPage() {
       />
 
       <div className="mx-auto max-w-[1320px] space-y-4 px-3 py-4 sm:px-5 sm:py-6 md:px-8">
-        <nav className="flex gap-1 overflow-x-auto rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] p-1 [scrollbar-width:none]" aria-label="CRM">
-          {CRM_TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition sm:flex-1 sm:text-sm",
-                tab === t.id ? "bg-[var(--wq-brand)] text-white shadow-sm" : "text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
-              )}
-            >
-              <span className="sm:hidden">{t.short}</span>
-              <span className="hidden sm:inline">{t.label}</span>
-            </button>
-          ))}
-        </nav>
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+        <CrmNav tab={tab} summary={crmSummary} onTab={setTab} />
+        <div className="min-w-0 space-y-4">
 
         {tab === "base" ? <CrmHome onTab={setTab} /> : null}
         {tab === "feedback" ? <CrmFeedback /> : null}
@@ -287,6 +281,8 @@ export default function ClientsPage() {
         )}
         </>
         ) : null}
+        </div>
+        </div>
       </div>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

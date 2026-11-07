@@ -302,7 +302,7 @@ export type CrmSegment = "birthdays" | "inactive" | "recurring" | "new" | "vip" 
 
 export type CrmSummary = {
   inactiveDays: number
-  counts: { clients: number; active90: number; recurring: number; new30: number; inactive: number; never: number; once: number; vip: number; owing: number; due: number }
+  counts: { clients: number; active90: number; recurring: number; new30: number; inactive: number; never: number; once: number; vip: number; owing: number; due: number; returned?: number; feedbackToAsk?: number }
   buckets: { one: number; two_three: number; four_plus: number }
   birthdays: { today: number; week: number; registered: number }
   rates: { repeat: number; active: number; birthdayCoverage: number; sourceCoverage: number }

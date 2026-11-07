@@ -16,6 +16,48 @@ export const CRM_TABS: Array<{ id: CrmTab; label: string; short: string; segment
   { id: "todos", label: "Todos", short: "Todos" },
 ]
 
+/** CRM menu: what to do today first, then the client groups. */
+export const CRM_GROUPS: Array<{ title: string; tabs: CrmTab[] }> = [
+  { title: "Visão geral", tabs: ["base"] },
+  { title: "Fazer hoje", tabs: ["devendo", "voltar", "aniversariantes", "feedback"] },
+  { title: "Grupos de clientes", tabs: ["voltaram", "novos", "recorrentes", "vip", "sumidos"] },
+  { title: "Cadastro", tabs: ["todos"] },
+]
+
+export const TAB_HINT: Record<CrmTab, string> = {
+  base: "Números, leitura e quem volta",
+  devendo: "Saldo em aberto para cobrar",
+  voltar: "Passaram do tempo de voltar",
+  aniversariantes: "Dar parabéns hoje e na semana",
+  feedback: "Pedir avaliação e Google",
+  voltaram: "Voltaram nos últimos 30 dias",
+  novos: "Primeiro pedido em 30 dias",
+  recorrentes: "Fizeram 2 ou mais pedidos",
+  vip: "Quem mais gasta",
+  sumidos: "Sem pedido há 90+ dias",
+  todos: "Buscar e editar clientes",
+}
+
+/** Badge for each menu item (null = no badge). "Fazer hoje" items are highlighted when > 0. */
+export function tabCount(tab: CrmTab, s: { counts: Record<string, number | undefined>; birthdays?: { today: number } } | null): number | null {
+  if (!s) return null
+  const c = s.counts
+  const map: Partial<Record<CrmTab, number | undefined>> = {
+    devendo: c.owing,
+    voltar: c.due,
+    aniversariantes: s.birthdays?.today,
+    feedback: c.feedbackToAsk,
+    voltaram: c.returned,
+    novos: c.new30,
+    recorrentes: c.recurring,
+    vip: c.vip,
+    sumidos: c.inactive,
+    todos: c.clients,
+  }
+  const v = map[tab]
+  return typeof v === "number" ? v : null
+}
+
 export const SEGMENT_TAB: Record<string, CrmTab> = {
   birthdays: "aniversariantes",
   inactive: "sumidos",

@@ -2,6 +2,8 @@
 
 ## 2026-11-07
 
+- `/crm/summary`: `counts.returned` (voltaram em 30 dias) e `counts.feedbackToAsk` (entregues em 30 dias sem nota e sem pedido de avaliação), para os contadores do menu do CRM.
+
 - **CRM → Feedback** (`services/feedbackCrm.js`):
   - `GET /crm/feedback?days=30` lista os pedidos entregues (sem as cargas antigas), cada um com a próxima etapa e a mensagem de WhatsApp pronta. As etapas:
     - `ask`: pedir avaliação;

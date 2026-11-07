@@ -2,6 +2,11 @@
 
 ## 2026-11-07
 
+- **CRM com menu em grupos** (`components/crm/CrmNav.tsx`):
+  - As 11 abas viraram quatro grupos: Visão geral; **Fazer hoje** (Devendo, Hora de voltar, Aniversariantes, Feedback); **Grupos de clientes** (Voltaram, Novos, Recorrentes, VIP, Sumidos); Cadastro (Todos).
+  - Cada item tem uma explicação curta e um contador; os de "Fazer hoje" ficam destacados quando há clientes esperando.
+  - No computador, o menu fica na lateral da página. No celular, um botão mostra a seção atual e "N para hoje" e abre a lista.
+
 - **CRM → aba Feedback** (`components/crm/CrmFeedback.tsx`):
   - Funil: entregues → pedimos → responderam → nota média → foram ao Google.
   - Filtros: Pedir avaliação, Aguardando, Pedir no Google, Resolver nota baixa e Concluídos, de 7 a 90 dias.

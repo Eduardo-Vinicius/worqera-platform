@@ -311,7 +311,7 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
     Client.find({ shopId }).select('birthDay birthMonth createdAt source').lean(),
     clientStats(shopId),
   ]);
-  const counts = { clients: clients.length, active90: 0, recurring: 0, new30: 0, inactive: 0, never: 0, once: 0, vip: 0, owing: 0, due: 0 };
+  const counts = { clients: clients.length, active90: 0, recurring: 0, new30: 0, inactive: 0, never: 0, once: 0, vip: 0, owing: 0, due: 0, returned: 0, feedbackToAsk: 0 };
   let owed = 0;
   let inactiveSpent = 0;
   const bySource = new Map();
@@ -335,6 +335,7 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
       owed += s.owed;
     }
     if (s && isDue(s, now, inactiveDays)) counts.due += 1;
+    if (returnedInfo(s, now, inactiveDays)) counts.returned += 1;
     const source = String(c.source || '').trim();
     if (source) {
       const row = bySource.get(source) || { source, clients: 0, spent: 0 };
@@ -364,6 +365,15 @@ async function crmSummary(shopId, { inactiveDays = 90, showMoney = true, now = n
     const s = stats.get(String(c._id));
     if (s && s.orders >= 2 && (s.spent || 0) >= vipCut) counts.vip += 1;
   }
+  // CRM → Feedback badge: delivered in the last 30 days, not rated and not asked yet.
+  counts.feedbackToAsk = await Order.countDocuments({
+    shopId,
+    deletedAt: null,
+    status: 'delivered',
+    deliveredAt: { $gte: new Date(now.getTime() - 30 * DAY) },
+    feedback: null,
+    'reviewAsk.at': null,
+  });
   const buyers = spends.length;
   const withBirthday = clients.filter((c) => c.birthDay && c.birthMonth).length;
   // Share of revenue from the top 20% of buyers (spends is sorted high → low).
