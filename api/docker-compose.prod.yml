@@ -1,29 +1,23 @@
-# Produção (Oracle / VM): API + Mongo — espelha procedy-platform/api/docker-compose.prod.yml
-# - Volumes em /volumes/worqera/{mongodb,api/storage}
-# - Mongo SEM ports (só rede Docker)
-# - API SEM ports no host (nginx → worqera-api:80)
-# - Rede proxy EXISTENTE (nginx/certbot); rede internal só API↔Mongo
+# Produção (Coolify, build pack "Docker Compose", Base Directory `/api`): API + Mongo + Redis.
+# - Volumes em /volumes/worqera/{mongodb,redis,api/storage}
+# - Nenhuma porta no host: o proxy do Coolify entrega api.worqera.com → worqera-api:80
+# - Valores vêm das variáveis do app no Coolify (`${...}`); `:?` marca obrigatória. À mão:
+#   `make prod-up` (lê .env.prod). Variável nova da API precisa entrar em `environment:` abaixo.
+# - Os serviços se acham pelo nome (worqera-mongodb, worqera-redis). Não renomear o
+#   worqera-mongodb: o replica set guarda esse host nos dados.
 #
-# Pré-requisito no host:
+# Pré-requisito no host (uma vez):
 #   sudo mkdir -p /volumes/worqera/mongodb /volumes/worqera/redis /volumes/worqera/api/storage
 #   sudo chown -R 999:999 /volumes/worqera/mongodb /volumes/worqera/redis
-#
-# 1. cp .env.prod.example .env.prod && chmod 600 .env.prod
-# 2. Editar JWT_*, PUBLIC_*, WORQERA_DOCKER_NETWORK
-# 3. make prod-up
-# 4. No nginx: upstream → server worqera-api:80;
 
 name: worqera-prod
 
 services:
   worqera-mongodb:
     image: mongo:7
-    container_name: worqera-mongodb
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     volumes:
       - /volumes/worqera/mongodb:/data/db
-    networks:
-      - internal
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
@@ -34,7 +28,6 @@ services:
 
   worqera-redis:
     image: redis:7-alpine
-    container_name: worqera-redis
     # Teto de memória: só chaves com TTL saem primeiro (sessões sem TTL ficam).
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
     volumes:
@@ -44,8 +37,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - internal
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -54,8 +45,10 @@ services:
       retries: 12
 
   worqera-mongodb-init:
-    image: mongo:7
-    container_name: worqera-mongodb-init
+    # mongo:7 com o init-replica-set.sh embutido (docker/mongo/Dockerfile.init).
+    build:
+      context: ./docker/mongo
+      dockerfile: Dockerfile.init
     depends_on:
       worqera-mongodb:
         condition: service_healthy
@@ -65,28 +58,43 @@ services:
       MONGO_PORT: "27017"
       REPLICA_SET: rs0
       REPLICA_MEMBER_HOST: worqera-mongodb
-    entrypoint:
-      - bash
-      - /scripts/init-replica-set.sh
-    volumes:
-      - ./docker/mongo/init-replica-set.sh:/scripts/init-replica-set.sh:ro
-    networks:
-      - internal
 
   worqera-api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: worqera-api:prod
-    container_name: worqera-api
-    env_file:
-      - .env.prod
     environment:
       NODE_ENV: production
       PORT: "80"
       MONGODB_URI: mongodb://worqera-mongodb:27017/worqera?replicaSet=rs0
       REDIS_URL: redis://worqera-redis:6379
       STORAGE_PATH: /app/storage
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      JWT_EXPIRES: ${JWT_EXPIRES:-480m}
+      REFRESH_SECRET: ${REFRESH_SECRET:?defina REFRESH_SECRET}
+      REFRESH_EXPIRES: ${REFRESH_EXPIRES:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.worqera.com}
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://www.worqera.com}
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-}
+      WORQERA_Email__Enabled: ${WORQERA_Email__Enabled:-true}
+      WORQERA_Email__FromName: ${WORQERA_Email__FromName:-Worqera}
+      WORQERA_Email__FromAddress: ${WORQERA_Email__FromAddress:-}
+      WORQERA_Email__Smtp__Host: ${WORQERA_Email__Smtp__Host:-smtp.gmail.com}
+      WORQERA_Email__Smtp__Port: ${WORQERA_Email__Smtp__Port:-587}
+      WORQERA_Email__Smtp__Username: ${WORQERA_Email__Smtp__Username:-}
+      WORQERA_Email__Smtp__Password: ${WORQERA_Email__Smtp__Password:-}
+      WORQERA_AbacatePay__Enabled: ${WORQERA_AbacatePay__Enabled:-false}
+      WORQERA_AbacatePay__WebhookSecret: ${WORQERA_AbacatePay__WebhookSecret:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      WORQERA_AI_MODEL: ${WORQERA_AI_MODEL:-gpt-6-luna}
+      WORQERA_AI_MODEL_DEEP: ${WORQERA_AI_MODEL_DEEP:-gpt-5.6-terra}
+      WORQERA_AI_MONTHLY_CAP: ${WORQERA_AI_MONTHLY_CAP:-1000}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v23.0}
+      WORQERA_Asaas__Env: ${WORQERA_Asaas__Env:-sandbox}
+      WORQERA_Asaas__ApiKey: ${WORQERA_Asaas__ApiKey:-}
+      WORQERA_Asaas__WebhookToken: ${WORQERA_Asaas__WebhookToken:-}
     expose:
       - "80"
     volumes:
@@ -96,9 +104,6 @@ services:
         condition: service_healthy
       worqera-mongodb-init:
         condition: service_completed_successfully
-    networks:
-      - internal
-      - proxy
     restart: unless-stopped
     healthcheck:
       test:
@@ -112,10 +117,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 25s
-
-networks:
-  internal:
-    name: worqera-internal
-  proxy:
-    name: ${WORQERA_DOCKER_NETWORK:-sharednet}
-    external: ${WORQERA_DOCKER_NETWORK_EXTERNAL:-true}
