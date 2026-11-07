@@ -1,5 +1,19 @@
 # Deploy Worqera em PRD (padrão Procedy / Oracle)
 
+> **Hoje roda no Coolify** (infra.devmonk.com.br), a partir do GitHub, no mesmo servidor Oracle:
+>
+> - **worqera-api**: build pack Docker Compose, Base Directory `/api`, compose
+>   `/docker-compose.prod.yml`, domínio `https://api.worqera.com` no serviço `worqera-api`. As
+>   variáveis (as de `.env.prod`) ficam na aba Environment Variables do app; o compose lista em
+>   `environment:` quais a API recebe.
+> - **worqera-web**: build pack Dockerfile, Base Directory `/web`, porta 80, domínios
+>   `www.worqera.com` e `worqera.com` (o apex redireciona para o www). `NEXT_PUBLIC_*` como variáveis
+>   de build.
+> - Sem `container_name`, sem `sharednet` e sem nginx: o proxy do Coolify (Traefik) faz TLS e
+>   roteamento. O init do replica set roda de uma imagem própria (`api/docker/mongo/Dockerfile.init`).
+>
+> O passo a passo abaixo (`make prod-up` + nginx) é o deploy manual anterior, mantido como plano de volta.
+
 Espelha `procedy-platform`: volumes em `/volumes/…`, Mongo sem publish, API/web na `sharednet`, nginx → `:80`.
 
 ## 1) Host (uma vez)
