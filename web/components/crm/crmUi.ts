@@ -1,9 +1,10 @@
 import type { CrmRow, CrmSegment } from "@/lib/apiV1"
 
-export type CrmTab = "base" | "devendo" | "voltar" | "voltaram" | "sumidos" | "aniversariantes" | "vip" | "recorrentes" | "novos" | "todos"
+export type CrmTab = "base" | "feedback" | "devendo" | "voltar" | "voltaram" | "sumidos" | "aniversariantes" | "vip" | "recorrentes" | "novos" | "todos"
 
 export const CRM_TABS: Array<{ id: CrmTab; label: string; short: string; segment?: CrmSegment }> = [
   { id: "base", label: "Visão da base", short: "Base" },
+  { id: "feedback", label: "Feedback", short: "Feedback" },
   { id: "devendo", label: "Devendo", short: "Devendo", segment: "owing" },
   { id: "voltar", label: "Hora de voltar", short: "Voltar", segment: "due" },
   { id: "voltaram", label: "Voltaram", short: "Voltaram", segment: "returned" },

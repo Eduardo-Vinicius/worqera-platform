@@ -2,6 +2,19 @@
 
 ## 2026-11-07
 
+- **CRM → Feedback** (`services/feedbackCrm.js`):
+  - `GET /crm/feedback?days=30` lista os pedidos entregues (sem as cargas antigas), cada um com a próxima etapa e a mensagem de WhatsApp pronta. As etapas:
+    - `ask`: pedir avaliação;
+    - `remind`: lembrar uma vez depois de 2 dias;
+    - `waiting`: aguardando resposta;
+    - `google`: deu 4 ou 5 e ainda não foi ao Google;
+    - `recover`: deu de 1 a 3, chamar para resolver;
+    - `done`: concluído.
+  - O resumo traz entregues, pedimos, responderam, taxa, nota média, quem gostou, nota baixa e cliques no Google.
+  - `POST /crm/feedback/:orderId/ask` registra o envio em `Order.reviewAsk`: quando, quantas vezes, quem, canal, e os envios de Google e de recuperação.
+  - `POST /public/track/:token/google` marca `Order.googleReviewAt` quando o cliente toca em "Avaliar no Google".
+  - Respeita o `whatsappOptOut` do cliente.
+
 - **CRM: quem volta.**
   - `GET /crm/retention?months=6`, calculado em `retentionFrom`. Por mês: clientes novos, os que voltaram, os que voltaram depois de sumir e a taxa de retorno; com valores para dono e admin. Traz também:
     - taxa de 2ª visita (só clientes com 60+ dias de casa);

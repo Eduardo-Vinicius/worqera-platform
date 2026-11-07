@@ -25,6 +25,13 @@ const publicFilesLimit = rateLimit({
 
 router.get('/track/:token', publicReadLimit, orderController.publicByToken);
 router.post('/track/:token/feedback', publicFeedbackLimit, orderController.publicFeedbackByToken);
+router.post('/track/:token/google', publicFeedbackLimit, async (req, res, next) => {
+  try {
+    res.status(200).json(await require('../services/feedbackCrm').markGoogleClick(req.params.token));
+  } catch (err) {
+    next(err);
+  }
+});
 router.get('/orders/:code', publicReadLimit, orderController.publicByCode);
 router.get('/shops/:shopSlug/orders/:code', publicReadLimit, orderController.publicByCode);
 router.post(

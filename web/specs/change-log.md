@@ -2,6 +2,13 @@
 
 ## 2026-11-07
 
+- **CRM → aba Feedback** (`components/crm/CrmFeedback.tsx`):
+  - Funil: entregues → pedimos → responderam → nota média → foram ao Google.
+  - Filtros: Pedir avaliação, Aguardando, Pedir no Google, Resolver nota baixa e Concluídos, de 7 a 90 dias.
+  - Cada cliente tem o botão da etapa com a mensagem pronta (o link da avaliação, ou o link do Google para quem deu 4 ou 5), além de "Copiar link" e "Já pedi". O envio fica registrado.
+  - Aviso quando a loja não cadastrou o link do Google.
+  - A página do pedido registra o clique em "Avaliar no Google".
+
 - **CRM: quem volta.**
   - Painel na Visão da base, com gráfico mês a mês de novos e de quem voltou, mais os cartões:
     - taxa de 2ª visita;

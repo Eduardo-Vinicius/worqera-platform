@@ -12,6 +12,7 @@ import { getClientesService, updateClienteService } from "@/lib/apiService"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/shell/AppHeader"
 import { CrmHome } from "@/components/crm/CrmHome"
+import { CrmFeedback } from "@/components/crm/CrmFeedback"
 import { CrmList } from "@/components/crm/CrmList"
 import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 import { CRM_TABS, birthdayLabel, type CrmTab } from "@/components/crm/crmUi"
@@ -200,6 +201,7 @@ export default function ClientsPage() {
         </nav>
 
         {tab === "base" ? <CrmHome onTab={setTab} /> : null}
+        {tab === "feedback" ? <CrmFeedback /> : null}
         {CRM_TABS.find((t) => t.id === tab)?.segment ? <CrmList segment={CRM_TABS.find((t) => t.id === tab)!.segment!} /> : null}
 
         {tab === "todos" ? (

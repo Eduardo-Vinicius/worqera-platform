@@ -14,6 +14,7 @@ Atualizado em 07/11/2026. O app chama a mesma API, então números, regras por p
 | Clientes e CRM (abas, carregar mais, Voltaram, Quem volta) | Igual | Aba Voltaram (voltou após N dias, voltou depois de sumir) e painel Quem volta na Base |
 | Ficha do cliente + Raio-X (IA) | Igual | Relacionamento (voltas, nota, orçamentos, saldo, serviços que mais faz) e Jornada (voltou após N dias, 1ª visita, recuperado) |
 | Avaliações + resposta com IA | Igual | CSV vai para a área de transferência |
+| CRM → Feedback (pedir avaliação, Google, resolver nota baixa) | Clientes › Feedback | O envio fica registrado; o clique no Google vem da página do pedido |
 | WhatsApp e e-mail (Comunicação) | Igual, numa tela só | Conectar o WhatsApp oficial abre o cadastro da Meta no navegador |
 | Financeiro + cobrança com IA | Igual | Só dono e admin. Líquido, gráfico recebido × vendido, serviços com fatia, dinheiro em cada setor, maiores pedidos, melhores clientes, quem mais vendeu, leitura da semana |
 | Métricas, Atendimento (quem abriu) | Iguais | Atendimento: CSV para a área de transferência |

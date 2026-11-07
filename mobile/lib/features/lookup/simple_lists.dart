@@ -40,6 +40,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
   static const _tabs = <(String, String)>[
     ('base', 'Base'),
+    ('feedback', 'Feedback'),
     ('owing', 'Devendo'),
     ('due', 'Hora de voltar'),
     ('returned', 'Voltaram'),
@@ -238,7 +239,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
         _tabBar(context),
         const SizedBox(height: 8),
         if (tab == 'base') Expanded(child: CrmHomeView(api: widget.api, onSegment: setTab)),
-        if (tab != 'base' && tab != 'all') Expanded(child: CrmSegmentView(api: widget.api, segment: tab, onOpen: openClient)),
+        if (tab == 'feedback') Expanded(child: CrmFeedbackView(api: widget.api, onOpen: openClient)),
+        if (tab != 'base' && tab != 'all' && tab != 'feedback') Expanded(child: CrmSegmentView(api: widget.api, segment: tab, onOpen: openClient)),
         if (tab == 'all') ...[
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

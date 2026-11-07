@@ -133,6 +133,19 @@ const orderSchema = new mongoose.Schema(
     sectorHistory: { type: [sectorHistorySchema], default: [] },
     comments: { type: [orderCommentSchema], default: [] },
     feedback: { type: orderFeedbackSchema, default: null },
+    /** CRM → Feedback: when the shop asked the customer to rate (WhatsApp/e-mail), how often and who. */
+    reviewAsk: {
+      at: { type: Date, default: null },
+      count: { type: Number, default: 0 },
+      byName: { type: String, default: '' },
+      channel: { type: String, default: '' },
+      /** Sent the Google review link (after a 4–5). */
+      googleAskAt: { type: Date, default: null },
+      /** Reached out after a 1–3 to fix it. */
+      recoverAt: { type: Date, default: null },
+    },
+    /** Customer tapped "Avaliar no Google" (public page or CRM link). */
+    googleReviewAt: { type: Date, default: null },
     status: {
       type: String,
       enum: ['open', 'in_progress', 'ready', 'delivered', 'cancelled'],

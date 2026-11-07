@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   getPublicOrderByTokenV1,
   getPublicOrderV1,
-  submitPublicFeedbackByTokenV1,
+  submitPublicFeedbackByTokenV1, publicGoogleClickV1,
   submitPublicFeedbackV1,
 } from "@/lib/apiV1"
 import { hexToRgba, normalizeHex, resolveBrandColors } from "@/lib/shopBrand"
@@ -374,6 +374,9 @@ function PublicOrderByShopInner() {
                     href={reviewUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => {
+                      if (token) void publicGoogleClickV1(token).catch(() => {})
+                    }}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-[12px] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95 active:scale-[0.99]"
                     style={{ background: colors.primary }}
                   >

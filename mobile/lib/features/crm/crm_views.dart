@@ -292,6 +292,220 @@ class _CrmRetentionCardState extends State<CrmRetentionCard> {
   }
 }
 
+/// CRM → Feedback: delivered orders, who we asked to rate, who answered and who went to Google.
+class CrmFeedbackView extends StatefulWidget {
+  const CrmFeedbackView({super.key, required this.api, required this.onOpen});
+  final WorqeraApi api;
+  final ValueChanged<String> onOpen;
+
+  @override
+  State<CrmFeedbackView> createState() => _CrmFeedbackViewState();
+}
+
+class _CrmFeedbackViewState extends State<CrmFeedbackView> {
+  Map<String, dynamic>? data;
+  String? error;
+  int days = 30;
+  String filter = 'pedir';
+  String busy = '';
+
+  static const _filters = <(String, String, List<String>?)>[
+    ('pedir', 'Pedir avaliação', ['ask', 'remind']),
+    ('google', 'Pedir no Google', ['google']),
+    ('recover', 'Resolver', ['recover']),
+    ('waiting', 'Aguardando', ['waiting']),
+    ('done', 'Concluídos', ['done']),
+    ('all', 'Todos', null),
+  ];
+
+  static const _step = <String, (String, String?, Color)>{
+    'ask': ('Ainda não pedimos', 'Pedir avaliação', Wq.brand),
+    'remind': ('Pedimos, sem resposta', 'Lembrar', Color(0xFFD97706)),
+    'waiting': ('Aguardando resposta', null, Color(0xFF64748B)),
+    'google': ('Gostou: pedir no Google', 'Pedir no Google', Wq.success),
+    'recover': ('Nota baixa: resolver', 'Resolver', Color(0xFFE11D48)),
+    'done': ('Concluído', null, Color(0xFF64748B)),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final res = await widget.api.dio.get('/crm/feedback', queryParameters: {'days': days, 'step': 'all'});
+      if (mounted) setState(() => data = Map<String, dynamic>.from(res.data as Map));
+    } catch (e) {
+      if (mounted) setState(() => error = widget.api.message(e));
+    }
+  }
+
+  Future<void> send(Map r, {String channel = 'whatsapp'}) async {
+    final wa = r['whatsapp'] is Map ? r['whatsapp'] as Map : null;
+    if (channel == 'whatsapp' && wa != null) await openLink('${wa['url']}');
+    setState(() => busy = '${r['orderId']}');
+    try {
+      await widget.api.dio.post('/crm/feedback/${r['orderId']}/ask', data: {'step': r['step'], 'channel': channel});
+      await load();
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+    } finally {
+      if (mounted) setState(() => busy = '');
+    }
+  }
+
+  String _when(dynamic raw) {
+    final d = DateTime.tryParse('${raw ?? ''}')?.toLocal();
+    return d == null ? '' : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (d == null) return error == null ? const SkeletonList() : Center(child: Text(error!));
+    final s = d['summary'] is Map ? d['summary'] as Map : const {};
+    final counts = s['counts'] is Map ? s['counts'] as Map : const {};
+    final items = ((d['items'] as List?) ?? const []).whereType<Map>().toList();
+    final active = _filters.firstWhere((f) => f.$1 == filter);
+    final rows = active.$3 == null ? items : items.where((r) => active.$3!.contains('${r['step']}')).toList();
+    int countOf((String, String, List<String>?) f) => f.$3 == null ? ((s['delivered'] ?? 0) as num).toInt() : f.$3!.fold<int>(0, (n, st) => n + ((counts[st] ?? 0) as num).toInt());
+    final funnel = <(String, String, String)>[
+      ('Entregues', '${s['delivered'] ?? 0}', 'últimos $days dias'),
+      ('Responderam', '${s['answered'] ?? 0}', '${s['responseRate'] ?? 0}% dos entregues'),
+      ('Nota média', s['avgScore'] == null ? '—' : '${s['avgScore']}'.replaceAll('.', ','), '${s['promoters'] ?? 0} gostaram · ${s['critics'] ?? 0} nota baixa'),
+      ('Foram ao Google', '${s['googleClicked'] ?? 0}', d['reviewUrlSet'] == true ? 'de ${s['googleOffered'] ?? 0} com 4 ou 5' : 'cadastre o link em Empresa'),
+    ];
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        children: [
+          if (d['reviewUrlSet'] != true)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: WqCard(
+                child: Text(
+                  'Cadastre o link de avaliação do Google em Mais › Empresa: quem der 4 ou 5 recebe o botão "Avaliar no Google".',
+                  style: TextStyle(color: context.wqMuted),
+                ),
+              ),
+            ),
+          LayoutBuilder(builder: (context, box) {
+            final w = (box.maxWidth - 8) / 2;
+            return Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final f in funnel)
+                SizedBox(
+                  width: w,
+                  child: WqCard(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(f.$1.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w800, color: context.wqMuted)),
+                      Text(f.$2, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                      Text(f.$3, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: context.wqMuted)),
+                    ]),
+                  ),
+                ),
+            ]);
+          }),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 40,
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              for (final f in _filters)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(label: Text('${f.$2} ${countOf(f)}'), selected: filter == f.$1, onSelected: (_) => setState(() => filter = f.$1)),
+                ),
+              for (final span in const [7, 15, 30, 60, 90])
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text('${span}d'),
+                    selected: days == span,
+                    onSelected: (_) {
+                      setState(() {
+                        days = span;
+                        data = null;
+                      });
+                      load();
+                    },
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 8),
+          if (rows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(filter == 'pedir' ? 'Todo mundo que recebeu um pedido já foi chamado para avaliar.' : 'Ninguém nesta etapa.', textAlign: TextAlign.center, style: TextStyle(color: context.wqMuted)),
+            ),
+          for (final r in rows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Builder(builder: (context) {
+                final step = _step['${r['step']}'] ?? _step['done']!;
+                final wa = r['whatsapp'] is Map ? r['whatsapp'] as Map : null;
+                final daysSince = (r['daysSince'] as num?)?.toInt() ?? 0;
+                final history = [
+                  if (r['askedAt'] != null) 'pedimos em ${_when(r['askedAt'])}${((r['askCount'] ?? 0) as num) > 1 ? ' (${r['askCount']}×)' : ''}',
+                  if (r['googleAt'] != null) 'foi ao Google em ${_when(r['googleAt'])}',
+                  if (r['recoverAt'] != null) 'contato para resolver em ${_when(r['recoverAt'])}',
+                ];
+                return WqCard(
+                  onTap: '${r['clientId'] ?? ''}'.isEmpty ? null : () => widget.onOpen('${r['clientId']}'),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text('${r['clientName'] ?? 'Cliente'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+                      Pill(step.$1, color: step.$3),
+                    ]),
+                    Text(
+                      '#${r['code']}${'${r['what'] ?? ''}'.isEmpty ? '' : ' · ${r['what']}'} · entregue ${daysSince == 0 ? 'hoje' : daysSince == 1 ? 'ontem' : 'há $daysSince dias'}',
+                      style: TextStyle(color: context.wqMuted, fontSize: 12),
+                    ),
+                    if (r['score'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '${'★' * ((r['score'] as num).toInt())}${'☆' * (5 - (r['score'] as num).toInt())}${'${r['comment'] ?? ''}'.isEmpty ? '' : '  “${r['comment']}”'}',
+                          style: const TextStyle(color: Color(0xFFD97706), fontSize: 13),
+                        ),
+                      ),
+                    if (history.isNotEmpty) Text(history.join(' · '), style: TextStyle(color: context.wqMuted, fontSize: 11)),
+                    if (step.$2 != null) ...[
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        if (wa != null)
+                          Expanded(
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: r['step'] == 'recover' ? const Color(0xFFE11D48) : const Color(0xFF25D366),
+                                foregroundColor: r['step'] == 'recover' ? Colors.white : const Color(0xFF073018),
+                              ),
+                              onPressed: busy == '${r['orderId']}' ? null : () => send(r),
+                              icon: const Icon(Icons.chat, size: 16),
+                              label: Text(step.$2!),
+                            ),
+                          )
+                        else
+                          Expanded(child: Text('Sem telefone', style: TextStyle(color: context.wqMuted))),
+                        if (r['step'] == 'ask' || r['step'] == 'remind') ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton(onPressed: busy == '${r['orderId']}' ? null : () => send(r, channel: 'counter'), child: const Text('Já pedi')),
+                        ],
+                      ]),
+                    ],
+                  ]),
+                );
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// One CRM segment with the WhatsApp message ready for each client.
 class CrmSegmentView extends StatefulWidget {
   const CrmSegmentView({super.key, required this.api, required this.segment, required this.onOpen});

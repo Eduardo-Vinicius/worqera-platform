@@ -7,6 +7,24 @@ exports.summary = wrap(async (req, res) => {
   res.status(200).json(await crm.crmSummary(req.shopId, { inactiveDays: days, showMoney: seesMoney(req) }));
 });
 
+exports.feedback = wrap(async (req, res) => {
+  const { feedbackList } = require('../services/feedbackCrm');
+  res.status(200).json(await feedbackList(req.shopId, { days: req.query.days, step: req.query.step || 'all' }));
+});
+
+exports.feedbackAsk = wrap(async (req, res) => {
+  const { markAsked } = require('../services/feedbackCrm');
+  const User = require('../models/User');
+  const me = req.auth?.userId ? await User.findById(req.auth.userId).select('name email').lean() : null;
+  res.status(200).json(
+    await markAsked(req.shopId, req.params.orderId, {
+      byName: String(me?.name || me?.email || '').split(/\s+/)[0],
+      channel: req.body?.channel,
+      step: req.body?.step,
+    })
+  );
+});
+
 exports.retention = wrap(async (req, res) => {
   const days = [30, 60, 90, 180, 365].includes(Number(req.query.days)) ? Number(req.query.days) : 90;
   res.status(200).json(await crm.crmRetention(req.shopId, { months: req.query.months, inactiveDays: days, showMoney: seesMoney(req) }));

@@ -10,6 +10,8 @@ const guard = [auth, shopContext, subscriptionGate, requireRole('owner', 'admin'
 
 router.get('/summary', ...guard, crmController.summary);
 router.get('/retention', ...guard, crmController.retention);
+router.get('/feedback', ...guard, crmController.feedback);
+router.post('/feedback/:orderId/ask', ...guard, crmController.feedbackAsk);
 router.get('/list', ...guard, crmController.list);
 router.get('/insight', ...guard, crmController.insight);
 

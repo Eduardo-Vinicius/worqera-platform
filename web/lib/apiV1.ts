@@ -1236,6 +1236,63 @@ export async function getPublicOrderByTokenV1(token: string) {
   return v1Fetch(`/public/track/${encodeURIComponent(token)}`)
 }
 
+/** Public page: the customer tapped "Avaliar no Google" (fire and forget). */
+export async function publicGoogleClickV1(token: string) {
+  return v1Fetch(`/public/track/${encodeURIComponent(token)}/google`, { method: "POST", body: "{}" })
+}
+
+export type FeedbackStep = "ask" | "remind" | "waiting" | "google" | "recover" | "done"
+
+export type CrmFeedbackRow = {
+  orderId: string
+  code: string
+  clientId: string | null
+  clientName: string
+  phone: string
+  what: string
+  deliveredAt: string
+  daysSince: number
+  step: FeedbackStep
+  score: number | null
+  comment: string
+  tags: string[]
+  askedAt: string | null
+  askCount: number
+  askedBy: string
+  googleAt: string | null
+  googleAskAt: string | null
+  recoverAt: string | null
+  link: string
+  whatsapp: { text: string; url: string } | null
+}
+
+export type CrmFeedback = {
+  days: number
+  step: FeedbackStep | "all"
+  reviewUrlSet: boolean
+  summary: {
+    delivered: number
+    asked: number
+    answered: number
+    responseRate: number
+    avgScore: number | null
+    promoters: number
+    critics: number
+    googleOffered: number
+    googleClicked: number
+    counts: Record<FeedbackStep, number>
+  }
+  items: CrmFeedbackRow[]
+}
+
+export async function getCrmFeedbackV1(days = 30, step: FeedbackStep | "all" = "all") {
+  return v1Fetch<CrmFeedback>(`/crm/feedback?days=${days}&step=${step}`)
+}
+
+export async function markFeedbackAskV1(orderId: string, step: FeedbackStep, channel: "whatsapp" | "email" | "counter" = "whatsapp") {
+  return v1Fetch(`/crm/feedback/${encodeURIComponent(orderId)}/ask`, { method: "POST", body: JSON.stringify({ step, channel }) })
+}
+
 export async function submitPublicFeedbackByTokenV1(
   token: string,
   body: { score: number; serviceScore?: number | null; comment?: string; tags?: string[] }

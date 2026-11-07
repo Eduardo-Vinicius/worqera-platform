@@ -2,6 +2,8 @@
 
 ## 2026-11-07
 
+- **CRM → aba Feedback:** o mesmo funil e as mesmas etapas do site. Cada cliente tem o botão de WhatsApp da etapa (Pedir avaliação, Lembrar, Pedir no Google, Resolver) e "Já pedi"; o envio fica registrado.
+
 - **App no mesmo nível do site:**
   - **Financeiro** (`ops/finance_screen.dart`):
     - Líquido do período com margem, vendidos, caixa de hoje, prontos a receber e recuperado.
