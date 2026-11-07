@@ -1,5 +1,8 @@
 # Coolify + MCP para acompanhar os serviços — análise e plano
 
+> **Status (2026-11-07):** migração feita de outro jeito: o Coolify roda no próprio servidor, com
+> o proxy dele no lugar do nginx. Configuração atual em [deploy-prd.md](deploy-prd.md).
+
 Objetivo: ver no Cursor (via MCP) o estado dos serviços — o que está de pé, logs, deploys, uso de CPU/memória/disco — e, mais tarde, operar com confirmação.
 
 ## Como as peças se encaixam

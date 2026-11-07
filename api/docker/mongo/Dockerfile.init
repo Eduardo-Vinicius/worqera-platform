@@ -1,0 +1,4 @@
+# Job de uma vez só do compose de produção: garante o replica set rs0 (idempotente).
+FROM mongo:7
+COPY init-replica-set.sh /scripts/init-replica-set.sh
+ENTRYPOINT ["bash", "/scripts/init-replica-set.sh"]
