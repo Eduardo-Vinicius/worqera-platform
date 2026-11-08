@@ -18,7 +18,7 @@ function rateLimit({ windowMs = 15 * 60 * 1000, max = 20, keyFn } = {}) {
       res.setHeader('Retry-After', String(retrySec));
       return sendError(res, 429, {
         title: 'Too Many Requests',
-        detail: `Rate limit exceeded. Retry in ${retrySec}s`,
+        detail: `Muitas tentativas. Tente de novo em ${Math.max(1, Math.ceil(retrySec / 60))} min (${retrySec}s).`,
         code: 'RATE_LIMITED',
       });
     }

@@ -101,14 +101,19 @@ class WorqeraApi {
         }
         return detail;
       }
-      if (error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout) {
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
         return kDebugMode
             ? 'A API não está no ar em ${AppConfig.apiBase}. Sobe com make api-dev.'
             : 'Sem conexão com a Worqera. Confira a internet e tente de novo.';
       }
-      return error.message ?? 'Falha na API';
+      final status = error.response?.statusCode ?? 0;
+      if (status >= 500) return 'A Worqera está instável agora. Tente de novo em instantes.';
+      return kDebugMode ? (error.message ?? 'Falha na API') : 'Algo deu errado. Tente de novo.';
     }
-    return '$error';
+    return kDebugMode ? '$error' : 'Algo deu errado. Tente de novo.';
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {

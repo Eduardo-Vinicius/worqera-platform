@@ -10,6 +10,10 @@ import '../quotes/quotes_screen.dart';
 import 'closed_orders.dart';
 import '../../design/motion.dart';
 
+/// Set before `context.go('/kanban')` to open the board with "Atrasados" on.
+/// A flag instead of a query string: the shell tab remembers its last URL.
+final ValueNotifier<bool> kanbanLateIntent = ValueNotifier(false);
+
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key, required this.api, required this.session, required this.openOrder});
   final WorqeraApi api;
@@ -35,7 +39,21 @@ class _KanbanScreenState extends State<KanbanScreen> {
   @override
   void initState() {
     super.initState();
+    _takeLateIntent();
+    kanbanLateIntent.addListener(_takeLateIntent);
     load();
+  }
+
+  @override
+  void dispose() {
+    kanbanLateIntent.removeListener(_takeLateIntent);
+    super.dispose();
+  }
+
+  void _takeLateIntent() {
+    if (!kanbanLateIntent.value) return;
+    kanbanLateIntent.value = false;
+    if (mounted) setState(() => lateOnly = true);
   }
 
   Future<void> load() async {
@@ -85,43 +103,67 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
   List<Map> ordersOf(Map col) => (col['orders'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
-  Future<void> move(Map card, String toSectorId, {bool settle = false}) async {
+  /// True when the move happened. Errors show a toast instead of failing silently.
+  Future<bool> move(Map card, String toSectorId, {bool settle = false}) async {
     final orderId = '${card['orderId'] ?? card['id']}';
     final itemId = '${card['itemId'] ?? ''}';
     final planned = (card['plannedSectorIds'] as List?)?.map((e) => '$e').toList() ?? const <String>[];
+    String? note;
     if (!settle && planned.isNotEmpty && toSectorId.isNotEmpty && !planned.contains(toSectorId)) {
-      final note = TextEditingController();
+      final field = TextEditingController();
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Fora do fluxo'),
-          content: TextField(controller: note, decoration: const InputDecoration(labelText: 'Comentário obrigatório')),
+          content: TextField(controller: field, decoration: const InputDecoration(labelText: 'Comentário obrigatório')),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, note.text.trim().isNotEmpty), child: const Text('Mover')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, field.text.trim().isNotEmpty), child: const Text('Mover')),
           ],
         ),
       );
-      if (ok != true) return;
-      await widget.api.dio.post('/orders/$orderId/comments', data: {'text': note.text.trim()});
+      if (ok != true) return false;
+      note = field.text.trim();
     }
-    if (settle) {
-      final total = num.tryParse('${card['paymentTotal'] ?? 0}') ?? 0;
-      await widget.api.dio.patch('/orders/$orderId', data: {
-        'status': 'delivered',
-        'deliveredAt': DateTime.now().toUtc().toIso8601String(),
-        'pricing': {'deposit': total, 'remaining': 0},
-      });
-    } else if (itemId.isNotEmpty && !itemId.startsWith('idx-')) {
-      await widget.api.dio.post('/kanban/orders/$orderId/items/$itemId/move', data: {'toSectorId': toSectorId});
-    } else {
-      await widget.api.dio.post('/kanban/orders/$orderId/move', data: {'toSectorId': toSectorId});
+    try {
+      if (settle) {
+        final total = num.tryParse('${card['paymentTotal'] ?? 0}') ?? 0;
+        await widget.api.dio.patch('/orders/$orderId', data: {
+          'status': 'delivered',
+          'deliveredAt': DateTime.now().toUtc().toIso8601String(),
+          'pricing': {'deposit': total, 'remaining': 0},
+        });
+      } else if (itemId.isNotEmpty && !itemId.startsWith('idx-')) {
+        await widget.api.dio.post('/kanban/orders/$orderId/items/$itemId/move', data: {'toSectorId': toSectorId});
+      } else {
+        await widget.api.dio.post('/kanban/orders/$orderId/move', data: {'toSectorId': toSectorId});
+      }
+      // Comment only after the move worked, so a failed move leaves no orphan note.
+      if (note != null) {
+        try {
+          await widget.api.dio.post('/orders/$orderId/comments', data: {'text': note});
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+      await load();
+      return false;
     }
     await load();
     if (mounted) wqToast(context, settle ? 'Pago e entregue' : 'Movido');
+    return true;
   }
 
   Future<void> deliver(Map card) async {
+    try {
+      await _deliver(card);
+    } catch (e) {
+      if (mounted) wqToast(context, widget.api.message(e));
+      await load();
+    }
+  }
+
+  Future<void> _deliver(Map card) async {
     final remaining = num.tryParse('${card['paymentRemaining'] ?? 0}') ?? 0;
     if (remaining > 0.009 && widget.session.seesMoney) {
       final choice = await showDialog<String>(
@@ -159,8 +201,8 @@ class _KanbanScreenState extends State<KanbanScreen> {
   Future<void> shift(Map card, int delta) async {
     final next = index + delta;
     if (next < 0 || next >= columns.length) return;
-    await move(card, sectorId(columns[next]));
-    setState(() => index = next);
+    final moved = await move(card, sectorId(columns[next]));
+    if (moved && mounted) setState(() => index = next);
   }
 
   @override

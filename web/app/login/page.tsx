@@ -8,14 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell, authFieldClass } from "@/components/auth/AuthShell"
 import { Magnetic } from "@/components/landing/fx/magnetic"
+import { loginErrorMessage, safeNextPath } from "@/lib/authNext"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -48,18 +50,14 @@ export default function LoginPage() {
           window.location.href = `/verify-email?pending=1&email=${encodeURIComponent(email.trim())}`
           return
         }
-        const msg = String((first as Error)?.message || "")
-        if (/failed to fetch|networkerror|load failed/i.test(msg)) {
-          throw new Error(
-            `Não conectou na API (${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001"}). Confirme make api-dev e abra o front em http://127.0.0.1:3000`
-          )
-        }
         throw first
       }
+      const next = safeNextPath(new URLSearchParams(window.location.search).get("next"))
       window.location.href =
-        localStorage.getItem("platformAdmin") === "1" ? "/admin/shops" : "/dashboard"
+        next || (localStorage.getItem("platformAdmin") === "1" ? "/admin/shops" : "/dashboard")
     } catch (err: any) {
-      setError(err.message || "Erro ao autenticar")
+      if (process.env.NODE_ENV !== "production") console.warn("[login]", err)
+      setError(loginErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
@@ -78,7 +76,11 @@ export default function LoginPage() {
           <Input
             id="email"
             type="email"
-            autoComplete="email"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="username"
             placeholder="funcionario@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -97,16 +99,27 @@ export default function LoginPage() {
               Esqueci a senha
             </Link>
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className={authFieldClass}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className={`${authFieldClass} pr-11`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--ink)]"
+              aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         {error && (

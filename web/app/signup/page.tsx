@@ -10,7 +10,7 @@ import { signupV1 } from "@/lib/apiV1"
 import { BUSINESS_TYPES } from "@/lib/itemNoun"
 import { CHECKOUT_INTENT_KEY, PLANS as CATALOG, formatBRL } from "@/lib/plans"
 import { toast } from "sonner"
-import { Check, Loader2 } from "lucide-react"
+import { Check, Eye, EyeOff, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { cn } from "@/lib/utils"
 import "@/components/landing/landing.css"
@@ -51,6 +51,8 @@ const PLANS = Object.fromEntries(
 export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly")
   const [plan, setPlan] = useState<PlanId>("pro")
   const [start, setStart] = useState<"trial" | "pay">("trial")
   const [beat, setBeat] = useState(0)
@@ -69,6 +71,7 @@ export default function SignupPage() {
       const picked = (q.get("plan") || "").toLowerCase()
       if (picked === "basic" || picked === "pro" || picked === "business") setPlan(picked)
       if (q.get("start") === "pay") setStart("pay")
+      if (q.get("cycle") === "yearly") setCycle("yearly")
       const ref = q.get("ref") || q.get("partner") || ""
       if (ref) setPartnerCode(ref.toUpperCase())
     } catch {}
@@ -93,7 +96,7 @@ export default function SignupPage() {
     setLoading(true)
     try {
       try {
-        if (start === "pay") localStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify({ planCode: chosen.code, cycle: "monthly" }))
+        if (start === "pay") localStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify({ planCode: chosen.code, cycle }))
         else localStorage.removeItem(CHECKOUT_INTENT_KEY)
       } catch {}
       const data = await signupV1({
@@ -120,7 +123,15 @@ export default function SignupPage() {
       toast.success("Conta criada — 7 dias de teste liberados!")
       router.push("/onboarding")
     } catch (err: any) {
-      toast.error(err?.message || "Falha no cadastro")
+      const message = /failed to fetch|networkerror|load failed/i.test(String(err?.message || ""))
+        ? "Sem conexão com o servidor. Confira a internet e tente de novo."
+        : err?.message || "Não foi possível criar a conta. Tente de novo."
+      toast.error(
+        message,
+        err?.status === 409 && /e-mail/i.test(message)
+          ? { action: { label: "Entrar", onClick: () => router.push(`/login`) } }
+          : undefined
+      )
     } finally {
       setLoading(false)
     }
@@ -262,11 +273,22 @@ export default function SignupPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" required autoComplete="email" placeholder="ana@oficina.com" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("email")} />
+              <Input id="email" type="email" required inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" placeholder="ana@oficina.com" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("email")} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" required minLength={6} autoComplete="new-password" placeholder="Mínimo 6 caracteres" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("password")} />
+              <div className="relative">
+                <Input id="password" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" placeholder="Mínimo 6 caracteres" className="h-12 border-[var(--border)] bg-[var(--paper)] pr-12 text-base" {...field("password")} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--ink)]"
+                  aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {partnerCode ? (
@@ -307,7 +329,9 @@ export default function SignupPage() {
                 </>
               ) : (
                 start === "pay"
-                  ? `Criar conta e assinar o ${chosen.name} · ${chosen.price}/mês`
+                  ? cycle === "yearly"
+                    ? `Criar conta e assinar o ${chosen.name} · plano anual`
+                    : `Criar conta e assinar o ${chosen.name} · ${chosen.price}/mês`
                   : shop
                     ? `Abrir ${shop} no ${chosen.name}`
                     : `Abrir sua empresa no ${chosen.name}`

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { loginUrlFor, safeNextPath } from './lib/authNext';
 
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/api/auth'];
 const ADMIN_PREFIX = '/admin';
@@ -79,13 +80,14 @@ export function middleware(request: NextRequest) {
       const payload = decodeJwtPayload(token);
       const role = String(payload?.role ?? payload?.perfil ?? '').toLowerCase();
       const platformAdmin = Boolean(payload?.platformAdmin);
-      return NextResponse.redirect(new URL(homeForRole(role, platformAdmin), request.url));
+      const next = pathname === '/login' ? safeNextPath(request.nextUrl.searchParams.get('next')) : null;
+      return NextResponse.redirect(new URL(next || homeForRole(role, platformAdmin), request.url));
     }
     return NextResponse.next();
   }
 
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL(loginUrlFor(pathname, request.nextUrl.search), request.url));
   }
 
   const payload = decodeJwtPayload(token);

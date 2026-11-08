@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -25,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final password = TextEditingController();
   bool forgot = false;
   bool loading = false;
+  bool showPassword = false;
   String? error;
   String? info;
 
@@ -47,9 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       if (forgot) {
         await widget.api.forgot(email.text.trim());
-        setState(() => info = 'Se o e-mail existir, o link foi enviado.');
+        if (mounted) setState(() => info = 'Se o e-mail existir, o link foi enviado.');
       } else {
         await widget.api.login(email.text.trim(), password.text);
+        TextInput.finishAutofillContext();
       }
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -57,9 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) context.go('/verify?email=${Uri.encodeQueryComponent(email.text.trim())}');
         return;
       }
-      setState(() => error = widget.api.message(e));
+      if (mounted) setState(() => error = widget.api.message(e));
     } catch (e) {
-      setState(() => error = widget.api.message(e));
+      if (mounted) setState(() => error = widget.api.message(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -120,18 +123,46 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: Border.all(color: context.wqLine),
                 boxShadow: [BoxShadow(color: const Color(0xFF4F0FA6).withValues(alpha: 0.06), blurRadius: 24, offset: const Offset(0, 12))],
               ),
-              child: Column(children: [
-                TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
+              child: AutofillGroup(
+                child: Column(children: [
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textCapitalization: TextCapitalization.none,
+                  autofillHints: const [AutofillHints.username, AutofillHints.email],
+                  textInputAction: forgot ? TextInputAction.done : TextInputAction.next,
+                  onSubmitted: forgot ? (_) => loading ? null : submit() : null,
+                  decoration: const InputDecoration(labelText: 'E-mail'),
+                ),
                 if (!forgot) ...[
                   const SizedBox(height: 12),
-                  TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
+                  TextField(
+                    controller: password,
+                    obscureText: !showPassword,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    autofillHints: const [AutofillHints.password],
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => loading ? null : submit(),
+                    decoration: InputDecoration(
+                      labelText: 'Senha',
+                      suffixIcon: IconButton(
+                        tooltip: showPassword ? 'Esconder senha' : 'Mostrar senha',
+                        icon: Icon(showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => showPassword = !showPassword),
+                      ),
+                    ),
+                  ),
                 ],
                 if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Wq.danger))),
                 if (info != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(info!, style: const TextStyle(color: Wq.action))),
                 const SizedBox(height: 16),
                 FilledButton(onPressed: loading ? null : submit, child: Text(loading ? 'Entrando…' : forgot ? 'Enviar link' : 'Entrar')),
                 if (!forgot) AppleContinueButton(onPressed: apple, enabled: !loading, dark: context.wqDark, divider: true),
-              ]),
+                ]),
+              ),
             ),
             TextButton(onPressed: () => setState(() => forgot = !forgot), child: Text(forgot ? 'Voltar ao login' : 'Esqueci a senha')),
             TextButton(onPressed: () => context.go('/signup'), child: const Text('Criar empresa')),

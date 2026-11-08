@@ -8,6 +8,7 @@ import '../../brand/theme.dart';
 import '../../design/flow.dart';
 import '../../design/ui.dart';
 import '../home/shelf_card.dart';
+import '../kanban/kanban_screen.dart' show kanbanLateIntent;
 import '../lookup/simple_lists.dart';
 import '../products/products_screen.dart';
 import '../quotes/quote_kit.dart';
@@ -140,11 +141,12 @@ class _DailyBriefCardState extends State<DailyBriefCard> {
           openClient: (id) => _push('client', ClientDetailScreen(api: widget.api, clientId: id, session: widget.session)),
         ),
       );
-    } else if (href.contains('prateleira')) {
+    } else if (href.contains('prateleira') || (uri.queryParameters['focus'] ?? '').startsWith('ready')) {
       _push('shelf', ShelfPage(api: widget.api, session: widget.session));
     } else if (path.startsWith('/pedidos')) {
       context.go(tab == null ? '/orders' : '/orders?tab=$tab');
     } else if (path.startsWith('/kanban')) {
+      if (uri.queryParameters['focus'] == 'late') kanbanLateIntent.value = true;
       context.go('/kanban');
     }
   }

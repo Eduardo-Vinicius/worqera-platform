@@ -1,5 +1,11 @@
 # Worqera API — Change log
 
+## 2026-11-08 — Quick-wins de acesso
+
+- Textos em português no `detail` (o `code` não mudou): login errado, e-mail já cadastrado, endereço da empresa em uso, link de nova senha vencido, senha curta, campos faltando, limite de tentativas ("Muitas tentativas. Tente de novo em N min").
+- **Confirmação de e-mail com limite próprio** (`verifyLimit`, 30/15 min por IP, `VERIFY_RATE_LIMIT_MAX`): errar o código ou reenviar não gasta mais o limite do "Esqueci a senha", e vice-versa. Antes um cliente novo podia ficar travado na última etapa do cadastro.
+- `Invalid or expired token` da sessão segue em inglês de propósito: o app compara esse texto.
+
 ## 2026-11-08
 
 - **Recorte da fila (`lib/queueFocus.js`):** o mesmo predicado no KPI, no brief e no kanban. Conta **cards** (pares), não pedidos. Dia civil em America/Sao_Paulo.

@@ -120,7 +120,7 @@ export function PricingSection() {
                   variant={popular ? "default" : "outline"}
                   className={cn("h-12 w-full rounded-full text-base", popular ? "lp-cta lp-shine" : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--primary)]")}
                 >
-                  <Link href={`/signup?plan=${plan.name.toLowerCase()}`}>{plan.cta}</Link>
+                  <Link href={`/signup?plan=${plan.name.toLowerCase()}${cycle === "yearly" ? "&cycle=yearly" : ""}`}>{plan.cta}</Link>
                 </Button>
               </div>
             )

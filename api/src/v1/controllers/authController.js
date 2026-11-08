@@ -36,7 +36,7 @@ exports.signup = wrap(async (req, res) => {
   if (!email || !password) {
     return sendError(res, 400, {
       title: 'Validation Error',
-      detail: 'email and password are required',
+      detail: 'Informe e-mail e senha.',
       code: 'VALIDATION_ERROR',
     });
   }
@@ -62,7 +62,7 @@ exports.login = wrap(async (req, res) => {
   if (!email || !password) {
     return sendError(res, 400, {
       title: 'Validation Error',
-      detail: 'email and password are required',
+      detail: 'Informe e-mail e senha.',
       code: 'VALIDATION_ERROR',
     });
   }

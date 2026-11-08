@@ -151,7 +151,7 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     err.status = 409;
     err.code = 'CONFLICT';
     err.title = 'Conflict';
-    err.detail = 'Email already registered';
+    err.detail = 'Este e-mail já tem conta. Entre ou use "Esqueci a senha".';
     throw err;
   }
 
@@ -162,6 +162,7 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
     const err = new Error('Invalid shop slug');
     err.status = 400;
     err.code = 'VALIDATION_ERROR';
+    err.detail = 'Informe o nome da empresa.';
     throw err;
   }
 
@@ -171,7 +172,7 @@ async function signup({ email, password, name, shopName, shopSlug, partnerCode, 
       const err = new Error('Shop slug taken');
       err.status = 409;
       err.code = 'CONFLICT';
-      err.detail = 'Shop slug already in use';
+      err.detail = 'Esse endereço da empresa já está em uso. Escolha outro.';
       throw err;
     }
   }
@@ -361,19 +362,19 @@ async function appleLogin({ identityToken, name, shopName, kit, planCode, partne
 async function login({ email, password }) {
   const user = await User.findOne({ email: String(email).toLowerCase().trim() });
   if (!user) {
-    const err = new Error('Invalid credentials');
+    const err = new Error('E-mail ou senha incorretos.');
     err.status = 401;
     err.code = 'UNAUTHORIZED';
-    err.detail = 'Invalid credentials';
+    err.detail = 'E-mail ou senha incorretos.';
     throw err;
   }
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
-    const err = new Error('Invalid credentials');
+    const err = new Error('E-mail ou senha incorretos.');
     err.status = 401;
     err.code = 'UNAUTHORIZED';
-    err.detail = 'Invalid credentials';
+    err.detail = 'E-mail ou senha incorretos.';
     throw err;
   }
 
@@ -463,6 +464,7 @@ async function resetPassword({ token, password }) {
     const err = new Error('token and password (min 6) required');
     err.status = 400;
     err.code = 'VALIDATION_ERROR';
+    err.detail = 'A nova senha precisa ter pelo menos 6 caracteres.';
     throw err;
   }
   const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
@@ -474,6 +476,7 @@ async function resetPassword({ token, password }) {
     const err = new Error('Invalid or expired reset token');
     err.status = 400;
     err.code = 'VALIDATION_ERROR';
+    err.detail = 'Este link de redefinição venceu ou já foi usado. Peça um novo em "Esqueci a senha".';
     throw err;
   }
   user.passwordHash = await hashPassword(password);

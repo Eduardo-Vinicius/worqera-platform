@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { AuthShell, authFieldClass } from "@/components/auth/AuthShell"
+import { loginErrorMessage } from "@/lib/authNext"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -27,7 +28,7 @@ export default function ForgotPasswordPage() {
       setDone(true)
       if (res.resetToken) setDevToken(res.resetToken)
     } catch (err: any) {
-      setError(err?.message || "Falha ao solicitar reset")
+      setError(loginErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -48,7 +49,9 @@ export default function ForgotPasswordPage() {
 
       {done ? (
         <div className="mt-6 space-y-3 text-sm">
-          <p className="text-[var(--ink)]">Se o e-mail estiver cadastrado, o fluxo de reset foi iniciado.</p>
+          <p className="text-[var(--ink)]">
+            Se o e-mail estiver cadastrado, enviamos um link para criar uma nova senha. Confira também o spam. O link vale por 1 hora.
+          </p>
           {devToken && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--paper)] p-3">
               <p className="text-xs text-[var(--muted-foreground)]">Dev token (não aparece em produção)</p>

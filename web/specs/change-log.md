@@ -1,5 +1,14 @@
 # Worqera Web — Change log
 
+## 2026-11-08 — Quick-wins: entrar, cadastro e senha
+
+- **Link que pede login volta para onde ia:** sem sessão, o middleware manda para `/login?next=<página>`; ao entrar (ou se já estiver logado) vai para essa página. Sessão vencida faz o mesmo. Só aceita caminho do próprio site (`lib/authNext.ts`). Corrige também `/excluir-conta`, que já mandava `?next=` e era ignorado.
+- **Erros em português:** senha errada "E-mail ou senha incorretos."; muitas tentativas "Tente de novo em N minutos"; sem conexão "Sem conexão com o servidor…" em todas as telas (antes o login mostrava `make api-dev` e localhost). Erro 5xx com HTML vira "A Worqera está instável agora".
+- **Mostrar senha** no login, cadastro e nova senha; e-mail sem corretor/maiúscula no celular.
+- **Cadastro com e-mail que já existe:** mensagem clara com atalho "Entrar".
+- **Nova senha:** com o link do e-mail não aparece mais o campo "Token" cru; link vencido explica e oferece "Pedir novo link". "Esqueci a senha" com texto claro (spam, vale 1 hora).
+- **Plano anual:** a escolha "anual" do site segue para o cadastro e o checkout (antes virava mensal).
+
 ## 2026-11-08 — Recorte da fila, pares e urgência
 
 - **Correção (links da Visão geral não filtravam):** o kanban lia o recorte de `window.location` na hora de montar; vindo de um link interno, o Next ainda não tinha trocado a URL e o quadro abria inteiro. Agora lê de `useSearchParams` (página em `Suspense`) e troca de chip com `router.replace`. Resposta antiga não sobrescreve a nova ao trocar rápido de chip; o quadro fica visível (esmaecido) enquanto carrega.

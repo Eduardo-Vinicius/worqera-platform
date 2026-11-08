@@ -1,3 +1,5 @@
+import { loginUrlFor } from "./authNext"
+
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001").replace(/\/+$/, "")
 export const API_V1 = `${API_BASE}/api/v1`
 
@@ -31,13 +33,18 @@ async function v1Fetch<T = unknown>(path: string, init: RequestInit = {}, retrie
   const shopId = getShopId()
   if (shopId) headers.set("X-Worqera-Shop", shopId)
 
-  const res = await fetch(`${API_V1}${path}`, { ...init, headers, credentials: "include" })
+  let res: Response
+  try {
+    res = await fetch(`${API_V1}${path}`, { ...init, headers, credentials: "include" })
+  } catch {
+    throw new ApiV1Error("Sem conexão com o servidor. Confira a internet e tente de novo.", 0, "NETWORK")
+  }
   const text = await res.text()
   let data: any = null
   try {
     data = text ? JSON.parse(text) : null
   } catch {
-    data = { detail: text }
+    data = { detail: res.status >= 500 ? "A Worqera está instável agora. Tente de novo em instantes." : text }
   }
 
   if (!res.ok) {
@@ -1454,7 +1461,7 @@ export function endSession(message = "Sua sessão acabou. Entre de novo.") {
   } catch {}
   clearSession()
   if (!window.location.pathname.startsWith("/login")) {
-    window.location.href = "/login"
+    window.location.href = loginUrlFor(window.location.pathname, window.location.search)
   }
 }
 

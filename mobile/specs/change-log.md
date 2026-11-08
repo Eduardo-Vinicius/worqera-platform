@@ -1,5 +1,12 @@
 # App celular
 
+## 2026-11-08
+
+- **Resumo do dia:** "Resolver parados na prateleira" volta a abrir a Prateleira (a API passou a mandar `/kanban?focus=ready-stale`); "Destravar atrasados" abre o kanban com o filtro Atrasados ligado (`kanbanLateIntent`).
+- **Kanban:** mover, avançar e marcar entregue mostram o erro quando falham (antes nada acontecia). O comentário "fora do fluxo" só é salvo depois que o move deu certo; a coluna só muda se moveu.
+- **Login:** mostrar senha, preenchimento automático (iCloud / Google), Enter entra, e-mail sem corretor.
+- **Mensagens:** tempo esgotado conta como sem conexão; erro 5xx vira "A Worqera está instável agora"; nada de texto técnico em inglês fora do modo debug.
+
 ## 2026-11-07
 
 - Plano: a implantação não mostra mais preço ("escopo e valor combinados com a gente", toque abre o WhatsApp).
