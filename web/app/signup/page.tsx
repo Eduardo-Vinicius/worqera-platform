@@ -173,6 +173,7 @@ export default function SignupPage() {
                 <button
                   key={id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setPlan(id)}
                   className={cn(
                     "rounded-2xl border bg-[var(--surface)] px-4 py-4 text-left transition-colors",
@@ -248,7 +249,7 @@ export default function SignupPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="shopName">Nome da empresa</Label>
-              <Input id="shopName" required placeholder="Oficina da Ana" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("shopName")} />
+              <Input id="shopName" required autoComplete="organization" placeholder="Oficina da Ana" className="h-12 border-[var(--border)] bg-[var(--paper)] text-base" {...field("shopName")} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kit">O que a sua empresa faz?</Label>

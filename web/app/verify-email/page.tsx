@@ -152,6 +152,7 @@ function VerifyEmailInner() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 className={authFieldClass}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

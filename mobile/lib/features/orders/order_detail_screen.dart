@@ -41,8 +41,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> load() async {
     try {
       final res = await widget.api.dio.get('/orders/${widget.orderId}');
-      final board = await widget.api.dio.get('/kanban');
-      final fwd = ((board.data as Map)['forwardTargets'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      // Move targets come with the board; if it fails the order still opens (just without "Mover").
+      var fwd = <Map<String, dynamic>>[];
+      try {
+        final board = await widget.api.dio.get('/kanban');
+        fwd = ((board.data as Map)['forwardTargets'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } catch (_) {}
       if (mounted) {
         setState(() {
           order = Map<String, dynamic>.from(res.data as Map);
