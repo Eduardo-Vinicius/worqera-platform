@@ -49,11 +49,11 @@ export function OperationPanel({
     { label: "Vencem amanhã", value: tomorrow, href: kanbanFocusHref("due-tomorrow"), tone: tomorrow ? "brand" : "" },
     { label: "Prontos para retirar", value: shelf, href: kanbanFocusHref("ready"), tone: shelf ? "ok" : "" },
     {
-      label: "Pedidos na loja",
-      value: totalOrders ?? open,
+      label: "Pedidos em aberto",
+      value: open,
       href: "/pedidos",
       tone: "",
-      hint: `${open} em aberto`,
+      hint: totalOrders != null ? `${totalOrders.toLocaleString("pt-BR")} criados no total` : undefined,
     },
   ]
   const top = [...sectors].sort((a, b) => (b.count || 0) - (a.count || 0))
@@ -121,9 +121,9 @@ export function OperationPanel({
             </p>
             <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-[var(--wq-text-muted)]">
               {k.label}
-              {k.hint ? <span className="font-normal">· {k.hint}</span> : null}
               <ArrowRight className="h-3 w-3 opacity-0 transition group-hover:opacity-100" />
             </p>
+            {k.hint ? <p className="mt-0.5 text-[11px] text-[var(--wq-text-muted)]/80">{k.hint}</p> : null}
           </Link>
         ))}
       </div>

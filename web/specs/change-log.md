@@ -3,6 +3,7 @@
 ## 2026-11-08 — Recorte da fila, pares e urgência
 
 - **Correção (links da Visão geral não filtravam):** o kanban lia o recorte de `window.location` na hora de montar; vindo de um link interno, o Next ainda não tinha trocado a URL e o quadro abria inteiro. Agora lê de `useSearchParams` (página em `Suspense`) e troca de chip com `router.replace`. Resposta antiga não sobrescreve a nova ao trocar rápido de chip; o quadro fica visível (esmaecido) enquanto carrega.
+- **Visão geral:** o quinto número destaca **Pedidos em aberto**; embaixo, "N criados no total".
 - **Dar preço:** abre `/kanban?focus=no-price` (só pedidos sem valor). Chip "Sem preço" com contagem para quem vê valores.
 - **Celular:** os chips de recorte ganharam linha própria com rolagem; o campo Data não é mais esmagado.
 - **Menu lateral:** chave repetida ("Operação") para admin da plataforma corrigida.
