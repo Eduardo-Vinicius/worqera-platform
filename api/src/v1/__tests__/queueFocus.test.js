@@ -101,6 +101,24 @@ test('ready recorte: who has waited longest on the shelf comes first', () => {
   assert.equal(sorted[2], noDate);
 });
 
+test('shelf recortes: parados 3+ days, conferir 7+ days or flagged', () => {
+  const shelf = { itemInTerminal: true, status: 'ready' };
+  assert.equal(parseFocus('ready-stale'), 'ready-stale');
+  assert.equal(parseFocus('ready-check'), 'ready-check');
+  assert.equal(matchesFocus({ ...shelf, sectorSince: ago(4) }, 'ready-stale', now), true);
+  assert.equal(matchesFocus({ ...shelf, sectorSince: ago(1) }, 'ready-stale', now), false);
+  assert.equal(matchesFocus({ ...shelf, sectorSince: ago(8) }, 'ready-check', now), true);
+  assert.equal(matchesFocus({ ...shelf, sectorSince: ago(4) }, 'ready-check', now), false);
+  assert.equal(matchesFocus({ ...shelf, sectorSince: ago(1), shelfCheck: true }, 'ready-check', now), true);
+  assert.equal(matchesFocus({ itemInTerminal: false, status: 'in_progress', sectorSince: ago(30) }, 'ready-stale', now), false);
+  const sorted = sortQueueCards(
+    [{ ...shelf, sectorSince: ago(4) }, { ...shelf, sectorSince: ago(20) }],
+    now,
+    'ready-stale'
+  );
+  assert.equal(new Date(sorted[0].sectorSince).getTime(), ago(20).getTime());
+});
+
 test('countQueueFocus: one order with two pairs counts two cards, not one pedido', () => {
   const cards = [
     card({ dueAt: ago(3) }),
@@ -112,4 +130,23 @@ test('countQueueFocus: one order with two pairs counts two cards, not one pedido
   assert.equal(n.ready, 1);
   assert.equal(n.dueTomorrow, 1);
   assert.equal(n.dueToday, 0);
+  assert.equal(n.total, 3);
+  assert.equal(n.readyStale, 0);
+  assert.equal(n.readyCheck, 0);
+  assert.equal(n.readyOldestDays, 0);
+});
+
+test('countQueueFocus: shelf numbers and the oldest pickup', () => {
+  const n = countQueueFocus(
+    [
+      { itemInTerminal: true, status: 'ready', sectorSince: ago(39) },
+      { itemInTerminal: true, status: 'ready', sectorSince: ago(5) },
+      { itemInTerminal: true, status: 'ready', sectorSince: ago(0) },
+    ],
+    now
+  );
+  assert.equal(n.ready, 3);
+  assert.equal(n.readyStale, 2);
+  assert.equal(n.readyCheck, 1);
+  assert.equal(n.readyOldestDays, 39);
 });

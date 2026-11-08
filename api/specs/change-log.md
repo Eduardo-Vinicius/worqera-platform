@@ -9,8 +9,11 @@
   - Cada card traz `siblings[]` (itemId, par, setor, marca, modelo) para trocar de par no drawer.
   - `GET /dashboard` e `/dashboard/summary` passam `overdue`, `dueToday`, `dueTomorrow` e `ready` em quantidade de cards.
   - `/dashboard/brief`: as mesmas contagens; `actions.href` aponta para `/kanban?focus=…`.
-  - Card traz `sectorSince` (quando entrou no setor atual). No recorte `ready`, quem espera há mais tempo vem primeiro.
-  - Ações da prateleira (Lembrar parados, Conferir prontos antigos) só para o **dono**, que é quem abre a prateleira; admin não recebe mais um atalho sem destino. Links: `/dashboard#prateleira-parados` e `#prateleira-conferir`.
+  - Card traz `sectorSince` (quando entrou no setor atual; sem histórico, a última atualização). Nos recortes de pronto, quem espera há mais tempo vem primeiro.
+  - Recortes da prateleira: `focus=ready-stale` (pronto há 3+ dias) e `focus=ready-check` (7+ dias ou marcado Conferir).
+  - `GET /kanban` devolve `counts` (total, late, dueToday, dueTomorrow, ready, readyStale, readyCheck, readyOldestDays) do quadro inteiro, para os chips.
+  - Brief: "Lembrar parados" e "Conferir prontos antigos" viram **uma** ação, `shelf` → `/kanban?focus=ready-stale`, contada por card. Sem parados, volta "Avisar prontos" → `focus=ready`. Atendimento não recebe a ação da prateleira.
+  - `/dashboard` e `/dashboard/summary`: `totalOrders` (todos os pedidos não apagados) e `openItems`.
 
 ## 2026-11-07
 

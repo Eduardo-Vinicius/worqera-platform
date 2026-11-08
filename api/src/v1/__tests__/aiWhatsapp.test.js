@@ -90,20 +90,29 @@ test('fallback texts carry the real numbers when there is no AI', () => {
   assert.match(dailyFallback({ ready: 0, open: 7, overdue: 0, dueTomorrow: 0, tomorrowBySector: [], callToday: 0 }), /Fila em dia/);
 
   const shelfNumbers = {
-    ready: 2,
+    ready: 210,
     open: 9,
     overdue: 0,
     dueTomorrow: 0,
     tomorrowBySector: [],
     callToday: 0,
-    check: { count: 2, oldestDays: 9 },
-    money: { staleCount: 3, staleValue: 120 },
+    readyStale: 201,
+    readyCheck: 175,
+    readyOldestDays: 39,
+    money: { staleCount: 201, staleValue: 660 },
   };
-  const ownerIds = dailyActions(shelfNumbers, { shelf: true }).map((a) => a.id);
-  assert.ok(ownerIds.includes('shelf') && ownerIds.includes('check'));
-  assert.equal(dailyActions(shelfNumbers, { shelf: true }).find((a) => a.id === 'check').href, '/dashboard#prateleira-conferir');
-  const adminIds = dailyActions(shelfNumbers, { shelf: false }).map((a) => a.id);
-  assert.ok(!adminIds.includes('shelf') && !adminIds.includes('check'), 'admin never gets a shelf they cannot open');
+  const owner = dailyActions(shelfNumbers);
+  const shelf = owner.find((a) => a.id === 'shelf');
+  assert.ok(shelf, 'one shelf action');
+  assert.ok(!owner.some((a) => a.id === 'check'), 'parados and conferir are one action, not two');
+  assert.equal(shelf.href, '/kanban?focus=ready-stale');
+  assert.match(shelf.title, /201 parados/);
+  assert.match(shelf.detail, /175 talvez já saíram/);
+  assert.match(shelf.detail, /39 dias/);
+  assert.ok(!owner.some((a) => a.id === 'ready'), 'no second "avisar prontos" for the same shelf');
+  const fresh = dailyActions({ ...shelfNumbers, readyStale: 0, readyCheck: 0 }).find((a) => a.id === 'ready');
+  assert.equal(fresh.href, '/kanban?focus=ready');
+  assert.ok(!dailyActions(shelfNumbers, { team: true }).some((a) => a.id === 'shelf'), 'front desk does not get the shelf');
 
   const weekly = weeklyFallback({
     created: 30,

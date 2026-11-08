@@ -1,12 +1,21 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { kanbanFocusHref, parseFocus, readQueueFocus, replaceFocusSearch } from "./queueFocus.ts"
+import { isReadyFocus, kanbanFocusHref, parseFocus, readQueueFocus, replaceFocusSearch } from "./queueFocus.ts"
 
 describe("queueFocus URL", () => {
-  it("parses the four recortes and ignores junk", () => {
+  it("parses the recortes and ignores junk", () => {
     assert.equal(parseFocus("late"), "late")
     assert.equal(parseFocus("due-tomorrow"), "due-tomorrow")
+    assert.equal(parseFocus("ready-stale"), "ready-stale")
+    assert.equal(parseFocus("ready-check"), "ready-check")
     assert.equal(parseFocus("nope"), null)
+  })
+
+  it("the shelf recortes are all ready views", () => {
+    assert.equal(isReadyFocus("ready"), true)
+    assert.equal(isReadyFocus("ready-check"), true)
+    assert.equal(isReadyFocus("late"), false)
+    assert.equal(isReadyFocus(null), false)
   })
 
   it("reads focus from the query and maps ?late=1 to late", () => {

@@ -5,7 +5,7 @@ const User = require('../models/User');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { resolvePhotoUrl } = require('./storageService');
 const { isItemLate } = require('../lib/lateness');
-const { parseKanbanFocus, matchesFocus, sortQueueCards } = require('../lib/queueFocus');
+const { parseKanbanFocus, matchesFocus, sortQueueCards, countQueueFocus } = require('../lib/queueFocus');
 const {
   asId,
   ensureItemSectors,
@@ -14,6 +14,7 @@ const {
   buildSectorsById,
   findItemOnOrder,
   pairLabel,
+  itemSectorSince,
 } = require('./itemSectors');
 
 function canMoveAnywhere(role) {
@@ -154,9 +155,11 @@ async function getKanban(shopId, membership, query = {}) {
     );
   }
 
+  const allCards = Object.values(bySector).flat();
   return {
     role,
     focus,
+    counts: countQueueFocus(allCards, now),
     columns: sectors.map((s) => {
       const cards = bySector[String(s._id)] || [];
       const visible = focus ? cards.filter((card) => matchesFocus(card, focus, now)) : cards;
@@ -283,21 +286,6 @@ function itemSiblings(order, items) {
   }));
 }
 
-/** When the item entered the sector it is in now (last matching history entry). */
-function sectorSince(order, item, itemSector, items) {
-  const history =
-    Array.isArray(item.sectorHistory) && item.sectorHistory.length
-      ? item.sectorHistory
-      : items.length === 1
-        ? order.sectorHistory || []
-        : [];
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const entry = history[i];
-    if (entry?.sectorId && String(entry.sectorId) === String(itemSector) && entry.enteredAt) return entry.enteredAt;
-  }
-  return null;
-}
-
 function summarizeItemCard(order, item, index, sectorsById, money = null) {
   const items = effectiveItems(order);
   const photos = Array.isArray(item.photos) && item.photos.length
@@ -353,7 +341,7 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
     late: isItemLate(order, Boolean(sectorsById.get(String(itemSector))?.isTerminal)),
     siblings: itemSiblings(order, items),
-    sectorSince: sectorSince(order, item, itemSector, items),
+    sectorSince: itemSectorSince(order, item, itemSector, items),
     ...(money
       ? {
           lineValue: roundMoney(money.lineValue),

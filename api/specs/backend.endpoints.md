@@ -106,7 +106,8 @@ POST   /sectors/reorder              # LIVE — body: [{id, order}]
 
 ```
 GET  /kanban                         # LIVE
-     # ?focus=late|ready|due-today|due-tomorrow (um recorte por vez; ?late=1 = late)
+     # ?focus=late|ready|ready-stale|ready-check|due-today|due-tomorrow (um por vez; ?late=1 = late)
+     # counts: números do quadro inteiro para os chips
      # filtra e ordena cards (pares); ecoa `focus` na resposta; siblings[] e sectorSince em cada card
      # focus=ready: quem está há mais tempo no setor final primeiro
      # admin/owner/atendimento: todas colunas (setores ativos) + cards

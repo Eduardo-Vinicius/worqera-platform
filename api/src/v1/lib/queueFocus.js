@@ -7,7 +7,12 @@ const { isItemLate } = require('./lateness');
 const { startOfSaoPauloDay, endOfSaoPauloDay } = require('./quotePriority');
 
 const DAY = 24 * 60 * 60 * 1000;
-const FOCUSES = ['late', 'ready', 'due-today', 'due-tomorrow'];
+const FOCUSES = ['late', 'ready', 'ready-stale', 'ready-check', 'due-today', 'due-tomorrow'];
+const READY_FOCUSES = ['ready', 'ready-stale', 'ready-check'];
+/** Ready this long without pickup: remind the customer. */
+const READY_STALE_DAYS = 3;
+/** Ready this long: worth checking at the counter whether it already left without being marked. */
+const READY_CHECK_DAYS = 7;
 
 function parseFocus(value) {
   const v = String(value || '')
@@ -47,6 +52,12 @@ function stillInProduction(card) {
   return !['ready', 'delivered', 'cancelled'].includes(status);
 }
 
+function readyDays(card, now = new Date()) {
+  const at = card?.sectorSince ? new Date(card.sectorSince).getTime() : NaN;
+  if (!Number.isFinite(at)) return null;
+  return Math.max(0, Math.floor((new Date(now).getTime() - at) / DAY));
+}
+
 function matchesFocus(card, focus, now = new Date()) {
   const key = parseFocus(focus);
   if (!key) return true;
@@ -59,8 +70,12 @@ function matchesFocus(card, focus, now = new Date()) {
 
   if (key === 'late') return isItemLate(order, itemInTerminal, now);
 
-  if (key === 'ready') {
-    return itemInTerminal && !['delivered', 'cancelled'].includes(String(card?.status || ''));
+  if (READY_FOCUSES.includes(key)) {
+    if (!itemInTerminal || ['delivered', 'cancelled'].includes(String(card?.status || ''))) return false;
+    if (key === 'ready') return true;
+    const days = readyDays(card, now);
+    if (key === 'ready-stale') return days != null && days >= READY_STALE_DAYS;
+    return Boolean(card?.shelfCheck) || (days != null && days >= READY_CHECK_DAYS);
   }
 
   if (!stillInProduction(card)) return false;
@@ -116,15 +131,30 @@ function compareReadyCards(a, b, now = new Date()) {
 }
 
 function sortQueueCards(cards, now = new Date(), focus = null) {
-  const compare = parseFocus(focus) === 'ready' ? compareReadyCards : compareQueueCards;
+  const compare = READY_FOCUSES.includes(parseFocus(focus)) ? compareReadyCards : compareQueueCards;
   return (cards || []).slice().sort((a, b) => compare(a, b, now));
 }
 
 function countQueueFocus(cards, now = new Date()) {
-  const counts = { late: 0, ready: 0, dueToday: 0, dueTomorrow: 0 };
+  const counts = {
+    total: 0,
+    late: 0,
+    ready: 0,
+    readyStale: 0,
+    readyCheck: 0,
+    readyOldestDays: 0,
+    dueToday: 0,
+    dueTomorrow: 0,
+  };
   for (const card of cards || []) {
+    counts.total += 1;
     if (matchesFocus(card, 'late', now)) counts.late += 1;
-    if (matchesFocus(card, 'ready', now)) counts.ready += 1;
+    if (matchesFocus(card, 'ready', now)) {
+      counts.ready += 1;
+      counts.readyOldestDays = Math.max(counts.readyOldestDays, readyDays(card, now) || 0);
+    }
+    if (matchesFocus(card, 'ready-stale', now)) counts.readyStale += 1;
+    if (matchesFocus(card, 'ready-check', now)) counts.readyCheck += 1;
     if (matchesFocus(card, 'due-today', now)) counts.dueToday += 1;
     if (matchesFocus(card, 'due-tomorrow', now)) counts.dueTomorrow += 1;
   }
@@ -138,6 +168,10 @@ function focusHref(focus) {
 
 module.exports = {
   FOCUSES,
+  READY_FOCUSES,
+  READY_STALE_DAYS,
+  READY_CHECK_DAYS,
+  readyDays,
   parseFocus,
   parseKanbanFocus,
   matchesFocus,

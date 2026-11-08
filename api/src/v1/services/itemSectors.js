@@ -115,6 +115,24 @@ function pairLabel(code, index1based) {
   return `${code}-${index1based}`;
 }
 
+/**
+ * When the item entered the sector it is in now. Orders without history
+ * (imports) fall back to the last update, like the shelf does.
+ */
+function itemSectorSince(order, item, sectorId, items) {
+  const history =
+    Array.isArray(item?.sectorHistory) && item.sectorHistory.length
+      ? item.sectorHistory
+      : (items || []).length <= 1
+        ? order?.sectorHistory || []
+        : [];
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const entry = history[i];
+    if (entry?.sectorId && String(entry.sectorId) === String(sectorId) && entry.enteredAt) return entry.enteredAt;
+  }
+  return order?.updatedAt || order?.createdAt || null;
+}
+
 function toObjectId(id) {
   if (!id) return null;
   if (id instanceof mongoose.Types.ObjectId) return id;
@@ -131,5 +149,6 @@ module.exports = {
   buildSectorsById,
   findItemOnOrder,
   pairLabel,
+  itemSectorSince,
   toObjectId,
 };

@@ -5,9 +5,11 @@
 - **Visão geral:** os quatro números passam a ser Atrasados, Vencem hoje, Vencem amanhã e Prontos para retirar (quantidade de pares). Cada um abre `/kanban?focus=…`. Ligar hoje continua nos orçamentos / “Comece por aqui”.
 - **Kanban:** lê `?focus=late|ready|due-today|due-tomorrow` (e o antigo `?late=1`), pede o recorte na API, mostra a faixa “Mostrando só…” + Ver tudo, chips Atrasados / Hoje / Amanhã / Prontos, e esconde coluna vazia no recorte. Busca e data de entrada seguem no cliente.
 - **Pares no drawer:** abas no cabeçalho (`1 Nike` | `2 Air Force`) e clique na lista trocam o par sem fechar. Avançar, fotos e QR seguem o par focado. Rótulo usa o `itemLabel` da loja, não “tênis” fixo.
-- **Recorte vira lista de trabalho:** com `?focus=` o kanban não estica uma coluna só; os setores com algo aparecem em seções e os cards preenchem a largura em grade (1 a 4 por linha), 48 por vez com "Mostrar mais". A faixa diz quantos e a ordem ("quem espera há mais tempo primeiro"). Em Prontos, cada card mostra "Pronto há N dias" (âmbar a partir de 3) e tem **Avisar** (mensagens prontas: WhatsApp, e-mail, copiar) e **Entregue**.
+- **Atrasados / Hoje / Amanhã no padrão do kanban:** colunas lado a lado só com os cards do recorte; setor sem nada vira uma faixa fina (ainda recebe arrasto). Arrastar continua funcionando. Os chips mostram a contagem (Atrasados 12, Hoje 3…).
+- **Prateleira no kanban:** Prontos vira a lista de trabalho da prateleira em grade (1 a 4 por linha, 48 por vez), com abas **Todos · Parados 3+ dias · Conferir 7+ dias** e "o mais antigo está pronto há N dias". Cada card: "Pronto há N dias", **Avisar** (WhatsApp, e-mail, copiar), **Conferir** (marca/desmarca) e **Entregue**.
+- **Comece por aqui:** "Lembrar parados" e "Conferir prontos antigos" viraram uma ação só, "Resolver N parados na prateleira", que abre o kanban em Parados 3+ dias. A prateleira da Visão geral ganhou "Trabalhar no kanban →" no filtro atual.
+- **Visão geral:** quinto número, **Pedidos na loja** (todos já criados, com "N em aberto"), abre `/pedidos`.
 - **Troca de par visível:** o conteúdo do drawer desliza para o lado do par escolhido, o código vira `#0042-2` com destaque, as abas ganham setas ‹ › e "2/3".
-- **Prateleira pelo "Comece por aqui":** Lembrar parados e Conferir prontos antigos rolam até a prateleira, abrem a lista inteira já filtrada (parados, do mais antigo; ou para conferir) e destacam o bloco. Funciona clicando de novo. O número "Parados 3+ dias" da prateleira também filtra.
 
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 

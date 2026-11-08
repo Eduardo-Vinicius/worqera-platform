@@ -43,9 +43,10 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 - Fora do fluxo → modal com comentário obrigatório
 - Drawer detalhe + atalhos j/k · 1–9 · Enter · n
 - Badge `N pares` quando `itemCount > 1`
-- Recorte da fila: chips + `GET /kanban?focus=` (atrasados / hoje / amanhã / prontos) em lista de trabalho; Prontos com "há N dias", Avisar e Entregue
+- Recorte da fila: chips com contagem + `GET /kanban?focus=`; atrasados/hoje/amanhã no board lado a lado
+- Prateleira no kanban: Todos / Parados 3+ / Conferir 7+, card com "há N dias", Avisar, Conferir e Entregue
 - Drawer: abas + setas para trocar de par no mesmo pedido, com transição
-- Prateleira (dono): atalhos do brief abrem já filtrada (parados / conferir)
+- Visão geral: Atrasados, Vencem hoje, Vencem amanhã, Prontos, Pedidos na loja
 
 ## Alvo UI (sem gap com back)
 

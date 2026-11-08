@@ -5,7 +5,7 @@ const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const { serializeOrder } = require('../serializers');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
-const { asId, ensureItemSectors, pairLabel } = require('./itemSectors');
+const { asId, ensureItemSectors, pairLabel, itemSectorSince } = require('./itemSectors');
 const { isItemLate } = require('../lib/lateness');
 const { countQueueFocus } = require('../lib/queueFocus');
 
@@ -34,6 +34,8 @@ function sectorItemCards(order, terminalIds = new Set(), now = new Date()) {
       status: order.status || null,
       itemInTerminal,
       late: isItemLate(order, itemInTerminal, now),
+      sectorSince: itemSectorSince(order, item, sectorId, items),
+      shelfCheck: Boolean(order.shelfCheck?.flaggedAt),
       priority: order.priority ?? null,
       sectorHistory:
         Array.isArray(item.sectorHistory) && item.sectorHistory.length
@@ -83,14 +85,19 @@ async function getSummary(shopId) {
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const completedToday = await Order.countDocuments({
-    shopId,
-    status: 'delivered',
-    deliveredAt: { $gte: startOfDay },
-  });
+  const [completedToday, totalOrders] = await Promise.all([
+    Order.countDocuments({
+      shopId,
+      status: 'delivered',
+      deliveredAt: { $gte: startOfDay },
+    }),
+    Order.countDocuments({ shopId, deletedAt: null }),
+  ]);
 
   return {
-    openOrders: orders.length,
+    openOrders: orders.filter((o) => !o.deletedAt).length,
+    totalOrders,
+    openItems: queue.total,
     clientsCount,
     overdue,
     dueToday: queue.dueToday,
@@ -132,6 +139,8 @@ async function getDashboard(shopId, auth = {}) {
       dueTomorrow: summary.dueTomorrow,
       ready: summary.ready,
       openOrders: summary.openOrders,
+      openItems: summary.openItems,
+      totalOrders: summary.totalOrders,
     },
     recentOrders: recentOrders.map(serializeOrder),
     bySector: summary.bySector,

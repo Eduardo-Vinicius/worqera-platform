@@ -88,6 +88,9 @@ import {
   FOCUS_CHIPS,
   FOCUS_HINT,
   FOCUS_LABEL,
+  READY_TABS,
+  isReadyFocus,
+  type QueueCounts,
   type QueueFocus,
   readQueueFocus,
   replaceFocusSearch,
@@ -612,6 +615,7 @@ function KanbanCardBody({
   onMarkDelivered,
   onNotifyReady,
   onNotifyClient,
+  onToggleCheck,
   since,
   showPayment = false,
 }: {
@@ -627,6 +631,7 @@ function KanbanCardBody({
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
   onNotifyClient?: (order: OrderCard) => void
+  onToggleCheck?: (order: OrderCard) => void
   since?: { text: string; warn: boolean } | null
   showPayment?: boolean
 }) {
@@ -796,7 +801,14 @@ function KanbanCardBody({
         ) : null}
       </button>
       {showNotify || showDeliver || showNotifyClient ? (
-        <div className={cn("mt-2 gap-1.5", showNotifyClient && showDeliver ? "grid grid-cols-2" : "flex flex-col")}>
+        <div
+          className={cn(
+            "mt-2 gap-1.5",
+            showNotifyClient
+              ? cn("grid", [showDeliver, Boolean(onToggleCheck)].filter(Boolean).length === 2 ? "grid-cols-3" : "grid-cols-2")
+              : "flex flex-col"
+          )}
+        >
           {showNotifyClient ? (
             <button
               type="button"
@@ -809,6 +821,26 @@ function KanbanCardBody({
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Avisar
+            </button>
+          ) : null}
+          {onToggleCheck ? (
+            <button
+              type="button"
+              className={cn(
+                "flex w-full items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold",
+                order.shelfCheck
+                  ? "border-sky-600 bg-sky-600 text-white"
+                  : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
+              )}
+              title={order.shelfCheck ? "Ainda está aqui: tirar a marca" : "Marcar para conferir no balcão"}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleCheck(order)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <Flag className="h-3.5 w-3.5" />
+              {order.shelfCheck ? "Conferindo" : "Conferir"}
             </button>
           ) : null}
           {showNotify ? (
@@ -910,6 +942,7 @@ function DroppableColumn({
   onDate = "",
   dragEnabled = true,
   showPending = false,
+  recorte = false,
 }: {
   column: Column
   focusedCardId: string | null
@@ -923,6 +956,8 @@ function DroppableColumn({
   onDate?: string
   dragEnabled?: boolean
   showPending?: boolean
+  /** Board filtered by a recorte: empty sectors shrink to a rail so the ones with work stay side by side. */
+  recorte?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
   const orders = filterOrders(column.orders, query, onDate)
@@ -930,12 +965,36 @@ function DroppableColumn({
   const columnPending = orders.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
 
+  if (recorte && !compact && orders.length === 0) {
+    return (
+      <div
+        ref={setNodeRef}
+        title={`${column.sector.name}: nada neste recorte`}
+        className={cn(
+          "flex h-full min-h-[calc(100vh-11rem)] w-11 shrink-0 flex-col items-center gap-2 rounded-2xl border bg-[var(--wq-paper)]/40 py-3 transition-all duration-300",
+          isOver ? "w-24 border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]/30" : "border-dashed border-[var(--wq-border)]"
+        )}
+      >
+        <span className="h-2.5 w-2.5 rounded-full opacity-60" style={{ background: column.sector.color }} />
+        <span className="font-mono text-[11px] text-[var(--wq-text-muted)]">0</span>
+        <span className="mt-1 truncate text-xs font-medium text-[var(--wq-text-muted)] [writing-mode:vertical-rl]">
+          {column.sector.name}
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
         "flex flex-col rounded-2xl border bg-[var(--wq-paper)]/60",
-        compact ? "w-full max-w-full" : "h-full min-h-[calc(100vh-11rem)] min-w-[280px] w-[min(360px,28vw)] flex-1 overflow-hidden",
+        compact
+          ? "w-full max-w-full"
+          : cn(
+              "h-full min-h-[calc(100vh-11rem)] min-w-[280px] w-[min(360px,28vw)] flex-1 overflow-hidden",
+              recorte && "max-w-[380px] animate-in fade-in duration-300"
+            ),
         isOver ? "border-[var(--wq-action)] ring-2 ring-[var(--wq-action)]/30" : "border-[var(--wq-border)]"
       )}
     >
@@ -1014,6 +1073,7 @@ function FocusWorklist({
   sectorNameById,
   onMarkDelivered,
   onNotifyClient,
+  onToggleCheck,
 }: {
   columns: Column[]
   focus: QueueFocus
@@ -1025,6 +1085,7 @@ function FocusWorklist({
   sectorNameById: Map<string, string>
   onMarkDelivered: (order: OrderCard) => void
   onNotifyClient: (order: OrderCard) => void
+  onToggleCheck: (order: OrderCard) => void
 }) {
   const [limits, setLimits] = useState<Record<string, number>>({})
   const sections = columns
@@ -1061,7 +1122,8 @@ function FocusWorklist({
                   sectorNameById={sectorNameById}
                   isTerminalColumn={isTerminal}
                   onMarkDelivered={isTerminal ? onMarkDelivered : undefined}
-                  onNotifyClient={isTerminal && focus === "ready" ? onNotifyClient : undefined}
+                  onNotifyClient={isTerminal && isReadyFocus(focus) ? onNotifyClient : undefined}
+                  onToggleCheck={isTerminal && isReadyFocus(focus) ? onToggleCheck : undefined}
                   since={waitingLabel(o, isTerminal)}
                 />
               ))}
@@ -1108,6 +1170,7 @@ export default function KanbanPage() {
   const [refuseOpen, setRefuseOpen] = useState(false)
   const [notifyOpen, setNotifyOpen] = useState(false)
   const [cardNotify, setCardNotify] = useState<NotifyClientInfo | null>(null)
+  const [queueCounts, setQueueCounts] = useState<QueueCounts | null>(null)
   const [pairDir, setPairDir] = useState<-1 | 0 | 1>(0)
   const [closedRefresh, setClosedRefresh] = useState(0)
   const [closedView, setClosedView] = useState<ClosedKind | null>(null)
@@ -1232,6 +1295,7 @@ export default function KanbanPage() {
       )
       setMembershipRole(String(res.role || localStorage.getItem("role") || "").toLowerCase())
       setColumns(cols)
+      setQueueCounts(res.counts || null)
       setClosedRefresh((n) => n + 1)
       setActiveSectorId((prev) => {
         if (prev && cols.some((c: Column) => c.sector._id === prev)) return prev
@@ -1584,6 +1648,23 @@ export default function KanbanPage() {
       remaining: amountDue(order),
       templates: shopDoc?.notifications?.whatsapp?.templates,
     })
+  }
+
+  const toggleCardCheck = async (order: OrderCard) => {
+    const id = orderId(order)
+    if (!id) return
+    try {
+      const res = await setShelfCheckV1(id, !order.shelfCheck)
+      setColumns((prev) =>
+        prev.map((c) => ({
+          ...c,
+          orders: c.orders.map((o) => (orderId(o) === id ? { ...o, shelfCheck: Boolean(res.check) } : o)),
+        }))
+      )
+      toast.message(res.check ? `#${orderCode(order)} marcado para conferir no balcão` : `#${orderCode(order)} conferido: segue na prateleira`)
+    } catch (err: any) {
+      toast.error(err?.message || "Não marcou")
+    }
   }
 
   const focusTotal = queueFocus
@@ -2038,20 +2119,31 @@ export default function KanbanPage() {
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-1">
               {FOCUS_CHIPS.map((chip) => {
-                const on = queueFocus === chip.focus
+                const on = chip.focus === "ready" ? isReadyFocus(queueFocus) : queueFocus === chip.focus
+                const n = queueCounts ? queueCounts[chip.count] : null
                 return (
                   <Button
                     key={chip.focus}
                     variant={on ? "default" : "outline"}
                     size="sm"
                     className={cn(
-                      "h-9 shrink-0 rounded-[10px] px-2.5",
+                      "h-9 shrink-0 gap-1.5 rounded-[10px] px-2.5",
                       on && chip.focus === "late" && "bg-[var(--wq-warn)]",
                       on && chip.focus === "ready" && "bg-emerald-600 hover:bg-emerald-600"
                     )}
                     onClick={() => applyFocus(on ? null : chip.focus)}
                   >
                     {chip.label}
+                    {n != null ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 font-mono text-[11px] tabular-nums",
+                          on ? "bg-white/20" : chip.focus === "late" && n > 0 ? "bg-rose-100 text-rose-800" : "bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
+                        )}
+                      >
+                        {n}
+                      </span>
+                    ) : null}
                   </Button>
                 )
               })}
@@ -2094,23 +2186,60 @@ export default function KanbanPage() {
         ) : (
           <>
             {queueFocus ? (
-              <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                <p className="min-w-0 text-sm text-[var(--wq-text)]">
-                  <span className="font-semibold">{FOCUS_LABEL[queueFocus]}</span>
-                  <span className="text-[var(--wq-text-muted)]">
-                    {" · "}
-                    {focusTotal} {focusTotal === 1 ? itemNoun.singular : itemNoun.plural} · {FOCUS_HINT[queueFocus]}
-                  </span>
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-[10px]"
-                  onClick={() => applyFocus(null)}
-                >
-                  Ver tudo
-                </Button>
+              <div className="mb-3 shrink-0 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 text-sm text-[var(--wq-text)]">
+                    <span className="font-semibold">{FOCUS_LABEL[queueFocus]}</span>
+                    <span className="text-[var(--wq-text-muted)]">
+                      {" · "}
+                      {focusTotal} {focusTotal === 1 ? itemNoun.singular : itemNoun.plural} · {FOCUS_HINT[queueFocus]}
+                    </span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 rounded-[10px]"
+                    onClick={() => applyFocus(null)}
+                  >
+                    Ver tudo
+                  </Button>
+                </div>
+                {isReadyFocus(queueFocus) ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Filtro da prateleira">
+                    {READY_TABS.map((tab) => {
+                      const on = queueFocus === tab.focus
+                      const n = queueCounts ? queueCounts[tab.count] : null
+                      return (
+                        <button
+                          key={tab.focus}
+                          type="button"
+                          role="tab"
+                          aria-selected={on}
+                          onClick={() => applyFocus(tab.focus)}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition",
+                            on
+                              ? tab.focus === "ready"
+                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                : tab.focus === "ready-stale"
+                                  ? "border-amber-500 bg-amber-500 text-white"
+                                  : "border-sky-600 bg-sky-600 text-white"
+                              : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:text-[var(--wq-text)]"
+                          )}
+                        >
+                          {tab.label}
+                          {n != null ? <span className="font-mono tabular-nums opacity-80">{n}</span> : null}
+                        </button>
+                      )
+                    })}
+                    {queueCounts?.readyOldestDays ? (
+                      <span className="self-center text-xs text-[var(--wq-text-muted)]">
+                        o mais antigo está pronto há {queueCounts.readyOldestDays} dias
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {filterDate &&
@@ -2147,7 +2276,7 @@ export default function KanbanPage() {
                 <SectorBriefStrip />
               </div>
             ) : null}
-          {queueFocus ? (
+          {isReadyFocus(queueFocus) && queueFocus ? (
             <div className="min-h-0 flex-1 overflow-y-auto pb-4">
               <FocusWorklist
                 key={queueFocus}
@@ -2161,6 +2290,7 @@ export default function KanbanPage() {
                 sectorNameById={sectorNameById}
                 onMarkDelivered={requestDeliver}
                 onNotifyClient={notifyCard}
+                onToggleCheck={toggleCardCheck}
               />
             </div>
           ) : (
@@ -2308,7 +2438,7 @@ export default function KanbanPage() {
 
             {/* Desktop: multi-column board — full width */}
             <div className="hidden min-h-0 flex-1 gap-3 overflow-x-auto pb-1 md:flex">
-              {boardColumns.map((col) => (
+              {columns.map((col) => (
                 <DroppableColumn
                   key={col.sector._id}
                   column={col}
@@ -2322,9 +2452,10 @@ export default function KanbanPage() {
                   showPending={showColumnMoney}
                   onMarkDelivered={requestDeliver}
                   onNotifyReady={notifyReady}
+                  recorte={Boolean(queueFocus)}
                 />
               ))}
-              {!isSectorRole ? (
+              {!isSectorRole && !queueFocus ? (
                 <ClosedColumns closed={closed} onOpenOrder={openClosedCard} />
               ) : null}
             </div>

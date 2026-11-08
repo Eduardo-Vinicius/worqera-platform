@@ -5,7 +5,6 @@ import { ArrowRight, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { ACTION_ICON, TONE, useDailyBrief } from "@/components/ai/DailyBriefCard"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
 import { kanbanFocusHref } from "@/lib/queueFocus"
-import { openShelf, shelfModeFromHref } from "@/lib/shelfIntent"
 import { cn } from "@/lib/utils"
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -23,6 +22,7 @@ export function OperationPanel({
   dueToday = 0,
   dueTomorrow = 0,
   ready = 0,
+  totalOrders,
   sectors,
 }: {
   open: number
@@ -30,6 +30,8 @@ export function OperationPanel({
   dueToday?: number
   dueTomorrow?: number
   ready?: number
+  /** Every order the shop ever created (not deleted). */
+  totalOrders?: number
   sectors: Sector[]
 }) {
   const { brief, quota, busy, hidden, load } = useDailyBrief()
@@ -41,11 +43,18 @@ export function OperationPanel({
   const tomorrow = shop?.dueTomorrow ?? dueTomorrow
   const shelf = shop?.ready ?? ready
 
-  const kpis = [
+  const kpis: Array<{ label: string; value: number; href: string; tone: string; hint?: string }> = [
     { label: "Atrasados", value: late, href: kanbanFocusHref("late"), tone: late ? "danger" : "" },
     { label: "Vencem hoje", value: today, href: kanbanFocusHref("due-today"), tone: today ? "warn" : "" },
     { label: "Vencem amanhã", value: tomorrow, href: kanbanFocusHref("due-tomorrow"), tone: tomorrow ? "brand" : "" },
     { label: "Prontos para retirar", value: shelf, href: kanbanFocusHref("ready"), tone: shelf ? "ok" : "" },
+    {
+      label: "Pedidos na loja",
+      value: totalOrders ?? open,
+      href: "/pedidos",
+      tone: "",
+      hint: `${open} em aberto`,
+    },
   ]
   const top = [...sectors].sort((a, b) => (b.count || 0) - (a.count || 0))
   const shown = top.slice(0, 6)
@@ -89,9 +98,16 @@ export function OperationPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-y border-[var(--wq-border)] bg-[var(--wq-border)] md:grid-cols-4">
-        {kpis.map((k) => (
-          <Link key={k.label} href={k.href} className="group bg-[var(--wq-surface)] px-4 py-3 transition hover:bg-[var(--wq-paper)]">
+      <div className="grid grid-cols-2 gap-px border-y border-[var(--wq-border)] bg-[var(--wq-border)] sm:grid-cols-3 lg:grid-cols-5">
+        {kpis.map((k, i) => (
+          <Link
+            key={k.label}
+            href={k.href}
+            className={cn(
+              "group bg-[var(--wq-surface)] px-4 py-3 transition hover:bg-[var(--wq-paper)]",
+              i === kpis.length - 1 && "col-span-2 sm:col-span-1"
+            )}
+          >
             <p
               className={cn(
                 "font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums leading-none sm:text-[28px]",
@@ -101,10 +117,11 @@ export function OperationPanel({
                 k.tone === "brand" && "text-[var(--wq-brand)]"
               )}
             >
-              {k.value}
+              {k.value.toLocaleString("pt-BR")}
             </p>
             <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-[var(--wq-text-muted)]">
               {k.label}
+              {k.hint ? <span className="font-normal">· {k.hint}</span> : null}
               <ArrowRight className="h-3 w-3 opacity-0 transition group-hover:opacity-100" />
             </p>
           </Link>
@@ -119,18 +136,9 @@ export function OperationPanel({
               {actions.map((a, i) => {
                 const Icon = ACTION_ICON[a.id] || ArrowRight
                 const tone = TONE[a.tone] || TONE.muted
-                const shelfMode = shelfModeFromHref(a.href)
                 return (
                   <li key={a.id}>
-                    <Link
-                      href={a.href}
-                      onClick={(e) => {
-                        if (!shelfMode) return
-                        e.preventDefault()
-                        openShelf(shelfMode)
-                      }}
-                      className="group flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[var(--wq-paper)]"
-                    >
+                    <Link href={a.href} className="group flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[var(--wq-paper)]">
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", tone.icon)}>
                         <Icon className="h-3.5 w-3.5" />
                       </span>

@@ -107,7 +107,7 @@ async function dailyMoney(shopId, now = new Date()) {
  * call about, balance at pickup, delivered unpaid) but drops the shelf, which is
  * the owner's, and puts late orders first.
  */
-function dailyActions(n, { team = false, shelf = !team } = {}) {
+function dailyActions(n, { team = false } = {}) {
   const m = n.money || {};
   const actions = [];
   if (n.callToday) {
@@ -127,7 +127,23 @@ function dailyActions(n, { team = false, shelf = !team } = {}) {
       tone: n.callOverdue ? 'warn' : 'brand',
     });
   }
-  if (n.ready) {
+  // One shelf action: when pairs are stuck, "remind" and "check if it left" are the same list.
+  if (!team && n.readyStale) {
+    actions.push({
+      id: 'shelf',
+      title: `Resolver ${plural(n.readyStale, 'parado', 'parados')} na prateleira`,
+      detail: [
+        m.readyValue ? `${formatMoney(m.readyValue)} para receber` : '',
+        n.readyCheck ? `${n.readyCheck} talvez já saíram` : '',
+        n.readyOldestDays ? `o mais antigo há ${plural(n.readyOldestDays, 'dia', 'dias')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      value: m.readyValue || 0,
+      href: focusHref('ready-stale'),
+      tone: 'warn',
+    });
+  } else if (n.ready) {
     actions.push({
       id: 'ready',
       title: `Avisar ${plural(n.ready, 'pronto', 'prontos')}`,
@@ -145,26 +161,6 @@ function dailyActions(n, { team = false, shelf = !team } = {}) {
       value: m.unpaidValue || 0,
       href: '/pedidos?tab=entregue_aberto',
       tone: 'warn',
-    });
-  }
-  if (shelf && m.staleCount) {
-    actions.push({
-      id: 'shelf',
-      title: `Lembrar ${plural(m.staleCount, 'parado', 'parados')} na prateleira`,
-      detail: `${formatMoney(m.staleValue)} · prontos há 3+ dias`,
-      value: m.staleValue || 0,
-      href: '/dashboard#prateleira-parados',
-      tone: 'warn',
-    });
-  }
-  if (shelf && n.check?.count) {
-    actions.push({
-      id: 'check',
-      title: `Conferir ${plural(n.check.count, 'pronto antigo', 'prontos antigos')}`,
-      detail: `Talvez já tenham saído · o mais antigo há ${plural(n.check.oldestDays, 'dia', 'dias')}`,
-      value: 0,
-      href: '/dashboard#prateleira-conferir',
-      tone: 'brand',
     });
   }
   if (n.overdue) {
@@ -274,6 +270,9 @@ async function dailyNumbers(shopId, now = new Date()) {
   const callOverdue = quotes.filter((q) => followUpState(q.followUpAt, now).state === 'overdue').length;
   return {
     ready: queue.ready,
+    readyStale: queue.readyStale,
+    readyCheck: queue.readyCheck,
+    readyOldestDays: queue.readyOldestDays,
     open: orders.length,
     overdue: queue.late,
     dueToday: queue.dueToday,
@@ -286,9 +285,9 @@ async function dailyNumbers(shopId, now = new Date()) {
   };
 }
 
-function dailyFallback(n, { team = false, shelf = !team } = {}) {
+function dailyFallback(n, { team = false } = {}) {
   const stake = team ? 0 : dailyStake(n);
-  const actions = dailyActions(n, { team, shelf });
+  const actions = dailyActions(n, { team });
   if (stake > 0.009 && actions.length) {
     const lead = actions
       .slice(0, 2)
@@ -499,12 +498,11 @@ async function ownerExtras(shopId, now) {
 
 async function dailyBrief(
   shopId,
-  { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', shelf = audience === 'owner', sectorIds = [] } = {}
+  { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', sectorIds = [] } = {}
 ) {
   if (audience === 'sector') return sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now });
 
   const withMoney = audience === 'owner';
-  const withShelf = withMoney && shelf;
   const day = saoPauloDayKey(now);
   const full = await dailyNumbers(shopId, now);
   full.birthdays = await require('./crmService').birthdaysToday(shopId, now).catch(() => 0);
@@ -525,7 +523,7 @@ async function dailyBrief(
           noPrice: m.noPrice,
         },
       };
-  const actions = dailyActions(numbers, { team: !withMoney, shelf: withShelf });
+  const actions = dailyActions(numbers, { team: !withMoney });
   const stake = withMoney ? dailyStake(numbers) : 0;
   const name = await shopName(shopId);
   const late = `Atrasados: ${full.overdue}${m.oldestLate ? ` (mais antigo #${m.oldestLate.code}, ${m.oldestLate.days} dias)` : ''}`;
@@ -543,7 +541,7 @@ async function dailyBrief(
           `Orçamentos para ligar hoje: ${full.callToday} (atrasados: ${full.callOverdue}), valor ${formatMoney(m.callValue || 0)}`,
           m.topCall ? `Primeiro da lista: ${m.topCall.name}, ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
           `Prontos esperando retirada: ${full.ready}, ${formatMoney(m.readyValue || 0)} a receber`,
-          withShelf ? `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}` : '',
+          `Parados na prateleira há 3+ dias: ${full.readyStale || 0} (talvez já saíram: ${full.readyCheck || 0}; mais antigo há ${full.readyOldestDays || 0} dias)`,
           `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
           late,
           `Vencem hoje: ${full.dueToday}`,
@@ -577,12 +575,12 @@ async function dailyBrief(
 
   const out = await writeBrief({
     shopId,
-    day: withMoney ? (withShelf ? day : `${day}:admin`) : `${day}:team`,
+    day: withMoney ? day : `${day}:team`,
     numbers,
     aiAllowed,
     refresh,
     now,
-    fallback: dailyFallback(numbers, { team: !withMoney, shelf: withShelf }),
+    fallback: dailyFallback(numbers, { team: !withMoney }),
     prompt,
   });
   return { day, audience: withMoney ? 'owner' : 'team', numbers, actions, stake, ...out };

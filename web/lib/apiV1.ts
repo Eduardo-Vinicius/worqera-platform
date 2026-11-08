@@ -1075,6 +1075,7 @@ export async function getKanbanV1(opts?: { focus?: string | null }) {
     forwardTargets?: Array<{ id: string; name: string; order?: number; isTerminal?: boolean }>
     role?: string
     focus?: string | null
+    counts?: import("./queueFocus").QueueCounts
   }>(`/kanban${focus}`)
 }
 

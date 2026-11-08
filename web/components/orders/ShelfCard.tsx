@@ -9,7 +9,7 @@ import { updateOrderService } from "@/lib/apiService"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { SHELF_EVENT, shelfModeFromHash, type ShelfMode } from "@/lib/shelfIntent"
+import { shelfKanbanHref, shelfModeFromHash, type ShelfMode } from "@/lib/shelfIntent"
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
@@ -55,16 +55,6 @@ export function ShelfCard() {
     window.setTimeout(() => setFlash(false), 1600)
     requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))
   }, [])
-
-  useEffect(() => {
-    const onIntent = (e: Event) => {
-      const mode = (e as CustomEvent<ShelfMode>).detail || "all"
-      if (shelf) reveal(mode)
-      else pending.current = mode
-    }
-    window.addEventListener(SHELF_EVENT, onIntent)
-    return () => window.removeEventListener(SHELF_EVENT, onIntent)
-  }, [shelf, reveal])
 
   useEffect(() => {
     if (!shelf || !pending.current) return
@@ -165,9 +155,17 @@ export function ShelfCard() {
           <PackageCheck className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">
-            Na prateleira · só você vê
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--wq-text-muted)]">
+              Na prateleira · só você vê
+            </p>
+            <Link
+              href={shelfKanbanHref(filter)}
+              className="shrink-0 text-xs font-semibold text-[var(--wq-brand-text)] hover:underline"
+            >
+              Trabalhar no kanban →
+            </Link>
+          </div>
           <p className="mt-1 text-[15px] font-medium leading-snug text-[var(--wq-text)] sm:text-base">
             {summary.staleCount
               ? `${summary.staleCount} ${summary.staleCount === 1 ? "pedido pronto parado" : "pedidos prontos parados"} há ${staleDays}+ dias, com ${brl(summary.staleToCollect)} para receber.`

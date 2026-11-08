@@ -32,7 +32,6 @@ exports.brief = wrap(async (req, res) => {
     aiAllowed: aiAllowed(req),
     refresh,
     audience,
-    shelf: String(req.membership?.role || '').toLowerCase() === 'owner',
     sectorIds: req.membership?.sectorIds || [],
   });
   // AI usage counters are a management number: only owner/admin get them.

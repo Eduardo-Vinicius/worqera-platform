@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { shelfModeFromHash, shelfModeFromHref } from "./shelfIntent.ts"
+import { shelfKanbanHref, shelfModeFromHash } from "./shelfIntent.ts"
 
 describe("shelf intent", () => {
   it("reads the shelf mode from the hash", () => {
@@ -11,9 +11,9 @@ describe("shelf intent", () => {
     assert.equal(shelfModeFromHash(""), null)
   })
 
-  it("recognizes brief links that point to the shelf", () => {
-    assert.equal(shelfModeFromHref("/dashboard#prateleira-conferir"), "check")
-    assert.equal(shelfModeFromHref("/dashboard#prateleira"), "all")
-    assert.equal(shelfModeFromHref("/kanban?focus=ready"), null)
+  it("each shelf filter opens the same recorte in the kanban", () => {
+    assert.equal(shelfKanbanHref("all"), "/kanban?focus=ready")
+    assert.equal(shelfKanbanHref("stale"), "/kanban?focus=ready-stale")
+    assert.equal(shelfKanbanHref("check"), "/kanban?focus=ready-check")
   })
 })

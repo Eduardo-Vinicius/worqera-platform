@@ -25,6 +25,7 @@ type DashboardPayload = {
     dueTomorrow?: number
     ready?: number
     openOrders?: number
+    totalOrders?: number
   }
   recentOrders?: any[]
   bySector?: Array<{ sectorId: string; name: string; count: number }>
@@ -167,6 +168,7 @@ export default function DashboardPage() {
               dueToday={stats.dueToday ?? 0}
               dueTomorrow={stats.dueTomorrow ?? 0}
               ready={stats.ready ?? 0}
+              totalOrders={stats.totalOrders}
               sectors={data?.bySector || []}
             />
             <SetupChecklist openOrders={open} totalClients={clients} />
