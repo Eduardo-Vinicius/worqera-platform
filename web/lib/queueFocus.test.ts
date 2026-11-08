@@ -8,6 +8,7 @@ describe("queueFocus URL", () => {
     assert.equal(parseFocus("due-tomorrow"), "due-tomorrow")
     assert.equal(parseFocus("ready-stale"), "ready-stale")
     assert.equal(parseFocus("ready-check"), "ready-check")
+    assert.equal(parseFocus("no-price"), "no-price")
     assert.equal(parseFocus("nope"), null)
   })
 

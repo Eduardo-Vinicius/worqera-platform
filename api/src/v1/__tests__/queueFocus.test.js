@@ -136,6 +136,23 @@ test('countQueueFocus: one order with two pairs counts two cards, not one pedido
   assert.equal(n.readyOldestDays, 0);
 });
 
+test('no-price: open order without value; counted once per pedido, not per pair', () => {
+  assert.equal(parseFocus('no-price'), 'no-price');
+  assert.equal(matchesFocus(card({ pricePending: true }), 'no-price', now), true);
+  assert.equal(matchesFocus(card({ pricePending: false }), 'no-price', now), false);
+  assert.equal(matchesFocus(card({ pricePending: true, status: 'delivered' }), 'no-price', now), false);
+  const n = countQueueFocus(
+    [
+      card({ orderId: 'a', pricePending: true }),
+      card({ orderId: 'a', pricePending: true }),
+      card({ orderId: 'b', pricePending: true }),
+      card({ orderId: 'c', pricePending: false }),
+    ],
+    now
+  );
+  assert.equal(n.noPrice, 2);
+});
+
 test('countQueueFocus: shelf numbers and the oldest pickup', () => {
   const n = countQueueFocus(
     [

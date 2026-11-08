@@ -156,7 +156,7 @@ export function AppSidebar({
           if (!items.length) return null
           return (
             <div
-              key={section.title}
+              key={`${sectionIndex}-${section.title}`}
               className={cn(
                 "space-y-1 py-3",
                 sectionIndex > 0 && "border-t border-white/10"

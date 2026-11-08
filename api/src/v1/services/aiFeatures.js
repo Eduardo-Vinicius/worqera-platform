@@ -134,7 +134,7 @@ function dailyActions(n, { team = false } = {}) {
       title: `Resolver ${plural(n.readyStale, 'parado', 'parados')} na prateleira`,
       detail: [
         m.readyValue ? `${formatMoney(m.readyValue)} para receber` : '',
-        n.readyCheck ? `${n.readyCheck} talvez já saíram` : '',
+        n.readyCheck ? `${n.readyCheck} talvez já ${n.readyCheck === 1 ? 'saiu' : 'saíram'}` : '',
         n.readyOldestDays ? `o mais antigo há ${plural(n.readyOldestDays, 'dia', 'dias')}` : '',
       ]
         .filter(Boolean)
@@ -207,7 +207,7 @@ function dailyActions(n, { team = false } = {}) {
       title: `Dar preço a ${plural(m.noPrice, 'pedido', 'pedidos')}`,
       detail: 'Sem valor, o laudo não sai',
       value: 0,
-      href: '/pedidos',
+      href: focusHref('no-price'),
       tone: 'muted',
     });
   }
@@ -281,7 +281,8 @@ async function dailyNumbers(shopId, now = new Date()) {
     callToday,
     callOverdue,
     quotesOpenValue: quotes.reduce((sum, q) => sum + (Number(q.value) || 0), 0),
-    money,
+    // Same rule as /kanban?focus=no-price, so the number matches the board it opens.
+    money: { ...money, noPrice: queue.noPrice },
   };
 }
 

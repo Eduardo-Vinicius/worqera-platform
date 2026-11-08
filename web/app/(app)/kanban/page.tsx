@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   DndContext,
   DragOverlay,
@@ -88,6 +89,7 @@ import {
   FOCUS_CHIPS,
   FOCUS_HINT,
   FOCUS_LABEL,
+  PRICE_CHIP,
   READY_TABS,
   isReadyFocus,
   type QueueCounts,
@@ -1149,14 +1151,24 @@ function FocusWorklist({
 }
 
 export default function KanbanPage() {
+  return (
+    <Suspense fallback={<p className="py-16 text-center text-sm text-[var(--wq-text-muted)]">Carregando board…</p>}>
+      <KanbanBoard />
+    </Suspense>
+  )
+}
+
+function KanbanBoard() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  // The URL is the source of truth: links from Visão geral land here before window.location updates.
+  const queueFocus = readQueueFocus(searchParams)
   const [columns, setColumns] = useState<Column[]>([])
   const [forwardTargets, setForwardTargets] = useState<ForwardTarget[]>([])
   const [membershipRole, setMembershipRole] = useState("")
   const [loading, setLoading] = useState(true)
   const [activeSectorId, setActiveSectorId] = useState<string | null>(null)
-  const [queueFocus, setQueueFocus] = useState<QueueFocus | null>(() =>
-    typeof window === "undefined" ? null : readQueueFocus(window.location.search)
-  )
   const [filterDate, setFilterDate] = useState("")
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
@@ -1235,10 +1247,13 @@ export default function KanbanPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
+  const loadSeq = useRef(0)
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const res = await getKanbanV1({ focus: queueFocus })
+      if (seq !== loadSeq.current) return
       const cols = (res.columns || []).map((c: any) => ({
         sector: {
           _id: String(c.sector?._id || c.sector?.id),
@@ -1302,22 +1317,15 @@ export default function KanbanPage() {
         return cols[0]?.sector._id || null
       })
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao carregar kanban")
+      if (seq === loadSeq.current) toast.error(err?.message || "Erro ao carregar kanban")
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }, [queueFocus])
 
   const applyFocus = (next: QueueFocus | null) => {
-    setQueueFocus(next)
-    const nextSearch = replaceFocusSearch(window.location.search, next)
-    window.history.replaceState({}, "", `${window.location.pathname}${nextSearch}`)
+    router.replace(`${pathname}${replaceFocusSearch(searchParams.toString(), next)}`, { scroll: false })
   }
-
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("late") !== "1") return
-    applyFocus(readQueueFocus(window.location.search))
-  }, [])
 
   useEffect(() => {
     load()
@@ -1667,9 +1675,16 @@ export default function KanbanPage() {
     }
   }
 
-  const focusTotal = queueFocus
-    ? boardColumns.reduce((sum, c) => sum + filterOrders(c.orders, codeQuery, filterDate).length, 0)
-    : 0
+  const focusCards = queueFocus ? boardColumns.flatMap((c) => filterOrders(c.orders, codeQuery, filterDate)) : []
+  const focusByOrder = queueFocus === "no-price"
+  const focusTotal = focusByOrder ? new Set(focusCards.map((o) => orderId(o))).size : focusCards.length
+  const focusNoun = focusByOrder
+    ? focusTotal === 1
+      ? "pedido"
+      : "pedidos"
+    : focusTotal === 1
+      ? itemNoun.singular
+      : itemNoun.plural
 
   const markSettlement = async (paid: boolean) => {
     if (!detail?.id) return
@@ -2091,7 +2106,7 @@ export default function KanbanPage() {
                 aria-label="Filtrar pedidos no kanban"
               />
             </div>
-            <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto md:flex-nowrap">
             <div
               className={cn(
                 "flex h-9 min-w-0 flex-1 items-center rounded-[10px] border border-[var(--wq-border)] bg-[var(--wq-surface)] pl-2 md:w-[11.5rem] md:flex-none",
@@ -2117,8 +2132,11 @@ export default function KanbanPage() {
                 </button>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-1">
-              {FOCUS_CHIPS.map((chip) => {
+            <div className="order-last -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] md:order-none md:mx-0 md:w-auto md:shrink-0 md:overflow-visible md:px-0">
+              {[
+                ...FOCUS_CHIPS,
+                ...(!isSectorRole && (queueCounts?.noPrice || queueFocus === "no-price") ? [PRICE_CHIP] : []),
+              ].map((chip) => {
                 const on = chip.focus === "ready" ? isReadyFocus(queueFocus) : queueFocus === chip.focus
                 const n = queueCounts ? queueCounts[chip.count] : null
                 return (
@@ -2129,7 +2147,8 @@ export default function KanbanPage() {
                     className={cn(
                       "h-9 shrink-0 gap-1.5 rounded-[10px] px-2.5",
                       on && chip.focus === "late" && "bg-[var(--wq-warn)]",
-                      on && chip.focus === "ready" && "bg-emerald-600 hover:bg-emerald-600"
+                      on && chip.focus === "ready" && "bg-emerald-600 hover:bg-emerald-600",
+                      on && chip.focus === "no-price" && "bg-amber-600 hover:bg-amber-600"
                     )}
                     onClick={() => applyFocus(on ? null : chip.focus)}
                   >
@@ -2173,8 +2192,14 @@ export default function KanbanPage() {
       />
         </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden px-2 py-3 sm:px-3 md:px-4 md:py-4">
-        {loading ? (
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-x-hidden px-2 py-3 transition-opacity duration-200 sm:px-3 md:px-4 md:py-4",
+          loading && columns.length > 0 && "pointer-events-none opacity-60"
+        )}
+        aria-busy={loading}
+      >
+        {loading && columns.length === 0 ? (
           <p className="py-16 text-center text-sm text-[var(--wq-text-muted)]">Carregando board…</p>
         ) : columns.length === 0 ? (
           <div className="rounded-2xl border border-[var(--wq-border)] bg-white p-6 text-center sm:p-8">
@@ -2192,7 +2217,7 @@ export default function KanbanPage() {
                     <span className="font-semibold">{FOCUS_LABEL[queueFocus]}</span>
                     <span className="text-[var(--wq-text-muted)]">
                       {" · "}
-                      {focusTotal} {focusTotal === 1 ? itemNoun.singular : itemNoun.plural} · {FOCUS_HINT[queueFocus]}
+                      {loading ? "…" : `${focusTotal} ${focusNoun}`} · {FOCUS_HINT[queueFocus]}
                     </span>
                   </p>
                   <Button

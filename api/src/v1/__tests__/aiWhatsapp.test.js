@@ -113,6 +113,8 @@ test('fallback texts carry the real numbers when there is no AI', () => {
   const fresh = dailyActions({ ...shelfNumbers, readyStale: 0, readyCheck: 0 }).find((a) => a.id === 'ready');
   assert.equal(fresh.href, '/kanban?focus=ready');
   assert.ok(!dailyActions(shelfNumbers, { team: true }).some((a) => a.id === 'shelf'), 'front desk does not get the shelf');
+  const price = dailyActions({ ...shelfNumbers, readyStale: 0, ready: 0, money: { noPrice: 19 } }).find((a) => a.id === 'price');
+  assert.equal(price.href, '/kanban?focus=no-price', 'dar preço opens only the orders without value');
 
   const weekly = weeklyFallback({
     created: 30,

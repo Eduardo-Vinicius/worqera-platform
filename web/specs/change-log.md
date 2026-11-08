@@ -2,6 +2,12 @@
 
 ## 2026-11-08 — Recorte da fila, pares e urgência
 
+- **Correção (links da Visão geral não filtravam):** o kanban lia o recorte de `window.location` na hora de montar; vindo de um link interno, o Next ainda não tinha trocado a URL e o quadro abria inteiro. Agora lê de `useSearchParams` (página em `Suspense`) e troca de chip com `router.replace`. Resposta antiga não sobrescreve a nova ao trocar rápido de chip; o quadro fica visível (esmaecido) enquanto carrega.
+- **Dar preço:** abre `/kanban?focus=no-price` (só pedidos sem valor). Chip "Sem preço" com contagem para quem vê valores.
+- **Celular:** os chips de recorte ganharam linha própria com rolagem; o campo Data não é mais esmagado.
+- **Menu lateral:** chave repetida ("Operação") para admin da plataforma corrigida.
+- Verificado em navegador (Chrome automatizado, base descartável): 26 passos no computador + celular, `next build` ok.
+
 - **Visão geral:** os quatro números passam a ser Atrasados, Vencem hoje, Vencem amanhã e Prontos para retirar (quantidade de pares). Cada um abre `/kanban?focus=…`. Ligar hoje continua nos orçamentos / “Comece por aqui”.
 - **Kanban:** lê `?focus=late|ready|due-today|due-tomorrow` (e o antigo `?late=1`), pede o recorte na API, mostra a faixa “Mostrando só…” + Ver tudo, chips Atrasados / Hoje / Amanhã / Prontos, e esconde coluna vazia no recorte. Busca e data de entrada seguem no cliente.
 - **Pares no drawer:** abas no cabeçalho (`1 Nike` | `2 Air Force`) e clique na lista trocam o par sem fechar. Avançar, fotos e QR seguem o par focado. Rótulo usa o `itemLabel` da loja, não “tênis” fixo.

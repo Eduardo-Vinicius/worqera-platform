@@ -1,4 +1,4 @@
-export const QUEUE_FOCUSES = ["late", "ready", "ready-stale", "ready-check", "due-today", "due-tomorrow"] as const
+export const QUEUE_FOCUSES = ["late", "ready", "ready-stale", "ready-check", "due-today", "due-tomorrow", "no-price"] as const
 export type QueueFocus = (typeof QUEUE_FOCUSES)[number]
 
 /** Same numbers as `counts` from GET /kanban. */
@@ -11,6 +11,8 @@ export type QueueCounts = {
   readyOldestDays: number
   dueToday: number
   dueTomorrow: number
+  /** Orders (not pairs) still without a value. */
+  noPrice: number
 }
 
 export const FOCUS_LABEL: Record<QueueFocus, string> = {
@@ -20,9 +22,11 @@ export const FOCUS_LABEL: Record<QueueFocus, string> = {
   "ready-check": "Prateleira · conferir se já saíram",
   "due-today": "Só prazo de hoje",
   "due-tomorrow": "Só prazo de amanhã",
+  "no-price": "Só pedidos sem preço",
 }
 
 export const FOCUS_HINT: Record<QueueFocus, string> = {
+  "no-price": "abra o pedido e ponha o valor; sem ele o laudo não sai",
   late: "o atraso mais antigo no topo de cada setor",
   ready: "quem espera há mais tempo primeiro",
   "ready-stale": "lembre o cliente; o mais antigo primeiro",
@@ -37,6 +41,9 @@ export const FOCUS_CHIPS: Array<{ focus: QueueFocus; label: string; count: keyof
   { focus: "due-tomorrow", label: "Amanhã", count: "dueTomorrow" },
   { focus: "ready", label: "Prontos", count: "ready" },
 ]
+
+/** Shown only to who sees prices, and only when there is something to price. */
+export const PRICE_CHIP = { focus: "no-price" as QueueFocus, label: "Sem preço", count: "noPrice" as keyof QueueCounts }
 
 export const READY_TABS: Array<{ focus: QueueFocus; label: string; count: keyof QueueCounts }> = [
   { focus: "ready", label: "Todos", count: "ready" },

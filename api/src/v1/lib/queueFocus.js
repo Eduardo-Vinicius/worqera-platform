@@ -7,7 +7,7 @@ const { isItemLate } = require('./lateness');
 const { startOfSaoPauloDay, endOfSaoPauloDay } = require('./quotePriority');
 
 const DAY = 24 * 60 * 60 * 1000;
-const FOCUSES = ['late', 'ready', 'ready-stale', 'ready-check', 'due-today', 'due-tomorrow'];
+const FOCUSES = ['late', 'ready', 'ready-stale', 'ready-check', 'due-today', 'due-tomorrow', 'no-price'];
 const READY_FOCUSES = ['ready', 'ready-stale', 'ready-check'];
 /** Ready this long without pickup: remind the customer. */
 const READY_STALE_DAYS = 3;
@@ -69,6 +69,10 @@ function matchesFocus(card, focus, now = new Date()) {
   const itemInTerminal = Boolean(card?.itemInTerminal);
 
   if (key === 'late') return isItemLate(order, itemInTerminal, now);
+
+  if (key === 'no-price') {
+    return Boolean(card?.pricePending) && !['delivered', 'cancelled'].includes(String(card?.status || ''));
+  }
 
   if (READY_FOCUSES.includes(key)) {
     if (!itemInTerminal || ['delivered', 'cancelled'].includes(String(card?.status || ''))) return false;
@@ -145,9 +149,14 @@ function countQueueFocus(cards, now = new Date()) {
     readyOldestDays: 0,
     dueToday: 0,
     dueTomorrow: 0,
+    noPrice: 0,
   };
+  const noPriceOrders = new Set();
   for (const card of cards || []) {
     counts.total += 1;
+    if (matchesFocus(card, 'no-price', now)) {
+      noPriceOrders.add(String(card.orderId || String(card.id || '').split(':')[0] || counts.total));
+    }
     if (matchesFocus(card, 'late', now)) counts.late += 1;
     if (matchesFocus(card, 'ready', now)) {
       counts.ready += 1;
@@ -158,6 +167,7 @@ function countQueueFocus(cards, now = new Date()) {
     if (matchesFocus(card, 'due-today', now)) counts.dueToday += 1;
     if (matchesFocus(card, 'due-tomorrow', now)) counts.dueTomorrow += 1;
   }
+  counts.noPrice = noPriceOrders.size;
   return counts;
 }
 

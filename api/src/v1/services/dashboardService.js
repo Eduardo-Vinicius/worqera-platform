@@ -34,8 +34,10 @@ function sectorItemCards(order, terminalIds = new Set(), now = new Date()) {
       status: order.status || null,
       itemInTerminal,
       late: isItemLate(order, itemInTerminal, now),
+      orderId: String(order._id || order.id || ''),
       sectorSince: itemSectorSince(order, item, sectorId, items),
       shelfCheck: Boolean(order.shelfCheck?.flaggedAt),
+      pricePending: (Number(order?.pricing?.total) || 0) <= 0.009,
       priority: order.priority ?? null,
       sectorHistory:
         Array.isArray(item.sectorHistory) && item.sectorHistory.length

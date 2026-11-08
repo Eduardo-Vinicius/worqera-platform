@@ -14,6 +14,8 @@
   - `GET /kanban` devolve `counts` (total, late, dueToday, dueTomorrow, ready, readyStale, readyCheck, readyOldestDays) do quadro inteiro, para os chips.
   - Brief: "Lembrar parados" e "Conferir prontos antigos" viram **uma** ação, `shelf` → `/kanban?focus=ready-stale`, contada por card. Sem parados, volta "Avisar prontos" → `focus=ready`. Atendimento não recebe a ação da prateleira.
   - `/dashboard` e `/dashboard/summary`: `totalOrders` (todos os pedidos não apagados) e `openItems`.
+  - `focus=no-price`: pedidos abertos sem valor; `counts.noPrice` conta **pedidos** (não pares). O brief "Dar preço a N pedidos" usa a mesma contagem e abre `/kanban?focus=no-price` (antes ia para `/pedidos` sem filtro).
+  - Texto: "1 talvez já saiu" no singular.
 
 ## 2026-11-07
 
