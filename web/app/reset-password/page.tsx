@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import { AuthShell, authFieldClass } from "@/components/auth/AuthShell"
 
 function ResetInner() {
   const search = useSearchParams()
@@ -34,64 +35,63 @@ function ResetInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--wq-paper)] p-6">
-      <div className="w-full max-w-md rounded-2xl border border-[var(--wq-border)] bg-white p-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--wq-text)]">
-          Nova senha
-        </h1>
-        {error && (
-          <Alert className="mt-4 border-[var(--wq-danger)]/30 bg-[var(--wq-danger)]/5">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {done ? (
-          <div className="mt-6 space-y-3">
-            <p className="text-sm text-[var(--wq-text)]">Senha atualizada.</p>
-            <Button asChild className="w-full rounded-[10px] bg-[var(--wq-action)]">
-              <Link href="/login">Entrar</Link>
-            </Button>
+    <AuthShell>
+      <h1 className="lp-display text-2xl font-semibold tracking-tight text-[var(--ink)]">Nova senha</h1>
+      {error && (
+        <Alert className="mt-4 border-[var(--late)]/30 bg-[var(--late)]/5">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {done ? (
+        <div className="mt-6 space-y-3">
+          <p className="text-sm text-[var(--ink)]">Senha atualizada.</p>
+          <Button asChild className="lp-cta h-12 w-full text-base">
+            <Link href="/login">Entrar</Link>
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="token">Token</Label>
+            <Input
+              id="token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className={`${authFieldClass} lp-mono text-xs`}
+              required
+            />
           </div>
-        ) : (
-          <form onSubmit={submit} className="mt-6 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="token">Token</Label>
-              <Input
-                id="token"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="rounded-[10px] font-mono text-xs"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Nova senha</Label>
-              <Input
-                id="password"
-                type="password"
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-[10px]"
-                required
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar senha"}
-            </Button>
-          </form>
-        )}
-      </div>
-    </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Nova senha</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={authFieldClass}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={loading} className="lp-cta h-12 w-full text-base">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar senha"}
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   )
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-sm text-[var(--wq-text-muted)]">…</p>}>
+    <Suspense
+      fallback={
+        <AuthShell>
+          <p className="text-center text-sm text-[var(--muted-foreground)]">Carregando…</p>
+        </AuthShell>
+      }
+    >
       <ResetInner />
     </Suspense>
   )

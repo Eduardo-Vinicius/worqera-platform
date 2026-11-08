@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-11-07 (site novo: home animada com palco ao vivo, preços abertos, ramos e recursos no mesmo visual, SEO)
+**Atualizado:** 2026-11-07 (site novo + login no visual da landing)
 
 ## Em uma frase
 
@@ -19,7 +19,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Landing `/` | LIVE (palco ao vivo kanban + cliente + WhatsApp · preços abertos com valor por dia, Basic 147 / Pro 297 / Business 597 · `motion` só no marketing) |
 | Ramos `/[slug]` · Recursos `/recursos` | LIVE (mesmo visual da home; palco com os setores do ramo; índice lateral) |
 | SEO | LIVE (OG gerada, `sitemap.xml`, `robots.txt`, JSON-LD; `NEXT_PUBLIC_SITE_URL` opcional, padrão `https://worqera.com`) |
-| Login `/login` · signup · `/privacidade` | LIVE |
+| Login `/login` · forgot · reset · verify · signup · `/privacidade` | LIVE (auth no visual da landing) |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |
 | Oficinas `/admin/shops` | LIVE (KPIs + tabela; ajuste ao clicar) |
@@ -46,7 +46,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |
 | Avaliações `/avaliacoes` | LIVE |
 | Consulta `/p/o/{token}` (antigo `/p/{slug}/{code}?t=` segue válido) + `#avaliar` | LIVE |
-| Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos) |
+| Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos; implantação sob consulta) |
 | TV Cliente / TV Oficina | LIVE |
 | Privacidade `/privacidade` e Excluir conta `/excluir-conta` (públicas) | LIVE |
 

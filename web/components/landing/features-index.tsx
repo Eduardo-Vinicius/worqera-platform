@@ -116,8 +116,8 @@ export function FeaturesIndex() {
           </Reveal>
           <p className="mt-3 text-xs text-[var(--muted-foreground)]">
             {pt
-              ? "7 dias grátis em qualquer plano. Implantação com a Worqera: R$ 497 uma vez."
-              : "7 free days on any plan. Setup with Worqera: R$ 497 once."}
+              ? "7 dias grátis em qualquer plano. Implantação com a Worqera sob consulta."
+              : "7 free days on any plan. Setup with Worqera on request."}
           </p>
         </div>
       </section>

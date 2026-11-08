@@ -11,8 +11,9 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 | `/[slug]` | 9 ramos: hero, palco com os setores do ramo, antes/depois, setores, preços, outros ramos | público |
 | `/recursos` | Todos os recursos + comparação de planos + "Chegando" + índice lateral | público |
 | `/recursos/[slug]` | Página por recurso: kanban, orcamentos, whatsapp, cliente, financeiro, ia, equipe, produtos | público |
-| `/login` | Login e-mail/senha | |
-| `/signup` | Trial 7 dias | |
+| `/login` | Login e-mail/senha, visual da landing (`AuthShell`) | |
+| `/forgot-password` · `/reset-password` · `/verify-email` | Recuperar senha, nova senha, código de 6 dígitos — mesmo chrome da landing | |
+| `/signup` | Trial 7 dias (fontes da landing) | |
 | `/dashboard` | KPIs compactos, atalhos (Financeiro p/ owner/admin), chips “o que fazer”, setores | |
 | `/dashboard/setores` | Cards por setor + lista pedidos; poll 30s | Orfã no nav |
 | `/status` | Redirect `/kanban` | |

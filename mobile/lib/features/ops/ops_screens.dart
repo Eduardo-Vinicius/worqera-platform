@@ -636,7 +636,7 @@ class _BillingScreenState extends State<BillingScreen> {
             WqCard(
               onTap: () => openLink('https://wa.me/5511985591053?text=${Uri.encodeComponent('Olá! Quero a implantação da Worqera na minha empresa.')}'),
               child: const Text(
-                'Implantação com a Worqera (setores, carga do histórico e treinamento): R\$ 497 uma vez. Toque para falar com a gente.',
+                'Implantação com a Worqera (setores, carga do histórico e treinamento): escopo e valor combinados com a gente. Toque para conversar.',
                 style: TextStyle(fontSize: 13),
               ),
             ),

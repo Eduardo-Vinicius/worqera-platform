@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signupV1 } from "@/lib/apiV1"
 import { BUSINESS_TYPES } from "@/lib/itemNoun"
-import { CHECKOUT_INTENT_KEY, IMPLANTACAO, PLANS as CATALOG, formatBRL } from "@/lib/plans"
+import { CHECKOUT_INTENT_KEY, PLANS as CATALOG, formatBRL } from "@/lib/plans"
 import { toast } from "sonner"
 import { Check, Loader2 } from "lucide-react"
 import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
@@ -218,7 +218,7 @@ export default function SignupPage() {
           <p className="mt-4 text-sm text-[var(--muted-foreground)]">
             7 dias grátis em qualquer plano. Quer a Worqera montando tudo com você (setores, carga do histórico e treinamento)?{" "}
             <a href={WHATSAPP} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ink)] underline underline-offset-4">
-              Implantação por {formatBRL(IMPLANTACAO)}, uma vez.
+              Fale com a gente sobre a implantação.
             </a>
           </p>
         </section>

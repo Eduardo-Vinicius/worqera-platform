@@ -281,7 +281,7 @@ const pt = {
     subtitle: "Basic para organizar. Pro para ver o dinheiro. Business para vender e avisar sozinho.",
     guarantee: "Cancele quando quiser",
     trust: "Pagamento pelo Asaas: Pix, boleto ou cartão",
-    custom: "7 dias grátis em qualquer plano. Anual com 2 meses grátis. Implantação com a Worqera: R$ 497 uma vez.",
+    custom: "7 dias grátis em qualquer plano. Anual com 2 meses grátis. Implantação com a Worqera sob consulta.",
     monthly: "Mensal",
     yearly: "Anual",
     yearlyBadge: "2 meses grátis",
@@ -294,9 +294,9 @@ const pt = {
     compareHide: "Esconder comparativo",
     feature: "Recurso",
     setupTitle: "Implantação com a Worqera",
-    setupOnce: "uma vez",
-    setupDesc: "A gente monta os setores, traz o histórico do sistema antigo e treina a equipe.",
-    setupCta: "Quero a implantação",
+    setupOnce: "sob consulta",
+    setupDesc: "A gente monta os setores, traz o histórico do sistema antigo e treina a equipe. O escopo e o valor são combinados com você, conforme o tamanho da operação.",
+    setupCta: "Falar com a Worqera",
     setupSteps: [
       { title: "Setores", desc: "Montados do jeito da casa" },
       { title: "Histórico", desc: "Clientes e pedidos do sistema antigo" },
@@ -376,7 +376,7 @@ const pt = {
       },
       {
         q: "Vocês trazem meu histórico do sistema antigo?",
-        a: "Trazemos. Na implantação (R$ 497, uma vez) a gente importa clientes e pedidos, monta os setores e treina a equipe. Já trouxemos mais de 7.000 pedidos de um sistema antigo.",
+        a: "Trazemos. Na implantação a gente importa clientes e pedidos, monta os setores e treina a equipe. O escopo e o valor são combinados com você, conforme o volume e o sistema de origem. Já trouxemos mais de 7.000 pedidos de um sistema antigo.",
       },
       {
         q: "Como o cliente acompanha o pedido?",
@@ -400,7 +400,7 @@ const pt = {
       },
       {
         q: "Tem fidelidade ou cobrança por usuário?",
-        a: "Não. O preço é por empresa, sem cobrança por usuário, e você cancela quando quiser. A implantação (R$ 497) é opcional e cobrada uma vez.",
+        a: "Não. O preço é por empresa, sem cobrança por usuário, e você cancela quando quiser. A implantação com a Worqera é opcional e combinada direto com a gente.",
       },
     ],
     more: {
@@ -712,7 +712,7 @@ const en: typeof pt = {
     subtitle: "Basic to get organized. Pro to see the money. Business to sell and notify on its own.",
     guarantee: "Cancel anytime",
     trust: "Billing by Asaas: Pix, boleto or card",
-    custom: "7 days free on any plan. Yearly with 2 months free. Setup with Worqera: R$ 497 once.",
+    custom: "7 days free on any plan. Yearly with 2 months free. Setup with Worqera on request.",
     monthly: "Monthly",
     yearly: "Yearly",
     yearlyBadge: "2 months free",
@@ -725,9 +725,9 @@ const en: typeof pt = {
     compareHide: "Hide comparison",
     feature: "Feature",
     setupTitle: "Setup with Worqera",
-    setupOnce: "once",
-    setupDesc: "We build your sectors, bring the history from the old system and train the team.",
-    setupCta: "I want setup",
+    setupOnce: "on request",
+    setupDesc: "We build your sectors, bring the history from the old system and train the team. Scope and price are agreed with you, based on the size of the operation.",
+    setupCta: "Talk to Worqera",
     setupSteps: [
       { title: "Sectors", desc: "Built the way your shop works" },
       { title: "History", desc: "Customers and orders from the old system" },
@@ -807,7 +807,7 @@ const en: typeof pt = {
       },
       {
         q: "Do you bring my history from the old system?",
-        a: "Yes. With setup (R$ 497, once) we import customers and orders, build your sectors and train the team. We have already brought over 7,000 orders from an old system.",
+        a: "Yes. With setup we import customers and orders, build your sectors and train the team. Scope and price are agreed with you, based on volume and the source system. We have already brought over 7,000 orders from an old system.",
       },
       {
         q: "How does the customer track the order?",
@@ -831,7 +831,7 @@ const en: typeof pt = {
       },
       {
         q: "Is there a contract or per-user billing?",
-        a: "No. One price per company, no per-user billing, and you cancel anytime. Setup (R$ 497) is optional and charged once.",
+        a: "No. One price per company, no per-user billing, and you cancel anytime. Setup with Worqera is optional and agreed directly with us.",
       },
     ],
     more: {

@@ -10,7 +10,7 @@ import { Reveal, RevealGroup, RevealItem } from "@/components/landing/fx/reveal"
 import { RollNumber } from "@/components/landing/fx/roll-number"
 import { PlanTable } from "@/components/landing/plan-table"
 import { WA_MESSAGES, waLink } from "@/components/landing/contact"
-import { IMPLANTACAO, PLANS, YEARLY_OFF, formatBRL, yearlyMonthly, type Cycle, type Plan } from "@/lib/plans"
+import { PLANS, YEARLY_OFF, formatBRL, yearlyMonthly, type Cycle, type Plan } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
 const SETUP_ICONS = [LayoutGrid, DatabaseBackup, GraduationCap]
@@ -172,7 +172,7 @@ export function PricingSection() {
         <Reveal className="mt-8 grid gap-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
             <p className="lp-display text-lg font-semibold text-[var(--ink)]">
-              {p.setupTitle} · {formatBRL(IMPLANTACAO)} {p.setupOnce}
+              {p.setupTitle} · {p.setupOnce}
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">{p.setupDesc}</p>
             <ol className="mt-4 grid gap-3 sm:grid-cols-3">

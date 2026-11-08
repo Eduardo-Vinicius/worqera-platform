@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resendVerificationV1, verifyEmailV1 } from "@/lib/apiV1"
-import { WorqeraLogo } from "@/components/brand/WorqeraLogo"
 import { Loader2, MailCheck } from "lucide-react"
 import { toast } from "sonner"
+import { AuthShell, authFieldClass } from "@/components/auth/AuthShell"
 
 function enterApp(platformAdmin?: boolean) {
   try {
@@ -116,102 +116,96 @@ function VerifyEmailInner() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--wq-paper)] px-4">
-      <div className="w-full max-w-md space-y-5 rounded-2xl border border-[var(--wq-border)] bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <WorqeraLogo className="h-9 w-9" />
-          <div>
-            <p className="font-[family-name:var(--font-display)] text-lg">Confirme seu e-mail</p>
-            <p className="text-xs text-[var(--wq-text-muted)]">Último passo para abrir a conta</p>
+    <AuthShell>
+      <div>
+        <h1 className="lp-display text-2xl font-semibold tracking-tight text-[var(--ink)]">Confirme seu e-mail</h1>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">Último passo para abrir a conta</p>
+      </div>
+
+      {status === "loading" ? (
+        <p className="mt-6 flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <Loader2 className="h-4 w-4 animate-spin" /> Confirmando…
+        </p>
+      ) : status === "ok" ? (
+        <p className="mt-6 flex items-center gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2.5 text-sm">
+          <MailCheck className="h-4 w-4 text-[var(--primary)]" /> {message}
+        </p>
+      ) : (
+        <form
+          className="mt-6 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void confirm()
+          }}
+        >
+          <div className="flex gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2.5 text-sm text-[var(--ink)]">
+            <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <p>
+              Enviamos um código de 6 números para <strong>{email || "o seu e-mail"}</strong>. Digite abaixo ou toque no
+              botão do e-mail. Não chegou? Olhe o spam.
+            </p>
           </div>
-        </div>
 
-        {status === "loading" ? (
-          <p className="flex items-center gap-2 text-sm text-[var(--wq-text-muted)]">
-            <Loader2 className="h-4 w-4 animate-spin" /> Confirmando…
-          </p>
-        ) : status === "ok" ? (
-          <p className="flex items-center gap-2 rounded-xl bg-[var(--wq-brand-soft)]/40 px-3 py-2.5 text-sm">
-            <MailCheck className="h-4 w-4 text-[var(--wq-brand-text)]" /> {message}
-          </p>
-        ) : (
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void confirm()
-            }}
-          >
-            <div className="flex gap-2 rounded-xl bg-[var(--wq-brand-soft)]/40 px-3 py-2.5 text-sm text-[var(--wq-text)]">
-              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--wq-brand-text)]" />
-              <p>
-                Enviamos um código de 6 números para{" "}
-                <strong>{email || "o seu e-mail"}</strong>. Digite abaixo ou toque no botão do e-mail.
-                Não chegou? Olhe o spam.
-              </p>
-            </div>
-
-            {!emailParam ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="email">E-mail do cadastro</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  className="rounded-[10px]"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                />
-              </div>
-            ) : null}
-
+          {!emailParam ? (
             <div className="space-y-1.5">
-              <Label htmlFor="code">Código</Label>
+              <Label htmlFor="email">E-mail do cadastro</Label>
               <Input
-                id="code"
-                ref={codeRef}
-                autoFocus
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                className="h-14 rounded-[12px] text-center font-mono text-2xl tracking-[0.5em]"
-                value={code}
-                onChange={(e) => {
-                  const next = e.target.value.replace(/\D/g, "").slice(0, 6)
-                  setCode(next)
-                  if (next.length === 6) void confirm(next)
-                }}
-                placeholder="••••••"
+                id="email"
+                type="email"
+                className={authFieldClass}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
               />
             </div>
+          ) : null}
 
-            {message ? <p className="text-sm text-[var(--wq-danger)]">{message}</p> : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="code">Código</Label>
+            <Input
+              id="code"
+              ref={codeRef}
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              className={`${authFieldClass} h-14 text-center font-mono text-2xl tracking-[0.5em]`}
+              value={code}
+              onChange={(e) => {
+                const next = e.target.value.replace(/\D/g, "").slice(0, 6)
+                setCode(next)
+                if (next.length === 6) void confirm(next)
+              }}
+              placeholder="••••••"
+            />
+          </div>
 
-            <Button
-              type="submit"
-              className="w-full rounded-[10px] bg-[var(--wq-action)] hover:bg-[var(--wq-action)]/90"
-              disabled={busy || code.length !== 6}
+          {message ? <p className="text-sm text-[var(--late)]">{message}</p> : null}
+
+          <Button
+            type="submit"
+            className="lp-cta h-12 w-full text-base"
+            disabled={busy || code.length !== 6}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar e entrar"}
+          </Button>
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              className="font-medium text-[var(--primary)] hover:underline disabled:opacity-50 disabled:no-underline"
+              disabled={resending || cooldown > 0}
+              onClick={resend}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar e entrar"}
-            </Button>
-
-            <div className="flex items-center justify-between text-sm">
-              <button
-                type="button"
-                className="font-medium text-[var(--wq-brand-text)] hover:underline disabled:opacity-50 disabled:no-underline"
-                disabled={resending || cooldown > 0}
-                onClick={resend}
-              >
-                {cooldown > 0 ? `Reenviar em ${cooldown}s` : resending ? "Enviando…" : "Reenviar código"}
-              </button>
-              <Link href="/login" className="text-[var(--wq-text-muted)] hover:underline">
-                Voltar ao login
-              </Link>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+              {cooldown > 0 ? `Reenviar em ${cooldown}s` : resending ? "Enviando…" : "Reenviar código"}
+            </button>
+            <Link href="/login" className="text-[var(--muted-foreground)] hover:underline">
+              Voltar ao login
+            </Link>
+          </div>
+        </form>
+      )}
+    </AuthShell>
   )
 }
 
@@ -219,9 +213,9 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--wq-text-muted)]">
-          Carregando…
-        </div>
+        <AuthShell>
+          <p className="text-center text-sm text-[var(--muted-foreground)]">Carregando…</p>
+        </AuthShell>
       }
     >
       <VerifyEmailInner />

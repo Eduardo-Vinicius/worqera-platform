@@ -46,9 +46,6 @@ export const PLANS: Plan[] = [
   },
 ]
 
-/** One-time setup with the Worqera team: sectors, history import and training. */
-export const IMPLANTACAO = 497
-
 /** Yearly = 10 months: 2 free, shown as a percentage. */
 export const YEARLY_OFF = Math.round((1 - 10 / 12) * 100)
 

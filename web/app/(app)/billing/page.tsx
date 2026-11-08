@@ -20,7 +20,6 @@ import {
 } from "@/lib/apiV1"
 import {
   CHECKOUT_INTENT_KEY,
-  IMPLANTACAO,
   PLANS,
   YEARLY_OFF,
   formatBRL,
@@ -342,7 +341,7 @@ export default function BillingPage() {
 
           <div className="flex flex-col gap-2 border-t border-[var(--wq-border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[var(--wq-text-muted)]">
-              Implantação com a Worqera (setores, carga do histórico e treinamento): {formatBRL(IMPLANTACAO)} uma vez.
+              Implantação com a Worqera (setores, carga do histórico e treinamento): escopo e valor combinados com a gente.
             </p>
             <Button asChild variant="outline" size="sm" className="shrink-0 rounded-[10px]">
               <a

@@ -2,6 +2,8 @@
 
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 
+- **Login no visual da landing:** `/login`, `/forgot-password`, `/reset-password` e `/verify-email` usam `AuthShell` (aurora, Instrument/Plex, CTA roxo). A lógica de entrar, cookies e redirecionamento não mudou.
+- **Implantação sem preço publicado:** saiu o "R$ 497" do site (preços, FAQ, Recursos), do cadastro e da aba Plano; agora é "sob consulta", com o botão "Falar com a Worqera" no WhatsApp. A constante `IMPLANTACAO` foi removida de `lib/plans.ts`.
 - **Home refeita** (`components/landing/*`), com animações em `motion` (só no marketing) e respeito a "reduzir movimento":
   - barra de aviso que pode ser fechada (7 dias grátis, histórico importado);
   - header que vira uma ilha de vidro ao rolar, com a seção atual destacada e menu de tela cheia no celular;
