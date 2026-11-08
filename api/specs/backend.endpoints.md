@@ -106,6 +106,8 @@ POST   /sectors/reorder              # LIVE — body: [{id, order}]
 
 ```
 GET  /kanban                         # LIVE
+     # ?focus=late|ready|due-today|due-tomorrow (um recorte por vez; ?late=1 = late)
+     # filtra e ordena cards (pares); ecoa `focus` na resposta; siblings[] em cada card
      # admin/owner/atendimento: todas colunas (setores ativos) + cards
      # sector: só setores em membership.sectorIds
 POST /kanban/orders/{orderId}/move   # LIVE
@@ -150,8 +152,8 @@ LEGADO: `/pedidos`, `/upload`, PDF em rotas antigas.
 ## Dashboard
 
 ```
-GET /dashboard                       # LIVE — KPIs + recent orders
-GET /dashboard/summary               # LIVE
+GET /dashboard                       # LIVE — KPIs + recent orders (`overdue`/`dueToday`/`dueTomorrow`/`ready` = cards)
+GET /dashboard/summary               # LIVE — mesmos recortes por item
 GET /dashboard/sectors               # LIVE — counts by sector (+ ?includeOrders=true)
 ```
 
@@ -254,6 +256,7 @@ Sem `OPENAI_API_KEY`, sem Business ou acima do teto mensal: mesma resposta, com 
 
 ```
 GET  /dashboard/brief?refresh=1             # resumo do dia: números ao vivo + frase (IA no máx. a cada 3 h)
+                                            # overdue/ready/dueToday/dueTomorrow = cards; actions.href /kanban?focus=
                                             # brief.audience: owner (dono/admin, tudo) · team (atendimento, só valores por ação, sem "em jogo")
                                             # · sector (só a fila dos setores da conta). aiQuota só para owner.
 GET  /metrics/insights?refresh=1            # leitura da semana; { locked: true } fora do Business

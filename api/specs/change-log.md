@@ -1,5 +1,15 @@
 # Worqera API — Change log
 
+## 2026-11-08
+
+- **Recorte da fila (`lib/queueFocus.js`):** o mesmo predicado no KPI, no brief e no kanban. Conta **cards** (pares), não pedidos. Dia civil em America/Sao_Paulo.
+  - `GET /kanban?focus=late|ready|due-today|due-tomorrow` filtra depois de montar o quadro, ordena e ecoa `focus`. `?late=1` continua como alias de `late`.
+  - Pronto na prateleira não entra em atrasados; hoje/amanhã só o que ainda está na produção.
+  - Ordenação: prioridade alta → atrasado pelo `dueAt` mais antigo → demais pelo prazo → `createdAt`.
+  - Cada card traz `siblings[]` (itemId, par, setor, marca, modelo) para trocar de par no drawer.
+  - `GET /dashboard` e `/dashboard/summary` passam `overdue`, `dueToday`, `dueTomorrow` e `ready` em quantidade de cards.
+  - `/dashboard/brief`: as mesmas contagens; `actions.href` aponta para `/kanban?focus=…`.
+
 ## 2026-11-07
 
 - Limite do Basic: a mensagem `BASIC_ORDER_CAP` dizia "100 pedidos"; agora usa o limite real (150).

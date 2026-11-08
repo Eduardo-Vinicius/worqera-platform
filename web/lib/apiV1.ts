@@ -1068,12 +1068,14 @@ export async function deleteSectorV1(id: string) {
   return v1Fetch(`/sectors/${encodeURIComponent(id)}`, { method: "DELETE" })
 }
 
-export async function getKanbanV1() {
+export async function getKanbanV1(opts?: { focus?: string | null }) {
+  const focus = opts?.focus ? `?focus=${encodeURIComponent(opts.focus)}` : ""
   return v1Fetch<{
     columns: Array<{ sector: any; orders: any[] }>
     forwardTargets?: Array<{ id: string; name: string; order?: number; isTerminal?: boolean }>
     role?: string
-  }>("/kanban")
+    focus?: string | null
+  }>(`/kanban${focus}`)
 }
 
 export async function moveKanbanOrderV1(
@@ -1809,6 +1811,7 @@ export type DailyBriefShopNumbers = {
   ready: number
   open: number
   overdue: number
+  dueToday?: number
   dueTomorrow: number
   tomorrowBySector: Array<{ name: string; count: number }>
   callToday: number

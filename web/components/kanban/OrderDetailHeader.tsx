@@ -11,6 +11,8 @@ import { EmailHint } from "@/components/EmailHint"
 
 export type HeaderMoveTarget = { id: string; name: string; current: boolean; terminal?: boolean }
 
+export type PairTab = { itemId: string; itemIndex: number; label: string }
+
 export type OrderDetailHeaderProps = {
   code: string
   clientName: string
@@ -29,6 +31,9 @@ export type OrderDetailHeaderProps = {
   } | null
   recovered?: { how?: string | null; byName?: string } | null
   itemCount: number
+  pairs?: PairTab[]
+  activeItemId?: string | null
+  onSelectPair?: (pair: PairTab) => void
   money: { visible: boolean; total: number; remaining: number }
   contact: {
     name: string
@@ -121,6 +126,30 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
               {props.recovered.how ? ` · ${RECOVERY_HOW_LABEL[props.recovered.how] || props.recovered.how}` : ""}
               {props.recovered.byName ? ` · ${props.recovered.byName}` : ""}
             </p>
+          ) : null}
+          {props.pairs && props.pairs.length > 1 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Itens do pedido">
+              {props.pairs.map((pair) => {
+                const on = props.activeItemId ? pair.itemId === props.activeItemId : pair.itemIndex === 0
+                return (
+                  <button
+                    key={pair.itemId || String(pair.itemIndex)}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                      on
+                        ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)] text-[var(--wq-brand)]"
+                        : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40"
+                    )}
+                    onClick={() => props.onSelectPair?.(pair)}
+                  >
+                    {pair.label}
+                  </button>
+                )
+              })}
+            </div>
           ) : null}
         </div>
         <button

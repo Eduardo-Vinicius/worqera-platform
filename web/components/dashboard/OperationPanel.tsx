@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ArrowRight, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { ACTION_ICON, TONE, useDailyBrief } from "@/components/ai/DailyBriefCard"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
+import { kanbanFocusHref } from "@/lib/queueFocus"
 import { cn } from "@/lib/utils"
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -15,17 +16,35 @@ type Sector = { sectorId: string; name: string; count: number }
  * AI sentence, the four numbers that matter (each opens the right screen),
  * what to do first and where the queue is stuck.
  */
-export function OperationPanel({ open, overdue, sectors }: { open: number; overdue: number; sectors: Sector[] }) {
+export function OperationPanel({
+  open,
+  overdue,
+  dueToday = 0,
+  dueTomorrow = 0,
+  ready = 0,
+  sectors,
+}: {
+  open: number
+  overdue: number
+  dueToday?: number
+  dueTomorrow?: number
+  ready?: number
+  sectors: Sector[]
+}) {
   const { brief, quota, busy, hidden, load } = useDailyBrief()
   const shop = brief && brief.audience !== "sector" ? brief.numbers : null
   const stake = brief?.stake || 0
   const actions = brief?.actions || []
+  const late = shop?.overdue ?? overdue
+  const today = shop?.dueToday ?? dueToday
+  const tomorrow = shop?.dueTomorrow ?? dueTomorrow
+  const shelf = shop?.ready ?? ready
 
   const kpis = [
-    { label: "Em andamento", value: open, href: "/kanban", tone: "" },
-    { label: "Atrasados", value: overdue, href: "/kanban?late=1", tone: overdue ? "danger" : "" },
-    { label: "Prontos para retirar", value: shop?.ready ?? 0, href: "/kanban", tone: shop?.ready ? "ok" : "" },
-    { label: "Ligar hoje", value: shop?.callToday ?? 0, href: "/orcamentos", tone: shop?.callOverdue ? "warn" : shop?.callToday ? "brand" : "" },
+    { label: "Atrasados", value: late, href: kanbanFocusHref("late"), tone: late ? "danger" : "" },
+    { label: "Vencem hoje", value: today, href: kanbanFocusHref("due-today"), tone: today ? "warn" : "" },
+    { label: "Vencem amanhã", value: tomorrow, href: kanbanFocusHref("due-tomorrow"), tone: tomorrow ? "brand" : "" },
+    { label: "Prontos para retirar", value: shelf, href: kanbanFocusHref("ready"), tone: shelf ? "ok" : "" },
   ]
   const top = [...sectors].sort((a, b) => (b.count || 0) - (a.count || 0))
   const shown = top.slice(0, 6)

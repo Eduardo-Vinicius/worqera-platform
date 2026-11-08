@@ -1,6 +1,6 @@
 # Worqera Web — Arquitetura front
 
-**Atualizado:** 2026-09-14
+**Atualizado:** 2026-11-08
 
 ## Pastas (atual)
 
@@ -32,7 +32,9 @@ web/
 ## Kanban UX
 
 - Colunas = setores ativos ordenados
-- Admin: board completo + move livre
+- Recorte `?focus=` vem da API (KPI e brief usam o mesmo predicado); coluna vazia some
+- Admin: board completo + move livre; atrasados pelo prazo mais antigo
+- Pedido com vários itens: abas no drawer para trocar de par sem fechar
 - Sector role: uma (ou N) colunas; UI enxuta
 - Performance: listas virtuais se volume crescer (depois)
 

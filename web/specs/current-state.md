@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-11-07 (site novo + login no visual da landing)
+**Atualizado:** 2026-11-08 (recorte da fila no kanban + KPIs por par)
 
 ## Em uma frase
 
@@ -30,7 +30,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Contas `/admin/contas` | LIVE (segmentos, busca, conta 360° em `/admin/contas/[id]`) |
 | Portal técnico `/admin/plataforma/portal` | LIVE (tela anterior: IA, WhatsApp, e-mails, endpoints) |
 | Dashboard / Tour Loop | LIVE (compacto mobile + atalho Finanças) |
-| Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item** |
+| Kanban + Avisar pronto | HIDDEN (`ENABLE_WA_ME=false`); **1 card por item**; recorte `?focus=` (atrasados / hoje / amanhã / prontos); troca de par no drawer |
 | Financeiro `/admin/financeiro` | LIVE (owner/admin; líquido em destaque; produtos só no admin Worqera) |
 | Produtos `/admin/produtos` | LIVE (menu Configuração, dono/admin; pedido com item "Da loja") |
 | Orçamentos `/orcamentos` | LIVE (menu Operação; Ligar hoje · Quadro · Todos · Recuperados; "Como recuperou?" ao fechar; Cliente não fechou no kanban e no pedido) |

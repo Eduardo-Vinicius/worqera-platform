@@ -1,6 +1,6 @@
 # Worqera API — Estado atual
 
-**Atualizado:** 2026-11-04 (console admin no padrão do Procedy; Entrar com a Apple; excluir conta)
+**Atualizado:** 2026-11-08 (recorte da fila no GET /kanban?focus=; KPIs por card)
 
 ## Em uma frase
 
@@ -14,9 +14,9 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Auth SaaS | `/api/v1/auth/*` (+ `POST /auth/apple`, `DELETE /auth/account`; rate limit por visitante, inclusive refresh; `me.platformAdmin`; logout só limpa o cliente atual; troca de senha invalida os tokens). Fora de `/api/v1` e `/health` a resposta é 404 e não entra no painel. Erro 500 na resposta é genérico; o painel guarda o texto real. |
 | Shop / members | `/shops/current` (+ vertical, itemLabel, starter kit) |
 | Platform | `/platform/shops` list/get/patch (suspend, +trial); painel: `/platform/overview`, `/platform/metrics/tech\|business\|product`, `/platform/insights`, `/platform/queues`, `/platform/analytics/*`, `/platform/shops-health`, `/platform/accounts[/:id]`, `/platform/emails` (todos os e-mails, 30 dias). Coleta em `metricbuckets`, `activeaccounts`, `errorsamples`, `securityevents` (TTL). Ver [admin-metrics](admin-metrics.md) |
-| Sectors / kanban | board + move; `showOnPublic`; e-mail on terminal |
+| Sectors / kanban | board + move; `GET /kanban?focus=late\|ready\|due-today\|due-tomorrow`; `siblings[]` no card; `showOnPublic`; e-mail on terminal |
 | Orders | CRUD + `publicToken` + `whatsappSuggest` + e-mail create/ready. Com `photoCounts`, o e-mail espera o upload de cada item |
-| Atrasos | Regra única em `lib/lateness.js`: atrasado = aberto/em andamento com prazo vencido; pronto esperando retirada não conta. No prazo = pronto até a data prevista |
+| Atrasos | Regra única em `lib/lateness.js` + recorte em `lib/queueFocus.js`: atrasado = aberto/em andamento com prazo vencido; pronto esperando retirada não conta. KPIs e kanban contam **cards**. No prazo = pronto até a data prevista |
 | Alerts | inbox + `POST /alerts/inbox/read` + **`GET /alerts/feedback`** (lista + summary, `serviceAvg`, `?openedBy=`) |
 | Services / clients / employees | CRUD. Funcionário `attends` = aparece em "Aberto por" (`Order.openedByEmployeeId/openedByName`); `GET /metrics/attendance` |
 | Products | `/products` CRUD, ajuste e `/products/summary`. Dono e admin da oficina. Item `origin=stock` reserva, baixa na entrega e estorna no cancelamento. `leadTimeDays` + `/products/restock` (hora de pedir, a caminho, atrasado) |

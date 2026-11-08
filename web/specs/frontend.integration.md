@@ -1,6 +1,6 @@
 # Worqera Web — Integração API (browser)
 
-**Atualizado:** 2026-09-14 (Ops UX Onda C)
+**Atualizado:** 2026-11-08 (GET /kanban?focus=)
 
 Contrato HTTP: [`../../api/specs/backend.endpoints.md`](../../api/specs/backend.endpoints.md).
 
@@ -27,9 +27,10 @@ Contrato HTTP: [`../../api/specs/backend.endpoints.md`](../../api/specs/backend.
 
 ### Kanban
 
-1. `GET /sectors` (admin settings) / `GET /kanban` (board)
-2. Move: `POST /kanban/orders/{id}/move` `{ toSectorId }`
-3. Optimistic UI opcional; rollback em erro
+1. `GET /sectors` (admin settings) / `GET /kanban?focus=` (board recortado: late, ready, due-today, due-tomorrow)
+2. KPI da visão geral e actions do brief apontam para o mesmo `focus`
+3. Move: `POST /kanban/orders/{id}/move` `{ toSectorId }` (par: `/items/{itemId}/move`)
+4. Optimistic UI opcional; rollback em erro
 
 ### Billing
 

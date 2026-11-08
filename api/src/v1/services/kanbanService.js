@@ -5,6 +5,7 @@ const User = require('../models/User');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { resolvePhotoUrl } = require('./storageService');
 const { isItemLate } = require('../lib/lateness');
+const { parseKanbanFocus, matchesFocus, sortQueueCards } = require('../lib/queueFocus');
 const {
   asId,
   ensureItemSectors,
@@ -54,7 +55,7 @@ async function listForwardTargets(shopId) {
   }));
 }
 
-async function getKanban(shopId, membership) {
+async function getKanban(shopId, membership, query = {}) {
   let sectors = await Sector.find({ shopId, active: true }).sort({ order: 1 }).lean();
   const role = String(membership.role || '').toLowerCase();
   const forwardTargets = sectors.map((s) => ({
@@ -104,6 +105,8 @@ async function getKanban(shopId, membership) {
     await Order.bulkWrite(ops, { ordered: false });
   }
 
+  const focus = parseKanbanFocus(query);
+  const now = new Date();
   const bySector = Object.fromEntries(sectorIds.map((id) => [String(id), []]));
   const dirtyOrders = [];
 
@@ -151,21 +154,14 @@ async function getKanban(shopId, membership) {
     );
   }
 
-  const sortCards = (a, b) => {
-    const aHigh = Number(a.priority) === 1 ? 0 : 1;
-    const bHigh = Number(b.priority) === 1 ? 0 : 1;
-    if (aHigh !== bHigh) return aHigh - bHigh;
-    const aT = new Date(a.createdAt || 0).getTime();
-    const bT = new Date(b.createdAt || 0).getTime();
-    return bT - aT;
-  };
-
   return {
     role,
-    columns: sectors.map((s) => ({
-      sector: s,
-      orders: (bySector[String(s._id)] || []).slice().sort(sortCards),
-    })),
+    focus,
+    columns: sectors.map((s) => {
+      const cards = bySector[String(s._id)] || [];
+      const visible = focus ? cards.filter((card) => matchesFocus(card, focus, now)) : cards;
+      return { sector: s, orders: sortQueueCards(visible, now) };
+    }),
     forwardTargets,
   };
 }
@@ -276,6 +272,17 @@ function shareAmount(items, amount) {
   return values;
 }
 
+function itemSiblings(order, items) {
+  return (items || []).map((it, i) => ({
+    itemId: it._id ? String(it._id) : `idx-${i}`,
+    itemIndex: i,
+    pairLabel: pairLabel(order.code, i + 1),
+    currentSectorId: asId(it.currentSectorId) || asId(order.currentSectorId),
+    brand: it.brand || order.brand || '',
+    shoeModel: it.shoeModel || order.shoeModel || '',
+  }));
+}
+
 function summarizeItemCard(order, item, index, sectorsById, money = null) {
   const items = effectiveItems(order);
   const photos = Array.isArray(item.photos) && item.photos.length
@@ -330,6 +337,7 @@ function summarizeItemCard(order, item, index, sectorsById, money = null) {
     feedbackScore: order.feedback?.score || null,
     itemInTerminal: Boolean(sectorsById.get(String(itemSector))?.isTerminal),
     late: isItemLate(order, Boolean(sectorsById.get(String(itemSector))?.isTerminal)),
+    siblings: itemSiblings(order, items),
     ...(money
       ? {
           lineValue: roundMoney(money.lineValue),

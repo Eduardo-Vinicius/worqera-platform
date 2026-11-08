@@ -21,6 +21,9 @@ type DashboardPayload = {
     pendingOrders?: number
     completedToday?: number
     overdue?: number
+    dueToday?: number
+    dueTomorrow?: number
+    ready?: number
     openOrders?: number
   }
   recentOrders?: any[]
@@ -158,7 +161,14 @@ export default function DashboardPage() {
 
         {!loading && !error && (
           <>
-            <OperationPanel open={open} overdue={overdue} sectors={data?.bySector || []} />
+            <OperationPanel
+              open={open}
+              overdue={overdue}
+              dueToday={stats.dueToday ?? 0}
+              dueTomorrow={stats.dueTomorrow ?? 0}
+              ready={stats.ready ?? 0}
+              sectors={data?.bySector || []}
+            />
             <SetupChecklist openOrders={open} totalClients={clients} />
 
             <div className={cn("grid gap-3 sm:gap-4", isOwner && "xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]")}>

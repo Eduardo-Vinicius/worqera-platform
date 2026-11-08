@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { getDailyBriefV1, type AiQuota, type DailyBrief, type DailyBriefAction } from "@/lib/apiV1"
+import { kanbanFocusHref } from "@/lib/queueFocus"
 import { cn } from "@/lib/utils"
 
 export const ACTION_ICON: Record<string, LucideIcon> = {
@@ -45,18 +46,18 @@ function briefChips(brief: DailyBrief | null): Chip[] {
     const n = brief.numbers
     return [
       { label: "Na fila", value: n.queue, href: "/kanban", tone: "" },
-      { label: "Atrasados", value: n.overdue, href: "/kanban", tone: n.overdue ? "warn" : "" },
-      { label: "Vencem hoje", value: n.dueToday, href: "/kanban", tone: n.dueToday ? "brand" : "" },
-      { label: "Vencem amanhã", value: n.dueTomorrow, href: "/kanban", tone: "" },
+      { label: "Atrasados", value: n.overdue, href: kanbanFocusHref("late"), tone: n.overdue ? "warn" : "" },
+      { label: "Vencem hoje", value: n.dueToday, href: kanbanFocusHref("due-today"), tone: n.dueToday ? "brand" : "" },
+      { label: "Vencem amanhã", value: n.dueTomorrow, href: kanbanFocusHref("due-tomorrow"), tone: "" },
     ]
   }
   const n = brief.numbers
-  const late: Chip = { label: "Atrasados", value: n.overdue, href: "/kanban", tone: n.overdue ? "warn" : "" }
+  const late: Chip = { label: "Atrasados", value: n.overdue, href: kanbanFocusHref("late"), tone: n.overdue ? "warn" : "" }
   const rest: Chip[] = [
-    { label: "Prontos", value: n.ready, href: "/kanban", tone: n.ready ? "ok" : "" },
+    { label: "Prontos", value: n.ready, href: kanbanFocusHref("ready"), tone: n.ready ? "ok" : "" },
     { label: "Ligar hoje", value: n.callToday, href: "/orcamentos", tone: n.callOverdue ? "warn" : n.callToday ? "brand" : "" },
   ]
-  const tomorrow: Chip = { label: "Vencem amanhã", value: n.dueTomorrow, href: "/kanban", tone: "" }
+  const tomorrow: Chip = { label: "Vencem amanhã", value: n.dueTomorrow, href: kanbanFocusHref("due-tomorrow"), tone: "" }
   return brief.audience === "team" ? [late, ...rest, tomorrow] : [...rest, late, tomorrow]
 }
 

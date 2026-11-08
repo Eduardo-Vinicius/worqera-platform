@@ -84,7 +84,7 @@ test('fallback texts carry the real numbers when there is no AI', () => {
     callOverdue: 1,
     quotesOpenValue: 900,
   });
-  assert.match(daily, /12 pedidos prontos para avisar/);
+  assert.match(daily, /12 prontos para avisar/);
   assert.match(daily, /4 orçamentos para ligar/);
   assert.match(daily, /Pintura/);
   assert.match(dailyFallback({ ready: 0, open: 7, overdue: 0, dueTomorrow: 0, tomorrowBySector: [], callToday: 0 }), /Fila em dia/);

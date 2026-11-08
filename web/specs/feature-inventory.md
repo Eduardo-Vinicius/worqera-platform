@@ -43,6 +43,8 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 - Fora do fluxo → modal com comentário obrigatório
 - Drawer detalhe + atalhos j/k · 1–9 · Enter · n
 - Badge `N pares` quando `itemCount > 1`
+- Recorte da fila: chips + `GET /kanban?focus=` (atrasados / hoje / amanhã / prontos)
+- Drawer: abas para trocar de par no mesmo pedido
 
 ## Alvo UI (sem gap com back)
 

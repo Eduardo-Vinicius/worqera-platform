@@ -3,7 +3,7 @@ const { presentOrder } = require('../serializers');
 const { wrap } = require('./helpers');
 
 exports.getBoard = wrap(async (req, res) => {
-  const board = await kanbanService.getKanban(req.shopId, req.membership);
+  const board = await kanbanService.getKanban(req.shopId, req.membership, req.query);
   res.status(200).json(board);
 });
 

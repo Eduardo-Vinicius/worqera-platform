@@ -6,7 +6,8 @@ const User = require('../models/User');
 const { serializeOrder } = require('../serializers');
 const { effectiveItems, hydrateItemsIfEmpty } = require('./orderItems');
 const { asId, ensureItemSectors, pairLabel } = require('./itemSectors');
-const { isOrderLate, isItemLate } = require('../lib/lateness');
+const { isItemLate } = require('../lib/lateness');
+const { countQueueFocus } = require('../lib/queueFocus');
 
 /**
  * One kanban card per item. Sector is the item's column, not the order rollup.
@@ -67,16 +68,18 @@ async function getSummary(shopId) {
     };
   }
 
-  let overdue = 0;
   const now = new Date();
+  const terminalIds = new Set(sectors.filter((s) => s.isTerminal).map((s) => String(s._id)));
+  const itemCards = [];
   for (const o of orders) {
-    if (!o.deletedAt) {
-      for (const card of sectorItemCards(o)) {
-        if (bySector[card.sectorId]) bySector[card.sectorId].count += 1;
-      }
+    if (o.deletedAt) continue;
+    for (const card of sectorItemCards(o, terminalIds, now)) {
+      if (bySector[card.sectorId]) bySector[card.sectorId].count += 1;
+      itemCards.push(card);
     }
-    if (isOrderLate(o, now)) overdue += 1;
   }
+  const queue = countQueueFocus(itemCards, now);
+  const overdue = queue.late;
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -90,6 +93,9 @@ async function getSummary(shopId) {
     openOrders: orders.length,
     clientsCount,
     overdue,
+    dueToday: queue.dueToday,
+    dueTomorrow: queue.dueTomorrow,
+    ready: queue.ready,
     completedToday,
     bySector: Object.values(bySector),
     subscription: subscription
@@ -122,6 +128,9 @@ async function getDashboard(shopId, auth = {}) {
       pendingOrders,
       completedToday: summary.completedToday,
       overdue: summary.overdue,
+      dueToday: summary.dueToday,
+      dueTomorrow: summary.dueTomorrow,
+      ready: summary.ready,
       openOrders: summary.openOrders,
     },
     recentOrders: recentOrders.map(serializeOrder),

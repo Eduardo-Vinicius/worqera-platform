@@ -11,9 +11,11 @@ const Sector = require('../models/Sector');
 const Shop = require('../models/Shop');
 const AiBrief = require('../models/AiBrief');
 const { chatJson } = require('./aiService');
-const { lateOrderFilter, isOrderLate, producedOnTime } = require('../lib/lateness');
+const { lateOrderFilter, producedOnTime } = require('../lib/lateness');
 const { saoPauloDayKey } = require('../lib/planCap');
-const { endOfSaoPauloDay, isDueToday, followUpState, REASON_LABEL, formatMoney } = require('../lib/quotePriority');
+const { isDueToday, followUpState, REASON_LABEL, formatMoney } = require('../lib/quotePriority');
+const { countQueueFocus, focusHref, sortQueueCards, matchesFocus } = require('../lib/queueFocus');
+const { sectorItemCards } = require('./dashboardService');
 
 const DAY = 24 * 60 * 60 * 1000;
 const OPEN = ['open', 'in_progress', 'ready'];
@@ -131,7 +133,7 @@ function dailyActions(n, { team = false } = {}) {
       title: `Avisar ${plural(n.ready, 'pronto', 'prontos')}`,
       detail: m.readyValue ? `${formatMoney(m.readyValue)} para receber na retirada` : 'Esperando o cliente buscar',
       value: m.readyValue || 0,
-      href: '/kanban',
+      href: focusHref('ready'),
       tone: 'ok',
     });
   }
@@ -172,7 +174,7 @@ function dailyActions(n, { team = false } = {}) {
       title: `Destravar ${plural(n.overdue, 'atrasado', 'atrasados')}`,
       detail: late ? `Mais antigo #${late.code}${late.client ? ` · ${firstName(late.client)}` : ''} · ${plural(late.days, 'dia', 'dias')}` : 'Passou do prazo',
       value: 0,
-      href: '/kanban',
+      href: focusHref('late'),
       tone: 'danger',
     });
   }
@@ -213,14 +215,24 @@ function dailyActions(n, { team = false } = {}) {
       tone: 'muted',
     });
   }
+  if (n.dueToday) {
+    actions.push({
+      id: 'today',
+      title: `Terminar ${plural(n.dueToday, 'que vence', 'que vencem')} hoje`,
+      detail: 'Prazo de hoje, ainda na produção',
+      value: 0,
+      href: focusHref('due-today'),
+      tone: 'warn',
+    });
+  }
   if (n.dueTomorrow) {
     const topSector = n.tomorrowBySector[0];
     actions.push({
       id: 'tomorrow',
-      title: `Preparar ${plural(n.dueTomorrow, 'entrega', 'entregas')} de amanhã`,
+      title: `Preparar ${plural(n.dueTomorrow, 'que vence', 'que vencem')} amanhã`,
       detail: topSector ? `A maioria em ${topSector.name}` : 'Vencem amanhã',
       value: 0,
-      href: '/kanban',
+      href: focusHref('due-tomorrow'),
       tone: 'muted',
     });
   }
@@ -237,30 +249,22 @@ function dailyStake(n) {
 }
 
 async function dailyNumbers(shopId, now = new Date()) {
-  const todayEnd = endOfSaoPauloDay(now);
-  const tomorrowEnd = new Date(todayEnd.getTime() + DAY);
-  const [ready, open, overdue, dueTomorrow, quotes, sectors, money] = await Promise.all([
-    Order.countDocuments({ shopId, deletedAt: null, status: 'ready' }),
-    Order.countDocuments({ shopId, deletedAt: null, status: { $in: OPEN } }),
-    Order.countDocuments({ shopId, ...lateOrderFilter(now) }),
-    Order.find({
-      shopId,
-      deletedAt: null,
-      status: { $in: ['open', 'in_progress'] },
-      dueAt: { $gt: todayEnd, $lte: tomorrowEnd },
-    })
-      .select('currentSectorId')
-      .lean(),
+  const [orders, quotes, sectors, money] = await Promise.all([
+    Order.find({ shopId, deletedAt: null, status: { $in: OPEN } }).lean(),
     Quote.find({ shopId, stage: { $in: ['new', 'contact', 'followup'] } })
       .select('stage followUpAt value')
       .lean(),
-    Sector.find({ shopId }).select('name').lean(),
+    Sector.find({ shopId, active: true }).select('name isTerminal').lean(),
     dailyMoney(shopId, now),
   ]);
+  const terminalIds = new Set(sectors.filter((s) => s.isTerminal).map((s) => String(s._id)));
   const sectorName = new Map(sectors.map((s) => [String(s._id), s.name]));
+  const cards = orders.flatMap((order) => sectorItemCards(order, terminalIds, now));
+  const queue = countQueueFocus(cards, now);
   const bySector = new Map();
-  for (const o of dueTomorrow) {
-    const name = sectorName.get(String(o.currentSectorId)) || 'Fila';
+  for (const card of cards) {
+    if (!matchesFocus(card, 'due-tomorrow', now)) continue;
+    const name = sectorName.get(String(card.sectorId)) || 'Fila';
     bySector.set(name, (bySector.get(name) || 0) + 1);
   }
   const tomorrowBySector = [...bySector.entries()]
@@ -269,10 +273,11 @@ async function dailyNumbers(shopId, now = new Date()) {
   const callToday = quotes.filter((q) => isDueToday(q, now)).length;
   const callOverdue = quotes.filter((q) => followUpState(q.followUpAt, now).state === 'overdue').length;
   return {
-    ready,
-    open,
-    overdue,
-    dueTomorrow: dueTomorrow.length,
+    ready: queue.ready,
+    open: orders.length,
+    overdue: queue.late,
+    dueToday: queue.dueToday,
+    dueTomorrow: queue.dueTomorrow,
     tomorrowBySector,
     callToday,
     callOverdue,
@@ -293,14 +298,14 @@ function dailyFallback(n, { team = false } = {}) {
   }
   const readyValue = team ? n.money?.readyValue || 0 : 0;
   const parts = [];
-  if (team && n.overdue) parts.push(`${plural(n.overdue, 'pedido atrasado', 'pedidos atrasados')}`);
+  if (team && n.overdue) parts.push(`${plural(n.overdue, 'atrasado', 'atrasados')}`);
   if (n.ready) {
     parts.push(
-      `${plural(n.ready, 'pedido pronto', 'pedidos prontos')} para avisar${readyValue ? ` (${formatMoney(readyValue)} na retirada)` : ''}`
+      `${plural(n.ready, 'pronto', 'prontos')} para avisar${readyValue ? ` (${formatMoney(readyValue)} na retirada)` : ''}`
     );
   }
   if (n.callToday) parts.push(`${plural(n.callToday, 'orçamento', 'orçamentos')} para ligar`);
-  if (!team && n.overdue) parts.push(`${plural(n.overdue, 'pedido atrasado', 'pedidos atrasados')}`);
+  if (!team && n.overdue) parts.push(`${plural(n.overdue, 'atrasado', 'atrasados')}`);
   if (n.dueTomorrow) {
     const top = n.tomorrowBySector[0];
     parts.push(
@@ -357,67 +362,98 @@ const RULES =
 async function sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now }) {
   const ids = (sectorIds || []).map((id) => String(id)).filter(Boolean);
   const oids = ids.map((id) => new mongoose.Types.ObjectId(id));
-  const sectors = await Sector.find({ shopId, _id: { $in: oids } }).select('name').lean();
-  const todayEnd = endOfSaoPauloDay(now);
-  const tomorrowEnd = new Date(todayEnd.getTime() + DAY);
-  const orders = oids.length
-    ? await Order.find({
-        shopId,
-        deletedAt: null,
-        status: { $in: OPEN },
-        $or: [{ 'items.currentSectorId': { $in: oids } }, { currentSectorId: { $in: oids } }],
-      })
-        .select('code clientName dueAt priority status')
-        .lean()
-    : [];
-  const late = orders.filter((o) => isOrderLate(o, now)).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
-  const dueToday = orders.filter((o) => o.dueAt && new Date(o.dueAt) >= now && new Date(o.dueAt) <= todayEnd);
-  const dueTomorrow = orders.filter((o) => o.dueAt && new Date(o.dueAt) > todayEnd && new Date(o.dueAt) <= tomorrowEnd);
-  const urgent = orders.filter((o) => o.priority != null && Number(o.priority) <= 1);
-  const oldest = late[0];
-  const lateDays = oldest ? Math.max(1, Math.floor((now - new Date(oldest.dueAt)) / DAY)) : 0;
+  const [sectors, allSectors, orders] = await Promise.all([
+    Sector.find({ shopId, _id: { $in: oids } }).select('name').lean(),
+    Sector.find({ shopId, active: true }).select('isTerminal').lean(),
+    oids.length
+      ? Order.find({
+          shopId,
+          deletedAt: null,
+          status: { $in: OPEN },
+          $or: [{ 'items.currentSectorId': { $in: oids } }, { currentSectorId: { $in: oids } }],
+        }).lean()
+      : Promise.resolve([]),
+  ]);
+  const terminalIds = new Set(allSectors.filter((s) => s.isTerminal).map((s) => String(s._id)));
+  const idSet = new Set(ids);
+  const cards = orders
+    .flatMap((order) => sectorItemCards(order, terminalIds, now))
+    .filter((card) => idSet.has(String(card.sectorId)));
+  const queue = countQueueFocus(cards, now);
+  const lateCards = sortQueueCards(
+    cards.filter((card) => matchesFocus(card, 'late', now)),
+    now
+  );
+  const dueToday = queue.dueToday;
+  const dueTomorrow = queue.dueTomorrow;
+  const urgent = cards.filter((card) => card.priority != null && Number(card.priority) <= 1);
+  const oldest = lateCards[0];
+  const lateDays = oldest?.dueAt ? Math.max(1, Math.floor((now - new Date(oldest.dueAt)) / DAY)) : 0;
   const numbers = {
-    queue: orders.length,
-    overdue: late.length,
-    dueToday: dueToday.length,
-    dueTomorrow: dueTomorrow.length,
+    queue: cards.length,
+    overdue: queue.late,
+    dueToday,
+    dueTomorrow,
     urgent: urgent.length,
     sectors: sectors.map((s) => s.name),
   };
 
   const actions = [];
-  if (late.length) {
+  if (queue.late) {
     actions.push({
       id: 'late',
-      title: `Destravar ${plural(late.length, 'atrasado', 'atrasados')}`,
-      detail: `Comece pelo #${oldest.code}${oldest.clientName ? ` · ${firstName(oldest.clientName)}` : ''} · ${plural(lateDays, 'dia', 'dias')}`,
+      title: `Destravar ${plural(queue.late, 'atrasado', 'atrasados')}`,
+      detail: oldest
+        ? `Comece pelo #${oldest.code}${oldest.clientName ? ` · ${firstName(oldest.clientName)}` : ''} · ${plural(lateDays, 'dia', 'dias')}`
+        : 'Passou do prazo',
       value: 0,
-      href: '/kanban',
+      href: focusHref('late'),
       tone: 'danger',
     });
   }
-  if (dueToday.length) {
-    actions.push({ id: 'today', title: `Terminar ${plural(dueToday.length, 'pedido', 'pedidos')} de hoje`, detail: 'Vencem até o fim do dia', value: 0, href: '/kanban', tone: 'warn' });
+  if (dueToday) {
+    actions.push({
+      id: 'today',
+      title: `Terminar ${plural(dueToday, 'que vence', 'que vencem')} hoje`,
+      detail: 'Vencem até o fim do dia',
+      value: 0,
+      href: focusHref('due-today'),
+      tone: 'warn',
+    });
   }
   if (urgent.length) {
-    actions.push({ id: 'urgent', title: `${plural(urgent.length, 'urgente', 'urgentes')} na fila`, detail: 'Marcados com prioridade alta', value: 0, href: '/kanban', tone: 'brand' });
+    actions.push({
+      id: 'urgent',
+      title: `${plural(urgent.length, 'urgente', 'urgentes')} na fila`,
+      detail: 'Marcados com prioridade alta',
+      value: 0,
+      href: '/kanban',
+      tone: 'brand',
+    });
   }
-  if (dueTomorrow.length) {
-    actions.push({ id: 'tomorrow', title: `Adiantar ${plural(dueTomorrow.length, 'pedido', 'pedidos')} de amanhã`, detail: 'Folga para não atrasar', value: 0, href: '/kanban', tone: 'muted' });
+  if (dueTomorrow) {
+    actions.push({
+      id: 'tomorrow',
+      title: `Adiantar ${plural(dueTomorrow, 'que vence', 'que vencem')} amanhã`,
+      detail: 'Folga para não atrasar',
+      value: 0,
+      href: focusHref('due-tomorrow'),
+      tone: 'muted',
+    });
   }
 
   const where = sectors.length === 1 ? sectors[0].name : 'sua fila';
-  const fallback = !orders.length
+  const fallback = !cards.length
     ? `${where}: nada esperando agora.`
-    : late.length
-      ? `${where}: ${plural(orders.length, 'pedido', 'pedidos')}, ${plural(late.length, 'atrasado', 'atrasados')}. Comece pelo #${oldest.code}.`
-      : `${where}: ${plural(orders.length, 'pedido', 'pedidos')} e nada atrasado${dueToday.length ? `; ${dueToday.length} vence${dueToday.length > 1 ? 'm' : ''} hoje` : ''}.`;
+    : queue.late
+      ? `${where}: ${cards.length} na fila, ${plural(queue.late, 'atrasado', 'atrasados')}. Comece pelo #${oldest.code}.`
+      : `${where}: ${cards.length} na fila e nada atrasado${dueToday ? `; ${dueToday} vence${dueToday > 1 ? 'm' : ''} hoje` : ''}.`;
 
   const out = await writeBrief({
     shopId,
     day: `${saoPauloDayKey(now)}:sector:${ids.slice().sort().join(',')}`,
     numbers,
-    aiAllowed: aiAllowed && orders.length > 0,
+    aiAllowed: aiAllowed && cards.length > 0,
     refresh,
     now,
     fallback,
@@ -428,10 +464,10 @@ async function sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now }) {
         '"tip": 1 frase curta para o setor render hoje, ou "".',
       user: [
         `Setor: ${sectors.map((s) => s.name).join(', ') || 'fila'}`,
-        `Pedidos na fila: ${orders.length}`,
-        `Atrasados: ${late.length}${oldest ? ` (mais antigo #${oldest.code}, ${lateDays} dias)` : ''}`,
-        `Vencem hoje: ${dueToday.length}`,
-        `Vencem amanhã: ${dueTomorrow.length}`,
+        `Na fila: ${cards.length}`,
+        `Atrasados: ${queue.late}${oldest ? ` (mais antigo #${oldest.code}, ${lateDays} dias)` : ''}`,
+        `Vencem hoje: ${dueToday}`,
+        `Vencem amanhã: ${dueTomorrow}`,
         `Urgentes: ${urgent.length}`,
       ].join('\n'),
     },
@@ -506,6 +542,7 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
           `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}`,
           `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
           late,
+          `Vencem hoje: ${full.dueToday}`,
           tomorrow,
           `Pedidos sem preço: ${m.noPrice || 0}`,
           `Pedidos abertos: ${full.open}`,
@@ -525,6 +562,7 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
           `Orçamentos para ligar hoje: ${full.callToday} (atrasados: ${full.callOverdue})`,
           m.topCall ? `Primeiro da lista: ${m.topCall.name}, orçamento de ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
           `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
+          `Vencem hoje: ${full.dueToday}`,
           tomorrow,
           `Pedidos sem preço: ${m.noPrice || 0}`,
           `Pedidos abertos: ${full.open}`,

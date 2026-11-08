@@ -1,5 +1,11 @@
 # Worqera Web — Change log
 
+## 2026-11-08 — Recorte da fila, pares e urgência
+
+- **Visão geral:** os quatro números passam a ser Atrasados, Vencem hoje, Vencem amanhã e Prontos para retirar (quantidade de pares). Cada um abre `/kanban?focus=…`. Ligar hoje continua nos orçamentos / “Comece por aqui”.
+- **Kanban:** lê `?focus=late|ready|due-today|due-tomorrow` (e o antigo `?late=1`), pede o recorte na API, mostra a faixa “Mostrando só…” + Ver tudo, chips Atrasados / Hoje / Amanhã / Prontos, e esconde coluna vazia no recorte. Busca e data de entrada seguem no cliente.
+- **Pares no drawer:** abas no cabeçalho (`1 Nike` | `2 Air Force`) e clique na lista trocam o par sem fechar. Avançar, fotos e QR seguem o par focado. Rótulo usa o `itemLabel` da loja, não “tênis” fixo.
+
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 
 - **Home sem o roxo desfocado:** o fundo do hero (e das páginas de ramo/recursos) passou a ser papel com um véu bem leve da marca e uma grade pontilhada; saíram os blobs animados e o degradê que andava no título.

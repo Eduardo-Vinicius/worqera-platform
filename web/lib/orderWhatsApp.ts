@@ -16,7 +16,8 @@ export type WaTemplateKey = keyof typeof DEFAULT_WA_TEMPLATES
 export type ShopWaDoc = {
   slug?: string
   name?: string
-  branding?: { displayName?: string }
+  branding?: { displayName?: string; itemLabel?: string; itemLabelPlural?: string }
+  vertical?: string
   notifications?: {
     whatsapp?: {
       enabled?: boolean

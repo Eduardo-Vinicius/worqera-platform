@@ -84,6 +84,14 @@ import { CLOSED_META, ClosedColumn, ClosedColumns, useClosedOrders, type ClosedK
 import { SectorBriefStrip } from "@/components/ai/DailyBriefCard"
 import type { ClosedCard } from "@/lib/apiV1"
 import { NotifyClientDialog, type NotifyClientInfo } from "@/components/kanban/NotifyClientDialog"
+import {
+  FOCUS_CHIPS,
+  FOCUS_LABEL,
+  type QueueFocus,
+  readQueueFocus,
+  replaceFocusSearch,
+} from "@/lib/queueFocus"
+import { capitalizeNoun, resolveItemNoun } from "@/lib/itemNoun"
 
 type OrderCard = {
   _id?: string
@@ -125,6 +133,14 @@ type OrderCard = {
   pricePending?: boolean
   itemNotes?: string | null
   services?: Array<{ name?: string; note?: string; price?: number; pricePending?: boolean }>
+  siblings?: Array<{
+    itemId: string
+    itemIndex: number
+    pairLabel?: string
+    currentSectorId?: string | null
+    brand?: string
+    shoeModel?: string
+  }>
 }
 
 type Column = {
@@ -377,12 +393,10 @@ function isCardLate(o: OrderCard, now = Date.now()) {
   return Boolean(o.dueAt && new Date(o.dueAt).getTime() < now)
 }
 
-function filterOrders(orders: OrderCard[], filterLate: boolean, query = "", onDate = "") {
+function filterOrders(orders: OrderCard[], query = "", onDate = "") {
   const q = query.trim().toLowerCase()
   const qDigits = q.replace(/\D/g, "")
-  const now = Date.now()
   return orders.filter((o) => {
-    if (filterLate && !isCardLate(o, now)) return false
     if (onDate && !sameLocalDay(o.createdAt, onDate)) return false
     if (!q) return true
     const phone = String(o.clientPhone || "").replace(/\D/g, "")
@@ -841,7 +855,6 @@ function DraggableCard({
 
 function DroppableColumn({
   column,
-  filterLate,
   focusedCardId,
   onFocusCard,
   onOpenCard,
@@ -855,7 +868,6 @@ function DroppableColumn({
   showPending = false,
 }: {
   column: Column
-  filterLate: boolean
   focusedCardId: string | null
   onFocusCard: (id: string) => void
   onOpenCard: (o: OrderCard) => void
@@ -869,7 +881,7 @@ function DroppableColumn({
   showPending?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.sector._id })
-  const orders = filterOrders(column.orders, filterLate, query, onDate)
+  const orders = filterOrders(column.orders, query, onDate)
   const columnValue = orders.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
   const columnPending = orders.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
   const isTerminal = Boolean(column.sector.isTerminal)
@@ -947,11 +959,9 @@ export default function KanbanPage() {
   const [membershipRole, setMembershipRole] = useState("")
   const [loading, setLoading] = useState(true)
   const [activeSectorId, setActiveSectorId] = useState<string | null>(null)
-  const [filterLate, setFilterLate] = useState(false)
-  // `/kanban?late=1` (Visão geral → Atrasados) opens with the late filter on.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("late") === "1") setFilterLate(true)
-  }, [])
+  const [queueFocus, setQueueFocus] = useState<QueueFocus | null>(() =>
+    typeof window === "undefined" ? null : readQueueFocus(window.location.search)
+  )
   const [filterDate, setFilterDate] = useState("")
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
@@ -1030,7 +1040,7 @@ export default function KanbanPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getKanbanV1()
+      const res = await getKanbanV1({ focus: queueFocus })
       const cols = (res.columns || []).map((c: any) => ({
         sector: {
           _id: String(c.sector?._id || c.sector?.id),
@@ -1062,6 +1072,16 @@ export default function KanbanPage() {
           hasPhotos:
             typeof o.hasPhotos === "boolean" ? Boolean(o.hasPhotos) : Boolean(o.photoThumb),
           photoThumb: o.photoThumb || null,
+          siblings: Array.isArray(o.siblings)
+            ? o.siblings.map((s: any) => ({
+                itemId: String(s.itemId || ""),
+                itemIndex: Number(s.itemIndex) || 0,
+                pairLabel: s.pairLabel ? String(s.pairLabel) : undefined,
+                currentSectorId: s.currentSectorId ? String(s.currentSectorId) : null,
+                brand: s.brand || "",
+                shoeModel: s.shoeModel || "",
+              }))
+            : undefined,
         })),
       }))
       const targets: ForwardTarget[] = (res.forwardTargets || []).map((t: any) => ({
@@ -1087,10 +1107,24 @@ export default function KanbanPage() {
     } finally {
       setLoading(false)
     }
+  }, [queueFocus])
+
+  const applyFocus = (next: QueueFocus | null) => {
+    setQueueFocus(next)
+    const nextSearch = replaceFocusSearch(window.location.search, next)
+    window.history.replaceState({}, "", `${window.location.pathname}${nextSearch}`)
+  }
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("late") !== "1") return
+    applyFocus(readQueueFocus(window.location.search))
   }, [])
 
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
     ;(async () => {
       try {
         const shop = await getShopCurrentV1()
@@ -1099,13 +1133,18 @@ export default function KanbanPage() {
         setShopDoc(null)
       }
     })()
-  }, [load])
+  }, [])
+
+  const boardColumns = useMemo(() => {
+    if (!queueFocus) return columns
+    return columns.filter((c) => filterOrders(c.orders, codeQuery, filterDate).length > 0)
+  }, [columns, queueFocus, codeQuery, filterDate])
 
   const activeIndex = useMemo(
-    () => columns.findIndex((c) => c.sector._id === activeSectorId),
-    [columns, activeSectorId]
+    () => boardColumns.findIndex((c) => c.sector._id === activeSectorId),
+    [boardColumns, activeSectorId]
   )
-  const activeColumn = activeIndex >= 0 ? columns[activeIndex] : null
+  const activeColumn = activeIndex >= 0 ? boardColumns[activeIndex] : null
 
   // Phone: swipe anywhere on the list to go to the previous / next sector (then Entregues, Recusados).
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -1121,7 +1160,7 @@ export default function KanbanPage() {
     const dy = e.changedTouches[0].clientY - start.y
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - start.at > 800) return
     const tabs: Array<{ sector?: string; closed?: ClosedKind }> = [
-      ...columns.map((c) => ({ sector: c.sector._id })),
+      ...boardColumns.map((c) => ({ sector: c.sector._id })),
       ...(!isSectorRole && closed.data ? (["delivered", "refused"] as ClosedKind[]).map((k) => ({ closed: k })) : []),
     ]
     const current = closedView ? tabs.findIndex((t) => t.closed === closedView) : activeIndex
@@ -1153,8 +1192,14 @@ export default function KanbanPage() {
   )
 
   const visibleOrders = useMemo(() => {
-    return filterOrders(activeColumn?.orders || [], filterLate, codeQuery, filterDate)
-  }, [activeColumn, filterLate, codeQuery, filterDate])
+    return filterOrders(activeColumn?.orders || [], codeQuery, filterDate)
+  }, [activeColumn, codeQuery, filterDate])
+
+  useEffect(() => {
+    if (!queueFocus) return
+    if (activeSectorId && boardColumns.some((c) => c.sector._id === activeSectorId)) return
+    setActiveSectorId(boardColumns[0]?.sector._id || null)
+  }, [queueFocus, boardColumns, activeSectorId])
 
   useEffect(() => {
     if (!visibleOrders.length) {
@@ -1362,6 +1407,16 @@ export default function KanbanPage() {
       setDetailLoading(false)
     }
   }
+
+  const focusPair = (itemId: string, itemIndex: number) => {
+    if (!detail?.id) return
+    setDetailItemId(itemId)
+    setDetailItemIndex(itemIndex)
+    setFocusedCardId(`${String(detail.id)}:${itemId}`)
+    setShowAllOrderPhotos(false)
+  }
+
+  const itemNoun = resolveItemNoun(shopDoc)
 
   const markSettlement = async (paid: boolean) => {
     if (!detail?.id) return
@@ -1809,14 +1864,26 @@ export default function KanbanPage() {
                 </button>
               ) : null}
             </div>
-            <Button
-              variant={filterLate ? "default" : "outline"}
-              size="sm"
-              className={cn("h-9 shrink-0 rounded-[10px]", filterLate && "bg-[var(--wq-warn)]")}
-              onClick={() => setFilterLate((v) => !v)}
-            >
-              Atrasados
-            </Button>
+            <div className="flex shrink-0 flex-wrap items-center gap-1">
+              {FOCUS_CHIPS.map((chip) => {
+                const on = queueFocus === chip.focus
+                return (
+                  <Button
+                    key={chip.focus}
+                    variant={on ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "h-9 shrink-0 rounded-[10px] px-2.5",
+                      on && chip.focus === "late" && "bg-[var(--wq-warn)]",
+                      on && chip.focus === "ready" && "bg-emerald-600 hover:bg-emerald-600"
+                    )}
+                    onClick={() => applyFocus(on ? null : chip.focus)}
+                  >
+                    {chip.label}
+                  </Button>
+                )
+              })}
+            </div>
             <Button variant="outline" size="sm" className="h-9 shrink-0 rounded-[10px] px-2.5" onClick={load} aria-label="Atualizar">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -1854,13 +1921,36 @@ export default function KanbanPage() {
           </div>
         ) : (
           <>
+            {queueFocus ? (
+              <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-2">
+                <p className="text-sm text-[var(--wq-text)]">{FOCUS_LABEL[queueFocus]}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-[10px]"
+                  onClick={() => applyFocus(null)}
+                >
+                  Ver tudo
+                </Button>
+              </div>
+            ) : null}
             {filterDate &&
-            columns.every((c) => filterOrders(c.orders, filterLate, codeQuery, filterDate).length === 0) ? (
+            columns.every((c) => filterOrders(c.orders, codeQuery, filterDate).length === 0) ? (
               <p className="mb-3 shrink-0 text-center text-sm text-[var(--wq-text-muted)]">
                 Nenhum pedido entrou nessa data.
               </p>
             ) : null}
-            {columns.every((c) => filterOrders(c.orders, filterLate, codeQuery, filterDate).length === 0) &&
+            {queueFocus &&
+            columns.every((c) => filterOrders(c.orders, codeQuery, filterDate).length === 0) &&
+            !codeQuery.trim() &&
+            !filterDate ? (
+              <p className="mb-3 shrink-0 text-center text-sm text-[var(--wq-text-muted)]">
+                Nada neste recorte.
+              </p>
+            ) : null}
+            {!queueFocus &&
+            columns.every((c) => filterOrders(c.orders, codeQuery, filterDate).length === 0) &&
             !codeQuery.trim() &&
             !filterDate &&
             !isSectorRole ? (
@@ -1883,9 +1973,9 @@ export default function KanbanPage() {
             {/* Mobile: sector chips + one column */}
             <div className="flex min-h-0 flex-1 flex-col space-y-3 md:hidden">
               <div ref={tabsRef} className="sticky top-0 z-20 -mx-2 flex shrink-0 gap-2 overflow-x-auto bg-[var(--wq-paper)] px-2 py-2 shadow-[0_6px_8px_-8px_rgba(15,23,42,0.25)] [scrollbar-width:none] sm:-mx-3 sm:px-3">
-                {columns.map((col) => {
+                {boardColumns.map((col) => {
                   const active = !closedView && col.sector._id === activeSectorId
-                  const visible = filterOrders(col.orders, filterLate, codeQuery, filterDate)
+                  const visible = filterOrders(col.orders, codeQuery, filterDate)
                   const columnValue = visible.reduce((sum, order) => sum + (Number(order.lineValue) || 0), 0)
                   const columnPending = visible.reduce((sum, order) => sum + (Number(order.linePending) || 0), 0)
                   return (
@@ -1963,7 +2053,6 @@ export default function KanbanPage() {
               ) : activeColumn && (
                 <DroppableColumn
                   column={activeColumn}
-                  filterLate={filterLate}
                   query={codeQuery}
                   onDate={filterDate}
                   dragEnabled={false}
@@ -2024,11 +2113,10 @@ export default function KanbanPage() {
 
             {/* Desktop: multi-column board — full width */}
             <div className="hidden min-h-0 flex-1 gap-3 overflow-x-auto pb-1 md:flex">
-              {columns.map((col) => (
+              {boardColumns.map((col) => (
                 <DroppableColumn
                   key={col.sector._id}
                   column={col}
-                  filterLate={filterLate}
                   query={codeQuery}
                   onDate={filterDate}
                   dragEnabled={dragEnabled}
@@ -2091,6 +2179,17 @@ export default function KanbanPage() {
                 }
                 recovered={detail.recovered || null}
                 itemCount={(detail.items || []).length}
+                pairs={
+                  (detail.items || []).length > 1
+                    ? (detail.items || []).map((item, itemIndex) => ({
+                        itemId: itemIdentity(item),
+                        itemIndex,
+                        label: `${itemIndex + 1}${item.brand ? ` ${item.brand}` : ""}`,
+                      }))
+                    : []
+                }
+                activeItemId={detailItemId}
+                onSelectPair={(pair) => focusPair(pair.itemId, pair.itemIndex)}
                 money={{
                   visible: moneyTone !== "hidden",
                   total: readOrderPricing(detail).total,
@@ -2219,7 +2318,7 @@ export default function KanbanPage() {
                       </DetailSection>
                     ) : null}
                     {(detail.items || []).length > 0 ? (
-                      <DetailSection title="Pares, serviços e observações" icon={Package}>
+                      <DetailSection title={`${capitalizeNoun(itemNoun.plural)}, serviços e observações`} icon={Package}>
                       <div className="space-y-3">
                         {(detail.items || []).map((item, itemIndex) => {
                           const viewingOne = detailItemId != null || detailItemIndex != null
@@ -2237,18 +2336,29 @@ export default function KanbanPage() {
                                   : "border-[var(--wq-border)] bg-[var(--wq-paper)]"
                               )}
                             >
-                              <p className="text-sm font-semibold text-[var(--wq-text)]">
-                                Par {itemIndex + 1}
-                                {[item.brand, item.shoeModel].filter(Boolean).length
-                                  ? ` · ${[item.brand, item.shoeModel].filter(Boolean).join(" ")}`
-                                  : ""}
-                              </p>
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-between text-left"
+                                onClick={() => focusPair(itemIdentity(item), itemIndex)}
+                              >
+                                <p className="text-sm font-semibold text-[var(--wq-text)]">
+                                  {capitalizeNoun(itemNoun.singular)} {itemIndex + 1}
+                                  {[item.brand, item.shoeModel].filter(Boolean).length
+                                    ? ` · ${[item.brand, item.shoeModel].filter(Boolean).join(" ")}`
+                                    : ""}
+                                </p>
+                                {(detail.items || []).length > 1 ? (
+                                  <span className="text-[11px] font-medium text-[var(--wq-brand)]">
+                                    {focused ? "Este" : "Ver"}
+                                  </span>
+                                ) : null}
+                              </button>
                               {showPairNote ? (
                                 <p className="mt-1 text-xs text-[var(--wq-text)]">{item.notes}</p>
                               ) : null}
                               <ul className="mt-2 space-y-2">
                                 {(item.services || []).length === 0 ? (
-                                  <li className="text-xs text-[var(--wq-text-muted)]">Nenhum serviço neste par</li>
+                                  <li className="text-xs text-[var(--wq-text-muted)]">Nenhum serviço neste {itemNoun.singular}</li>
                                 ) : (
                                   (item.services || []).map((service, serviceIndex) => {
                                     const orderHasPrice = readOrderPricing(detail).total > 0.009
