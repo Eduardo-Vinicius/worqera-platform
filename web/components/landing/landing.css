@@ -133,6 +133,23 @@ html[data-lp-theme="dark"] .lp {
     var(--paper);
 }
 
+.lp .lp-auth-panel {
+  background:
+    radial-gradient(ellipse 70% 50% at 12% 16%, rgba(125, 38, 222, 0.2), transparent 62%),
+    #110f17;
+}
+
+.lp .lp-auth-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 38% 42%, #000 18%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 38% 42%, #000 18%, transparent 72%);
+  opacity: 0.55;
+}
+
 .lp .lp-wa {
   background: #25d366;
   color: #073018;

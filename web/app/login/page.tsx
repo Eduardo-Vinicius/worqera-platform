@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell, authFieldClass } from "@/components/auth/AuthShell"
+import { Magnetic } from "@/components/landing/fx/magnetic"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -114,16 +115,18 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        <Button type="submit" className="lp-cta h-11 w-full text-[15px]" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Entrando…
-            </>
-          ) : (
-            "Entrar"
-          )}
-        </Button>
+        <Magnetic strength={5} className="w-full">
+          <Button type="submit" className="lp-cta lp-shine h-11 w-full rounded-xl text-[15px]" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Entrando…
+              </>
+            ) : (
+              "Entrar"
+            )}
+          </Button>
+        </Magnetic>
       </form>
 
       <p className="mt-6 text-center text-sm text-balance text-[var(--muted-foreground)]">

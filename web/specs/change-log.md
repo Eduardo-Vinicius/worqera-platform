@@ -3,7 +3,7 @@
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 
 - **Home sem o roxo desfocado:** o fundo do hero (e das páginas de ramo/recursos) passou a ser papel com um véu bem leve da marca e uma grade pontilhada; saíram os blobs animados e o degradê que andava no título.
-- **Login:** split de sempre (painel escuro + formulário no papel), fontes e CTA da landing. Sem aurora, sem mock de kanban. Forgot/reset/verify no mesmo chrome. A lógica de entrar não mudou.
+- **Login:** split profissional (painel escuro + formulário). Ramo girando como na home, pulso da operação, entrada em sequência e CTA magnético. Sem blur e sem mock de kanban. A lógica de entrar não mudou.
 - **Implantação sem preço publicado:** saiu o "R$ 497" do site (preços, FAQ, Recursos), do cadastro e da aba Plano; agora é "sob consulta", com o botão "Falar com a Worqera" no WhatsApp. A constante `IMPLANTACAO` foi removida de `lib/plans.ts`.
 - **Home refeita** (`components/landing/*`), com animações em `motion` (só no marketing) e respeito a "reduzir movimento":
   - barra de aviso que pode ser fechada (7 dias grátis, histórico importado);
