@@ -86,6 +86,7 @@ import type { ClosedCard } from "@/lib/apiV1"
 import { NotifyClientDialog, type NotifyClientInfo } from "@/components/kanban/NotifyClientDialog"
 import {
   FOCUS_CHIPS,
+  FOCUS_HINT,
   FOCUS_LABEL,
   type QueueFocus,
   readQueueFocus,
@@ -141,6 +142,7 @@ type OrderCard = {
     brand?: string
     shoeModel?: string
   }>
+  sectorSince?: string | null
 }
 
 type Column = {
@@ -587,6 +589,16 @@ function ServicePriceField({
   )
 }
 
+/** Days in the current sector, for the recorte views ("pronto há 12 dias"). */
+function waitingLabel(order: OrderCard, ready: boolean): { text: string; warn: boolean } | null {
+  if (!order.sectorSince) return null
+  const at = new Date(order.sectorSince).getTime()
+  if (!Number.isFinite(at)) return null
+  const days = Math.max(0, Math.floor((Date.now() - at) / 86400000))
+  const when = days === 0 ? "hoje" : days === 1 ? "há 1 dia" : `há ${days} dias`
+  return { text: ready ? `Pronto ${when}` : `Neste setor ${when}`, warn: days >= 3 }
+}
+
 function KanbanCardBody({
   order,
   focused,
@@ -599,6 +611,8 @@ function KanbanCardBody({
   isTerminalColumn,
   onMarkDelivered,
   onNotifyReady,
+  onNotifyClient,
+  since,
   showPayment = false,
 }: {
   order: OrderCard
@@ -612,6 +626,8 @@ function KanbanCardBody({
   isTerminalColumn?: boolean
   onMarkDelivered?: (order: OrderCard) => void
   onNotifyReady?: (order: OrderCard) => void
+  onNotifyClient?: (order: OrderCard) => void
+  since?: { text: string; warn: boolean } | null
   showPayment?: boolean
 }) {
   const late = isCardLate(order)
@@ -622,10 +638,12 @@ function KanbanCardBody({
     order.status === "ready" &&
     Boolean(onMarkDelivered)
   const showNotify =
+    !onNotifyClient &&
     ENABLE_WA_ME &&
     Boolean(isTerminalColumn) &&
     order.status === "ready" &&
     Boolean(onNotifyReady)
+  const showNotifyClient = Boolean(onNotifyClient)
 
   return (
     <div
@@ -764,9 +782,35 @@ function KanbanCardBody({
             Rota alterada · revisar no detalhe
           </p>
         )}
+        {since ? (
+          <p
+            className={cn(
+              "mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              since.warn
+                ? "bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+                : "bg-[var(--wq-paper)] text-[var(--wq-text-muted)]"
+            )}
+          >
+            {since.text}
+          </p>
+        ) : null}
       </button>
-      {showNotify || showDeliver ? (
-        <div className="mt-2 flex flex-col gap-1.5">
+      {showNotify || showDeliver || showNotifyClient ? (
+        <div className={cn("mt-2 gap-1.5", showNotifyClient && showDeliver ? "grid grid-cols-2" : "flex flex-col")}>
+          {showNotifyClient ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--wq-success)]/40 bg-[color-mix(in_srgb,var(--wq-success)_12%,var(--wq-surface))] px-2 py-1.5 text-xs font-semibold text-[var(--wq-success)] hover:bg-[color-mix(in_srgb,var(--wq-success)_18%,var(--wq-surface))]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onNotifyClient?.(order)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Avisar
+            </button>
+          ) : null}
           {showNotify ? (
             <button
               type="button"
@@ -792,7 +836,7 @@ function KanbanCardBody({
               onPointerDown={(e) => e.stopPropagation()}
             >
               <Check className="h-3.5 w-3.5" />
-              Marcar entregue
+              {showNotifyClient ? "Entregue" : "Marcar entregue"}
             </button>
           ) : null}
         </div>
@@ -953,6 +997,95 @@ function DroppableColumn({
   )
 }
 
+const WORKLIST_PAGE = 48
+
+/**
+ * A recorte (late, today, tomorrow, ready) is a to-do list, not a board: the
+ * sectors that have something stack as sections and the cards fill the width.
+ */
+function FocusWorklist({
+  columns,
+  focus,
+  query,
+  onDate,
+  focusedCardId,
+  onFocusCard,
+  onOpenCard,
+  sectorNameById,
+  onMarkDelivered,
+  onNotifyClient,
+}: {
+  columns: Column[]
+  focus: QueueFocus
+  query: string
+  onDate: string
+  focusedCardId: string | null
+  onFocusCard: (id: string) => void
+  onOpenCard: (o: OrderCard) => void
+  sectorNameById: Map<string, string>
+  onMarkDelivered: (order: OrderCard) => void
+  onNotifyClient: (order: OrderCard) => void
+}) {
+  const [limits, setLimits] = useState<Record<string, number>>({})
+  const sections = columns
+    .map((column) => ({ column, orders: filterOrders(column.orders, query, onDate) }))
+    .filter((s) => s.orders.length > 0)
+
+  return (
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {sections.map(({ column, orders }) => {
+        const id = column.sector._id
+        const limit = limits[id] || WORKLIST_PAGE
+        const shown = orders.slice(0, limit)
+        const isTerminal = Boolean(column.sector.isTerminal)
+        return (
+          <section key={id}>
+            {sections.length > 1 || !isTerminal ? (
+              <div className="mb-2 flex items-center gap-2 px-1">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: column.sector.color }} />
+                <h3 className="text-sm font-semibold text-[var(--wq-text)]">{column.sector.name}</h3>
+                <Badge variant="outline" className="font-mono text-[11px]">
+                  {orders.length}
+                </Badge>
+              </div>
+            ) : null}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {shown.map((o) => (
+                <KanbanCardBody
+                  key={cardKey(o)}
+                  order={o}
+                  focused={focusedCardId === cardKey(o)}
+                  onFocus={() => onFocusCard(cardKey(o))}
+                  onOpen={() => onOpenCard(o)}
+                  columnSectorId={id}
+                  sectorNameById={sectorNameById}
+                  isTerminalColumn={isTerminal}
+                  onMarkDelivered={isTerminal ? onMarkDelivered : undefined}
+                  onNotifyClient={isTerminal && focus === "ready" ? onNotifyClient : undefined}
+                  since={waitingLabel(o, isTerminal)}
+                />
+              ))}
+            </div>
+            {orders.length > shown.length ? (
+              <div className="mt-3 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-[10px]"
+                  onClick={() => setLimits((prev) => ({ ...prev, [id]: limit + WORKLIST_PAGE }))}
+                >
+                  Mostrar mais {Math.min(WORKLIST_PAGE, orders.length - shown.length)} de {orders.length - shown.length}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function KanbanPage() {
   const [columns, setColumns] = useState<Column[]>([])
   const [forwardTargets, setForwardTargets] = useState<ForwardTarget[]>([])
@@ -974,6 +1107,8 @@ export default function KanbanPage() {
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
   const [refuseOpen, setRefuseOpen] = useState(false)
   const [notifyOpen, setNotifyOpen] = useState(false)
+  const [cardNotify, setCardNotify] = useState<NotifyClientInfo | null>(null)
+  const [pairDir, setPairDir] = useState<-1 | 0 | 1>(0)
   const [closedRefresh, setClosedRefresh] = useState(0)
   const [closedView, setClosedView] = useState<ClosedKind | null>(null)
   const isSectorRole = membershipRole === "sector"
@@ -1384,6 +1519,7 @@ export default function KanbanPage() {
         : null
     )
     setShowAllOrderPhotos(false)
+    setPairDir(0)
     setDetailOpen(true)
     setDetailLoading(true)
     setCommentDraft("")
@@ -1410,6 +1546,11 @@ export default function KanbanPage() {
 
   const focusPair = (itemId: string, itemIndex: number) => {
     if (!detail?.id) return
+    const current =
+      detailItemIndex ??
+      Math.max(0, (detail.items || []).findIndex((it) => itemIdentity(it) === String(detailItemId)))
+    if (itemIndex === current && itemId === detailItemId) return
+    setPairDir(itemIndex >= current ? 1 : -1)
     setDetailItemId(itemId)
     setDetailItemIndex(itemIndex)
     setFocusedCardId(`${String(detail.id)}:${itemId}`)
@@ -1417,6 +1558,37 @@ export default function KanbanPage() {
   }
 
   const itemNoun = resolveItemNoun(shopDoc)
+
+  const shopDisplayName = () =>
+    shopDoc?.branding?.displayName ||
+    shopDoc?.name ||
+    (typeof window !== "undefined" ? localStorage.getItem("shopDisplayName") || localStorage.getItem("shopName") || "" : "")
+
+  const notifyCard = (order: OrderCard) => {
+    setCardNotify({
+      orderId: orderId(order),
+      clientName: order.clientName || "",
+      phone: order.clientPhone || "",
+      email: "",
+      code: orderCode(order),
+      link: buildPublicOrderUrl(
+        window.location.origin,
+        shopDoc?.slug || localStorage.getItem("shopSlug") || "",
+        order.code || "",
+        order.publicToken
+      ),
+      shopName: shopDisplayName(),
+      sectorName: sectorNameById.get(String(order.currentSectorId || "")) || "",
+      status: "ready",
+      dueAt: order.dueAt || null,
+      remaining: amountDue(order),
+      templates: shopDoc?.notifications?.whatsapp?.templates,
+    })
+  }
+
+  const focusTotal = queueFocus
+    ? boardColumns.reduce((sum, c) => sum + filterOrders(c.orders, codeQuery, filterDate).length, 0)
+    : 0
 
   const markSettlement = async (paid: boolean) => {
     if (!detail?.id) return
@@ -1922,8 +2094,14 @@ export default function KanbanPage() {
         ) : (
           <>
             {queueFocus ? (
-              <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-2">
-                <p className="text-sm text-[var(--wq-text)]">{FOCUS_LABEL[queueFocus]}</p>
+              <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--wq-border)] bg-[var(--wq-surface)] px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                <p className="min-w-0 text-sm text-[var(--wq-text)]">
+                  <span className="font-semibold">{FOCUS_LABEL[queueFocus]}</span>
+                  <span className="text-[var(--wq-text-muted)]">
+                    {" · "}
+                    {focusTotal} {focusTotal === 1 ? itemNoun.singular : itemNoun.plural} · {FOCUS_HINT[queueFocus]}
+                  </span>
+                </p>
                 <Button
                   type="button"
                   variant="outline"
@@ -1969,6 +2147,23 @@ export default function KanbanPage() {
                 <SectorBriefStrip />
               </div>
             ) : null}
+          {queueFocus ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+              <FocusWorklist
+                key={queueFocus}
+                columns={boardColumns}
+                focus={queueFocus}
+                query={codeQuery}
+                onDate={filterDate}
+                focusedCardId={focusedCardId}
+                onFocusCard={setFocusedCardId}
+                onOpenCard={openDetail}
+                sectorNameById={sectorNameById}
+                onMarkDelivered={requestDeliver}
+                onNotifyClient={notifyCard}
+              />
+            </div>
+          ) : (
           <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {/* Mobile: sector chips + one column */}
             <div className="flex min-h-0 flex-1 flex-col space-y-3 md:hidden">
@@ -2147,6 +2342,7 @@ export default function KanbanPage() {
               ) : null}
             </DragOverlay>
           </DndContext>
+          )}
           </>
         )}
       </div>
@@ -2159,7 +2355,13 @@ export default function KanbanPage() {
           >
             {detail && !detailLoading ? (
               <OrderDetailHeader
-                code={detail.code || "…"}
+                code={
+                  (detail.items || []).length > 1 && focusedDetailItem
+                    ? `${detail.code || "…"}-${(detail.items || []).indexOf(focusedDetailItem) + 1}`
+                    : detail.code || "…"
+                }
+                pairNoun={itemNoun.singular}
+                pairChanged={pairDir !== 0}
                 clientName={detail.clientName || detail.client?.nomeCompleto || detail.client?.name || ""}
                 phone={detail.clientPhone || detail.client?.phone || detail.client?.telefone || ""}
                 email={detailClientEmail}
@@ -2246,7 +2448,15 @@ export default function KanbanPage() {
               </div>
             )}
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4">
+            <div
+              key={`${detail?.id || "loading"}:${detailItemId || detailItemIndex || "all"}`}
+              className={cn(
+                "flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4",
+                pairDir !== 0 && "animate-in fade-in duration-300 ease-out",
+                pairDir > 0 && "slide-in-from-right-8",
+                pairDir < 0 && "slide-in-from-left-8"
+              )}
+            >
               {detailLoading || !detail ? (
                 <p className="px-2 py-6 text-sm text-[var(--wq-text-muted)]">Carregando…</p>
               ) : (
@@ -2910,6 +3120,7 @@ export default function KanbanPage() {
       )}
 
       <NotifyClientDialog open={notifyOpen} onOpenChange={setNotifyOpen} info={detailNotifyInfo} />
+      <NotifyClientDialog open={Boolean(cardNotify)} onOpenChange={(v) => (!v ? setCardNotify(null) : null)} info={cardNotify} />
 
       <RefuseQuoteDialog
         open={refuseOpen}

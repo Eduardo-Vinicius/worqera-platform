@@ -107,7 +107,8 @@ POST   /sectors/reorder              # LIVE — body: [{id, order}]
 ```
 GET  /kanban                         # LIVE
      # ?focus=late|ready|due-today|due-tomorrow (um recorte por vez; ?late=1 = late)
-     # filtra e ordena cards (pares); ecoa `focus` na resposta; siblings[] em cada card
+     # filtra e ordena cards (pares); ecoa `focus` na resposta; siblings[] e sectorSince em cada card
+     # focus=ready: quem está há mais tempo no setor final primeiro
      # admin/owner/atendimento: todas colunas (setores ativos) + cards
      # sector: só setores em membership.sectorIds
 POST /kanban/orders/{orderId}/move   # LIVE

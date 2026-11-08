@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Check, Loader2, Mail, MessageCircle, PackageCheck, Pencil, Phone, PhoneOff, X } from "lucide-react"
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Loader2, Mail, MessageCircle, PackageCheck, Pencil, Phone, PhoneOff, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { formatBRL } from "@/lib/orderMoney"
@@ -31,6 +31,10 @@ export type OrderDetailHeaderProps = {
   } | null
   recovered?: { how?: string | null; byName?: string } | null
   itemCount: number
+  /** Shop noun for one item ("par", "peça"). */
+  pairNoun?: string
+  /** True right after switching item: the code and tabs animate so the change is visible. */
+  pairChanged?: boolean
   pairs?: PairTab[]
   activeItemId?: string | null
   onSelectPair?: (pair: PairTab) => void
@@ -86,7 +90,16 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold tracking-tight">{props.clientName || "Cliente"}</h2>
           <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-sm text-[var(--wq-text-muted)]">
-            #{props.code}
+            <span
+              key={props.code}
+              className={cn(
+                "inline-block rounded-md",
+                props.pairChanged &&
+                  "animate-in fade-in zoom-in-90 duration-300 bg-[var(--wq-brand-soft)] px-1 font-semibold text-[var(--wq-brand)]"
+              )}
+            >
+              #{props.code}
+            </span>
             {props.openedByPicker && props.openedByPicker.options.length ? (
               <label
                 className={cn(
@@ -127,30 +140,66 @@ export function OrderDetailHeader(props: OrderDetailHeaderProps) {
               {props.recovered.byName ? ` · ${props.recovered.byName}` : ""}
             </p>
           ) : null}
-          {props.pairs && props.pairs.length > 1 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Itens do pedido">
-              {props.pairs.map((pair) => {
-                const on = props.activeItemId ? pair.itemId === props.activeItemId : pair.itemIndex === 0
-                return (
-                  <button
-                    key={pair.itemId || String(pair.itemIndex)}
-                    type="button"
-                    role="tab"
-                    aria-selected={on}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-semibold",
-                      on
-                        ? "border-[var(--wq-brand)] bg-[var(--wq-brand-soft)] text-[var(--wq-brand)]"
-                        : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40"
-                    )}
-                    onClick={() => props.onSelectPair?.(pair)}
-                  >
-                    {pair.label}
-                  </button>
+          {props.pairs && props.pairs.length > 1
+            ? (() => {
+                const pairs = props.pairs
+                const activeIndex = Math.max(
+                  0,
+                  pairs.findIndex((p) => (props.activeItemId ? p.itemId === props.activeItemId : p.itemIndex === 0))
                 )
-              })}
-            </div>
-          ) : null}
+                const go = (delta: number) => {
+                  const next = pairs[activeIndex + delta]
+                  if (next) props.onSelectPair?.(next)
+                }
+                return (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => go(-1)}
+                      disabled={activeIndex <= 0}
+                      className="rounded-full border border-[var(--wq-border)] p-1 text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40 disabled:opacity-30"
+                      aria-label={`${props.pairNoun || "Item"} anterior`}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Itens do pedido">
+                      {pairs.map((pair, i) => {
+                        const on = i === activeIndex
+                        return (
+                          <button
+                            key={pair.itemId || String(pair.itemIndex)}
+                            type="button"
+                            role="tab"
+                            aria-selected={on}
+                            className={cn(
+                              "shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all duration-200",
+                              on
+                                ? "scale-105 border-[var(--wq-brand)] bg-[var(--wq-brand)] text-white shadow-sm"
+                                : "border-[var(--wq-border)] text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40 hover:text-[var(--wq-text)]"
+                            )}
+                            onClick={() => props.onSelectPair?.(pair)}
+                          >
+                            {pair.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] text-[var(--wq-text-muted)]">
+                      {activeIndex + 1}/{pairs.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => go(1)}
+                      disabled={activeIndex >= pairs.length - 1}
+                      className="rounded-full border border-[var(--wq-border)] p-1 text-[var(--wq-text-muted)] hover:border-[var(--wq-brand)]/40 disabled:opacity-30"
+                      aria-label={`Próximo ${props.pairNoun || "item"}`}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )
+              })()
+            : null}
         </div>
         <button
           type="button"

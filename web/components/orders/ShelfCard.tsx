@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Check, ChevronDown, Flag, Loader2, MessageCircle, PackageCheck } from "lucide-react"
 import { toast } from "sonner"
@@ -9,6 +9,7 @@ import { updateOrderService } from "@/lib/apiService"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { SHELF_EVENT, shelfModeFromHash, type ShelfMode } from "@/lib/shelfIntent"
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
@@ -32,22 +33,61 @@ function remindedLabel(item: ShelfItem) {
 export function ShelfCard() {
   const [shelf, setShelf] = useState<Shelf | null>(null)
   const [open, setOpen] = useState(false)
-  const [checkOnly, setCheckOnly] = useState(false)
+  const [filter, setFilter] = useState<ShelfMode>("all")
+  const [flash, setFlash] = useState(false)
   const [delivering, setDelivering] = useState<ShelfItem | null>(null)
   const [busy, setBusy] = useState("")
+  const sectionRef = useRef<HTMLElement>(null)
+  const pending = useRef<ShelfMode | null>(null)
 
   useEffect(() => {
     if (String(localStorage.getItem("role") || "").toLowerCase() !== "owner") return
+    pending.current = shelfModeFromHash(window.location.hash)
     getShelfV1()
       .then(setShelf)
       .catch(() => setShelf(null))
   }, [])
 
+  const reveal = useCallback((mode: ShelfMode) => {
+    setFilter(mode)
+    setOpen(mode !== "all")
+    setFlash(true)
+    window.setTimeout(() => setFlash(false), 1600)
+    requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))
+  }, [])
+
+  useEffect(() => {
+    const onIntent = (e: Event) => {
+      const mode = (e as CustomEvent<ShelfMode>).detail || "all"
+      if (shelf) reveal(mode)
+      else pending.current = mode
+    }
+    window.addEventListener(SHELF_EVENT, onIntent)
+    return () => window.removeEventListener(SHELF_EVENT, onIntent)
+  }, [shelf, reveal])
+
+  useEffect(() => {
+    if (!shelf || !pending.current) return
+    const mode = pending.current
+    pending.current = null
+    reveal(mode)
+  }, [shelf, reveal])
+
   if (!shelf || shelf.summary.count === 0) return null
   const { summary, staleDays } = shelf
   const toCheck = (it: ShelfItem) => Boolean(it.check) || it.maybeGone
-  const list = checkOnly ? shelf.items.filter(toCheck) : shelf.items
+  const list =
+    filter === "check"
+      ? shelf.items.filter(toCheck)
+      : filter === "stale"
+        ? shelf.items.filter((it) => it.stale).sort((a, b) => b.days - a.days)
+        : shelf.items
   const visible = open ? list : list.slice(0, 3)
+  const toggleFilter = (mode: ShelfMode) => {
+    const next = filter === mode ? "all" : mode
+    setFilter(next)
+    setOpen(next !== "all")
+  }
 
   const patchItem = (id: string, next: Partial<ShelfItem>) =>
     setShelf((s) => (s ? { ...s, items: s.items.map((it) => (it.id === id ? { ...it, ...next } : it)) } : s))
@@ -107,7 +147,14 @@ export function ShelfCard() {
   }
 
   return (
-    <section id="prateleira" className="scroll-mt-24 overflow-hidden rounded-2xl border border-[var(--wq-border)] bg-[var(--wq-surface)]">
+    <section
+      ref={sectionRef}
+      id="prateleira"
+      className={cn(
+        "scroll-mt-24 overflow-hidden rounded-2xl border bg-[var(--wq-surface)] transition-shadow duration-500",
+        flash ? "border-amber-400 shadow-[0_0_0_4px_rgba(245,158,11,0.25)]" : "border-[var(--wq-border)]"
+      )}
+    >
       <div className="flex items-start gap-3 px-4 pt-4 sm:px-5">
         <span
           className={cn(
@@ -129,13 +176,10 @@ export function ShelfCard() {
           {summary.checkCount ? (
             <button
               type="button"
-              onClick={() => {
-                setCheckOnly((v) => !v)
-                setOpen(true)
-              }}
+              onClick={() => toggleFilter("check")}
               className={cn(
                 "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
-                checkOnly
+                filter === "check"
                   ? "border-sky-600 bg-sky-600 text-white"
                   : "border-sky-200 bg-sky-50 text-sky-900 hover:border-sky-400 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200"
               )}
@@ -149,23 +193,55 @@ export function ShelfCard() {
 
       <div className="mt-3 grid grid-cols-3 gap-px border-y border-[var(--wq-border)] bg-[var(--wq-border)]">
         {[
-          { label: "Prontos", value: String(summary.count) },
-          { label: `Parados ${staleDays}+ dias`, value: String(summary.staleCount), warn: summary.staleCount > 0 },
-          { label: "A receber na retirada", value: brl(summary.toCollect) },
-        ].map((c) => (
-          <div key={c.label} className="bg-[var(--wq-surface)] px-4 py-2.5">
-            <p
+          { label: "Prontos", value: String(summary.count), mode: "all" as ShelfMode },
+          { label: `Parados ${staleDays}+ dias`, value: String(summary.staleCount), warn: summary.staleCount > 0, mode: "stale" as ShelfMode },
+          { label: "A receber na retirada", value: brl(summary.toCollect), mode: null },
+        ].map((c) => {
+          const on = c.mode != null && c.mode !== "all" && filter === c.mode
+          const body = (
+            <>
+              <p
+                className={cn(
+                  "font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums sm:text-xl",
+                  c.warn && "text-amber-600 dark:text-amber-400"
+                )}
+              >
+                {c.value}
+              </p>
+              <p className="text-[11px] text-[var(--wq-text-muted)]">{c.label}</p>
+            </>
+          )
+          return c.mode && (c.mode === "all" || Number(c.value) > 0) ? (
+            <button
+              key={c.label}
+              type="button"
+              onClick={() => (c.mode === "all" ? toggleFilter(filter) : toggleFilter(c.mode as ShelfMode))}
               className={cn(
-                "font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums sm:text-xl",
-                c.warn && "text-amber-600 dark:text-amber-400"
+                "bg-[var(--wq-surface)] px-4 py-2.5 text-left transition hover:bg-[var(--wq-paper)]",
+                on && "bg-amber-50 shadow-[inset_0_-2px_0_0_#f59e0b] dark:bg-amber-950/30"
               )}
             >
-              {c.value}
-            </p>
-            <p className="text-[11px] text-[var(--wq-text-muted)]">{c.label}</p>
-          </div>
-        ))}
+              {body}
+            </button>
+          ) : (
+            <div key={c.label} className="bg-[var(--wq-surface)] px-4 py-2.5">
+              {body}
+            </div>
+          )
+        })}
       </div>
+      {filter !== "all" ? (
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--wq-border)] bg-[var(--wq-paper)] px-4 py-2 text-xs sm:px-5 animate-in fade-in slide-in-from-top-1 duration-300">
+          <span className="font-medium text-[var(--wq-text)]">
+            {filter === "stale"
+              ? `${list.length} parados há ${staleDays}+ dias · o mais antigo primeiro · toque em Lembrar`
+              : `${list.length} para conferir no balcão · talvez já tenham saído`}
+          </span>
+          <button type="button" className="font-semibold text-[var(--wq-brand-text)] hover:underline" onClick={() => toggleFilter(filter)}>
+            Ver todos
+          </button>
+        </div>
+      ) : null}
 
       <ul className="divide-y divide-[var(--wq-border)]">
         {visible.map((item) => (

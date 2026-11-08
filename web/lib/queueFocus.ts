@@ -8,6 +8,13 @@ export const FOCUS_LABEL: Record<QueueFocus, string> = {
   "due-tomorrow": "Mostrando só prazo de amanhã",
 }
 
+export const FOCUS_HINT: Record<QueueFocus, string> = {
+  late: "o atraso mais antigo primeiro",
+  ready: "quem espera há mais tempo primeiro",
+  "due-today": "por prioridade e prazo",
+  "due-tomorrow": "por prioridade e prazo",
+}
+
 export const FOCUS_CHIPS: Array<{ focus: QueueFocus; label: string }> = [
   { focus: "late", label: "Atrasados" },
   { focus: "due-today", label: "Hoje" },

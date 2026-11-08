@@ -5,6 +5,7 @@ import { ArrowRight, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { ACTION_ICON, TONE, useDailyBrief } from "@/components/ai/DailyBriefCard"
 import { AiQuotaNotice } from "@/components/ai/AiQuotaNotice"
 import { kanbanFocusHref } from "@/lib/queueFocus"
+import { openShelf, shelfModeFromHref } from "@/lib/shelfIntent"
 import { cn } from "@/lib/utils"
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -118,9 +119,18 @@ export function OperationPanel({
               {actions.map((a, i) => {
                 const Icon = ACTION_ICON[a.id] || ArrowRight
                 const tone = TONE[a.tone] || TONE.muted
+                const shelfMode = shelfModeFromHref(a.href)
                 return (
                   <li key={a.id}>
-                    <Link href={a.href} className="group flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[var(--wq-paper)]">
+                    <Link
+                      href={a.href}
+                      onClick={(e) => {
+                        if (!shelfMode) return
+                        e.preventDefault()
+                        openShelf(shelfMode)
+                      }}
+                      className="group flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[var(--wq-paper)]"
+                    >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", tone.icon)}>
                         <Icon className="h-3.5 w-3.5" />
                       </span>

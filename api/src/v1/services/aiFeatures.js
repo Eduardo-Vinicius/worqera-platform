@@ -107,7 +107,7 @@ async function dailyMoney(shopId, now = new Date()) {
  * call about, balance at pickup, delivered unpaid) but drops the shelf, which is
  * the owner's, and puts late orders first.
  */
-function dailyActions(n, { team = false } = {}) {
+function dailyActions(n, { team = false, shelf = !team } = {}) {
   const m = n.money || {};
   const actions = [];
   if (n.callToday) {
@@ -147,23 +147,23 @@ function dailyActions(n, { team = false } = {}) {
       tone: 'warn',
     });
   }
-  if (!team && m.staleCount) {
+  if (shelf && m.staleCount) {
     actions.push({
       id: 'shelf',
       title: `Lembrar ${plural(m.staleCount, 'parado', 'parados')} na prateleira`,
       detail: `${formatMoney(m.staleValue)} · prontos há 3+ dias`,
       value: m.staleValue || 0,
-      href: '/dashboard#prateleira',
+      href: '/dashboard#prateleira-parados',
       tone: 'warn',
     });
   }
-  if (!team && n.check?.count) {
+  if (shelf && n.check?.count) {
     actions.push({
       id: 'check',
       title: `Conferir ${plural(n.check.count, 'pronto antigo', 'prontos antigos')}`,
       detail: `Talvez já tenham saído · o mais antigo há ${plural(n.check.oldestDays, 'dia', 'dias')}`,
       value: 0,
-      href: '/dashboard#prateleira',
+      href: '/dashboard#prateleira-conferir',
       tone: 'brand',
     });
   }
@@ -286,9 +286,9 @@ async function dailyNumbers(shopId, now = new Date()) {
   };
 }
 
-function dailyFallback(n, { team = false } = {}) {
+function dailyFallback(n, { team = false, shelf = !team } = {}) {
   const stake = team ? 0 : dailyStake(n);
-  const actions = dailyActions(n, { team });
+  const actions = dailyActions(n, { team, shelf });
   if (stake > 0.009 && actions.length) {
     const lead = actions
       .slice(0, 2)
@@ -497,10 +497,14 @@ async function ownerExtras(shopId, now) {
   };
 }
 
-async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', sectorIds = [] } = {}) {
+async function dailyBrief(
+  shopId,
+  { aiAllowed = false, refresh = false, now = new Date(), audience = 'owner', shelf = audience === 'owner', sectorIds = [] } = {}
+) {
   if (audience === 'sector') return sectorBrief(shopId, sectorIds, { aiAllowed, refresh, now });
 
   const withMoney = audience === 'owner';
+  const withShelf = withMoney && shelf;
   const day = saoPauloDayKey(now);
   const full = await dailyNumbers(shopId, now);
   full.birthdays = await require('./crmService').birthdaysToday(shopId, now).catch(() => 0);
@@ -521,7 +525,7 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
           noPrice: m.noPrice,
         },
       };
-  const actions = dailyActions(numbers, { team: !withMoney });
+  const actions = dailyActions(numbers, { team: !withMoney, shelf: withShelf });
   const stake = withMoney ? dailyStake(numbers) : 0;
   const name = await shopName(shopId);
   const late = `Atrasados: ${full.overdue}${m.oldestLate ? ` (mais antigo #${m.oldestLate.code}, ${m.oldestLate.days} dias)` : ''}`;
@@ -539,14 +543,16 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
           `Orçamentos para ligar hoje: ${full.callToday} (atrasados: ${full.callOverdue}), valor ${formatMoney(m.callValue || 0)}`,
           m.topCall ? `Primeiro da lista: ${m.topCall.name}, ${formatMoney(m.topCall.value)}, motivo: ${m.topCall.reason || 'não informado'}` : 'Ninguém para ligar.',
           `Prontos esperando retirada: ${full.ready}, ${formatMoney(m.readyValue || 0)} a receber`,
-          `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}`,
+          withShelf ? `Parados na prateleira há 3+ dias: ${m.staleCount || 0}, ${formatMoney(m.staleValue || 0)}` : '',
           `Entregues sem pagar: ${m.unpaidCount || 0}, ${formatMoney(m.unpaidValue || 0)}`,
           late,
           `Vencem hoje: ${full.dueToday}`,
           tomorrow,
           `Pedidos sem preço: ${m.noPrice || 0}`,
           `Pedidos abertos: ${full.open}`,
-        ].join('\n'),
+        ]
+          .filter(Boolean)
+          .join('\n'),
       }
     : {
         system:
@@ -571,12 +577,12 @@ async function dailyBrief(shopId, { aiAllowed = false, refresh = false, now = ne
 
   const out = await writeBrief({
     shopId,
-    day: withMoney ? day : `${day}:team`,
+    day: withMoney ? (withShelf ? day : `${day}:admin`) : `${day}:team`,
     numbers,
     aiAllowed,
     refresh,
     now,
-    fallback: dailyFallback(numbers, { team: !withMoney }),
+    fallback: dailyFallback(numbers, { team: !withMoney, shelf: withShelf }),
     prompt,
   });
   return { day, audience: withMoney ? 'owner' : 'team', numbers, actions, stake, ...out };
@@ -781,6 +787,7 @@ module.exports = {
   dailyBrief,
   briefAudience,
   dailyNumbers,
+  dailyActions,
   dailyFallback,
   weeklyInsights,
   weeklyFallback,

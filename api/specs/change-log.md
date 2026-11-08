@@ -9,6 +9,8 @@
   - Cada card traz `siblings[]` (itemId, par, setor, marca, modelo) para trocar de par no drawer.
   - `GET /dashboard` e `/dashboard/summary` passam `overdue`, `dueToday`, `dueTomorrow` e `ready` em quantidade de cards.
   - `/dashboard/brief`: as mesmas contagens; `actions.href` aponta para `/kanban?focus=…`.
+  - Card traz `sectorSince` (quando entrou no setor atual). No recorte `ready`, quem espera há mais tempo vem primeiro.
+  - Ações da prateleira (Lembrar parados, Conferir prontos antigos) só para o **dono**, que é quem abre a prateleira; admin não recebe mais um atalho sem destino. Links: `/dashboard#prateleira-parados` e `#prateleira-conferir`.
 
 ## 2026-11-07
 

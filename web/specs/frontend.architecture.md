@@ -32,7 +32,7 @@ web/
 ## Kanban UX
 
 - Colunas = setores ativos ordenados
-- Recorte `?focus=` vem da API (KPI e brief usam o mesmo predicado); coluna vazia some
+- Recorte `?focus=` vem da API (KPI e brief usam o mesmo predicado) e vira lista de trabalho em grade (`FocusWorklist`), não colunas esticadas
 - Admin: board completo + move livre; atrasados pelo prazo mais antigo
 - Pedido com vários itens: abas no drawer para trocar de par sem fechar
 - Sector role: uma (ou N) colunas; UI enxuta

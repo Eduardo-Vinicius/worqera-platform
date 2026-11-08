@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { planHas, isBusinessPlan, saoPauloDayKey } = require('../lib/planCap');
 const pricing = require('../lib/whatsappPricing');
 const { costUsd } = require('../services/aiService');
-const { dailyFallback, weeklyFallback, reviewFallback, weekKey } = require('../services/aiFeatures');
+const { dailyFallback, dailyActions, weeklyFallback, reviewFallback, weekKey } = require('../services/aiFeatures');
 
 test('AI is in every plan, WhatsApp stays in Business, and the Worqera visit and dev see all', () => {
   assert.equal(planHas({ planCode: 'WORQERA_BUSINESS' }, 'ai'), true);
@@ -88,6 +88,22 @@ test('fallback texts carry the real numbers when there is no AI', () => {
   assert.match(daily, /4 orçamentos para ligar/);
   assert.match(daily, /Pintura/);
   assert.match(dailyFallback({ ready: 0, open: 7, overdue: 0, dueTomorrow: 0, tomorrowBySector: [], callToday: 0 }), /Fila em dia/);
+
+  const shelfNumbers = {
+    ready: 2,
+    open: 9,
+    overdue: 0,
+    dueTomorrow: 0,
+    tomorrowBySector: [],
+    callToday: 0,
+    check: { count: 2, oldestDays: 9 },
+    money: { staleCount: 3, staleValue: 120 },
+  };
+  const ownerIds = dailyActions(shelfNumbers, { shelf: true }).map((a) => a.id);
+  assert.ok(ownerIds.includes('shelf') && ownerIds.includes('check'));
+  assert.equal(dailyActions(shelfNumbers, { shelf: true }).find((a) => a.id === 'check').href, '/dashboard#prateleira-conferir');
+  const adminIds = dailyActions(shelfNumbers, { shelf: false }).map((a) => a.id);
+  assert.ok(!adminIds.includes('shelf') && !adminIds.includes('check'), 'admin never gets a shelf they cannot open');
 
   const weekly = weeklyFallback({
     created: 30,

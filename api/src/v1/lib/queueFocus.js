@@ -99,8 +99,25 @@ function compareQueueCards(a, b, now = new Date()) {
   return createdAtTime(a) - createdAtTime(b);
 }
 
-function sortQueueCards(cards, now = new Date()) {
-  return (cards || []).slice().sort((a, b) => compareQueueCards(a, b, now));
+function sinceTime(card) {
+  if (!card?.sectorSince) return null;
+  const t = new Date(card.sectorSince).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Shelf order: whoever has waited longest for pickup first. */
+function compareReadyCards(a, b, now = new Date()) {
+  const aAt = sinceTime(a);
+  const bAt = sinceTime(b);
+  if (aAt != null && bAt != null && aAt !== bAt) return aAt - bAt;
+  if (aAt != null && bAt == null) return -1;
+  if (aAt == null && bAt != null) return 1;
+  return compareQueueCards(a, b, now);
+}
+
+function sortQueueCards(cards, now = new Date(), focus = null) {
+  const compare = parseFocus(focus) === 'ready' ? compareReadyCards : compareQueueCards;
+  return (cards || []).slice().sort((a, b) => compare(a, b, now));
 }
 
 function countQueueFocus(cards, now = new Date()) {

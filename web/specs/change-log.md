@@ -5,6 +5,9 @@
 - **Visão geral:** os quatro números passam a ser Atrasados, Vencem hoje, Vencem amanhã e Prontos para retirar (quantidade de pares). Cada um abre `/kanban?focus=…`. Ligar hoje continua nos orçamentos / “Comece por aqui”.
 - **Kanban:** lê `?focus=late|ready|due-today|due-tomorrow` (e o antigo `?late=1`), pede o recorte na API, mostra a faixa “Mostrando só…” + Ver tudo, chips Atrasados / Hoje / Amanhã / Prontos, e esconde coluna vazia no recorte. Busca e data de entrada seguem no cliente.
 - **Pares no drawer:** abas no cabeçalho (`1 Nike` | `2 Air Force`) e clique na lista trocam o par sem fechar. Avançar, fotos e QR seguem o par focado. Rótulo usa o `itemLabel` da loja, não “tênis” fixo.
+- **Recorte vira lista de trabalho:** com `?focus=` o kanban não estica uma coluna só; os setores com algo aparecem em seções e os cards preenchem a largura em grade (1 a 4 por linha), 48 por vez com "Mostrar mais". A faixa diz quantos e a ordem ("quem espera há mais tempo primeiro"). Em Prontos, cada card mostra "Pronto há N dias" (âmbar a partir de 3) e tem **Avisar** (mensagens prontas: WhatsApp, e-mail, copiar) e **Entregue**.
+- **Troca de par visível:** o conteúdo do drawer desliza para o lado do par escolhido, o código vira `#0042-2` com destaque, as abas ganham setas ‹ › e "2/3".
+- **Prateleira pelo "Comece por aqui":** Lembrar parados e Conferir prontos antigos rolam até a prateleira, abrem a lista inteira já filtrada (parados, do mais antigo; ou para conferir) e destacam o bloco. Funciona clicando de novo. O número "Parados 3+ dias" da prateleira também filtra.
 
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 

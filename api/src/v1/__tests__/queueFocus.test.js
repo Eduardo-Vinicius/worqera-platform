@@ -91,6 +91,16 @@ test('sort: high priority still beats a late card; missing dueAt goes last', () 
   assert.equal(sorted[2], noDue);
 });
 
+test('ready recorte: who has waited longest on the shelf comes first', () => {
+  const fresh = card({ itemInTerminal: true, status: 'ready', sectorSince: ago(1), dueAt: ago(20) });
+  const old = card({ itemInTerminal: true, status: 'ready', sectorSince: ago(12), dueAt: ahead(2) });
+  const noDate = card({ itemInTerminal: true, status: 'ready', sectorSince: null });
+  const sorted = sortQueueCards([fresh, noDate, old], now, 'ready');
+  assert.equal(sorted[0], old);
+  assert.equal(sorted[1], fresh);
+  assert.equal(sorted[2], noDate);
+});
+
 test('countQueueFocus: one order with two pairs counts two cards, not one pedido', () => {
   const cards = [
     card({ dueAt: ago(3) }),
