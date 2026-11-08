@@ -2,12 +2,13 @@
 
 ## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
 
-- **Login no visual da landing:** `/login`, `/forgot-password`, `/reset-password` e `/verify-email` usam `AuthShell` (aurora, Instrument/Plex, CTA roxo). A lógica de entrar, cookies e redirecionamento não mudou.
+- **Home sem o roxo desfocado:** o fundo do hero (e das páginas de ramo/recursos) passou a ser papel com um véu bem leve da marca e uma grade pontilhada; saíram os blobs animados e o degradê que andava no título.
+- **Login:** split de sempre (painel escuro + formulário no papel), fontes e CTA da landing. Sem aurora, sem mock de kanban. Forgot/reset/verify no mesmo chrome. A lógica de entrar não mudou.
 - **Implantação sem preço publicado:** saiu o "R$ 497" do site (preços, FAQ, Recursos), do cadastro e da aba Plano; agora é "sob consulta", com o botão "Falar com a Worqera" no WhatsApp. A constante `IMPLANTACAO` foi removida de `lib/plans.ts`.
 - **Home refeita** (`components/landing/*`), com animações em `motion` (só no marketing) e respeito a "reduzir movimento":
   - barra de aviso que pode ser fechada (7 dias grátis, histórico importado);
   - header que vira uma ilha de vidro ao rolar, com a seção atual destacada e menu de tela cheia no celular;
-  - hero com o ramo girando ("Para sapataria / lavanderia…"), aurora de fundo, título com gradiente e sublinhado desenhado, CTAs magnéticos;
+  - hero com o ramo girando ("Para sapataria / lavanderia…"), fundo de papel com véu da marca, título na cor da marca e sublinhado desenhado, CTAs magnéticos;
   - **palco ao vivo** (`live-stage.tsx`): o mesmo pedido anda no kanban da equipe, na página de consulta do cliente (celular) e no WhatsApp, com "Avançar pedido" para o visitante controlar; no celular vira abas;
   - números reais com contador, faixa de ramos em movimento, antes/depois com interruptor "Sem / Com Worqera";
   - "Como funciona" com a tela fixa que troca a cada passo ao rolar (no celular, cartões deslizáveis);

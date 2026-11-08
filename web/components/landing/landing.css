@@ -129,8 +129,8 @@ html[data-lp-theme="dark"] .lp {
 
 .lp .lp-hero-wash {
   background:
-    radial-gradient(ellipse 42% 36% at 88% 0%, var(--brand-soft), transparent 72%),
-    radial-gradient(ellipse 28% 24% at 8% 18%, color-mix(in srgb, var(--action) 16%, transparent), transparent 70%);
+    radial-gradient(ellipse 80% 42% at 50% -8%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
+    var(--paper);
 }
 
 .lp .lp-wa {
@@ -188,96 +188,41 @@ html[data-lp-announce="closed"] .lp .lp-announce {
   animation: lp-glint 6s ease-in-out infinite;
 }
 
-/* ---------- Hero aurora ---------- */
+/* ---------- Hero ground: paper, faint brand, grid. No blobs. ---------- */
 
 .lp .lp-aurora {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 48% at 50% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 3.5%, var(--paper)) 0%, var(--paper) 48%);
 }
 
 .lp .lp-aurora::before {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(color-mix(in srgb, var(--ink) 14%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
-  opacity: 0.5;
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 10%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 62% 48% at 50% 16%, #000 18%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 48% at 50% 16%, #000 18%, transparent 72%);
+  opacity: 0.45;
 }
 
-.lp .lp-blob {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(70px);
-  opacity: 0.55;
-  will-change: transform;
-}
-
-.lp .lp-blob-a {
-  width: 42rem;
-  height: 30rem;
-  top: -12rem;
-  left: -10rem;
-  background: color-mix(in srgb, var(--primary) 55%, transparent);
-  animation: lp-blob-a 20s ease-in-out infinite alternate;
-}
-
-.lp .lp-blob-b {
-  width: 34rem;
-  height: 26rem;
-  top: -6rem;
-  right: -12rem;
-  background: color-mix(in srgb, #e879f9 45%, transparent);
-  animation: lp-blob-b 24s ease-in-out infinite alternate;
-}
-
-.lp .lp-blob-c {
-  width: 30rem;
-  height: 22rem;
-  top: 16rem;
-  left: 30%;
-  background: color-mix(in srgb, var(--action) 30%, transparent);
-  animation: lp-blob-c 22s ease-in-out infinite alternate;
-}
-
-.lp.lp-dark .lp-blob,
-html[data-lp-theme="dark"] .lp .lp-blob {
-  opacity: 0.35;
-}
-
-@keyframes lp-blob-a {
-  to {
-    transform: translate(18%, 12%) scale(1.15);
-  }
-}
-
-@keyframes lp-blob-b {
-  to {
-    transform: translate(-20%, 18%) scale(0.9);
-  }
-}
-
-@keyframes lp-blob-c {
-  to {
-    transform: translate(-25%, -14%) scale(1.2);
-  }
-}
-
-@keyframes lp-gradient-pan {
-  to {
-    background-position: 200% 50%;
-  }
+.lp.lp-dark .lp-aurora,
+html[data-lp-theme="dark"] .lp .lp-aurora {
+  background:
+    radial-gradient(ellipse 90% 48% at 50% -10%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--paper)) 0%, var(--paper) 52%);
 }
 
 .lp .lp-gradient-text {
-  background: linear-gradient(90deg, var(--primary), #d946ef, var(--action), var(--primary)) 0% 50% / 200% 100%;
+  background: linear-gradient(105deg, var(--primary) 0%, var(--secondary) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: lp-gradient-pan 8s linear infinite;
 }
 
 /* ---------- Generic entrances (CSS, for pages without motion) ---------- */
@@ -830,9 +775,7 @@ html[data-lp-theme="dark"] .lp .lp-blob {
 
   /* Loops show their finished frame. */
   .lp [class*="lp-b-"],
-  .lp .lp-blob,
   .lp .lp-float,
-  .lp .lp-gradient-text,
   .lp .lp-glint,
   .lp .lp-marquee-track {
     animation: none !important;

@@ -7,11 +7,11 @@ Complementa [current-state.md](./current-state.md). Inventário canônico cross-
 
 | Rota | Capacidades | Gaps |
 |------|-------------|------|
-| `/` | Home: aviso, hero com ramo girando, palco ao vivo (kanban + consulta + WhatsApp), números, ramos, antes/depois, como funciona, mosaico de recursos, depoimentos, preços com valor por dia e comparativo, FAQ, CTA | |
+| `/` | Home: aviso, hero com ramo girando, fundo de papel (sem blobs), palco ao vivo (kanban + consulta + WhatsApp), números, ramos, antes/depois, como funciona, mosaico de recursos, depoimentos, preços com valor por dia e comparativo, FAQ, CTA | |
 | `/[slug]` | 9 ramos: hero, palco com os setores do ramo, antes/depois, setores, preços, outros ramos | público |
 | `/recursos` | Todos os recursos + comparação de planos + "Chegando" + índice lateral | público |
 | `/recursos/[slug]` | Página por recurso: kanban, orcamentos, whatsapp, cliente, financeiro, ia, equipe, produtos | público |
-| `/login` | Login e-mail/senha, visual da landing (`AuthShell`) | |
+| `/login` | Login e-mail/senha (`AuthShell`: painel escuro + formulário) | |
 | `/forgot-password` · `/reset-password` · `/verify-email` | Recuperar senha, nova senha, código de 6 dígitos — mesmo chrome da landing | |
 | `/signup` | Trial 7 dias (fontes da landing) | |
 | `/dashboard` | KPIs compactos, atalhos (Financeiro p/ owner/admin), chips “o que fazer”, setores | |

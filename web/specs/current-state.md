@@ -19,7 +19,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Landing `/` | LIVE (palco ao vivo kanban + cliente + WhatsApp · preços abertos com valor por dia, Basic 147 / Pro 297 / Business 597 · `motion` só no marketing) |
 | Ramos `/[slug]` · Recursos `/recursos` | LIVE (mesmo visual da home; palco com os setores do ramo; índice lateral) |
 | SEO | LIVE (OG gerada, `sitemap.xml`, `robots.txt`, JSON-LD; `NEXT_PUBLIC_SITE_URL` opcional, padrão `https://worqera.com`) |
-| Login `/login` · forgot · reset · verify · signup · `/privacidade` | LIVE (auth no visual da landing) |
+| Login `/login` · forgot · reset · verify · signup · `/privacidade` | LIVE (split escuro + formulário; fontes da landing) |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |
 | Oficinas `/admin/shops` | LIVE (KPIs + tabela; ajuste ao clicar) |

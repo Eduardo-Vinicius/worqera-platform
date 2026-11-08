@@ -11,15 +11,9 @@ import { Magnetic } from "@/components/landing/fx/magnetic"
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
-/** The moving purple, pink and teal light behind the hero, over a fading dot grid. */
+/** Quiet paper wash + grid behind the hero. No moving blobs. */
 export function Aurora() {
-  return (
-    <div className="lp-aurora" aria-hidden>
-      <div className="lp-blob lp-blob-a" />
-      <div className="lp-blob lp-blob-b" />
-      <div className="lp-blob lp-blob-c" />
-    </div>
-  )
+  return <div className="lp-aurora" aria-hidden />
 }
 
 /** Cycles through words, each one sliding up into place. */

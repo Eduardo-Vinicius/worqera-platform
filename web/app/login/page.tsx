@@ -68,7 +68,7 @@ export default function LoginPage() {
     <AuthShell aside>
       <div className="space-y-1">
         <h1 className="lp-display text-2xl font-semibold tracking-tight text-[var(--ink)]">Bem-vindo de volta</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Entre para ver a fila da sua empresa.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">Entre com o e-mail da sua empresa.</p>
       </div>
 
       <form onSubmit={handleLogin} className="mt-6 space-y-4">
@@ -114,7 +114,7 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        <Button type="submit" className="lp-cta h-12 w-full text-base" disabled={isLoading}>
+        <Button type="submit" className="lp-cta h-11 w-full text-[15px]" disabled={isLoading}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
