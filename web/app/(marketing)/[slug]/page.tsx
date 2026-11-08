@@ -14,9 +14,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   if (!isTradeSlug(slug)) return {}
   const page = getTradePage(slug, "pt")
+  const title = `Worqera para ${page.trade.toLowerCase()} — ${page.headline}`
   return {
-    title: `Worqera para ${page.trade}`,
+    title,
     description: page.lead,
+    alternates: { canonical: `/${slug}` },
+    openGraph: { type: "website", locale: "pt_BR", siteName: "Worqera", url: `/${slug}`, title, description: page.lead },
+    twitter: { card: "summary_large_image", title, description: page.lead },
   }
 }
 

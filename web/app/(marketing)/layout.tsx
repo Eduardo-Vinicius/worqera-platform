@@ -1,5 +1,6 @@
 import localFont from "next/font/local"
 import type { ReactNode } from "react"
+import { LpThemeScript } from "@/components/landing/theme-script"
 
 const instrument = localFont({
   src: [
@@ -23,5 +24,10 @@ const plex = localFont({
 })
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
-  return <div className={`${instrument.variable} ${plex.variable}`}>{children}</div>
+  return (
+    <div className={`${instrument.variable} ${plex.variable}`}>
+      <LpThemeScript />
+      {children}
+    </div>
+  )
 }

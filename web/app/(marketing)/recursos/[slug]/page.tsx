@@ -14,9 +14,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   if (!isFeatureSlug(slug)) return {}
   const feature = getFeature(slug, "pt")
+  const title = `${feature.name} — Worqera`
   return {
-    title: `${feature.name} — Worqera`,
+    title,
     description: feature.lead,
+    alternates: { canonical: `/recursos/${slug}` },
+    openGraph: { type: "website", locale: "pt_BR", siteName: "Worqera", url: `/recursos/${slug}`, title, description: feature.lead },
+    twitter: { card: "summary_large_image", title, description: feature.lead },
   }
 }
 

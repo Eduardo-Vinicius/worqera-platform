@@ -196,7 +196,7 @@ async function assertBasicOrderCap(shopId) {
   });
   if (used < BASIC_ORDER_CAP) return;
   const err = new Error(
-    'O plano Basic chega a 100 pedidos neste mês. Suba para o Pro para continuar.'
+    `O plano Basic chega a ${BASIC_ORDER_CAP} pedidos neste mês. Suba para o Pro para continuar.`
   );
   err.status = 402;
   err.code = 'BASIC_ORDER_CAP';

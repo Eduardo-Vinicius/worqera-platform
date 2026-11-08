@@ -66,6 +66,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/invite/') ||
     pathname === '/privacidade' ||
     pathname === '/excluir-conta' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname.includes('/opengraph-image') ||
+    /\.(svg|png|jpe?g|webp|ico|webmanifest)$/i.test(pathname) ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname.startsWith('/verify-email') ||

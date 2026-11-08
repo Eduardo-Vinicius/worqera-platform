@@ -1,5 +1,24 @@
 # Worqera Web — Change log
 
+## 2026-11-07 — Site novo (home, ramos, recursos, SEO)
+
+- **Home refeita** (`components/landing/*`), com animações em `motion` (só no marketing) e respeito a "reduzir movimento":
+  - barra de aviso que pode ser fechada (7 dias grátis, histórico importado);
+  - header que vira uma ilha de vidro ao rolar, com a seção atual destacada e menu de tela cheia no celular;
+  - hero com o ramo girando ("Para sapataria / lavanderia…"), aurora de fundo, título com gradiente e sublinhado desenhado, CTAs magnéticos;
+  - **palco ao vivo** (`live-stage.tsx`): o mesmo pedido anda no kanban da equipe, na página de consulta do cliente (celular) e no WhatsApp, com "Avançar pedido" para o visitante controlar; no celular vira abas;
+  - números reais com contador, faixa de ramos em movimento, antes/depois com interruptor "Sem / Com Worqera";
+  - "Como funciona" com a tela fixa que troca a cada passo ao rolar (no celular, cartões deslizáveis);
+  - mosaico "Tudo que vem junto" com uma mini-animação por recurso e o plano de cada um (vem de `PLAN_ROWS`);
+  - depoimentos em formato stories (barras de progresso, arrastar no celular);
+  - **preços abertos**: valor por dia ("≈ R$ 9,90 por dia"), Pro destacado como "Mais escolhido", dígitos que rolam ao trocar mensal/anual, "Compare tudo", implantação em 3 passos e mini perguntas de preço;
+  - FAQ com novas perguntas (celular, TV, fidelidade) e atalho para o WhatsApp; CTA final com cartões flutuando; rodapé com ramos, legal (Privacidade, Excluir conta), idioma, tema e voltar ao topo; botão do WhatsApp aparece depois de 30% da página.
+- **Páginas de ramo** com o mesmo visual e o palco usando os setores do ramo; os preços entram na própria página. **Recursos** e cada recurso ganharam índice lateral fixo, entradas animadas e a tabela de planos com os preços do catálogo (`plan-table.tsx`).
+- **Tema escuro sem piscar:** script antes da pintura grava `data-lp-theme` no `<html>`; a barra de aviso fechada também não pisca.
+- **SEO:** `metadataBase`, Open Graph e Twitter nas páginas de marketing, imagem de compartilhamento gerada (`app/opengraph-image.tsx` e uma por ramo), `sitemap.xml`, `robots.txt` e JSON-LD (produto com os preços dos planos, empresa e FAQ). O middleware libera essas rotas e os arquivos estáticos sem login.
+- **Correção:** `html` e `body` com `overflow-x: hidden` quebravam o `position: sticky`; nas páginas de marketing passa a ser `clip`.
+- O WhatsApp da Worqera fica num lugar só (`components/landing/contact.ts`).
+
 ## 2026-11-07
 
 - **CRM redesenhado, mais limpo e mais largo:**

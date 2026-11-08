@@ -2,6 +2,8 @@
 
 ## 2026-11-07
 
+- Limite do Basic: a mensagem `BASIC_ORDER_CAP` dizia "100 pedidos"; agora usa o limite real (150).
+
 - `/crm/summary`: `counts.returned` (voltaram em 30 dias) e `counts.feedbackToAsk` (entregues em 30 dias sem nota e sem pedido de avaliação), para os contadores do menu do CRM.
 
 - **CRM → Feedback** (`services/feedbackCrm.js`):

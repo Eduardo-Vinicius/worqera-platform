@@ -1,91 +1,165 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState, type ReactNode } from "react"
+import { AnimatePresence, m, useReducedMotion } from "motion/react"
+import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
-import { FlowFilm } from "@/components/landing/flow-film"
-import { ArrowRight } from "lucide-react"
+import { LiveStage } from "@/components/landing/live-stage"
+import { Magnetic } from "@/components/landing/fx/magnetic"
 
-/** Top of the home: what it does, the real numbers, who it is for. */
+const EASE = [0.22, 1, 0.36, 1] as const
+
+/** The moving purple, pink and teal light behind the hero, over a fading dot grid. */
+export function Aurora() {
+  return (
+    <div className="lp-aurora" aria-hidden>
+      <div className="lp-blob lp-blob-a" />
+      <div className="lp-blob lp-blob-b" />
+      <div className="lp-blob lp-blob-c" />
+    </div>
+  )
+}
+
+/** Cycles through words, each one sliding up into place. */
+export function RotatingWord({ words, every = 2400 }: { words: string[]; every?: number }) {
+  const [index, setIndex] = useState(0)
+  const reduced = useReducedMotion()
+
+  useEffect(() => {
+    if (reduced || words.length < 2) return
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % words.length), every)
+    return () => window.clearInterval(timer)
+  }, [reduced, words.length, every])
+
+  return (
+    <m.span layout className="relative inline-flex overflow-hidden align-bottom" transition={{ duration: 0.35, ease: EASE }}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <m.span
+          key={words[index]}
+          className="inline-block whitespace-nowrap font-semibold text-[var(--primary)]"
+          initial={{ y: "100%", opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: "-100%", opacity: 0 }}
+          transition={{ duration: 0.45, ease: EASE }}
+        >
+          {words[index]}
+        </m.span>
+      </AnimatePresence>
+    </m.span>
+  )
+}
+
+/** A check drawn stroke by stroke, then its label. */
+export function CheckBadge({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm text-[var(--muted-foreground)]">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ready)_16%,transparent)] text-[var(--ready)]">
+        <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+          <m.path
+            d="M3.5 8.5 6.5 11.5 12.5 4.5"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.5, delay: 0.6 + delay, ease: "easeOut" }}
+          />
+        </svg>
+      </span>
+      {children}
+    </span>
+  )
+}
+
+/** Underline that draws itself under the highlighted half of the headline. */
+function DrawnUnderline() {
+  return (
+    <svg aria-hidden viewBox="0 0 300 12" preserveAspectRatio="none" className="absolute -bottom-1 left-0 h-3 w-full text-[var(--primary)]/60">
+      <m.path
+        d="M2 9 C 60 3, 140 3, 298 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={3}
+        strokeLinecap="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.9, delay: 0.5, ease: EASE }}
+      />
+    </svg>
+  )
+}
+
+/** Top of the home: the promise, the trades it serves and the live stage of one order. */
 export function HeroSection() {
   const { t } = useLanguage()
 
   return (
-    <section className="lp-hero-wash relative overflow-hidden pt-14 sm:pt-16">
-      <div className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-14 lg:pt-16">
-        <div className="lp-animate-in mx-auto max-w-3xl text-center">
-          <p className="mb-4 text-sm font-medium text-[var(--primary)]">{t.hero.kicker}</p>
-          <h1 className="lp-display text-balance text-4xl font-semibold leading-[1.05] text-[var(--ink)] sm:text-5xl lg:text-[3.4rem]">
-            {t.hero.headline}
+    <section className="relative -mt-16 overflow-hidden pt-16">
+      <Aurora />
+      <div className="relative mx-auto max-w-6xl px-4 pt-12 pb-10 sm:px-6 sm:pt-16 lg:pt-20">
+        <div className="mx-auto max-w-5xl text-center">
+          <p className="lp-animate-in lp-glass mx-auto inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-[13px] text-[var(--muted-foreground)] sm:text-sm">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="lp-live-dot absolute inline-flex h-full w-full rounded-full bg-[var(--ready)]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ready)]" />
+            </span>
+            <span>{t.hero.kickerFor}</span>
+            <RotatingWord words={t.hero.kickerWords} />
+            <span className="hidden sm:inline">{t.hero.kickerRest}</span>
+          </p>
+
+          <h1 className="lp-display mx-auto mt-6 max-w-5xl text-balance text-[2.6rem] leading-[1.02] font-semibold text-[var(--ink)] sm:text-6xl lg:text-[4.2rem]">
+            <span className="lp-animate-in block" style={{ animationDelay: "0.05s" }}>
+              {t.hero.headlineA}
+            </span>
+            <span className="lp-animate-in relative inline-block" style={{ animationDelay: "0.15s" }}>
+              <span className="lp-gradient-text">{t.hero.headlineB}</span>
+              <DrawnUnderline />
+            </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-relaxed text-[var(--muted-foreground)] sm:text-lg">
+
+          <p
+            className="lp-animate-in mx-auto mt-6 max-w-2xl text-pretty text-base leading-relaxed text-[var(--muted-foreground)] sm:text-lg"
+            style={{ animationDelay: "0.25s" }}
+          >
             {t.hero.sub}
           </p>
-          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Button asChild size="lg" className="lp-cta h-12 rounded-md px-8 text-base font-medium">
-              <Link href="/signup">
-                {t.hero.cta}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="h-12 rounded-md border-[var(--border)] bg-[var(--surface)] px-8 text-base font-medium text-[var(--ink)] hover:bg-[var(--muted)]"
-            >
-              <Link href="/#pricing">{t.hero.secondary}</Link>
-            </Button>
-          </div>
-          <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t.hero.note}</p>
-        </div>
 
-        <div className="lp-animate-in-delay mx-auto mt-12 max-w-5xl">
-          <p className="text-center text-[11px] font-semibold tracking-[0.18em] text-[var(--muted-foreground)] uppercase">
-            {t.numbers.label}
-          </p>
-          <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_25%,var(--border))] lg:grid-cols-4">
-            {t.numbers.items.map((item, index) => (
-              <div
-                key={item.label}
-                className={index === 0 ? "bg-[var(--primary)] px-4 py-6 text-center sm:px-6 sm:py-7" : "bg-[var(--surface)] px-4 py-6 text-center sm:px-6 sm:py-7"}
-              >
-                <dt className="sr-only">{item.label}</dt>
-                <dd
-                  className={`lp-display whitespace-nowrap text-[1.7rem] font-semibold leading-none tracking-tight sm:text-[2.25rem] ${index === 0 ? "text-[var(--primary-foreground)]" : "text-[var(--primary)]"}`}
-                >
-                  {item.value}
-                </dd>
-                <dd className={`mt-2 text-sm leading-snug ${index === 0 ? "text-[var(--primary-foreground)]/85" : "text-[var(--muted-foreground)]"}`}>
-                  {item.label}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-4 text-center text-sm font-medium text-[var(--ink)]">{t.hero.social}</p>
-        </div>
-
-        <div id="ramos" className="mx-auto mt-8 max-w-4xl scroll-mt-24 text-center">
-          <span className="mr-2 text-xs font-semibold tracking-[0.14em] text-[var(--muted-foreground)] uppercase">
-            {t.hero.tradesLabel}
-          </span>
-          <ul className="mt-2 inline-flex flex-wrap justify-center gap-2">
-            {t.trades.items.map((item) => (
-              <li key={item.slug}>
-                <Link
-                  href={`/${item.slug}`}
-                  className="inline-block rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-sm text-[var(--ink)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]"
-                >
-                  {item.trade}
+          <div
+            className="lp-animate-in mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center"
+            style={{ animationDelay: "0.35s" }}
+          >
+            <Magnetic>
+              <Button asChild size="lg" className="lp-cta lp-shine h-12 w-full rounded-full px-8 text-base font-semibold sm:w-auto">
+                <Link href="/signup">
+                  {t.hero.cta}
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+              </Button>
+            </Magnetic>
+            <Magnetic strength={4}>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="lp-glass h-12 w-full rounded-full border-[var(--border)] px-8 text-base font-medium text-[var(--ink)] hover:bg-[var(--surface)] sm:w-auto"
+              >
+                <a href="#pricing">{t.hero.secondary}</a>
+              </Button>
+            </Magnetic>
+          </div>
 
-      <div className="lp-animate-in-delay mx-auto max-w-6xl px-0 pb-6 sm:px-6 sm:pb-10">
-        <FlowFilm />
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            {t.hero.badges.map((badge, index) => (
+              <CheckBadge key={badge} delay={index * 0.15}>
+                {badge}
+              </CheckBadge>
+            ))}
+          </div>
+        </div>
+
+        <div className="lp-animate-in-delay mx-auto mt-14 max-w-6xl" style={{ animationDelay: "0.45s" }}>
+          <LiveStage />
+        </div>
       </div>
     </section>
   )

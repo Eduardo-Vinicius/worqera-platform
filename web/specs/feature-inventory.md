@@ -1,14 +1,15 @@
 # Worqera Web — Inventário de features
 
-**Atualizado:** 2026-09-22  
+**Atualizado:** 2026-11-07  
 Complementa [current-state.md](./current-state.md). Inventário canônico cross-stack: [`../../api/specs/feature-inventory.md`](../../api/specs/feature-inventory.md).
 
 ## Páginas × capacidades
 
 | Rota | Capacidades | Gaps |
 |------|-------------|------|
-| `/` | Landing premium multi-ramo (orquestrador: pilares, novo na Worqera, loop, ramos, planos) | |
-| `/recursos` | Todos os recursos + comparação de planos + "Chegando" | público |
+| `/` | Home: aviso, hero com ramo girando, palco ao vivo (kanban + consulta + WhatsApp), números, ramos, antes/depois, como funciona, mosaico de recursos, depoimentos, preços com valor por dia e comparativo, FAQ, CTA | |
+| `/[slug]` | 9 ramos: hero, palco com os setores do ramo, antes/depois, setores, preços, outros ramos | público |
+| `/recursos` | Todos os recursos + comparação de planos + "Chegando" + índice lateral | público |
 | `/recursos/[slug]` | Página por recurso: kanban, orcamentos, whatsapp, cliente, financeiro, ia, equipe, produtos | público |
 | `/login` | Login e-mail/senha | |
 | `/signup` | Trial 7 dias | |

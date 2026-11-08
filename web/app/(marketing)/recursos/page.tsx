@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "Recursos da Worqera — fila, CRM de orçamentos, WhatsApp, financeiro e IA",
   description:
     "Kanban por setores, consulta do cliente, CRM de orçamentos, WhatsApp, financeiro, produtos e IA. Tudo o que a Worqera faz, e em qual plano.",
+  alternates: { canonical: "/recursos" },
+  openGraph: { type: "website", locale: "pt_BR", siteName: "Worqera", url: "/recursos" },
 }
 
 export default function FeaturesRoute() {

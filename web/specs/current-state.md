@@ -1,6 +1,6 @@
 # Worqera Web — Estado atual
 
-**Atualizado:** 2026-11-04 (console admin no padrão do Procedy; página pública Excluir conta)
+**Atualizado:** 2026-11-07 (site novo: home animada com palco ao vivo, preços abertos, ramos e recursos no mesmo visual, SEO)
 
 ## Em uma frase
 
@@ -10,13 +10,15 @@ Next.js 15 com **landing premium multi-ramo**, AppShell, kanban **1 card/item** 
 
 ## Stack
 
-Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · JetBrains Mono
+Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · JetBrains Mono · `motion` (marketing)
 
 ## Mapa rápido
 
 | Área | Status |
 |------|--------|
-| Landing `/` | LIVE (pedidos, produtos, estoque e vendas · filme do pedido no topo · Basic 97, Pro 197, Business 499) |
+| Landing `/` | LIVE (palco ao vivo kanban + cliente + WhatsApp · preços abertos com valor por dia, Basic 147 / Pro 297 / Business 597 · `motion` só no marketing) |
+| Ramos `/[slug]` · Recursos `/recursos` | LIVE (mesmo visual da home; palco com os setores do ramo; índice lateral) |
+| SEO | LIVE (OG gerada, `sitemap.xml`, `robots.txt`, JSON-LD; `NEXT_PUBLIC_SITE_URL` opcional, padrão `https://worqera.com`) |
 | Login `/login` · signup · `/privacidade` | LIVE |
 | AppShell + logo + meV1 | LIVE |
 | Equipe `/settings/equipe` | LIVE |

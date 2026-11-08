@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
+import { SITE_URL } from "@/components/landing/contact"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,6 +19,7 @@ const jetbrains = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: `${process.env.NEXT_PUBLIC_APP_NAME || "Worqera"} — Sistema de gestão de pedidos`,
   description:
     "Kanban por setores, ordem de serviço, QR e status para o cliente. Lavanderia, assistência técnica, calçados, automotivo e atelier. Teste 7 dias grátis.",

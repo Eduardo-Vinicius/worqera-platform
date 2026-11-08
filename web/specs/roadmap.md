@@ -1,6 +1,6 @@
 # Worqera Web — Roadmap
 
-**Atualizado:** 2026-10-13 (preços no site e na aba Plano: Basic 97 · Pro 197 · Business 499)
+**Atualizado:** 2026-11-07 (site novo com preços abertos: Basic 147 · Pro 297 · Business 597)
 
 Plano detalhado: [`../../docs/superpowers/plans/2026-09-16-worqera-next-session.md`](../../docs/superpowers/plans/2026-09-16-worqera-next-session.md)
 
@@ -9,6 +9,7 @@ Inventário: [feature-inventory.md](./feature-inventory.md) · Landing: [`../../
 ## Quick-wins
 
 - [x] **LP marketing** — `/` landing (CTA trial); login em `/login`; logo SVG + favicon no SaaS
+- [x] **Site novo** — home animada com palco ao vivo, preços abertos com valor por dia, ramos e recursos no mesmo visual, OG/sitemap/robots/JSON-LD (2026-11-07)
 - [x] Kanban board profissional — colunas desktop + `@dnd-kit`; mobile foco 1 setor
 - [x] Consultas split — hub + `/consultas/clientes` + `/consultas/pedidos`
 - [x] TV Chão renomeada para **TV Oficina**

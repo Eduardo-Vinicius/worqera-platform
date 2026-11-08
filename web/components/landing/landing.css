@@ -1,8 +1,25 @@
 /* Landing Worqera — papel claro, roxo da marca, verde de ação. */
 
+html:has(.lp) {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+/* `overflow-x: hidden` on both html and body turns body into a scroll box and breaks `position: sticky`. */
+html:has(.lp),
+html:has(.lp) body {
+  overflow-x: clip;
+}
+
+@property --lp-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .lp {
   --radius: 0.5rem;
-  --background: #f4f5f7;
+  --background: #f6f5fa;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -13,29 +30,36 @@
   --secondary: #4f0fa6;
   --brand-soft: rgba(125, 38, 222, 0.12);
   --action: #0d9488;
-  --border: #e2e8f0;
+  --border: #e4e2ee;
   --ink: #0f172a;
-  --paper: #f4f5f7;
+  --paper: #f6f5fa;
   --surface: #ffffff;
   --band: #0f172a;
   --on-band: #f8fafc;
   --mock-bg: #eef0f4;
   --mock-col: #ffffff;
   --ready: #0d9488;
+  --late: #e11d48;
+  --wa: #25d366;
+  --wa-bg: #efe7dd;
+  --wa-in: #ffffff;
+  --wa-out: #d9fdd3;
+  --glass: rgb(255 255 255 / 0.72);
+  --shadow-lg: 0 30px 80px -40px rgb(49 16 102 / 0.45);
 
   color: var(--foreground);
   background: var(--background);
-  scroll-behavior: smooth;
   font-family: var(--font-lp-body), ui-sans-serif, system-ui, sans-serif;
 }
 
-.lp.lp-dark {
+.lp.lp-dark,
+html[data-lp-theme="dark"] .lp {
   color-scheme: dark;
-  --background: #0b1220;
+  --background: #0a0f1c;
   --foreground: #e5e7eb;
   --card: #111827;
   --card-foreground: #e5e7eb;
-  --muted: #1f2937;
+  --muted: #1b2333;
   --muted-foreground: #94a3b8;
   --primary: #a78bfa;
   --primary-foreground: #0b1220;
@@ -44,13 +68,19 @@
   --action: #2dd4bf;
   --border: #1f2937;
   --ink: #e5e7eb;
-  --paper: #0b1220;
+  --paper: #0a0f1c;
   --surface: #111827;
   --band: #1a1033;
   --on-band: #f8fafc;
   --mock-bg: #0f172a;
   --mock-col: #111827;
   --ready: #2dd4bf;
+  --late: #fb7185;
+  --wa-bg: #0b141a;
+  --wa-in: #202c33;
+  --wa-out: #005c4b;
+  --glass: rgb(17 24 39 / 0.7);
+  --shadow-lg: 0 30px 80px -40px rgb(0 0 0 / 0.8);
 }
 
 .lp .lp-display {
@@ -66,12 +96,35 @@
 .lp .lp-cta {
   background: var(--primary);
   color: var(--primary-foreground);
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 30px -14px color-mix(in srgb, var(--primary) 80%, transparent);
 }
 
 .lp .lp-cta:hover {
   background: var(--secondary);
   color: #ffffff;
+}
+
+/* Light sweep over a button on hover. */
+.lp .lp-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.lp .lp-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+}
+
+.lp .lp-shine:hover::after {
+  transition: transform 0.8s ease;
+  transform: translateX(120%);
 }
 
 .lp .lp-hero-wash {
@@ -90,6 +143,145 @@
   background: #1ebe5d;
 }
 
+.lp .lp-glass {
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* ---------- Announce bar ---------- */
+
+html[data-lp-announce="closed"] .lp .lp-announce {
+  display: none;
+}
+
+@keyframes lp-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lp .lp-announce-text {
+  animation: lp-drop-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lp-glint {
+  0%,
+  80% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.lp .lp-glint {
+  background: linear-gradient(100deg, currentColor 40%, #fde68a 50%, currentColor 60%) 200% 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lp-glint 6s ease-in-out infinite;
+}
+
+/* ---------- Hero aurora ---------- */
+
+.lp .lp-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lp .lp-aurora::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 14%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  opacity: 0.5;
+}
+
+.lp .lp-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.lp .lp-blob-a {
+  width: 42rem;
+  height: 30rem;
+  top: -12rem;
+  left: -10rem;
+  background: color-mix(in srgb, var(--primary) 55%, transparent);
+  animation: lp-blob-a 20s ease-in-out infinite alternate;
+}
+
+.lp .lp-blob-b {
+  width: 34rem;
+  height: 26rem;
+  top: -6rem;
+  right: -12rem;
+  background: color-mix(in srgb, #e879f9 45%, transparent);
+  animation: lp-blob-b 24s ease-in-out infinite alternate;
+}
+
+.lp .lp-blob-c {
+  width: 30rem;
+  height: 22rem;
+  top: 16rem;
+  left: 30%;
+  background: color-mix(in srgb, var(--action) 30%, transparent);
+  animation: lp-blob-c 22s ease-in-out infinite alternate;
+}
+
+.lp.lp-dark .lp-blob,
+html[data-lp-theme="dark"] .lp .lp-blob {
+  opacity: 0.35;
+}
+
+@keyframes lp-blob-a {
+  to {
+    transform: translate(18%, 12%) scale(1.15);
+  }
+}
+
+@keyframes lp-blob-b {
+  to {
+    transform: translate(-20%, 18%) scale(0.9);
+  }
+}
+
+@keyframes lp-blob-c {
+  to {
+    transform: translate(-25%, -14%) scale(1.2);
+  }
+}
+
+@keyframes lp-gradient-pan {
+  to {
+    background-position: 200% 50%;
+  }
+}
+
+.lp .lp-gradient-text {
+  background: linear-gradient(90deg, var(--primary), #d946ef, var(--action), var(--primary)) 0% 50% / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lp-gradient-pan 8s linear infinite;
+}
+
+/* ---------- Generic entrances (CSS, for pages without motion) ---------- */
+
 @keyframes lp-fade-up {
   from {
     opacity: 0;
@@ -101,136 +293,26 @@
   }
 }
 
-@keyframes lp-board-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .lp .lp-animate-in {
   animation: lp-fade-up 0.65s ease-out both;
 }
 
-@keyframes lp-story {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}
-
-.lp .lp-story-bar {
-  animation: lp-story 8s linear forwards;
-}
-
 .lp .lp-animate-in-delay {
-  animation: lp-board-in 0.8s ease-out 0.1s both;
-}
-
-@keyframes lp-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes lp-ready-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(26 122 76 / 0);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgb(26 122 76 / 0.18);
-  }
-}
-
-@keyframes lp-toast-in {
-  0%,
-  18% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  30%,
-  78% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  92%,
-  100% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
-@keyframes lp-pillar-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: lp-fade-up 0.8s ease-out 0.1s both;
 }
 
 .lp .lp-board-card {
-  animation: lp-card-in 0.7s ease-out both;
-}
-
-.lp .lp-board-card-ready {
-  animation: lp-card-in 0.7s ease-out both, lp-ready-pulse 2.8s ease-in-out 0.8s infinite;
-}
-
-.lp .lp-toast {
-  border: 1px solid rgb(255 255 255 / 0.12);
-  background: rgb(18 18 18 / 0.92);
-  border-radius: 0.5rem;
-  padding: 0.7rem 0.85rem;
-  animation: lp-toast-in 7s ease-in-out 1.1s infinite;
+  animation: lp-fade-up 0.7s ease-out both;
 }
 
 .lp .lp-pillar {
-  animation: lp-pillar-in 0.7s ease-out both;
-  transition: transform 0.25s ease, border-color 0.25s ease;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .lp .lp-pillar:hover {
   transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-}
-
-.lp .lp-trade:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.28em;
-  text-decoration-thickness: 1.5px;
-}
-
-.lp .lp-film-card {
-  right: 1rem;
-  left: 1rem;
-  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1), width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.lp .lp-film-card-jump {
-  transition: none;
-}
-
-@media (min-width: 640px) {
-  .lp .lp-film-card {
-    left: calc(var(--lp-col) * 25% + 0.75rem);
-    width: calc(25% - 1.5rem);
-    right: auto;
-  }
+  box-shadow: var(--shadow-lg);
 }
 
 @keyframes lp-live-pulse {
@@ -239,7 +321,7 @@
     opacity: 0.7;
   }
   100% {
-    transform: scale(2.2);
+    transform: scale(2.4);
     opacity: 0;
   }
 }
@@ -248,55 +330,519 @@
   animation: lp-live-pulse 1.8s ease-out infinite;
 }
 
-@keyframes lp-day-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+@keyframes lp-ready-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ready) 0%, transparent);
   }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ready) 22%, transparent);
+  }
+}
+
+.lp .lp-ready-pulse {
+  animation: lp-ready-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes lp-late-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--late) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--late) 22%, transparent);
+  }
+}
+
+.lp .lp-late-pulse {
+  animation: lp-late-pulse 1.8s ease-in-out infinite;
+}
+
+/* ---------- Spotlight ---------- */
+
+.lp .lp-spot {
+  position: relative;
+}
+
+.lp .lp-spot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(340px circle at var(--lp-mx, 50%) var(--lp-my, 50%), color-mix(in srgb, var(--primary) 13%, transparent), transparent 65%);
+}
+
+.lp .lp-spot:hover::after {
+  opacity: 1;
+}
+
+/* ---------- Marquee ---------- */
+
+.lp .lp-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.lp .lp-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: lp-marquee var(--lp-marquee-s, 40s) linear infinite;
+}
+
+.lp .lp-marquee-reverse {
+  animation-direction: reverse;
+}
+
+.lp .lp-marquee:hover .lp-marquee-track,
+.lp .lp-marquee:focus-within .lp-marquee-track {
+  animation-play-state: paused;
+}
+
+.lp .lp-marquee-set {
+  display: flex;
+  gap: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+@keyframes lp-marquee {
   to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- Rolling digits ---------- */
+
+.lp .lp-roll {
+  line-height: 1.1;
+}
+
+.lp .lp-reel {
+  position: relative;
+  display: inline-block;
+}
+
+.lp .lp-reel-win {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lp .lp-reel-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lp .lp-reel-strip > span {
+  height: 1.1em;
+  line-height: 1.1em;
+  text-align: center;
+}
+
+/* ---------- Spinning gradient ring (Pro plan) ---------- */
+
+@keyframes lp-spin-angle {
+  to {
+    --lp-angle: 360deg;
+  }
+}
+
+.lp .lp-ring {
+  background: conic-gradient(from var(--lp-angle), var(--primary), #e879f9, var(--action), #c4b5fd, var(--primary));
+  animation: lp-spin-angle 6s linear infinite;
+}
+
+/* ---------- Typing dots ---------- */
+
+@keyframes lp-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
     opacity: 1;
+  }
+}
+
+.lp .lp-typing > span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: lp-dot 1.1s ease-in-out infinite;
+}
+
+.lp .lp-typing > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.lp .lp-typing > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ---------- Bento micro-animations ---------- */
+
+@keyframes lp-b-travel {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  30%,
+  45% {
+    transform: translateX(calc(100% + 1.5rem));
+  }
+  63%,
+  85% {
+    transform: translateX(calc(200% + 3rem));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.lp .lp-b-travel {
+  animation: lp-b-travel 6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes lp-b-rows {
+  0%,
+  20% {
+    transform: translateY(0);
+  }
+  33%,
+  53% {
+    transform: translateY(-33.333%);
+  }
+  66%,
+  86% {
+    transform: translateY(-66.666%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.lp .lp-b-rows {
+  animation: lp-b-rows 7s ease-in-out infinite;
+}
+
+@keyframes lp-b-scan {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4.25rem);
+  }
+}
+
+.lp .lp-b-scan {
+  animation: lp-b-scan 2.6s ease-in-out infinite;
+}
+
+@keyframes lp-b-split {
+  0%,
+  100% {
+    clip-path: inset(0 70% 0 0);
+  }
+  50% {
+    clip-path: inset(0 20% 0 0);
+  }
+}
+
+@keyframes lp-b-split-line {
+  0%,
+  100% {
+    left: 30%;
+  }
+  50% {
+    left: 80%;
+  }
+}
+
+.lp .lp-b-split {
+  animation: lp-b-split 5s ease-in-out infinite;
+}
+
+.lp .lp-b-split-line {
+  animation: lp-b-split-line 5s ease-in-out infinite;
+}
+
+@keyframes lp-b-bubble {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  16%,
+  86% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
     transform: none;
   }
 }
 
-.lp .lp-day-card {
-  animation: lp-day-in 0.45s ease;
+.lp .lp-b-bubble {
+  animation: lp-b-bubble 7s ease-out infinite both;
 }
 
-@keyframes lp-beat {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
+@keyframes lp-b-bar {
+  0% {
+    transform: scaleY(0.15);
   }
-  to {
+  40%,
+  85% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0.15);
+  }
+}
+
+.lp .lp-b-bar {
+  transform-origin: bottom;
+  animation: lp-b-bar 5s cubic-bezier(0.22, 1, 0.36, 1) infinite both;
+}
+
+@keyframes lp-b-crm {
+  0%,
+  25% {
+    transform: translateX(0);
+  }
+  45%,
+  90% {
+    transform: translateX(calc(100% + 1.5rem));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.lp .lp-b-crm {
+  animation: lp-b-crm 6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes lp-b-chip-a {
+  0%,
+  40%,
+  100% {
     opacity: 1;
-    transform: none;
+  }
+  45%,
+  90% {
+    opacity: 0;
   }
 }
 
-.lp .lp-beat {
-  animation: lp-beat 0.4s ease;
+@keyframes lp-b-chip-b {
+  0%,
+  40%,
+  100% {
+    opacity: 0;
+  }
+  45%,
+  90% {
+    opacity: 1;
+  }
+}
+
+.lp .lp-b-chip-a {
+  animation: lp-b-chip-a 6s linear infinite;
+}
+
+.lp .lp-b-chip-b {
+  animation: lp-b-chip-b 6s linear infinite;
+}
+
+@keyframes lp-b-star {
+  0%,
+  10% {
+    color: var(--border);
+    transform: scale(0.85);
+  }
+  20%,
+  85% {
+    color: #f59e0b;
+    transform: scale(1);
+  }
+  100% {
+    color: var(--border);
+  }
+}
+
+.lp .lp-b-star {
+  color: #f59e0b;
+  animation: lp-b-star 5s ease-out infinite both;
+}
+
+@keyframes lp-b-gauge {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  45%,
+  85% {
+    stroke-dashoffset: 8;
+  }
+  100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+.lp .lp-b-gauge {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 8;
+  animation: lp-b-gauge 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes lp-b-type {
+  0% {
+    width: 0;
+  }
+  55%,
+  90% {
+    width: var(--lp-type-w, 30ch);
+  }
+  100% {
+    width: 0;
+  }
+}
+
+.lp .lp-b-type {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  width: var(--lp-type-w, 30ch);
+  border-right: 2px solid var(--primary);
+  animation: lp-b-type 6s steps(40, end) infinite;
+}
+
+@keyframes lp-b-fill {
+  0% {
+    transform: scaleX(0.05);
+  }
+  70%,
+  92% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0.05);
+  }
+}
+
+.lp .lp-b-fill {
+  transform-origin: left;
+  animation: lp-b-fill 5s ease-in-out infinite;
+}
+
+@keyframes lp-b-swap-out {
+  0%,
+  45% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  55%,
+  95% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes lp-b-swap-in {
+  0%,
+  45% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  55%,
+  95% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.lp .lp-b-swap-out {
+  animation: lp-b-swap-out 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.lp .lp-b-swap-in {
+  animation: lp-b-swap-in 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Loops sleep while their section is off screen. */
+.lp [data-play="false"],
+.lp [data-play="false"] * {
+  animation-play-state: paused !important;
+}
+
+/* ---------- CTA floating cards ---------- */
+
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--lp-rot, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--lp-rot, 0deg));
+  }
+}
+
+.lp .lp-float {
+  animation: lp-float 6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp .lp-animate-in,
-  .lp .lp-animate-in-delay,
-  .lp .lp-board-card,
-  .lp .lp-board-card-ready,
-  .lp .lp-toast,
-  .lp .lp-pillar,
-  .lp .lp-live-dot,
-  .lp .lp-beat {
-    animation: none;
+  html:has(.lp) {
+    scroll-behavior: auto;
   }
 
-  .lp .lp-film-card,
-  .lp .lp-day-card {
-    transition: none;
-    animation: none;
+  .lp *,
+  .lp *::before,
+  .lp *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.001ms !important;
   }
 
   .lp .lp-pillar:hover {
     transform: none;
+  }
+
+  /* Loops show their finished frame. */
+  .lp [class*="lp-b-"],
+  .lp .lp-blob,
+  .lp .lp-float,
+  .lp .lp-gradient-text,
+  .lp .lp-glint,
+  .lp .lp-marquee-track {
+    animation: none !important;
+  }
+
+  .lp .lp-b-swap-out {
+    opacity: 0;
+  }
+
+  .lp .lp-b-type {
+    border-right-color: transparent;
   }
 }

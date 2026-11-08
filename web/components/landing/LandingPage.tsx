@@ -1,57 +1,35 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import "./landing.css"
+import dynamic from "next/dynamic"
 import { LanguageProvider } from "@/components/landing/language-provider"
-import { Header } from "@/components/landing/header"
+import { MarketingShell } from "@/components/landing/marketing-shell"
 import { HeroSection } from "@/components/landing/hero-section"
+import { NumbersSection } from "@/components/landing/numbers-section"
+import { TradesMarquee } from "@/components/landing/trades-marquee"
 import { PointsSection } from "@/components/landing/points-section"
-import { HowSection } from "@/components/landing/how-section"
-import { IncludedSection } from "@/components/landing/included-section"
-import { ClientsSection } from "@/components/landing/clients-section"
 import { PricingSection } from "@/components/landing/pricing-section"
 import { FaqSection } from "@/components/landing/faq-section"
 import { CtaSection } from "@/components/landing/cta-section"
-import { Footer, WhatsAppFab } from "@/components/landing/footer"
 
-function LandingInner() {
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    setDark(localStorage.getItem("wq-lp-theme") === "dark")
-  }, [])
-
-  const toggleTheme = () => {
-    setDark((current) => {
-      const next = !current
-      localStorage.setItem("wq-lp-theme", next ? "dark" : "light")
-      return next
-    })
-  }
-
-  return (
-    <div className={dark ? "lp lp-dark min-h-screen overflow-x-hidden antialiased" : "lp min-h-screen overflow-x-hidden antialiased"}>
-      <Header dark={dark} onToggleTheme={toggleTheme} />
-      <main>
-        <HeroSection />
-        <PointsSection />
-        <HowSection />
-        <IncludedSection />
-        <ClientsSection />
-        <PricingSection />
-        <FaqSection />
-        <CtaSection />
-      </main>
-      <Footer />
-      <WhatsAppFab />
-    </div>
-  )
-}
+const HowSection = dynamic(() => import("@/components/landing/how-section").then((mod) => mod.HowSection))
+const BentoSection = dynamic(() => import("@/components/landing/bento-section").then((mod) => mod.BentoSection))
+const ClientsSection = dynamic(() => import("@/components/landing/clients-section").then((mod) => mod.ClientsSection))
 
 export function LandingPage() {
   return (
     <LanguageProvider>
-      <LandingInner />
+      <MarketingShell>
+        <HeroSection />
+        <NumbersSection />
+        <TradesMarquee />
+        <PointsSection />
+        <HowSection />
+        <BentoSection />
+        <ClientsSection />
+        <PricingSection />
+        <FaqSection />
+        <CtaSection />
+      </MarketingShell>
     </LanguageProvider>
   )
 }
