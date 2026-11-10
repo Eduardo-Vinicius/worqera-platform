@@ -141,7 +141,7 @@ export function AppSidebar({
         </Link>
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
         {NAV_SECTIONS.map((section, sectionIndex) => {
           const items = section.items.filter((item) => {
             if (isPlatformOnly) return Boolean(item.platformOnly)
@@ -158,7 +158,7 @@ export function AppSidebar({
             <div
               key={`${sectionIndex}-${section.title}`}
               className={cn(
-                "space-y-1 py-3",
+                "space-y-1 py-4",
                 sectionIndex > 0 && "border-t border-white/10"
               )}
             >
@@ -178,10 +178,10 @@ export function AppSidebar({
                         rel={item.external ? "noopener noreferrer" : undefined}
                         onClick={onNavigate}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+                          "flex items-center gap-2.5 rounded-[11px] px-3 py-3 text-[14px] font-medium transition-colors",
                           mobile && "min-h-11 py-3 text-[15px]",
                           active
-                            ? "bg-[var(--wq-brand-soft-on-ink)] text-white"
+                            ? "bg-[var(--wq-brand)] text-white"
                             : emphasize
                               ? "border border-white/15 bg-white/10 text-white hover:bg-white/15"
                               : "text-slate-300 hover:bg-white/5 hover:text-white"
@@ -256,7 +256,7 @@ export function AppSidebar({
         <button
           type="button"
           onClick={() => void handleLogout()}
-          className="flex min-h-11 w-full items-center gap-2 rounded-[11px] px-3 py-2.5 text-[13px] text-slate-300 hover:bg-white/5 hover:text-white"
+          className="flex min-h-11 w-full items-center gap-2 rounded-[11px] px-3 py-3 text-[13px] text-slate-300 hover:bg-white/5 hover:text-white"
         >
           <LogOut className="h-4 w-4" strokeWidth={1.7} />
           Sair

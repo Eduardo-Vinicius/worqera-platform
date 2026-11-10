@@ -8,7 +8,7 @@
   --wq-ink:         #0F172A;
   --wq-ink-2:       #1E293B;
   --wq-on-ink:      #F8FAFC;
-  --wq-brand:       #7D26DE;
+  --wq-brand:       #7C6CF0;
   --wq-brand-deep:  #4F0FA6;
   --wq-brand-soft:  rgba(125, 38, 222, 0.14);
   --wq-accent:      #7D26DE;
@@ -170,7 +170,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }

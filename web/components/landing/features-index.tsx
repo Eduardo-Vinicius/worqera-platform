@@ -35,7 +35,7 @@ export function FeaturesIndex() {
           <h1 className="lp-display mt-3 max-w-3xl text-balance text-4xl font-semibold leading-[1.05] text-[var(--ink)] sm:text-5xl">
             {pt ? "A fila, o cliente, as vendas e o dinheiro. Num sistema só." : "The queue, the customer, sales and money. One system."}
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--muted-foreground)] sm:text-lg">
+          <p className="mt-5 max-w-2xl text-base leading-loose text-[var(--muted-foreground)] sm:text-lg">
             {pt
               ? "A Worqera orquestra a fila de pedidos de quem conserta, fabrica ou atende sob encomenda. Kanban por setor, cliente avisado, orçamento recuperado, financeiro e IA trabalhando juntos."
               : "Worqera orchestrates the order queue for shops that repair, make or work to order. Sector kanban, notified customers, recovered quotes, finance and AI working together."}
@@ -57,12 +57,12 @@ export function FeaturesIndex() {
       </section>
 
       {FEATURE_GROUPS.map((group) => (
-        <section key={group.id} id={group.id} className="scroll-mt-24 border-b border-[var(--border)] py-14 sm:py-16">
+        <section key={group.id} id={group.id} className="scroll-mt-24 border-b border-[var(--border)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <Reveal as="h2" className="lp-display text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
+            <Reveal as="h2" className="lp-display text-4xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
               {pt ? group.pt : group.en}
             </Reveal>
-            <RevealGroup stagger={0.08} className={`mt-8 grid gap-4 ${group.slugs.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+            <RevealGroup stagger={0.08} className={`mt-8 grid gap-6 ${group.slugs.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
               {group.slugs.map((slug) => {
                 const feature = getFeature(slug, locale)
                 const Icon = FEATURE_ICONS[slug]
@@ -71,7 +71,7 @@ export function FeaturesIndex() {
                     <Spotlight className="h-full rounded-2xl">
                     <Link
                       href={`/recursos/${slug}`}
-                      className="lp-pillar group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6"
+                      className="lp-pillar group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8"
                     >
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-[var(--muted-foreground)] uppercase">
@@ -82,8 +82,8 @@ export function FeaturesIndex() {
                         </span>
                         <ArrowUpRight className="h-4 w-4 text-[var(--muted-foreground)] group-hover:text-[var(--primary)]" />
                       </div>
-                      <p className="lp-display mt-3 text-2xl font-semibold text-[var(--ink)]">{feature.name}</p>
-                      <p className="mt-2 text-sm leading-relaxed text-[var(--muted-foreground)]">{feature.short}</p>
+                      <p className="lp-display mt-3 text-4xl font-semibold text-[var(--ink)]">{feature.name}</p>
+                      <p className="mt-2 text-sm leading-loose text-[var(--muted-foreground)]">{feature.short}</p>
                       <ul className="mt-4 flex-1 space-y-1.5">
                         {feature.caps.slice(0, 3).map((cap) => (
                           <li key={cap.title} className="flex items-start gap-2 text-sm text-[var(--ink)]">
@@ -105,7 +105,7 @@ export function FeaturesIndex() {
 
       <section id="planos" className="scroll-mt-24 border-b border-[var(--border)] py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
+          <h2 className="lp-display text-4xl font-semibold tracking-tight text-[var(--ink)]">
             {pt ? "O que vem em cada plano" : "What comes with each plan"}
           </h2>
           <p className="mt-2 text-[var(--muted-foreground)]">
@@ -114,7 +114,7 @@ export function FeaturesIndex() {
           <Reveal className="mt-8">
             <PlanTable pt={pt} />
           </Reveal>
-          <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+          <p className="mt-3 text-sm text-[var(--muted-foreground)]">
             {pt
               ? "7 dias grátis em qualquer plano. Implantação com a Worqera sob consulta."
               : "7 free days on any plan. Setup with Worqera on request."}
@@ -127,7 +127,7 @@ export function FeaturesIndex() {
           <p className="text-[11px] font-semibold tracking-[0.16em] text-[var(--on-band)]/60 uppercase">
             {pt ? "Chegando" : "Coming"}
           </p>
-          <h2 className="lp-display mt-2 text-3xl font-semibold tracking-tight">
+          <h2 className="lp-display mt-2 text-4xl font-semibold tracking-tight">
             {pt ? "O que já está construído e entra em breve" : "Built and shipping soon"}
           </h2>
           <ul className="mt-10 grid gap-8 sm:grid-cols-2">
@@ -137,7 +137,7 @@ export function FeaturesIndex() {
                 <li key={copy.title} className="border-t border-white/15 pt-4">
                   <Clock className="h-4 w-4 text-[var(--on-band)]/60" />
                   <p className="lp-display mt-3 text-xl font-semibold">{copy.title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--on-band)]/65">{copy.desc}</p>
+                  <p className="mt-2 text-sm leading-loose text-[var(--on-band)]/65">{copy.desc}</p>
                 </li>
               )
             })}
@@ -148,7 +148,7 @@ export function FeaturesIndex() {
       <section className="py-16 sm:py-20">
         <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 sm:px-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)]">
+            <h2 className="lp-display text-4xl font-semibold tracking-tight text-[var(--ink)]">
               {pt ? "Comece pela fila. O resto vem junto." : "Start with the queue. The rest comes with it."}
             </h2>
             <p className="mt-2 text-[var(--muted-foreground)]">
