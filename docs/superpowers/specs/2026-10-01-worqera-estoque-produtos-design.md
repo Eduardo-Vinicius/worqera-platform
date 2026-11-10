@@ -207,7 +207,7 @@ Além do que o item já tem (serviços, fotos, notas, setor, histórico):
 
 O card, o PDF, a etiqueta e a consulta pública leem o snapshot. Se amanhã o preço do cadastro mudar, o pedido antigo não muda.
 
-Total do pedido: soma dos serviços, mais quantidade × preço unitário dos itens da loja, mais garantia se houver. Sinal e restante continuam como hoje. O bloco de pagamento aparece se essa soma for maior que zero, não só quando há serviço.
+Total do pedido: soma dos serviços, mais quantidade × preço unitário dos itens da loja, mais garantia se houver. Sinal e restante continuam como hoje. O bloco de pagamento (desconto, sinal e falta pagar) aparece sempre, independentemente de já haver serviços com valor. Assim o atendente pode definir o sinal mesmo antes de preencher serviços.
 
 ---
 

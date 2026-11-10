@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+
+## 2026-11-09 — Bugfix: bloco de sinal sempre visível
+
+- **Pagamento — sinal sempre visível:** o bloco de desconto, sinal (50% / 100% / personalizado) e "falta pagar" agora aparece sempre no formulário de pedido, mesmo quando ainda não há serviços com valor preenchido. Antes ficava escondido até `itemsServicesTotal > 0`, o que fazia atendentes (não-admin) não verem o campo. O app mobile já mostrava sempre; agora o site está alinhado.
 ## 2026-11-08 — Quick-wins: entrar, cadastro e senha
 
 - **Link que pede login volta para onde ia:** sem sessão, o middleware manda para `/login?next=<página>`; ao entrar (ou se já estiver logado) vai para essa página. Sessão vencida faz o mesmo. Só aceita caminho do próprio site (`lib/authNext.ts`). Corrige também `/excluir-conta`, que já mandava `?next=` e era ignorado.

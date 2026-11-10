@@ -2253,8 +2253,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         Sem valor, o laudo não sai. Ao alterar e salvar, pergunta se envia o laudo.
                       </p>
                     </div>
-                    {(itemsServicesTotal > 0 || hasWarranty) && (
-                    <>
+
+
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
@@ -2395,8 +2395,8 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         </div>
                       </div>
                     </div>
-                    </>
-                    )}
+
+
                 </div>
                 {errors.services && <p className="text-sm text-destructive">{errors.services}</p>}
                 {errors.signal && <p className="text-sm text-destructive">{errors.signal}</p>}
