@@ -7,7 +7,7 @@ const { range, delta, memo } = require('../lib/periods');
 const PAID_EVENTS = ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'];
 const PLAN_LABEL = { WORQERA_BASIC: 'Basic', WORQERA_PRO: 'Pro', WORQERA_BUSINESS: 'Business' };
 
-/** What one subscription adds to MRR, in cents (yearly ÷ 12, founder price while it lasts). */
+/** What one subscription adds to MRR, in cents (yearly ÷ 12). */
 function monthlyCents(sub, billing = require('./billingService')) {
   const code = billing.normalizePlanCode(sub.planCode);
   if (sub.cycle === 'yearly') return (billing.priceCents(code, 'yearly') || 0) / 12;
@@ -30,13 +30,12 @@ async function summary({ days = 30 } = {}) {
     const Subscription = require('../models/Subscription');
     const billing = require('./billingService');
     const p = range(days);
-    const now = new Date();
     const [subs, cur, prev] = await Promise.all([
-      Subscription.find({ provider: { $ne: 'Dev' } }).select('planCode cycle status founder provider').lean(),
+      Subscription.find({ provider: { $ne: 'Dev' } }).select('planCode cycle status provider').lean(),
       received(p.from, p.to),
       received(p.prevFrom, p.prevTo),
     ]);
-    const counts = { active: 0, founder: 0, trialing: 0, past_due: 0, canceled: 0, expired: 0 };
+    const counts = { active: 0, trialing: 0, past_due: 0, canceled: 0, expired: 0 };
     const byPlan = {};
     let mrrCents = 0;
     for (const s of subs) {
@@ -49,7 +48,6 @@ async function summary({ days = 30 } = {}) {
       row.count += 1;
       row.mrr += cents / 100;
       byPlan[code] = row;
-      if (s.founder?.until && new Date(s.founder.until) > now) counts.founder += 1;
     }
     return {
       days,
@@ -112,7 +110,6 @@ async function list({ status = 'all', plan = '', q = '', page = 1 } = {}) {
         cycle: s.cycle || 'monthly',
         provider: s.provider,
         mrr: ['active', 'past_due'].includes(s.status) ? Math.round(monthlyCents(s, billing) / 100) : 0,
-        founderUntil: s.founder?.until && new Date(s.founder.until) > new Date() ? s.founder.until : null,
         trialEndsAt: s.trialEndsAt || null,
         currentPeriodEnd: s.currentPeriodEnd || null,
         invoiceUrl: s.lastInvoiceUrl || null,

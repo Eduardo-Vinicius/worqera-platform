@@ -808,11 +808,11 @@ export async function patchPlatformShopV1(
   body: Partial<{
     status: string
     extendTrialDays: number
+    setupPaid: boolean
     subscriptionStatus: string
     planCode: string
     adminNote: string
     seal: string
-    founder: boolean
   }>
 ) {
   return v1Fetch(`/platform/shops/${encodeURIComponent(id)}`, {
@@ -2086,7 +2086,7 @@ export type PlatformBillingSummary = {
   days: number
   mrr: number
   paying: number
-  counts: { active: number; founder: number; trialing: number; past_due: number; canceled: number; expired: number }
+  counts: { active: number; trialing: number; past_due: number; canceled: number; expired: number }
   byPlan: Array<{ code: string; label: string; count: number; mrr: number }>
   received: MetricDelta & { payments: number }
 }
@@ -2103,7 +2103,6 @@ export type PlatformSubscriptionRow = {
   cycle: "monthly" | "yearly"
   provider: string
   mrr: number
-  founderUntil: string | null
   trialEndsAt: string | null
   currentPeriodEnd: string | null
   invoiceUrl: string | null

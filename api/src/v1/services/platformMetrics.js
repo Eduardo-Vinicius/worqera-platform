@@ -264,12 +264,12 @@ async function sumMetric(model, { key, label, field = 'createdAt', sum, match = 
   };
 }
 
-/** Monthly recurring revenue of paying subscriptions (yearly ÷ 12, founder price honoured). */
+/** Monthly recurring revenue of paying subscriptions (yearly ÷ 12). */
 async function currentMrr() {
   const Subscription = require('../models/Subscription');
   const billing = require('./billingService');
   const subs = await Subscription.find({ status: { $in: ['active', 'past_due'] }, provider: { $ne: 'Dev' } })
-    .select('planCode cycle founder status')
+    .select('planCode cycle status')
     .lean();
   let cents = 0;
   const byPlan = {};

@@ -149,7 +149,7 @@ export function ClientsSection() {
           </div>
         </Reveal>
 
-        <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {t.clients.items.map((client, i) => (
             <li key={client.name}>
               <button

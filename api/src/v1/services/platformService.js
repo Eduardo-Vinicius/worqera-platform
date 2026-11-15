@@ -5,6 +5,14 @@ const User = require('../models/User');
 const { PLAN_CODES } = require('./billingService');
 const { bustRuntimeCache } = require('./platformConsoleService');
 
+/** Paid setup includes this many days of Business before the first monthly charge. */
+const SETUP_INCLUDED_DAYS = 90;
+
+/** Pure: when the Business included with a paid setup ends (exactly N days from now, not added to a running trial). */
+function setupTrialEnd(now = new Date()) {
+  return new Date(now.getTime() + SETUP_INCLUDED_DAYS * 24 * 60 * 60 * 1000);
+}
+
 function assertPlanCode(raw) {
   const incoming = String(raw || '').trim().toUpperCase();
   if (incoming === 'WORQERA_PREMIUM') return 'WORQERA_BUSINESS';
@@ -104,7 +112,6 @@ async function listShops({ q, status, limit = 50 } = {}) {
             planCode: sub.planCode,
             currentPeriodEnd: sub.currentPeriodEnd,
             provider: sub.provider,
-            founderUntil: sub.founder?.until || null,
           }
         : null,
       whatsapp: shop.whatsappCloud?.status && shop.whatsappCloud.status !== 'off'
@@ -174,6 +181,17 @@ async function patchShop(shopId, updates = {}) {
     ).lean();
   }
 
+  // Paid setup: Business in trial until day 90, so the owner's first card charge falls on that day.
+  if (updates.setupPaid === true) {
+    shop.status = 'active';
+    await shop.save();
+    subscription = await Subscription.findOneAndUpdate(
+      { shopId },
+      { $set: { status: 'trialing', planCode: 'WORQERA_BUSINESS', trialEndsAt: setupTrialEnd(), currentPeriodEnd: null } },
+      { new: true, upsert: true }
+    ).lean();
+  }
+
   if (updates.subscriptionStatus != null) {
     const allowed = ['trialing', 'active', 'past_due', 'canceled', 'expired'];
     if (!allowed.includes(updates.subscriptionStatus)) {
@@ -210,18 +228,6 @@ async function patchShop(shopId, updates = {}) {
     ).lean();
   }
 
-  if (typeof updates.founder === 'boolean') {
-    const { FOUNDER_PRICE_CENTS } = require('./billingService');
-    const founder = updates.founder
-      ? { priceCents: FOUNDER_PRICE_CENTS, until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) }
-      : { priceCents: null, until: null };
-    subscription = await Subscription.findOneAndUpdate(
-      { shopId },
-      { $set: { founder } },
-      { new: true, upsert: true }
-    ).lean();
-  }
-
   return {
     id: shop._id,
     name: shop.name,
@@ -236,7 +242,6 @@ async function patchShop(shopId, updates = {}) {
           planCode: subscription.planCode,
           currentPeriodEnd: subscription.currentPeriodEnd,
           provider: subscription.provider,
-          founderUntil: subscription.founder?.until || null,
         }
       : null,
   };
@@ -284,4 +289,4 @@ async function getShopDetail(shopId) {
   };
 }
 
-module.exports = { listShops, patchShop, getShopDetail };
+module.exports = { listShops, patchShop, getShopDetail, setupTrialEnd, SETUP_INCLUDED_DAYS };

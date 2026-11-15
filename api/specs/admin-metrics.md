@@ -58,7 +58,7 @@ Cliente da requisição (`clientOf`):
 - **Usuário ativo:** fez ao menos uma requisição autenticada no dia. Ativos 7/30 dias são distintos no período.
 - **Loja ativa:** alguém da loja ativo no período.
 - **Uso recorrente:** média de ativos por dia ÷ ativos em 30 dias.
-- **MRR:** assinaturas `active` ou `past_due` (fora as de provedor `Dev`); anual entra como 1/12; fundador com o preço de fundador.
+- **MRR:** assinaturas `active` ou `past_due` (fora as de provedor `Dev`); anual entra como 1/12.
 - **Pedidos de demonstração** (`clientName = "Cliente demonstração"`) e apagados não entram em nenhuma conta.
 - **Funil de ativação** (lojas cadastradas no período): Cadastro → Configurou a loja (onboarding) → 1º pedido → 1º pedido entregue → Assinatura paga. Tempo mediano entre etapas.
 - **Coorte:** semana de cadastro (segunda-feira, SP); célula = % da turma ativa naquela semana. `lowHistory` enquanto a coleta for mais curta que a tabela.
@@ -74,7 +74,7 @@ Cliente da requisição (`clientOf`):
   - Faixas: Excelente ≥ 90, Bom ≥ 75, Atenção ≥ 50, Crítico abaixo disso.
   - Cada componente volta com o quanto descontou, e `health.reasons` diz por que está degradado (banco, erro na última hora, coleta parada ou com erro).
 - **MRR / assinaturas** (`services/platformBilling.js`):
-  - MRR = assinaturas ativas e em atraso (fora o provedor `Dev`). Mensal pelo preço do plano, ou de fundador enquanto durar; anual ÷ 12.
+  - MRR = assinaturas ativas e em atraso (fora o provedor `Dev`). Mensal pelo preço do plano; anual ÷ 12.
   - **Recebido** = pagamentos `PAYMENT_RECEIVED`/`PAYMENT_CONFIRMED` do Asaas no período, cada pagamento contado uma vez (pelo id do pagamento).
 - **Sinais da loja** (`shopFlags`):
   - `at_risk`: em risco.

@@ -1,5 +1,16 @@
 # Worqera API — Change log
 
+
+## 2026-11-13 — Implantação paga
+
+- `PATCH /platform/shops/:id` com `setupPaid: true`: loja ativa, plano Business, assinatura `trialing` com `trialEndsAt` em exatamente 90 dias (`setupTrialEnd`, não soma ao teste em curso). A primeira cobrança do Asaas cai nesse dia (`firstDueDate`). Auditoria: "Implantação paga: Business por 90 dias".
+
+## 2026-11-13 — Fim do preço de fundador
+
+- Business é sempre R$ 597 (anual R$ 5.970). `effectivePrice` devolve só o preço do catálogo; o checkout cobra esse valor.
+- Removidos `Subscription.founder`, `FOUNDER_PRICE_CENTS`, o `founder` do `PATCH /platform/shops/:id` e `counts.founder` / `founderUntil` de `/platform/subscriptions` e da lista de lojas. Documentos antigos com `founder` no Mongo são ignorados.
+- Assinatura Asaas já criada a R$ 499 continua com esse valor lá até a loja passar de novo pelo checkout (que faz `updateSubscription` com o preço novo).
+
 ## 2026-11-08 — Quick-wins de acesso
 
 - Textos em português no `detail` (o `code` não mudou): login errado, e-mail já cadastrado, endereço da empresa em uso, link de nova senha vencido, senha curta, campos faltando, limite de tentativas ("Muitas tentativas. Tente de novo em N min").

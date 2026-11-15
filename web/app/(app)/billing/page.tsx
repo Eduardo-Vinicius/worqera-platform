@@ -108,7 +108,6 @@ export default function BillingPage() {
   const canPay = role === "owner" || role === "admin"
   const current = planOf(sub?.planCode)
   const chosen = PLANS.find((p) => p.code === planCode) || PLANS[1]
-  const founder = sub?.price?.founderUntil && chosen.code === "WORQERA_BUSINESS" && cycle === "monthly"
   const locked =
     sub &&
     (sub.status === "expired" ||
@@ -207,7 +206,6 @@ export default function BillingPage() {
             {sub?.status === "active" && sub?.currentPeriodEnd ? (
               <p className="text-xs text-[var(--wq-text-muted)]">
                 Pago até {new Date(sub.currentPeriodEnd).toLocaleDateString("pt-BR")}
-                {sub?.price?.founderUntil ? ` · preço de fundador até ${new Date(sub.price.founderUntil).toLocaleDateString("pt-BR")}` : ""}
               </p>
             ) : null}
           </div>
@@ -242,12 +240,7 @@ export default function BillingPage() {
           {PLANS.map((p) => {
             const selected = p.code === chosen.code
             const isCurrent = current?.code === p.code
-            const perMonth =
-              cycle === "yearly"
-                ? yearlyMonthly(p)
-                : p.code === "WORQERA_BUSINESS" && sub?.price?.founderUntil
-                  ? 499
-                  : p.monthly
+            const perMonth = cycle === "yearly" ? yearlyMonthly(p) : p.monthly
             return (
               <button
                 key={p.code}
@@ -329,7 +322,7 @@ export default function BillingPage() {
                   ? "Este já é o seu plano"
                   : cycle === "yearly"
                     ? `Assinar ${chosen.name} anual · ${formatBRL(chosen.yearly)}/ano`
-                    : `Assinar ${chosen.name} · ${formatBRL(founder ? 499 : chosen.monthly)}/mês`}
+                    : `Assinar ${chosen.name} · ${formatBRL(chosen.monthly)}/mês`}
               </Button>
               <p className="text-xs text-[var(--wq-text-muted)]">
                 Pagamento pelo Asaas: Pix, boleto ou cartão. Em teste, a primeira cobrança vence no último dia do teste.

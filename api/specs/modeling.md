@@ -225,7 +225,7 @@ Pedido também guarda `customerSummary: { text, ai, edited, at }` (texto para o 
 
 ### `whatsappmessages` + `shops.whatsappCloud`
 
-`WhatsAppMessage`: entrada e saída do WhatsApp oficial (categoria `utility|marketing|service`, modelo, status Meta, `wamid`, custo estimado em BRL). `Shop.whatsappCloud`: status, WABA, número, token criptografado, `paymentOk`, `autoReady`, `consentAtCounter`, excedente do mês fechado, teto extra do mês. `Client.whatsappOptOut` após PARAR. `Subscription.founder: { priceCents, until }`.
+`WhatsAppMessage`: entrada e saída do WhatsApp oficial (categoria `utility|marketing|service`, modelo, status Meta, `wamid`, custo estimado em BRL). `Shop.whatsappCloud`: status, WABA, número, token criptografado, `paymentOk`, `autoReady`, `consentAtCounter`, excedente do mês fechado, teto extra do mês. `Client.whatsappOptOut` após PARAR.
 
 ### `service_catalog` (TOP-01)
 

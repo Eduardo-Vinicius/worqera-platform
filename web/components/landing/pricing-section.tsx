@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { AnimatePresence, m } from "motion/react"
-import { Check, ChevronDown, CreditCard, DatabaseBackup, GraduationCap, LayoutGrid, ShieldCheck, Sparkles, Undo2 } from "lucide-react"
+import { Check, ChevronDown, ClipboardCheck, CreditCard, DatabaseBackup, GraduationCap, LayoutGrid, ShieldCheck, Sparkles, Undo2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/fx/reveal"
@@ -13,7 +13,7 @@ import { WA_MESSAGES, waLink } from "@/components/landing/contact"
 import { PLANS, YEARLY_OFF, formatBRL, yearlyMonthly, type Cycle, type Plan } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
-const SETUP_ICONS = [LayoutGrid, DatabaseBackup, GraduationCap]
+const SETUP_ICONS = [LayoutGrid, DatabaseBackup, ClipboardCheck, GraduationCap]
 const TRUST_ICONS = [CreditCard, Undo2, ShieldCheck]
 const SPRING = { type: "spring", stiffness: 420, damping: 32 } as const
 
@@ -175,7 +175,7 @@ export function PricingSection() {
               {p.setupTitle} · {p.setupOnce}
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">{p.setupDesc}</p>
-            <ol className="mt-4 grid gap-3 sm:grid-cols-3">
+            <ol className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {p.setupSteps.map((step, index) => {
                 const Icon = SETUP_ICONS[index] || LayoutGrid
                 return (

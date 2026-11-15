@@ -1,6 +1,16 @@
 # Worqera Web — Change log
 
 
+
+## 2026-11-13 — Implantação paga
+
+- Admin → Oficinas: botão "Implantação paga · Business 90 dias" (com confirmação). Deixa a loja no Business em teste até o dia 90 e escreve no topo da nota interna a data do pagamento e até quando vai o Business.
+
+## 2026-11-13 — Fim do preço de fundador
+
+- Aba Plano e botão de assinar mostram o Business a R$ 597, sem "preço de fundador até".
+- Admin: sai o botão de preço de fundador em Oficinas, o KPI "Fundador" em Assinaturas e na Visão geral, e a marca "· fundador" na lista.
+
 ## 2026-11-09 — Bugfix: bloco de sinal sempre visível
 
 - **Pagamento — sinal sempre visível:** o bloco de desconto, sinal (50% / 100% / personalizado) e "falta pagar" agora aparece sempre no formulário de pedido, mesmo quando ainda não há serviços com valor preenchido. Antes ficava escondido até `itemsServicesTotal > 0`, o que fazia atendentes (não-admin) não verem o campo. O app mobile já mostrava sempre; agora o site está alinhado.

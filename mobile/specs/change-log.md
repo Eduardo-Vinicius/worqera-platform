@@ -1,5 +1,10 @@
 # App celular
 
+
+## 2026-11-13 — Fim do preço de fundador
+
+- Plano: Business sempre R$ 597; não existe mais preço de fundador.
+
 ## 2026-11-08
 
 - **Resumo do dia:** "Resolver parados na prateleira" volta a abrir a Prateleira (a API passou a mandar `/kanban?focus=ready-stale`); "Destravar atrasados" abre o kanban com o filtro Atrasados ligado (`kanbanLateIntent`).
