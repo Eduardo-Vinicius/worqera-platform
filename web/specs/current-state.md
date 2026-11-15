@@ -52,4 +52,4 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 
 ## Próximo
 
-AbacatePay produção; WhatsApp Cloud quando ≥10 lojas; **app** seguir AS-IS `2026-09-18-worqera-app-asis-mirror.md`.
+Ligar "Avisar pronto" (`ENABLE_WA_ME`, hoje `false`) ou WhatsApp Cloud quando ≥10 lojas; **app** seguir AS-IS `2026-09-18-worqera-app-asis-mirror.md`.
