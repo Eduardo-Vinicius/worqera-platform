@@ -1,12 +1,12 @@
 # Worqera API — Roadmap
 
-**Atualizado:** 2026-10-13 (Basic 97 com teto de 100 pedidos · Pro 197 · Business 499)
+**Atualizado:** 2026-11-14 (Basic 147 com teto de 150 pedidos · Pro 297 · Business 597 · cobrança Asaas)
 
 Plano: [`../../docs/superpowers/plans/2026-09-16-worqera-next-session.md`](../../docs/superpowers/plans/2026-09-16-worqera-next-session.md)
 
 ## Norte
 
-Node + Mongo multi-tenant. **Kanban por setores** = carro-chefe. Trial 7d + AbacatePay (**stub**). Casa do Tênis = seed/`legacyBrand`.
+Node + Mongo multi-tenant. **Kanban por setores** = carro-chefe. Trial 7d + Asaas (Pix, boleto, cartão). Casa do Tênis = seed/`legacyBrand`.
 
 Inventário: [feature-inventory.md](./feature-inventory.md).
 
@@ -16,7 +16,7 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 
 - [x] Onda C — `Order.items[]` + espelho flat + fotos por item + `itemCount` no kanban
 - [x] Produtos — `/products` só admin Worqera; item `origin=stock` reserva e baixa na entrega (2026-10-13)
-- [x] Planos — Basic R$ 97 com teto de 100 pedidos no mês; Pro R$ 197 e Business R$ 499 sem teto (2026-10-13)
+- [x] Planos — Basic R$ 147 com teto de 150 pedidos no mês (`lib/planCap.js`); Pro R$ 297 e Business R$ 597 sem teto; anual 10× (2026-10-31; antes Basic 97/100 · Pro 197 · Business 499)
 - [x] Kanban labels — `nextOrderCode` shop-wide (`0001`), `plannedSectorIds`, move off-path exige `note`
 - Ondas A/B (shell, TVs, kanban polish): ver `web/specs/roadmap.md`
 
@@ -72,12 +72,13 @@ Inventário: [feature-inventory.md](./feature-inventory.md).
 ### A5 — Billing — harden (stub checkout)
 
 - [x] products, checkout mock (`mock: !apiKey`), webhook HMAC + fail-closed secret
-- [x] AbacatePay `POST /subscriptions/create` quando ApiKey + ProductId
+- [x] AbacatePay `POST /subscriptions/create` quando ApiKey + ProductId (legado; substituído pelo Asaas em 2026-10-31)
+- [x] Asaas: checkout, `POST /webhooks/asaas` idempotente, tolerância de 5 dias
 - [x] E-mail de reset de senha pelo `mailer`. O token só volta na resposta fora de produção (`NODE_ENV !== 'production'`, e a imagem Docker e o compose de produção fixam `production`).
 
 ## Ordem restante
 
-Smoke PRD pós-rebuild → cron trial reminders + mongo backup → WhatsApp Cloud quando demanda → app nativo (brief)
+Smoke PRD pós-rebuild → **agendar** cron trial reminders + mongo backup (scripts prontos, cron pendente) → WhatsApp Cloud quando demanda → app nativo (brief)
 
 ---
 

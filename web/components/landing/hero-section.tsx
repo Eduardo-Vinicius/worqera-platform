@@ -101,7 +101,7 @@ export function HeroSection() {
             <span className="hidden sm:inline">{t.hero.kickerRest}</span>
           </p>
 
-          <h1 className="lp-display mx-auto mt-6 max-w-5xl text-balance text-[2.6rem] leading-[1.02] font-semibold text-[var(--ink)] sm:text-6xl lg:text-[4.5rem]">
+          <h1 className="lp-display mx-auto mt-6 max-w-5xl text-balance text-[2.6rem] leading-[1.02] font-semibold text-[var(--ink)] sm:text-6xl lg:text-[4.2rem]">
             <span className="lp-animate-in block" style={{ animationDelay: "0.05s" }}>
               {t.hero.headlineA}
             </span>
@@ -123,7 +123,7 @@ export function HeroSection() {
             style={{ animationDelay: "0.35s" }}
           >
             <Magnetic>
-              <Button asChild size="lg" className="lp-cta lp-shine h-12 w-full rounded-full px-8 text-base font-semibold sm:w-auto"> bg-[var(--wq-brand)] text-white
+              <Button asChild size="lg" className="lp-cta lp-shine h-12 w-full rounded-full px-8 text-base font-semibold sm:w-auto">
                 <Link href="/signup">
                   {t.hero.cta}
                   <ArrowRight className="h-4 w-4" />
@@ -135,9 +135,9 @@ export function HeroSection() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="lp-glass h-12 w-full rounded-full border-[var(--border)] px-8 text-base font-medium text-[var(--ink)] hover:bg-[var(--surface)] sm:w-auto"
+                className="h-12 w-full rounded-full border-[var(--border)] bg-[var(--surface)] px-8 text-base font-medium text-[var(--ink)] hover:border-[var(--primary)] hover:bg-[var(--surface)] sm:w-auto"
               >
-                <a href="#pricing">{t.hero.secondary}</a>
+                <a href="#implantacao">{t.hero.secondary}</a>
               </Button>
             </Magnetic>
           </div>

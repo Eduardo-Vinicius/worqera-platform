@@ -129,9 +129,9 @@ export function PointsSection() {
                         <AnimatePresence mode="wait" initial={false}>
                           <m.p
                             key={on ? "after" : "before"}
-                            initial={{ opacity: 0, filter: "blur(6px)", y: 6 }}
-                            animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-                            exit={{ opacity: 0, filter: "blur(6px)", y: -6 }}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
                             transition={{ duration: 0.35, delay: index * 0.06 }}
                             className={cn("text-[15px] leading-relaxed", on ? "text-[var(--ink)]" : "text-[var(--muted-foreground)]")}
                           >

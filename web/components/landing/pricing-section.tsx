@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { AnimatePresence, m } from "motion/react"
-import { Check, ChevronDown, CreditCard, DatabaseBackup, GraduationCap, LayoutGrid, ShieldCheck, Sparkles, Undo2 } from "lucide-react"
+import { Check, ChevronDown, ClipboardCheck, CreditCard, DatabaseBackup, GraduationCap, LayoutGrid, ShieldCheck, Sparkles, Undo2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/components/landing/language-provider"
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/fx/reveal"
@@ -13,7 +13,7 @@ import { WA_MESSAGES, waLink } from "@/components/landing/contact"
 import { PLANS, YEARLY_OFF, formatBRL, yearlyMonthly, type Cycle, type Plan } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
-const SETUP_ICONS = [LayoutGrid, DatabaseBackup, GraduationCap]
+const SETUP_ICONS = [LayoutGrid, DatabaseBackup, ClipboardCheck, GraduationCap]
 const TRUST_ICONS = [CreditCard, Undo2, ShieldCheck]
 const SPRING = { type: "spring", stiffness: 420, damping: 32 } as const
 
@@ -169,13 +169,13 @@ export function PricingSection() {
           ) : null}
         </AnimatePresence>
 
-        <Reveal className="mt-8 grid gap-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <Reveal id="implantacao" className="mt-8 grid scroll-mt-28 gap-5 rounded-3xl border-2 border-[var(--primary)] bg-[var(--surface)] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
             <p className="lp-display text-lg font-semibold text-[var(--ink)]">
               {p.setupTitle} · {p.setupOnce}
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">{p.setupDesc}</p>
-            <ol className="mt-4 grid gap-3 sm:grid-cols-3">
+            <ol className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {p.setupSteps.map((step, index) => {
                 const Icon = SETUP_ICONS[index] || LayoutGrid
                 return (
@@ -194,7 +194,7 @@ export function PricingSection() {
               })}
             </ol>
           </div>
-          <Button asChild variant="outline" className="h-11 shrink-0 rounded-full border-[var(--border)] px-6 text-[var(--ink)] hover:border-[var(--primary)]">
+          <Button asChild className="h-11 shrink-0 rounded-full px-6 font-semibold">
             <a href={waLink(WA_MESSAGES.setup[locale])} target="_blank" rel="noopener noreferrer">
               {p.setupCta}
             </a>

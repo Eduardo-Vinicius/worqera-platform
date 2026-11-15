@@ -22,6 +22,7 @@ function shopPatchSummary(body = {}) {
   const parts = [];
   if (body.status === 'suspended') parts.push('suspendeu a loja');
   if (body.status === 'active') parts.push('reativou a loja');
+  if (body.setupPaid === true) parts.push('implantação paga: Business por 90 dias');
   if (body.extendTrialDays != null) parts.push(`estendeu o teste em ${Number(body.extendTrialDays) || 0} dias`);
   if (body.subscriptionStatus != null) parts.push(`assinatura → ${STATUS_LABEL[body.subscriptionStatus] || body.subscriptionStatus}`);
   if (body.planCode != null) parts.push(`plano → ${PLAN_LABEL[body.planCode] || body.planCode}`);

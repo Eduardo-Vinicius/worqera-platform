@@ -33,7 +33,6 @@ type ShopRow = {
     status?: string
     trialEndsAt?: string
     planCode?: string
-    founderUntil?: string | null
   } | null
   whatsapp?: { status: string; paymentOk: boolean; displayPhone: string } | null
 }
@@ -171,6 +170,26 @@ export default function PlatformShopsPage() {
       await load()
     } catch (err: any) {
       toast.error(err?.message || "Falha ao atualizar")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const setupPaid = async (s: ShopRow) => {
+    const today = new Date()
+    const until = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
+    const fmt = (d: Date) => d.toLocaleDateString("pt-BR")
+    if (!window.confirm(`Implantação paga: ${s.name} fica no Business em teste até ${fmt(until)}. Confirmar?`)) return
+    const line = `Implantação paga em ${fmt(today)} · Business incluso até ${fmt(until)}`
+    const note = [line, (noteDrafts[s.id] ?? s.adminNote ?? "").trim()].filter(Boolean).join("\n")
+    setBusyId(s.id)
+    try {
+      await patchPlatformShopV1(s.id, { setupPaid: true, adminNote: note })
+      setNoteDrafts((prev) => ({ ...prev, [s.id]: note }))
+      toast.success(`Business até ${fmt(until)}`)
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao registrar a implantação")
     } finally {
       setBusyId(null)
     }
@@ -456,22 +475,11 @@ export default function PlatformShopsPage() {
                               <Button
                                 type="button"
                                 size="sm"
-                                variant="outline"
                                 className="rounded-[10px]"
                                 disabled={busy}
-                                onClick={() =>
-                                  void runPlatform(
-                                    s.id,
-                                    () => patchPlatformShopV1(s.id, { founder: !s.subscription?.founderUntil }),
-                                    s.subscription?.founderUntil
-                                      ? "Preço de fundador removido"
-                                      : "Preço de fundador: R$ 499 por 12 meses"
-                                  )
-                                }
+                                onClick={() => void setupPaid(s)}
                               >
-                                {s.subscription?.founderUntil
-                                  ? `Fundador até ${new Date(s.subscription.founderUntil).toLocaleDateString("pt-BR")} · remover`
-                                  : "Preço de fundador (R$ 499 / 12 meses)"}
+                                Implantação paga · Business 90 dias
                               </Button>
                               {s.subscription?.planCode === "WORQERA_BUSINESS" || s.subscription?.planCode === "WORQERA_PREMIUM" ? (
                                 <Button

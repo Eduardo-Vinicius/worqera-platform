@@ -31,7 +31,7 @@ const pt = {
     headlineB: "cada pedido no lugar certo.",
     sub: "Código, setor e prazo em cada pedido. O cliente acompanha sozinho, o orçamento parado vira retorno com dia para ligar e você vê quanto entrou no dia.",
     cta: "Testar 7 dias grátis",
-    secondary: "Ver preços",
+    secondary: "Quero implantação completa",
     badges: ["Sem cartão", "Pronto em minutos", "Cancele quando quiser"],
     social: "Trazemos seu histórico: já importamos mais de 7.000 pedidos de um sistema antigo.",
   },
@@ -84,10 +84,10 @@ const pt = {
   numbers: {
     label: "Números reais de quem já opera na Worqera",
     items: [
-      { value: "R$ 4 mi+", label: "em pedidos que já passaram pela Worqera" },
-      { value: "R$ 450 mil+", label: "em pedidos todo mês" },
-      { value: "700+", label: "pedidos por mês" },
-      { value: "6.000+", label: "clientes atendidos na base" },
+      { value: "1.000+", label: "pedidos por mês" },
+      { value: "R$ 1 milhão+", label: "em pedidos já passaram por aqui" },
+      { value: "7.000+", label: "pedidos na base" },
+      { value: "6.000+", label: "clientes na base" },
     ],
   },
   points: {
@@ -206,7 +206,8 @@ const pt = {
     title: "Sua fila no ar ainda hoje.",
     sub: "Crie a conta, escolha o ramo e lance o primeiro pedido. Se quiser, a gente monta tudo com você.",
     primary: "Testar 7 dias grátis",
-    secondary: "Falar com a Worqera",
+    secondary: "Quero implantação completa",
+    points: ["7 dias grátis, sem cartão", "Implantação com histórico e treinamento", "Cancele quando quiser"],
     cards: ["#0412 · Limpeza", "#0409 · Restauração", "#0405 · Pronto", "#0401 · Ajuste"],
     delivered: "Entregue",
   },
@@ -228,7 +229,7 @@ const pt = {
   },
   clients: {
     title: "Quem já opera na Worqera",
-    subtitle: "Quem tem fila de verdade. As frases são o jeito da casa — curto, sem enrolação.",
+    subtitle: "Lojas com fila de verdade, operando todo dia na Worqera.",
     items: [
       {
         name: "Casa do Tênis",
@@ -239,11 +240,6 @@ const pt = {
         name: "Sapataria Paulista",
         trade: "Calçados",
         line: "Conserto e sola no kanban, do balcão até a entrega.",
-      },
-      {
-        name: "Axisbyte",
-        trade: "Operação",
-        line: "Constrói a Worqera e opera nela. Cliente, não marca por trás.",
       },
     ],
     stories: [
@@ -265,15 +261,6 @@ const pt = {
         place: "São Paulo",
         href: "",
       },
-      {
-        quote:
-          "A Axisbyte faz a Worqera e usa a Worqera. Pedido, setor, aviso ao cliente. Se a fila da gente não aguentar o dia, a oficina também não aguenta. É o teste de verdade.",
-        name: "Eduardo",
-        role: "Fundador",
-        company: "Axisbyte",
-        place: "São Paulo",
-        href: "",
-      },
     ],
   },
   pricing: {
@@ -281,7 +268,7 @@ const pt = {
     subtitle: "Basic para organizar. Pro para ver o dinheiro. Business para vender e avisar sozinho.",
     guarantee: "Cancele quando quiser",
     trust: "Pagamento pelo Asaas: Pix, boleto ou cartão",
-    custom: "7 dias grátis em qualquer plano. Anual com 2 meses grátis. Implantação com a Worqera sob consulta.",
+    custom: "7 dias grátis em qualquer plano. Anual com 2 meses grátis. Implantação completa em até 12x.",
     monthly: "Mensal",
     yearly: "Anual",
     yearlyBadge: "2 meses grátis",
@@ -293,14 +280,15 @@ const pt = {
     compare: "Compare tudo",
     compareHide: "Esconder comparativo",
     feature: "Recurso",
-    setupTitle: "Implantação com a Worqera",
-    setupOnce: "sob consulta",
-    setupDesc: "A gente monta os setores, traz o histórico do sistema antigo e treina a equipe. O escopo e o valor são combinados com você, conforme o tamanho da operação.",
-    setupCta: "Falar com a Worqera",
+    setupTitle: "Implantação completa",
+    setupOnce: "em até 12x",
+    setupDesc: "Para quem quer a operação rodando sem dor de cabeça. A gente configura o sistema e o app, traz o histórico, testa com pedidos reais e treina a equipe. Inclui 90 dias do plano Business. Valor conforme o tamanho da operação; também dá para começar sem pagar nada na entrada.",
+    setupCta: "Quero a implantação",
     setupSteps: [
-      { title: "Setores", desc: "Montados do jeito da casa" },
+      { title: "Configuração", desc: "Setores, serviços, marca e app" },
       { title: "Histórico", desc: "Clientes e pedidos do sistema antigo" },
-      { title: "Treino", desc: "A equipe pronta no primeiro dia" },
+      { title: "Homologação", desc: "Uma semana com pedidos reais" },
+      { title: "Treinamento", desc: "Equipe pronta e 30 dias de suporte" },
     ],
     trustItems: ["Pix, boleto ou cartão pelo Asaas", "Cancele quando quiser", "7 dias grátis, sem cartão"],
     mini: [
@@ -376,7 +364,7 @@ const pt = {
       },
       {
         q: "Vocês trazem meu histórico do sistema antigo?",
-        a: "Trazemos. Na implantação a gente importa clientes e pedidos, monta os setores e treina a equipe. O escopo e o valor são combinados com você, conforme o volume e o sistema de origem. Já trouxemos mais de 7.000 pedidos de um sistema antigo.",
+        a: "Trazemos. Na implantação completa a gente importa clientes e pedidos, monta os setores, testa com pedidos reais durante uma semana e treina a equipe. Já trouxemos mais de 7.000 pedidos de um sistema antigo.",
       },
       {
         q: "Como o cliente acompanha o pedido?",
@@ -400,7 +388,7 @@ const pt = {
       },
       {
         q: "Tem fidelidade ou cobrança por usuário?",
-        a: "Não. O preço é por empresa, sem cobrança por usuário, e você cancela quando quiser. A implantação com a Worqera é opcional e combinada direto com a gente.",
+        a: "Não. O preço é por empresa, sem cobrança por usuário, e você cancela quando quiser. A implantação completa é opcional, parcelada em até 12x, e também pode ser diluída na mensalidade.",
       },
     ],
     more: {
@@ -462,7 +450,7 @@ const en: typeof pt = {
     headlineB: "every order in the right place.",
     sub: "A code, a sector and a due date on every order. Customers track on their own, idle quotes become a follow-up with a date and you see what came in today.",
     cta: "Try 7 days free",
-    secondary: "See pricing",
+    secondary: "I want full setup",
     badges: ["No card", "Ready in minutes", "Cancel anytime"],
     social: "We bring your history: we've already imported 7,000+ orders from a legacy system.",
   },
@@ -515,9 +503,9 @@ const en: typeof pt = {
   numbers: {
     label: "Real numbers from businesses running on Worqera",
     items: [
-      { value: "R$ 4M+", label: "in orders already run through Worqera" },
-      { value: "R$ 450k+", label: "in orders every month" },
-      { value: "700+", label: "orders a month" },
+      { value: "1,000+", label: "orders a month" },
+      { value: "R$ 1M+", label: "in orders already run through Worqera" },
+      { value: "7,000+", label: "orders on file" },
       { value: "6,000+", label: "customers on file" },
     ],
   },
@@ -637,7 +625,8 @@ const en: typeof pt = {
     title: "Your queue live today.",
     sub: "Create the account, pick your trade and add the first order. If you want, we set it all up with you.",
     primary: "Try 7 days free",
-    secondary: "Talk to Worqera",
+    secondary: "I want full setup",
+    points: ["7 days free, no card", "Setup with your history and training", "Cancel anytime"],
     cards: ["#0412 · Cleaning", "#0409 · Restoration", "#0405 · Ready", "#0401 · Fitting"],
     delivered: "Delivered",
   },
@@ -659,7 +648,7 @@ const en: typeof pt = {
   },
   clients: {
     title: "Who already runs on Worqera",
-    subtitle: "People with a real queue. Short, straight, the way the shop talks.",
+    subtitle: "Shops with a real queue, running on Worqera every day.",
     items: [
       {
         name: "Casa do Tênis",
@@ -670,11 +659,6 @@ const en: typeof pt = {
         name: "Sapataria Paulista",
         trade: "Footwear",
         line: "Repairs and soles on the kanban, from the counter to handover.",
-      },
-      {
-        name: "Axisbyte",
-        trade: "Operations",
-        line: "Builds Worqera and runs on it. A customer, not the brand behind it.",
       },
     ],
     stories: [
@@ -696,15 +680,6 @@ const en: typeof pt = {
         place: "São Paulo",
         href: "",
       },
-      {
-        quote:
-          "Axisbyte builds Worqera and runs Worqera. Order, sector, customer notice. If our own queue can’t take the day, a shop’s queue won’t either. That’s the real test.",
-        name: "Eduardo",
-        role: "Founder",
-        company: "Axisbyte",
-        place: "São Paulo",
-        href: "",
-      },
     ],
   },
   pricing: {
@@ -712,7 +687,7 @@ const en: typeof pt = {
     subtitle: "Basic to get organized. Pro to see the money. Business to sell and notify on its own.",
     guarantee: "Cancel anytime",
     trust: "Billing by Asaas: Pix, boleto or card",
-    custom: "7 days free on any plan. Yearly with 2 months free. Setup with Worqera on request.",
+    custom: "7 days free on any plan. Yearly with 2 months free. Full setup in up to 12 installments.",
     monthly: "Monthly",
     yearly: "Yearly",
     yearlyBadge: "2 months free",
@@ -724,14 +699,15 @@ const en: typeof pt = {
     compare: "Compare everything",
     compareHide: "Hide comparison",
     feature: "Feature",
-    setupTitle: "Setup with Worqera",
-    setupOnce: "on request",
-    setupDesc: "We build your sectors, bring the history from the old system and train the team. Scope and price are agreed with you, based on the size of the operation.",
-    setupCta: "Talk to Worqera",
+    setupTitle: "Full setup",
+    setupOnce: "up to 12 installments",
+    setupDesc: "For shops that want to run without headaches. We configure the system and the app, bring your history, test with real orders and train the team. Includes 90 days of the Business plan. Price depends on the size of the operation; you can also start with nothing upfront.",
+    setupCta: "I want the setup",
     setupSteps: [
-      { title: "Sectors", desc: "Built the way your shop works" },
+      { title: "Configuration", desc: "Sectors, services, brand and app" },
       { title: "History", desc: "Customers and orders from the old system" },
-      { title: "Training", desc: "The team ready on day one" },
+      { title: "Acceptance", desc: "One week with real orders" },
+      { title: "Training", desc: "Team ready and 30 days of support" },
     ],
     trustItems: ["Pix, boleto or card via Asaas", "Cancel anytime", "7 days free, no card"],
     mini: [
@@ -807,7 +783,7 @@ const en: typeof pt = {
       },
       {
         q: "Do you bring my history from the old system?",
-        a: "Yes. With setup we import customers and orders, build your sectors and train the team. Scope and price are agreed with you, based on volume and the source system. We have already brought over 7,000 orders from an old system.",
+        a: "Yes. With the full setup we import customers and orders, build your sectors, test with real orders for a week and train the team. We have already brought over 7,000 orders from an old system.",
       },
       {
         q: "How does the customer track the order?",
@@ -831,7 +807,7 @@ const en: typeof pt = {
       },
       {
         q: "Is there a contract or per-user billing?",
-        a: "No. One price per company, no per-user billing, and you cancel anytime. Setup with Worqera is optional and agreed directly with us.",
+        a: "No. One price per company, no per-user billing, and you cancel anytime. The full setup is optional, in up to 12 installments, and can also be spread into the monthly fee.",
       },
     ],
     more: {
