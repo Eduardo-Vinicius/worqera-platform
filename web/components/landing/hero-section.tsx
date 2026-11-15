@@ -135,9 +135,9 @@ export function HeroSection() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="lp-glass h-12 w-full rounded-full border-[var(--border)] px-8 text-base font-medium text-[var(--ink)] hover:bg-[var(--surface)] sm:w-auto"
+                className="h-12 w-full rounded-full border-[var(--border)] bg-[var(--surface)] px-8 text-base font-medium text-[var(--ink)] hover:border-[var(--primary)] hover:bg-[var(--surface)] sm:w-auto"
               >
-                <a href="#pricing">{t.hero.secondary}</a>
+                <a href="#implantacao">{t.hero.secondary}</a>
               </Button>
             </Magnetic>
           </div>

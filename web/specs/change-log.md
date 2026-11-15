@@ -1,5 +1,11 @@
 # Worqera Web — Change log
 
+## 2026-11-14 — Site mais sóbrio e dois caminhos de entrada
+
+- Home: sai o brilho roxo do topo, o halo do card de números, o texto que entrava desfocado e o fundo rosa/verde com cards de vidro do bloco final (agora painel escuro liso).
+- Números: 1.000+ pedidos por mês e R$ 1 milhão+ em pedidos que já passaram pela Worqera (iguais aos posts).
+- Dois caminhos: "Testar 7 dias grátis" continua o principal; o segundo botão do topo e do final vira "Quero implantação completa" (âncora `#implantacao` no bloco de preços, que ganhou borda roxa e diz que inclui 90 dias do Business).
+
 
 
 ## 2026-11-13 — Implantação paga

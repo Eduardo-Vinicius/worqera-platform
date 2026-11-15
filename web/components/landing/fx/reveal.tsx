@@ -11,12 +11,14 @@ type Tag = "div" | "li" | "ul" | "ol" | "section" | "p" | "h2" | "span"
 export function Reveal({
   children,
   className,
+  id,
   delay = 0,
   y = 16,
   as = "div",
 }: {
   children: ReactNode
   className?: string
+  id?: string
   delay?: number
   y?: number
   as?: Tag
@@ -24,6 +26,7 @@ export function Reveal({
   const Comp = m[as]
   return (
     <Comp
+      id={id}
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}

@@ -169,7 +169,7 @@ export function PricingSection() {
           ) : null}
         </AnimatePresence>
 
-        <Reveal className="mt-8 grid gap-5 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <Reveal id="implantacao" className="mt-8 grid scroll-mt-28 gap-5 rounded-3xl border-2 border-[var(--primary)] bg-[var(--surface)] p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
             <p className="lp-display text-lg font-semibold text-[var(--ink)]">
               {p.setupTitle} · {p.setupOnce}
@@ -194,7 +194,7 @@ export function PricingSection() {
               })}
             </ol>
           </div>
-          <Button asChild variant="outline" className="h-11 shrink-0 rounded-full border-[var(--border)] px-6 text-[var(--ink)] hover:border-[var(--primary)]">
+          <Button asChild className="h-11 shrink-0 rounded-full px-6 font-semibold">
             <a href={waLink(WA_MESSAGES.setup[locale])} target="_blank" rel="noopener noreferrer">
               {p.setupCta}
             </a>
