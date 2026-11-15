@@ -326,7 +326,7 @@ export default function NewClientPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="new-birthday">Aniversário (opcional)</Label>
+              <Label htmlFor="new-birthday">Data de nascimento (opcional)</Label>
               <BirthdayField id="new-birthday" value={birthday} onChange={setBirthday} />
               <p className="text-xs text-[var(--wq-text-muted)]">Dia e mês bastam. A Worqera lembra de dar parabéns.</p>
             </div>

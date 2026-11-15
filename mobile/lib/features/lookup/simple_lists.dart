@@ -323,8 +323,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
             TextField(controller: fields[5], decoration: const InputDecoration(labelText: 'CPF')),
             TextField(
               controller: fields[7],
-              keyboardType: TextInputType.datetime,
-              decoration: const InputDecoration(labelText: 'Aniversário (opcional)', hintText: 'DD/MM ou DD/MM/AAAA'),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Data de nascimento (opcional)', hintText: 'DD/MM ou DD/MM/AAAA'),
+              onChanged: (value) {
+                final next = maskBirthday(value);
+                if (next != value) fields[7].value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+              },
             ),
             TextField(controller: fields[6], decoration: const InputDecoration(labelText: 'Observações')),
             const SizedBox(height: 8),
@@ -522,8 +526,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 TextField(controller: fields[3], decoration: const InputDecoration(labelText: 'CPF')),
                                 TextField(
                                   controller: fields[4],
-                                  keyboardType: TextInputType.datetime,
-                                  decoration: const InputDecoration(labelText: 'Aniversário', hintText: 'DD/MM ou DD/MM/AAAA'),
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(labelText: 'Data de nascimento (opcional)', hintText: 'DD/MM ou DD/MM/AAAA'),
+                                  onChanged: (value) {
+                                    final next = maskBirthday(value);
+                                    if (next != value) fields[4].value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+                                  },
                                 ),
                                 TextField(controller: fields[5], decoration: const InputDecoration(labelText: 'Etiquetas', hintText: 'VIP, empresa… (separe por vírgula)')),
                                 const SizedBox(height: 8),

@@ -402,7 +402,7 @@ export default function ClientsPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="edit-birthday">Aniversário</Label>
+                <Label htmlFor="edit-birthday">Data de nascimento (opcional)</Label>
                 <BirthdayField id="edit-birthday" value={birthday} onChange={setBirthday} />
               </div>
               <div>

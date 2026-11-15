@@ -64,6 +64,7 @@ import { AccessoryPicker } from "./AccessoryPicker"
 import { BrandField } from "./BrandField"
 import { OpenedByBar, rememberOpenedBy } from "./OpenedByBar"
 import { EmailHint } from "@/components/EmailHint"
+import { BirthdayField, birthdayPayload, type BirthdayValue } from "@/components/crm/BirthdayField"
 
 export type OrderFormMode = "create" | "edit"
 
@@ -188,6 +189,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
   const [deliverNow, setDeliverNow] = useState(true)
   const [showNewClient, setShowNewClient] = useState(false)
   const [savingClient, setSavingClient] = useState(false)
+  const [newBirthday, setNewBirthday] = useState<BirthdayValue>(null)
   const [newClient, setNewClient] = useState({
     nomeCompleto: "",
     telefone: "",
@@ -788,6 +790,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
         telefone,
         cpf: newClient.cpf.trim(),
         email: newClient.email.trim(),
+        ...(birthdayPayload(newBirthday) ? { birthday: birthdayPayload(newBirthday) } : {}),
         cep: "",
         logradouro: "",
         numero: "",
@@ -819,6 +822,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
       }
       setShowNewClient(false)
       setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" })
+      setNewBirthday(null)
       setClientSearch("")
       toast.success("Cliente cadastrado")
     } catch (err: any) {
@@ -978,6 +982,7 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
     setClientSearch("");
     setShowNewClient(false);
     setNewClient({ nomeCompleto: "", telefone: "", cpf: "", email: "" });
+    setNewBirthday(null);
   };
 
   const validateForm = () => {
@@ -1606,6 +1611,11 @@ export function OrderForm({ mode = "create", orderId }: OrderFormProps) {
                         />
                         <EmailHint value={newClient.email} onFix={(email) => setNewClient((prev) => ({ ...prev, email }))} />
                         <p className="text-[11px] text-[var(--wq-text-muted)]">Opcional. Com e-mail, o laudo sai ao criar.</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-client-birthday">Data de nascimento (opcional)</Label>
+                        <BirthdayField id="new-client-birthday" value={newBirthday} onChange={setNewBirthday} />
+                        <p className="text-[11px] text-[var(--wq-text-muted)]">Dia e mês bastam para lembrar do aniversário.</p>
                       </div>
                     </div>
                     <div className="flex gap-2">

@@ -74,8 +74,9 @@ async function listClients(shopId, { q, limit, cursor } = {}) {
  * Returns undefined when not sent, null to clear.
  */
 function parseBirthday(data) {
-  const raw = data.birthday ?? data.birthDate ?? data.aniversario ?? data.dataNascimento;
-  if (raw === undefined) return undefined;
+  const key = ['birthday', 'birthDate', 'aniversario', 'dataNascimento'].find((k) => data[k] !== undefined);
+  if (!key) return undefined;
+  const raw = data[key];
   if (raw === null || raw === '') return { birthDay: null, birthMonth: null, birthYear: null };
   let day;
   let month;

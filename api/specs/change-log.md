@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-11-15 — Data de nascimento do cliente
+
+- `Client.birthDay/birthMonth/birthYear` (já existiam, opcionais, índice por mês e dia) seguem como a data de nascimento. `POST/PATCH /clients` aceitam `birthday` como `{ day, month, year }`, `DD/MM`, `DD/MM/AAAA` ou `AAAA-MM-DD` (também `birthDate`, `aniversario`, `dataNascimento`).
+- **Correção:** `birthday: null` agora apaga a data (antes era ignorado). Teste em `__tests__/birthday.test.js`.
+
 ## 2026-11-15 — Basic com até 2 usuários
 
 - **Limite de usuários no Basic** (`lib/planCap.BASIC_USER_CAP = 2`, `services/userCap.assertBasicUserCap`): com 2 contas ativas (dono incluído), criar membro (`POST /shops/current/members`), convidar (`POST /shops/current/invites`), aceitar convite de quem ainda não está ativo e reativar membro respondem **402 `BASIC_USER_CAP`** ("O plano Basic tem até 2 usuários. Suba para o Pro…"). Contas que já existem nunca são desligadas. Pro e Business sem limite.

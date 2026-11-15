@@ -1,5 +1,9 @@
 # Worqera Web — Change log
 
+## 2026-11-15 — Data de nascimento no cadastro rápido
+
+- **Novo pedido → Novo cliente:** campo "Data de nascimento (opcional)" (dia, mês e ano opcional). Mesmo rótulo no cadastro e na edição do cliente. Base para lembrar aniversariantes (o CRM já tem o segmento).
+
 ## 2026-11-14 — Site mais sóbrio e dois caminhos de entrada
 
 - Home: sai o brilho roxo do topo, o halo do card de números, o texto que entrava desfocado e o fundo rosa/verde com cards de vidro do bloco final (agora painel escuro liso).

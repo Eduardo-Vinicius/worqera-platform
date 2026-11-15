@@ -68,6 +68,15 @@ String maskPhone(String raw) {
   return '(${cut.substring(0, 2)}) ${cut.substring(2, 7)}-${cut.substring(7)}';
 }
 
+/// DD/MM/AAAA while typing (the year is optional for the API).
+String maskBirthday(String raw) {
+  final digits = raw.replaceAll(RegExp(r'\D'), '');
+  final d = digits.length > 8 ? digits.substring(0, 8) : digits;
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return '${d.substring(0, 2)}/${d.substring(2)}';
+  return '${d.substring(0, 2)}/${d.substring(2, 4)}/${d.substring(4)}';
+}
+
 String waMeUrl(String phone, String text) {
   var digits = phone.replaceAll(RegExp(r'\D'), '');
   if (digits.length == 10 || digits.length == 11) digits = '55$digits';

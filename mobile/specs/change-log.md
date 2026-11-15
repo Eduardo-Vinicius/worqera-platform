@@ -1,6 +1,10 @@
 # App celular
 
 
+## 2026-11-15 — Data de nascimento do cliente
+
+- Campo "Data de nascimento (opcional)" com máscara DD/MM/AAAA no novo cliente do pedido, no cadastro e na edição do cliente (`maskBirthday` em `design/flow.dart`).
+
 ## 2026-11-13 — Fim do preço de fundador
 
 - Plano: Business sempre R$ 597; não existe mais preço de fundador.

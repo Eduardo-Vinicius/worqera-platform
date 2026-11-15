@@ -133,6 +133,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final newPhone = TextEditingController();
   final newCpf = TextEditingController();
   final newEmail = TextEditingController();
+  final newBirthday = TextEditingController();
   final observations = TextEditingController();
   final discountField = TextEditingController(text: '0');
   /// How the desk types the discount; the order always stores it in R$ (`pricing.discount`).
@@ -233,6 +234,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     newPhone.dispose();
     newCpf.dispose();
     newEmail.dispose();
+    newBirthday.dispose();
     observations.dispose();
     discountField.dispose();
     valueField.dispose();
@@ -553,6 +555,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         'telefone': phone,
         'cpf': newCpf.text.trim(),
         'email': newEmail.text.trim(),
+        if (newBirthday.text.trim().isNotEmpty) 'birthday': newBirthday.text.trim(),
       });
       final body = created.data is Map ? Map<String, dynamic>.from(created.data as Map) : <String, dynamic>{};
       final row = body['client'] is Map ? Map<String, dynamic>.from(body['client'] as Map) : body;
@@ -565,6 +568,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         newPhone.clear();
         newCpf.clear();
         newEmail.clear();
+        newBirthday.clear();
       });
       if (mounted) wqToast(context, 'Cliente cadastrado');
       return true;
@@ -582,7 +586,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       title: 'Novo cliente',
       hint: 'Nome e telefone. E-mail só se for enviar o laudo.',
       child: (sheet) => WqSheetFields(
-        create: () => [TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController()],
+        create: () => [TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController()],
         builder: (_, fields) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -602,6 +606,16 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             const SizedBox(height: 8),
             EmailField(controller: fields[3], label: 'E-mail (PDF + link do pedido)'),
             const SizedBox(height: 8),
+            TextField(
+              controller: fields[4],
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Data de nascimento (opcional)', hintText: 'DD/MM ou DD/MM/AAAA'),
+              onChanged: (value) {
+                final next = maskBirthday(value);
+                if (next != value) fields[4].value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+              },
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Wq.action),
               onPressed: () => Navigator.pop(sheet, {
@@ -609,6 +623,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 'phone': fields[1].text.trim(),
                 'cpf': fields[2].text.trim(),
                 'email': fields[3].text.trim(),
+                'birthday': fields[4].text.trim(),
               }),
               child: const Text('Salvar cliente'),
             ),
@@ -621,6 +636,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     newPhone.text = draft['phone'] ?? '';
     newCpf.text = draft['cpf'] ?? '';
     newEmail.text = draft['email'] ?? '';
+    newBirthday.text = draft['birthday'] ?? '';
     await saveClient();
   }
 
