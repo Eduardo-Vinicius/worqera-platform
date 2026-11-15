@@ -270,6 +270,15 @@ const pt = {
         place: "São Paulo",
         href: "",
       },
+      {
+        quote:
+          "Criei a Worqera depois de ver loja boa perdendo pedido no caderno. Hoje cada setor tem a própria fila, o cliente acompanha pelo QR sem ligar, o orçamento parado vira retorno com dia certo e o caixa fecha sem planilha. A gente usa todo dia na Axisbyte.",
+        name: "Eduardo",
+        role: "Fundador",
+        company: "Axisbyte",
+        place: "São Paulo",
+        href: "",
+      },
     ],
   },
   pricing: {
@@ -703,6 +712,15 @@ const en: typeof pt = {
         name: "Thiago Landes",
         role: "Partner",
         company: "Sapataria Paulista",
+        place: "São Paulo",
+        href: "",
+      },
+      {
+        quote:
+          "I built Worqera after watching good shops lose orders in a notebook. Now each sector has its own queue, customers track by QR without calling, idle quotes become a follow-up with a set date and the till closes without a spreadsheet. We use it every day at Axisbyte.",
+        name: "Eduardo",
+        role: "Founder",
+        company: "Axisbyte",
         place: "São Paulo",
         href: "",
       },
