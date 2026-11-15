@@ -44,7 +44,7 @@ export function NumbersSection() {
         <p className="mt-5 text-center text-sm font-medium text-[var(--ink)]">{t.hero.social}</p>
         <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
           <span className="text-[11px] font-semibold tracking-[0.18em] text-[var(--muted-foreground)] uppercase">{t.numbers.partners}</span>
-          <ul className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center">
+          <ul className="grid w-full grid-cols-3 gap-2 sm:flex sm:gap-3 sm:w-auto sm:flex-wrap sm:items-center sm:justify-center">
             {t.clients.items
               .filter((client) => client.logo)
               .map((client) => (

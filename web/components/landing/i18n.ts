@@ -85,9 +85,9 @@ const pt = {
     label: "Números reais de quem já opera na Worqera",
     partners: "Operam na Worqera",
     items: [
-      { value: "1.000+", label: "pedidos por mês" },
-      { value: "R$ 1 milhão+", label: "em pedidos já passaram por aqui" },
-      { value: "7.000+", label: "pedidos na base" },
+      { value: "R$ 1 mi+", label: "em pedidos feitos dentro da Worqera" },
+      { value: "1.000+", label: "pedidos por mês na plataforma" },
+      { value: "R$ 4 mi+", label: "no total, com o histórico importado" },
       { value: "6.000+", label: "clientes na base" },
     ],
   },
@@ -243,6 +243,12 @@ const pt = {
         trade: "Calçados",
         logo: "/clientes/sapataria-paulista.png",
         line: "Conserto e sola no kanban, do balcão até a entrega.",
+      },
+      {
+        name: "Axisbyte",
+        trade: "Tecnologia",
+        logo: "/clientes/axisbyte.png",
+        line: "Pedidos e setores da própria operação rodando na Worqera.",
       },
     ],
     stories: [
@@ -515,9 +521,9 @@ const en: typeof pt = {
     label: "Real numbers from businesses running on Worqera",
     partners: "Running on Worqera",
     items: [
-      { value: "1,000+", label: "orders a month" },
-      { value: "R$ 1M+", label: "in orders already run through Worqera" },
-      { value: "7,000+", label: "orders on file" },
+      { value: "R$ 1M+", label: "in orders made inside Worqera" },
+      { value: "1,000+", label: "orders a month on the platform" },
+      { value: "R$ 4M+", label: "in total, with imported history" },
       { value: "6,000+", label: "customers on file" },
     ],
   },
@@ -673,6 +679,12 @@ const en: typeof pt = {
         trade: "Footwear",
         logo: "/clientes/sapataria-paulista.png",
         line: "Repairs and soles on the kanban, from the counter to handover.",
+      },
+      {
+        name: "Axisbyte",
+        trade: "Technology",
+        logo: "/clientes/axisbyte.png",
+        line: "Its own orders and sectors running on Worqera.",
       },
     ],
     stories: [

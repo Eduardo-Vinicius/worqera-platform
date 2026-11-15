@@ -156,11 +156,14 @@ export function ClientsSection() {
         </Reveal>
 
         <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-          {t.clients.items.map((client, i) => (
+          {t.clients.items.map((client) => (
             <li key={client.name}>
               <button
                 type="button"
-                onClick={() => setIndex(stories.findIndex((s) => s.company === client.name) >= 0 ? stories.findIndex((s) => s.company === client.name) : i)}
+                onClick={() => {
+                  const at = stories.findIndex((s) => s.company === client.name)
+                  if (at >= 0) setIndex(at)
+                }}
                 className={cn(
                   "h-full w-full rounded-2xl border px-4 py-3 text-left transition",
                   story.company === client.name

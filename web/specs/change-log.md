@@ -24,6 +24,7 @@
 - **Números:** destaque para R$ 1 mi+ em pedidos dentro da Worqera e 1.000+ pedidos por mês; R$ 4 mi+ (com histórico) e 6.000+ na base embaixo.
 - **Abertura no celular:** o quadro do "Operação ao vivo" cabe na tela com as 4 colunas (antes cortava a direita).
 - **Planos:** Basic "Até 2 usuários" (a API bloqueia o 3º com `BASIC_USER_CAP`, e a tela de equipe mostra o aviso com "Ver planos"); Pro e Business "usuários ilimitados". Pro com lista mais forte (pedidos e usuários ilimitados, financeiro, métricas, estoque, logo, IA 6x). Business ganha "Reunião mensal de alinhamento com a Worqera" e "Suporte prioritário no WhatsApp", com destaque no card. Pro ganha a frase "Para quem passou dos 150 pedidos e quer ver o caixa" e aparece primeiro no celular. Tabela comparativa: linhas Usuários, Reunião mensal e Suporte.
+- **Axisbyte entre os clientes:** logo na faixa "Operam na Worqera" e card em "Quem já opera".
 - **Celular:** títulos de `/recursos` não ficam maiores no celular do que no desktop; logos dos parceiros lado a lado.
 
 ## 2026-11-09 — Bugfix: bloco de sinal sempre visível
