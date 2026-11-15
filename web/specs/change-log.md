@@ -1,5 +1,21 @@
 # Worqera Web — Change log
 
+## 2026-11-14 — Site mais sóbrio e dois caminhos de entrada
+
+- Home: sai o brilho roxo do topo, o halo do card de números, o texto que entrava desfocado e o fundo rosa/verde com cards de vidro do bloco final (agora painel escuro liso).
+- Números: 1.000+ pedidos por mês e R$ 1 milhão+ em pedidos que já passaram pela Worqera (iguais aos posts).
+- Dois caminhos: "Testar 7 dias grátis" continua o principal; o segundo botão do topo e do final vira "Quero implantação completa" (âncora `#implantacao` no bloco de preços, que ganhou borda roxa e diz que inclui 90 dias do Business).
+
+
+
+## 2026-11-13 — Implantação paga
+
+- Admin → Oficinas: botão "Implantação paga · Business 90 dias" (com confirmação). Deixa a loja no Business em teste até o dia 90 e escreve no topo da nota interna a data do pagamento e até quando vai o Business.
+
+## 2026-11-13 — Fim do preço de fundador
+
+- Aba Plano e botão de assinar mostram o Business a R$ 597, sem "preço de fundador até".
+- Admin: sai o botão de preço de fundador em Oficinas, o KPI "Fundador" em Assinaturas e na Visão geral, e a marca "· fundador" na lista.
 
 ## 2026-11-15 — Site: parceiros com logo, planos e celular
 

@@ -265,11 +265,10 @@ export default function PlataformaOverviewPage() {
                       <p className="text-[11px] text-[var(--wq-text-muted)]">{nf(data.billing.received.payments)} pagamentos no Asaas</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 border-t border-[var(--wq-border)] text-center text-xs">
+                  <div className="grid grid-cols-3 border-t border-[var(--wq-border)] text-center text-xs">
                     {(
                       [
                         ["Pagas", data.billing.counts.active, ""],
-                        ["Fundador", data.billing.counts.founder, ""],
                         ["Em teste", data.billing.counts.trialing, ""],
                         ["Em atraso", data.billing.counts.past_due, data.billing.counts.past_due ? "text-rose-600 dark:text-rose-400" : ""],
                       ] as const

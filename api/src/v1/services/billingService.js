@@ -57,22 +57,10 @@ function priceCents(planCode, cycle = 'monthly') {
   return cycle === 'yearly' ? plan.yearlyPriceCents : plan.priceCents;
 }
 
-const FOUNDER_PRICE_CENTS = 49900;
-
-/** Monthly price this shop pays: the founder price while it lasts, else the catalog. */
-function effectivePrice(sub, now = new Date()) {
-  const code = normalizePlanCode(sub?.planCode);
-  const plan = PRODUCTS.find((p) => p.code === code);
-  const founderActive =
-    code === 'WORQERA_BUSINESS' &&
-    sub?.founder?.priceCents &&
-    sub?.founder?.until &&
-    new Date(sub.founder.until) > now;
-  return {
-    priceCents: founderActive ? sub.founder.priceCents : plan?.priceCents ?? null,
-    listPriceCents: plan?.priceCents ?? null,
-    founderUntil: founderActive ? sub.founder.until : null,
-  };
+/** Monthly price this shop pays: always the catalog price. */
+function effectivePrice(sub) {
+  const plan = PRODUCTS.find((p) => p.code === normalizePlanCode(sub?.planCode));
+  return { priceCents: plan?.priceCents ?? null, listPriceCents: plan?.priceCents ?? null };
 }
 
 async function getSubscription(shopId) {
@@ -133,8 +121,7 @@ async function createCheckoutSession(shopId, { planCode, cycle, cpfCnpj, success
   if (doc !== savedDoc) await Shop.updateOne({ _id: shopId }, { $set: { 'billing.cpfCnpj': doc } });
 
   const sub = await Subscription.findOne({ shopId }).lean();
-  const founder = code === 'WORQERA_BUSINESS' && period === 'monthly' ? effectivePrice({ ...sub, planCode: code }) : null;
-  const value = (founder?.founderUntil ? founder.priceCents : cents) / 100;
+  const value = cents / 100;
   const planName = PRODUCTS.find((p) => p.code === code).name;
   const onAsaas = sub?.provider === 'Asaas';
 
@@ -387,7 +374,6 @@ async function notifyBillingActivated(shopId, sub, payment = null) {
 }
 
 module.exports = {
-  FOUNDER_PRICE_CENTS,
   effectivePrice,
   getSubscription,
   listProducts,

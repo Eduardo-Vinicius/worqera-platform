@@ -421,14 +421,11 @@ class _BillingScreenState extends State<BillingScreen> {
     });
   }
 
-  bool get _founder => (sub?['price'] as Map?)?['founderUntil'] != null && cycle == 'monthly';
-
   static const _yearlyOff = 17;
 
   /// What the shop pays per month in the chosen cycle (yearly = 10 months spread over 12).
   num _perMonth((String, String, int, int, String) p) {
     if (cycle == 'yearly') return p.$4 / 12;
-    if (p.$1 == 'WORQERA_BUSINESS' && _founder) return 499;
     return p.$3;
   }
 

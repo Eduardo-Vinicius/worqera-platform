@@ -310,7 +310,7 @@ async function shopsHealth({ days }) {
     const p = range(days);
     const [shops, subs, members, lastSeen, cur, prev, recent, owners] = await Promise.all([
       Shop.find({}).select('name branding.displayName status createdAt onboarding.completedAt vertical').lean(),
-      Subscription.find({}).select('shopId planCode status cycle founder trialEndsAt').lean(),
+      Subscription.find({}).select('shopId planCode status cycle trialEndsAt').lean(),
       Membership.aggregate([{ $match: { active: true } }, { $group: { _id: '$shopId', members: { $sum: 1 } } }]),
       ActiveAccount.aggregate([{ $match: { shopId: { $ne: null } } }, { $group: { _id: '$shopId', last: { $max: '$lastSeenAt' } } }]),
       Order.aggregate([{ $match: { ...LIVE, createdAt: { $gte: p.from, $lt: p.to } } }, { $group: { _id: '$shopId', n: { $sum: 1 } } }]),

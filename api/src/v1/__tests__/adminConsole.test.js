@@ -19,6 +19,14 @@ test('shopPatchSummary: one readable line per admin change', () => {
   assert.equal(shopPatchSummary({ status: 'suspended', adminNote: 'x' }), 'Suspendeu a loja, atualizou a nota interna');
   assert.equal(shopPatchSummary({ subscriptionStatus: 'active', planCode: 'WORQERA_PRO' }), 'Assinatura → ativa, plano → Pro');
   assert.equal(shopPatchSummary({}), 'Alterou a loja');
+  assert.equal(shopPatchSummary({ setupPaid: true, adminNote: 'x' }), 'Implantação paga: Business por 90 dias, atualizou a nota interna');
+});
+
+test('setupTrialEnd: paid setup gives exactly 90 days from today', () => {
+  const { setupTrialEnd, SETUP_INCLUDED_DAYS } = require('../services/platformService');
+  assert.equal(SETUP_INCLUDED_DAYS, 90);
+  const now = new Date('2026-11-13T12:00:00Z');
+  assert.equal(setupTrialEnd(now).toISOString(), '2027-02-11T12:00:00.000Z');
 });
 
 test('safeChanges never stores secrets', () => {

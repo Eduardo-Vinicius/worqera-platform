@@ -117,8 +117,8 @@ export function ClientsSection() {
                       <m.span
                         key={`${word}-${i}`}
                         className="inline-block"
-                        initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.1 + i * 0.022 }}
                       >
                         {word}&nbsp;
@@ -155,7 +155,7 @@ export function ClientsSection() {
           </div>
         </Reveal>
 
-        <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {t.clients.items.map((client, i) => (
             <li key={client.name}>
               <button

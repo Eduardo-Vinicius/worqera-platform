@@ -97,7 +97,6 @@ export default function AssinaturasPage() {
           </div>
           <KpiCard label="Em teste" value={nf(s.counts.trialing)} />
           <KpiCard label="Em atraso" value={nf(s.counts.past_due)} tone={s.counts.past_due ? "danger" : "ok"} hint="5 dias de tolerância" />
-          <KpiCard label="Fundador" value={nf(s.counts.founder)} hint="Business com preço de fundador" />
         </section>
       )}
 
@@ -152,7 +151,6 @@ export default function AssinaturasPage() {
                         </select>
                         <span className="mt-0.5 block text-xs text-[var(--wq-text-muted)]">
                           {row.cycle === "yearly" ? "anual" : "mensal"} · {row.provider}
-                          {row.founderUntil ? " · fundador" : ""}
                         </span>
                       </td>
                       <td className="px-4 py-2.5">

@@ -59,7 +59,7 @@ Inventário: [feature-inventory.md](./feature-inventory.md) · Landing: [`../../
 ### W3 — Billing
 
 - [x] Gate 402 → `/billing`; webhook HMAC fail-closed (API)
-- [x] AbacatePay produção (checkout real quando ApiKey + ProductId)
+- [x] AbacatePay produção (checkout real quando ApiKey + ProductId) — legado; cobrança atual é Asaas (2026-10-31)
 - [ ] E-mail de billing / recibo (SES)
 
 ### W4 — Conta setor — feito (base)

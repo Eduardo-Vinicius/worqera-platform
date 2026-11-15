@@ -22,13 +22,10 @@ export function NumbersSection() {
                 className={cn(
                   "relative overflow-hidden rounded-2xl border px-4 py-6 text-center sm:px-6 sm:py-8",
                   first
-                    ? "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--primary)_90%,transparent)]"
+                    ? "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)]"
                     : "border-[var(--border)] bg-[var(--surface)]"
                 )}
               >
-                {first ? (
-                  <span aria-hidden className="pointer-events-none absolute -bottom-16 left-1/2 h-32 w-48 -translate-x-1/2 rounded-full bg-white/25 blur-3xl" />
-                ) : null}
                 <p
                   className={cn(
                     "lp-display relative text-[1.75rem] leading-none font-semibold tracking-tight whitespace-nowrap sm:text-[2.6rem]",

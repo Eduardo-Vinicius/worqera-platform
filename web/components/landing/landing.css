@@ -129,7 +129,6 @@ html[data-lp-theme="dark"] .lp {
 
 .lp .lp-hero-wash {
   background:
-    radial-gradient(ellipse 80% 42% at 50% -8%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
     var(--paper);
 }
 
@@ -202,7 +201,9 @@ html[data-lp-announce="closed"] .lp .lp-announce {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: lp-glint 6s ease-in-out infinite;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  font-weight: 700;
 }
 
 /* ---------- Hero ground: paper, faint brand, grid. No blobs. ---------- */
@@ -212,9 +213,8 @@ html[data-lp-announce="closed"] .lp .lp-announce {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse 90% 48% at 50% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 3.5%, var(--paper)) 0%, var(--paper) 48%);
+  background: var(--paper);
+  border-bottom: 1px solid var(--border);
 }
 
 .lp .lp-aurora::before {
@@ -225,14 +225,12 @@ html[data-lp-announce="closed"] .lp .lp-announce {
   background-size: 24px 24px;
   mask-image: radial-gradient(ellipse 62% 48% at 50% 16%, #000 18%, transparent 72%);
   -webkit-mask-image: radial-gradient(ellipse 62% 48% at 50% 16%, #000 18%, transparent 72%);
-  opacity: 0.45;
+  opacity: 0.3;
 }
 
 .lp.lp-dark .lp-aurora,
 html[data-lp-theme="dark"] .lp .lp-aurora {
-  background:
-    radial-gradient(ellipse 90% 48% at 50% -10%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--paper)) 0%, var(--paper) 52%);
+  background: var(--paper);
 }
 
 .lp .lp-gradient-text {
