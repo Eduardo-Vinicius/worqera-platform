@@ -793,6 +793,7 @@ type Mark = "yes" | "no" | string
 
 export const PLAN_ROWS: Array<{ pt: string; en: string; href?: FeatureSlug; basic: Mark; pro: Mark; business: Mark }> = [
   { pt: "Kanban por setores", en: "Sector kanban", href: "kanban", basic: "yes", pro: "yes", business: "yes" },
+  { pt: "Usuários", en: "Users", href: "equipe", basic: "2", pro: "Ilimitados|Unlimited", business: "Ilimitados|Unlimited" },
   { pt: "Pedidos por mês", en: "Orders per month", basic: "150", pro: "Sem limite|No limit", business: "Sem limite|No limit" },
   { pt: "Etiqueta, QR e consulta do cliente", en: "Label, QR and customer tracking", href: "cliente", basic: "yes", pro: "yes", business: "yes" },
   { pt: "Avaliações com convite ao Google", en: "Reviews with a Google invite", href: "cliente", basic: "yes", pro: "yes", business: "yes" },
@@ -805,6 +806,8 @@ export const PLAN_ROWS: Array<{ pt: string; en: string; href?: FeatureSlug; basi
   { pt: "IA (usos por mês)", en: "AI (uses a month)", href: "ia", basic: "50", pro: "300", business: "1.500|1,500" },
   { pt: "WhatsApp oficial automático com pacote", en: "Automatic official WhatsApp with a pack", href: "whatsapp", basic: "no", pro: "no", business: "yes" },
   { pt: "Implantação e treinamento", en: "Onboarding and training", basic: "no", pro: "no", business: "yes" },
+  { pt: "Reunião mensal de alinhamento", en: "Monthly alignment meeting", basic: "no", pro: "no", business: "yes" },
+  { pt: "Suporte", en: "Support", basic: "Padrão|Standard", pro: "Padrão|Standard", business: "Prioritário|Priority" },
 ]
 
 export const COMING: Array<{ pt: { title: string; desc: string }; en: { title: string; desc: string } }> = [

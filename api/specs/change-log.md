@@ -1,5 +1,10 @@
 # Worqera API — Change log
 
+## 2026-11-15 — Basic com até 2 usuários
+
+- **Limite de usuários no Basic** (`lib/planCap.BASIC_USER_CAP = 2`, `services/userCap.assertBasicUserCap`): com 2 contas ativas (dono incluído), criar membro (`POST /shops/current/members`), convidar (`POST /shops/current/invites`), aceitar convite de quem ainda não está ativo e reativar membro respondem **402 `BASIC_USER_CAP`** ("O plano Basic tem até 2 usuários. Suba para o Pro…"). Contas que já existem nunca são desligadas. Pro e Business sem limite.
+- Descrições do Basic e do Pro no catálogo (`billingService.PRODUCTS`) citam o limite de usuários.
+
 ## 2026-11-08 — Quick-wins de acesso
 
 - Textos em português no `detail` (o `code` não mudou): login errado, e-mail já cadastrado, endereço da empresa em uso, link de nova senha vencido, senha curta, campos faltando, limite de tentativas ("Muitas tentativas. Tente de novo em N min").

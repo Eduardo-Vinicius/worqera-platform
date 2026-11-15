@@ -123,7 +123,7 @@ export function HeroSection() {
             style={{ animationDelay: "0.35s" }}
           >
             <Magnetic>
-              <Button asChild size="lg" className="lp-cta lp-shine h-12 w-full rounded-full px-8 text-base font-semibold sm:w-auto"> bg-[var(--wq-brand)] text-white
+              <Button asChild size="lg" className="lp-cta lp-shine h-12 w-full rounded-full px-8 text-base font-semibold sm:w-auto">
                 <Link href="/signup">
                   {t.hero.cta}
                   <ArrowRight className="h-4 w-4" />

@@ -1,6 +1,15 @@
 # Worqera Web — Change log
 
 
+## 2026-11-15 — Site: parceiros com logo, planos e celular
+
+- **Home fora do ar corrigida:** o commit `refact site` deixou texto solto dentro do botão "Testar 7 dias grátis" (`asChild` com dois filhos), e `/` respondia 500. Removido.
+- **Parceiros com logo:** faixa "Operam na Worqera" com os logos da Casa do Tênis e da Sapataria Paulista logo abaixo dos números (leva a `#clientes`); cards de clientes e depoimentos usam o logo (`public/clientes/`).
+- **Números:** destaque para R$ 1 mi+ em pedidos dentro da Worqera e 1.000+ pedidos por mês; R$ 4 mi+ (com histórico) e 6.000+ na base embaixo.
+- **Abertura no celular:** o quadro do "Operação ao vivo" cabe na tela com as 4 colunas (antes cortava a direita).
+- **Planos:** Basic "Até 2 usuários" (a API bloqueia o 3º com `BASIC_USER_CAP`, e a tela de equipe mostra o aviso com "Ver planos"); Pro e Business "usuários ilimitados". Pro com lista mais forte (pedidos e usuários ilimitados, financeiro, métricas, estoque, logo, IA 6x). Business ganha "Reunião mensal de alinhamento com a Worqera" e "Suporte prioritário no WhatsApp", com destaque no card. Pro ganha a frase "Para quem passou dos 150 pedidos e quer ver o caixa" e aparece primeiro no celular. Tabela comparativa: linhas Usuários, Reunião mensal e Suporte.
+- **Celular:** títulos de `/recursos` não ficam maiores no celular do que no desktop; logos dos parceiros lado a lado.
+
 ## 2026-11-09 — Bugfix: bloco de sinal sempre visível
 
 - **Pagamento — sinal sempre visível:** o bloco de desconto, sinal (50% / 100% / personalizado) e "falta pagar" agora aparece sempre no formulário de pedido, mesmo quando ainda não há serviços com valor preenchido. Antes ficava escondido até `itemsServicesTotal > 0`, o que fazia atendentes (não-admin) não verem o campo. O app mobile já mostrava sempre; agora o site está alinhado.

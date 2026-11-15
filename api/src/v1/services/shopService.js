@@ -274,6 +274,8 @@ async function addMember(shopId, { email, password, name, role, sectorIds }) {
     throw err;
   }
 
+  await require('./userCap').assertBasicUserCap(shopId);
+
   const normalizedEmail = String(email).toLowerCase().trim();
   let user = await User.findOne({ email: normalizedEmail });
   if (!user) {
@@ -349,6 +351,9 @@ async function patchMember(shopId, membershipId, updates) {
       err.status = 400;
       err.code = 'VALIDATION_ERROR';
       throw err;
+    }
+    if (updates.active === true && !membership.active) {
+      await require('./userCap').assertBasicUserCap(shopId);
     }
     membership.active = updates.active;
   }

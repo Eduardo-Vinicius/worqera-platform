@@ -59,7 +59,7 @@ export function FeaturesIndex() {
       {FEATURE_GROUPS.map((group) => (
         <section key={group.id} id={group.id} className="scroll-mt-24 border-b border-[var(--border)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <Reveal as="h2" className="lp-display text-4xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
+            <Reveal as="h2" className="lp-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
               {pt ? group.pt : group.en}
             </Reveal>
             <RevealGroup stagger={0.08} className={`mt-8 grid gap-6 ${group.slugs.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
@@ -82,7 +82,7 @@ export function FeaturesIndex() {
                         </span>
                         <ArrowUpRight className="h-4 w-4 text-[var(--muted-foreground)] group-hover:text-[var(--primary)]" />
                       </div>
-                      <p className="lp-display mt-3 text-4xl font-semibold text-[var(--ink)]">{feature.name}</p>
+                      <p className="lp-display mt-3 text-3xl font-semibold text-[var(--ink)] sm:text-4xl">{feature.name}</p>
                       <p className="mt-2 text-sm leading-loose text-[var(--muted-foreground)]">{feature.short}</p>
                       <ul className="mt-4 flex-1 space-y-1.5">
                         {feature.caps.slice(0, 3).map((cap) => (

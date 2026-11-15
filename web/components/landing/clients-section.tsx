@@ -37,6 +37,7 @@ export function ClientsSection() {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const story = stories[index]
+  const logoOf = (company: string) => t.clients.items.find((item) => item.name === company)?.logo || ""
 
   useEffect(() => {
     if (paused || reduced || stories.length < 2) return
@@ -125,9 +126,14 @@ export function ClientsSection() {
                     ))}
                   </blockquote>
                   <div className="mt-8 flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-fuchsia-500 text-sm font-bold text-white">
-                      {initials(story.name)}
-                    </span>
+                    {logoOf(story.company) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoOf(story.company)} alt={story.company} width={56} height={56} className="h-14 w-14 shrink-0 rounded-full border border-[var(--border)] bg-white object-contain" />
+                    ) : (
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-fuchsia-500 text-sm font-bold text-white">
+                        {initials(story.name)}
+                      </span>
+                    )}
                     <div>
                       <p className="font-semibold text-[var(--ink)]">{story.name}</p>
                       <p className="text-sm text-[var(--muted-foreground)]">
@@ -162,9 +168,21 @@ export function ClientsSection() {
                     : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]/40"
                 )}
               >
-                <p className="lp-display text-base font-semibold text-[var(--ink)]">{client.name}</p>
-                <p className="text-[11px] font-semibold tracking-[0.12em] text-[var(--primary)] uppercase">{client.trade}</p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--muted-foreground)]">{client.line}</p>
+                <div className="flex items-center gap-3">
+                  {client.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={client.logo} alt="" width={64} height={64} className="h-16 w-16 shrink-0 rounded-full bg-white object-contain" />
+                  ) : (
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--brand-soft)] text-lg font-bold text-[var(--primary)]">
+                      {initials(client.name)}
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="lp-display text-base font-semibold text-[var(--ink)]">{client.name}</p>
+                    <p className="text-[11px] font-semibold tracking-[0.12em] text-[var(--primary)] uppercase">{client.trade}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-[var(--muted-foreground)]">{client.line}</p>
               </button>
             </li>
           ))}

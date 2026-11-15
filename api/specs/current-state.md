@@ -23,7 +23,7 @@ API Mongo `/api/v1` multi-tenant: kanban **por item**, fotos em `items[i].photos
 | Quotes | `/quotes` funil (novo, contato, retorno, recuperado, perdido) + `POST /orders/:id/refuse-quote`. Prioridade no servidor; texto de WhatsApp por modelo ou IA (`OPENAI_API_KEY`). `win` grava `recovery` e `Order.recovered`; `GET /quotes/recovered` |
 | IA | `aiService` (chave, modelo, custo, `AiUsage`, teto por plano: teste 30, Basic 50, Pro 300, Business 1.500 por mês) + `/dashboard/brief`, `customer-summary`, `reply-suggest`. Leitura semanal (`/metrics/insights`) só no Business |
 | WhatsApp oficial | `/whatsapp`, `/webhooks/whatsapp`, `WhatsAppMessage`. Inerte sem `META_*`. Ver [ia-e-whatsapp-setup](../../docs/ops/ia-e-whatsapp-setup.md) |
-| Billing | `/billing/*` (checkout, `payments`, `cancel`) + `POST /webhooks/asaas` (token no header, idempotente). Asaas com Pix, boleto ou cartão. Basic 14700 · Pro 29700 · Business 59700 centavos; anual 10×; fundador do Business 49900. Criar pedido no `WORQERA_BASIC` recusa a partir do 151º do mês (America/Sao_Paulo). 5 dias de tolerância em atraso |
+| Billing | `/billing/*` (checkout, `payments`, `cancel`) + `POST /webhooks/asaas` (token no header, idempotente). Asaas com Pix, boleto ou cartão. Basic 14700 · Pro 29700 · Business 59700 centavos; anual 10×; fundador do Business 49900. Criar pedido no `WORQERA_BASIC` recusa a partir do 151º do mês (America/Sao_Paulo). Basic também para em 2 usuários ativos (`BASIC_USER_CAP`; novos membros, convites e reativações). 5 dias de tolerância em atraso |
 | Public / files | `/public/track/:token` (URL `/p/o/{token}`); antigo `/public/shops/:slug/orders/:code?t=` segue; `/files/*` |
 
 ## Env chave

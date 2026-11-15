@@ -15,7 +15,7 @@ export const PLANS: Plan[] = [
       "Kanban por setores, TVs e consulta do cliente",
       "CRM de orçamentos e WhatsApp com texto pronto",
       "IA no resumo do dia (50 usos)",
-      "Até 150 pedidos por mês",
+      "Até 150 pedidos por mês e 2 usuários",
     ],
   },
   {
@@ -25,7 +25,7 @@ export const PLANS: Plan[] = [
     yearly: 2970,
     value: "O caixa, a prateleira e o estoque na sua mão.",
     items: [
-      "Tudo do Basic, sem limite de pedidos",
+      "Tudo do Basic, sem limite de pedidos nem de usuários",
       "Financeiro, métricas e TV financeiro",
       "Produtos, estoque e marca da empresa",
       "IA em orçamentos, clientes e cobrança (300 usos)",
@@ -36,12 +36,12 @@ export const PLANS: Plan[] = [
     name: "Business",
     monthly: 597,
     yearly: 5970,
-    value: "O WhatsApp avisa sozinho e a IA escreve com você.",
+    value: "WhatsApp avisando sozinho, mais IA e a Worqera acompanhando de perto.",
     items: [
       "Tudo do Pro",
       "WhatsApp oficial automático (1.000 avisos e 100 retomadas)",
       "IA com 1.500 usos e leitura semanal",
-      "Suporte prioritário",
+      "Reunião mensal de alinhamento e suporte prioritário",
     ],
   },
 ]

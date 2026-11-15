@@ -1,0 +1,290 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=IBM+Plex+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0f0b1e;font-family:Inter,sans-serif}
+.sc{position:absolute;inset:0;display:none;overflow:hidden}
+.light{background:#F3F4F8;color:#110f17}
+.white{background:#fff;color:#110f17}
+.navy{background:#0f0b1e;color:#fff}
+.purple{background:#6d28d9;color:#fff}
+.eb{font-family:'IBM Plex Sans';font-weight:700;font-size:26px;letter-spacing:.3em;text-transform:uppercase}
+.light .eb,.white .eb{color:#7C3AED}.navy .eb{color:#C99BFF}.purple .eb{color:#EBDCFF}
+.h{font-weight:800;font-size:92px;line-height:1.02;letter-spacing:-.035em}
+.sub{font-size:36px;font-weight:500;line-height:1.3;opacity:.75}
+.top{position:absolute;left:84px;right:84px;top:250px}
+.win{position:absolute;border-radius:28px;overflow:hidden;background:#fff;box-shadow:0 2px 0 rgba(0,0,0,.04),0 30px 60px -30px rgba(17,15,23,.35);border:1px solid #e3e3ea}
+.bar{height:56px;background:#f6f6f9;border-bottom:1px solid #e6e6ee;display:flex;align-items:center;gap:12px;padding:0 22px}
+.bar i{width:16px;height:16px;border-radius:50%;background:#dcdce4;display:block}
+.bar span{margin-left:18px;font-size:20px;color:#8b8b98;background:#fff;border:1px solid #e6e6ee;border-radius:10px;padding:6px 16px}
+.view{position:relative;overflow:hidden}
+.view img{position:absolute;left:0;top:0;display:block}
+.phone{position:absolute;width:520px;height:1100px;border-radius:72px;background:#0b0b10;padding:16px;box-shadow:0 40px 80px -30px rgba(0,0,0,.55)}
+.phone .scr{width:100%;height:100%;border-radius:58px;overflow:hidden;position:relative;background:#fff}
+.phone .scr img{width:100%;display:block;position:absolute;left:0;top:0}
+.chip{position:absolute;display:inline-flex;align-items:center;gap:14px;padding:20px 30px;border-radius:999px;font-weight:700;font-size:34px;white-space:nowrap}
+.dot{width:16px;height:16px;border-radius:50%}
+.notif{position:absolute;width:880px;left:100px;background:#fff;border-radius:34px;padding:28px 32px;display:flex;gap:24px;box-shadow:0 30px 60px -20px rgba(0,0,0,.35);border:1px solid #ececf2}
+.notif .ic{width:84px;height:84px;border-radius:22px;background:#25D366;flex:none;display:flex;align-items:center;justify-content:center}
+.notif b{font-size:30px;color:#110f17}.notif p{font-size:30px;color:#3b3946;line-height:1.3;margin-top:6px}
+.notif small{font-size:24px;color:#8b8b98;float:right;font-weight:500}
+.big{font-weight:900;letter-spacing:-.05em;line-height:.9}
+.strike{position:absolute;left:-10px;right:-10px;top:55%;height:14px;background:#a78bfa;transform-origin:left center;border-radius:8px}
+.logo{width:150px;height:150px;border-radius:36px}
+.btn{display:inline-flex;align-items:center;gap:18px;background:#7C3AED;color:#fff;font-weight:800;font-size:46px;padding:34px 58px;border-radius:999px}
+.prog{position:absolute;left:84px;right:84px;top:150px;height:6px;display:flex;gap:10px}
+.prog i{flex:1;background:rgba(127,127,140,.28);border-radius:4px;overflow:hidden;display:block}
+.prog i b{display:block;height:100%;background:currentColor;width:0}
+.mark{position:absolute;bottom:120px;left:0;right:0;text-align:center;font-size:26px;font-weight:600;opacity:.45;letter-spacing:.02em}
+</style><style>
+.warm{background:#F6F3EE;color:#15131c}
+.mint{background:#EEF8F1;color:#15131c}
+.ebx{position:absolute;left:84px;top:250px;font-family:'IBM Plex Sans';font-weight:700;font-size:26px;letter-spacing:.28em;text-transform:uppercase;color:#7C3AED}
+.navy .ebx,.purple .ebx{color:#D8C7FF}
+.hx{position:absolute;left:84px;right:84px;top:305px;font-size:86px;font-weight:800;letter-spacing:-.035em;line-height:1.04}
+.hx b{color:#7C3AED;font-weight:800}.navy .hx b,.purple .hx b{color:#D8C7FF}
+.abs{position:absolute}
+.floor{position:absolute;left:0;right:0;top:1440px;bottom:0;background:#E9E2D6}
+.counter{position:absolute;z-index:2;left:380px;width:640px;top:1150px;height:330px;background:#4C1D95;border-radius:26px 26px 0 0}
+.counter:before{content:"";position:absolute;left:-20px;right:-20px;top:-28px;height:40px;background:#6D28D9;border-radius:14px}
+.plaque{position:absolute;left:220px;top:110px;display:flex;align-items:center;gap:14px;color:#fff;font-weight:800;font-size:40px}
+.plaque img{width:64px;height:64px;border-radius:16px}
+.bubble{position:absolute;background:#fff;border-radius:30px;padding:24px 30px;font-size:34px;font-weight:600;box-shadow:0 18px 40px -20px rgba(0,0,0,.35)}
+.bubble:after{content:"";position:absolute;bottom:-18px;left:60px;border:18px solid transparent;border-top-color:#fff;border-bottom:0}
+.tab{position:absolute;left:110px;right:110px;top:560px;height:980px;background:#111;border-radius:56px;padding:16px;box-shadow:0 40px 80px -30px rgba(40,20,80,.5)}
+.tabs{width:100%;height:100%;background:#F7F6FA;border-radius:42px;padding:44px 44px;position:relative;overflow:hidden}
+.tabs h4{font-size:44px;font-weight:800;letter-spacing:-.02em}
+.tabs .stp{font-size:24px;color:#6b6877;margin-top:6px}
+.fld{margin-top:20px;background:#fff;border:2px solid #e3e1ea;border-radius:20px;padding:18px 24px}
+.fld label{display:block;font-size:20px;color:#7C3AED;font-weight:700}
+.fld p{font-size:34px;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;clip-path:inset(0 100% 0 0)}
+.svcs{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.svc{font-size:28px;font-weight:700;padding:16px 24px;border-radius:999px;border:2px solid #e3e1ea;background:#fff;color:#55525f}
+.svc.on{background:#7C3AED;border-color:#7C3AED;color:#fff}
+.tot{display:flex;justify-content:space-between;align-items:center;margin-top:20px;font-size:30px;color:#55525f}
+.tot b{font-size:52px;color:#15131c;letter-spacing:-.03em}
+.cbtn{position:absolute;left:44px;right:44px;bottom:44px;background:#0f9d77;color:#fff;font-weight:800;font-size:38px;text-align:center;padding:30px;border-radius:24px}
+.ripple{position:absolute;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.55)}
+.printer{position:absolute;left:240px;width:600px;top:640px;height:210px;background:#2a2733;border-radius:34px}
+.printer:after{content:"";position:absolute;left:70px;right:70px;bottom:40px;height:16px;background:#0b0a10;border-radius:8px}
+.printer i{position:absolute;right:46px;top:40px;width:22px;height:22px;border-radius:50%;background:#22c55e}
+.lclip{position:absolute;left:300px;width:480px;top:810px;height:820px;overflow:hidden}
+.lab{width:480px;border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 30px 60px -25px rgba(0,0,0,.45)}
+.lab img{width:100%;display:block}
+.toast{position:absolute;left:84px;right:84px;top:540px;background:#15131c;color:#fff;border-radius:24px;padding:24px 30px;font-size:32px;font-weight:700;display:flex;gap:16px;align-items:center}
+.toast i{width:20px;height:20px;border-radius:50%;background:#22c55e;display:block}
+.trk{position:absolute;left:470px;top:560px;width:500px;height:1000px;background:#111;border-radius:64px;padding:14px}
+.trks{width:100%;height:100%;background:#fff;border-radius:52px;overflow:hidden}
+.trkh{background:#7C3AED;color:#fff;padding:60px 34px 30px;font-size:30px;font-weight:700}
+.trkh small{display:block;font-size:22px;opacity:.85;font-weight:500}
+.trkb{padding:34px}
+.trkb .code{font-family:'JetBrains Mono',monospace;font-size:56px;font-weight:700}
+.step{display:flex;align-items:center;gap:20px;margin-top:30px;font-size:30px;font-weight:600;color:#9a97a6}
+.step i{width:46px;height:46px;border-radius:50%;border:4px solid #d9d6e2;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:24px;color:#fff;flex:none}
+.step.done{color:#15131c}.step.done i{background:#16a34a;border-color:#16a34a}
+.step.now{color:#7C3AED}.step.now i{border-color:#7C3AED;background:#ede9fe}
+.board{position:absolute;left:50px;right:50px;top:620px;height:900px;display:flex;gap:16px}
+.bcol{flex:1;background:#fff;border-radius:26px;padding:16px;border:1px solid #e6e4ec;position:relative}
+.bcol h5{font-size:22px;font-weight:800;display:flex;align-items:center;gap:8px;margin:6px 4px 14px}
+.bcol h5 i{width:12px;height:12px;border-radius:50%;display:block}
+.bcol h5 em{margin-left:auto;font-style:normal;font-size:20px;color:#8b8899}
+.who{display:flex;gap:6px;margin:0 4px 14px}.who span{width:34px;height:34px;border-radius:50%;display:block;border:2px solid #fff}
+.bc{background:#F7F6FA;border-radius:16px;padding:14px;margin-bottom:12px;border:1px solid #ecebf2}
+.bc b{font-family:'JetBrains Mono',monospace;font-size:22px}.bc p{font-size:19px;color:#6b6877;margin-top:4px}
+.bc.hot{position:absolute;left:16px;top:150px;width:calc(100% - 32px);background:#fff;border:3px solid #7C3AED;z-index:3;box-shadow:0 16px 30px -14px rgba(80,40,160,.5)}
+.lock{position:absolute;left:250px;top:560px;width:580px;height:1000px;border-radius:70px;background:linear-gradient(180deg,#5b21b6,#1e1b4b);padding:14px;box-shadow:0 40px 80px -30px rgba(40,20,80,.6)}
+.locks{width:100%;height:100%;border-radius:58px;border:2px solid rgba(255,255,255,.12);color:#fff;text-align:center;padding-top:110px;position:relative}
+.locks .tm{font-size:120px;font-weight:300;letter-spacing:-.04em}
+.locks .dt{font-size:26px;opacity:.8}
+.nt{position:absolute;left:20px;right:20px;background:rgba(255,255,255,.92);color:#111;border-radius:28px;padding:22px;display:flex;gap:16px;text-align:left}
+.nt .ic{width:58px;height:58px;border-radius:14px;background:#25D366;flex:none}
+.nt b{font-size:24px}.nt p{font-size:23px;line-height:1.3;margin-top:2px}.nt small{float:right;font-size:18px;color:#777}
+.heart{position:absolute;font-size:60px}
+.clock{position:absolute;right:84px;top:240px;background:#15131c;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:44px;padding:14px 26px;border-radius:18px}
+.navy .clock,.purple .clock{background:#fff;color:#15131c}
+.cnt{font-variant-numeric:tabular-nums}
+</style><style>
+.logos2{position:absolute;left:84px;right:84px;top:340px;display:flex;gap:26px}
+.logos2 div{flex:1;background:#fff;border:1px solid #e6e4ec;border-radius:32px;padding:40px 20px;text-align:center}
+.logos2 img{width:230px;height:230px;display:block;margin:0 auto 22px}
+.logos2 b{display:block;font-size:32px}.logos2 span{font-size:24px;color:#77748a}
+.lab{position:relative}
+.lab .ov{position:absolute;left:0;right:0;background:#fff;text-align:center}
+.ramos{position:absolute;left:84px;right:84px;top:720px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.ramo{background:#fff;border:1px solid #e6e4ec;border-radius:30px;padding:34px 30px;display:flex;align-items:center;gap:22px;box-shadow:0 20px 40px -30px rgba(40,20,80,.35)}
+.ramo i{font-style:normal;font-size:64px;width:100px;height:100px;border-radius:26px;background:#F3EEFF;display:flex;align-items:center;justify-content:center;flex:none}
+.ramo b{font-size:32px;line-height:1.15;letter-spacing:-.01em}
+.nums2{position:absolute;left:84px;right:84px;top:900px;display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.nums2 div{background:#7C3AED;color:#fff;border-radius:30px;padding:40px 34px}
+.nums2 b{display:block;font-size:96px;font-weight:900;letter-spacing:-.045em;line-height:1}.nums2 span{font-size:28px;opacity:.9;font-weight:600}.stamp{position:absolute;right:40px;top:70px;border:5px solid #16a34a;color:#16a34a;font-weight:900;font-size:46px;padding:10px 26px;border-radius:16px;transform:rotate(-8deg);background:rgba(255,255,255,.92)}
+</style></head><body>
+<section class="sc purple" data-s="0" data-e="2.6"><div class="abs" style="left:84px;right:84px;top:640px">
+<p class="ebx a" data-a="up" data-d="0" style="position:static">Worqera</p>
+<div class="hx a" data-a="up" data-d=".15" style="position:static;font-size:120px;margin-top:30px">Como funciona,<br>do balcão<br>à <b>entrega</b>.</div></div></section>
+<section class="sc warm" data-s="2.6" data-e="6.0"><p class="ebx a" data-a="up" data-d="0">Passo 1 · Chegada</p><div class="hx a" data-a="up" data-d="0.1">O cliente chega com<br>o <b>tênis</b>, o <b>sapato</b><br>ou a <b>bolsa</b>.</div>
+<div class="floor"></div>
+<div class="counter"><div class="plaque"><img src="worqera-logo.png">Worqera</div></div>
+<div class="abs a" data-a="up" data-d=".2" style="left:690px;top:830px"><svg width="230" viewBox="0 0 240 470"><g transform="translate(240,0) scale(-1,1)">
+<rect x="78" y="300" width="36" height="150" rx="18" fill="#1f2937"/><rect x="126" y="300" width="36" height="150" rx="18" fill="#1f2937"/>
+<ellipse cx="92" cy="455" rx="30" ry="14" fill="#111"/><ellipse cx="148" cy="455" rx="30" ry="14" fill="#111"/>
+<rect x="106" y="130" width="28" height="44" fill="#E8B48F"/>
+<rect x="56" y="160" width="128" height="170" rx="52" fill="#7C3AED"/>
+<rect x="30" y="178" width="34" height="132" rx="17" fill="#7C3AED"/><rect x="176" y="178" width="34" height="132" rx="17" fill="#7C3AED"/>
+<circle cx="47" cy="318" r="18" fill="#E8B48F"/><circle cx="193" cy="318" r="18" fill="#E8B48F"/>
+<circle cx="120" cy="92" r="58" fill="#E8B48F"/>
+<path d="M62 92 Q60 30 120 30 Q182 30 178 92 Q170 58 120 56 Q72 58 62 92Z" fill="#111827"/>
+<circle cx="100" cy="98" r="6" fill="#1a1a1a"/><circle cx="140" cy="98" r="6" fill="#1a1a1a"/>
+<path d="M104 126 Q120 136 136 126" stroke="#1a1a1a" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+</g></svg></div>
+
+<div class="abs" style="left:60px;top:960px;z-index:3"><div class="a" data-a="walk" data-d=".3"><svg width="260" viewBox="0 0 240 470"><g>
+<rect x="78" y="300" width="36" height="150" rx="18" fill="#334155"/><rect x="126" y="300" width="36" height="150" rx="18" fill="#334155"/>
+<ellipse cx="92" cy="455" rx="30" ry="14" fill="#111"/><ellipse cx="148" cy="455" rx="30" ry="14" fill="#111"/>
+<rect x="106" y="130" width="28" height="44" fill="#C98B62"/>
+<rect x="56" y="160" width="128" height="170" rx="52" fill="#F59E0B"/>
+<rect x="30" y="178" width="34" height="132" rx="17" fill="#F59E0B"/><rect x="176" y="178" width="34" height="132" rx="17" fill="#F59E0B"/>
+<circle cx="47" cy="318" r="18" fill="#C98B62"/><circle cx="193" cy="318" r="18" fill="#C98B62"/>
+<circle cx="120" cy="92" r="58" fill="#C98B62"/>
+<path d="M62 92 Q60 30 120 30 Q182 30 178 92 Q170 58 120 56 Q72 58 62 92Z" fill="#3b2416"/>
+<circle cx="100" cy="98" r="6" fill="#1a1a1a"/><circle cx="140" cy="98" r="6" fill="#1a1a1a"/>
+<path d="M104 126 Q120 136 136 126" stroke="#1a1a1a" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+<g transform="translate(150,268) scale(.9)"><path d="M0 40 Q4 6 34 4 L52 22 Q78 34 112 38 Q130 42 128 58 L0 58Z" fill="#fff" stroke="#15131c" stroke-width="5"/><path d="M8 58 L128 58" stroke="#7C3AED" stroke-width="10"/><path d="M40 20 L60 44" stroke="#7C3AED" stroke-width="6"/></g></g></svg></div></div>
+<div class="bubble a" data-a="pop" data-d="1.8" style="left:60px;top:780px">Oi! Quero restaurar<br>esse aqui 👟</div></section>
+<section class="sc light" data-s="6.0" data-e="9.8"><p class="ebx a" data-a="up" data-d="0">Passo 2 · Cadastro</p><div class="hx a" data-a="up" data-d="0.1">Cadastro em<br><b>segundos</b>.</div>
+<div class="tab a" data-a="rise" data-d=".15"><div class="tabs">
+<h4>Novo pedido</h4><div class="stp">1 Cliente · 2 Item · 3 Pagamento</div>
+<div class="fld"><label>Cliente</label><p class="a" data-a="type" data-d=".6">Marina Souza</p></div>
+<div class="fld"><label>Telefone</label><p class="a" data-a="type" data-d="1.2">(11) 99000-1111</p></div>
+<div class="fld"><label>Item</label><p class="a" data-a="type" data-d="1.7">Nike · Air Force 1</p></div>
+<div class="svcs"><span class="svc a" data-a="sel" data-d="2.2">Limpeza completa</span><span class="svc a" data-a="sel" data-d="2.4">Restauração</span><span class="svc">Costura</span><span class="svc">Troca de sola</span><span class="svc">Bolsas</span></div>
+<div class="tot">Total<b class="a" data-a="up" data-d="2.6">R$ 180,00</b></div>
+<div class="cbtn">Criar pedido</div><div class="ripple a" data-a="tapr" data-d="3.0" style="left:330px;bottom:70px"></div>
+</div></div></section>
+<section class="sc white" data-s="9.8" data-e="13.2"><p class="ebx a" data-a="up" data-d="0">Passo 3 · Pedido</p><div class="hx a" data-a="up" data-d="0.1">Pedido criado,<br>etiqueta com <b>QR</b>.</div>
+<div class="toast a" data-a="drop" data-d=".2"><i></i>Pedido #0001 criado · setor Lavagem · sex, 14/11</div>
+<div class="printer a" data-a="up" data-d=".3"><i></i></div>
+<div class="lclip"><div class="lab a" data-a="print" data-d=".9"><img src="c-label.png"><div class="ov" style="top:36px;height:40px;font-size:24px;letter-spacing:.3em;color:#5B21B6;font-weight:600">WORQERA</div><div class="ov" style="top:252px;height:34px;font-size:22px;color:#64748b">1 tênis · Air Force 1</div></div></div></section>
+<section class="sc mint" data-s="13.2" data-e="16.8"><p class="ebx a" data-a="up" data-d="0">Passo 4 · Acompanhamento</p><div class="hx a" data-a="up" data-d="0.1">O cliente acompanha<br><b>sozinho</b>.</div>
+<div class="abs a" data-a="up" data-d=".2" style="left:70px;top:900px"><svg width="260" viewBox="0 0 240 470"><g>
+<rect x="78" y="300" width="36" height="150" rx="18" fill="#334155"/><rect x="126" y="300" width="36" height="150" rx="18" fill="#334155"/>
+<ellipse cx="92" cy="455" rx="30" ry="14" fill="#111"/><ellipse cx="148" cy="455" rx="30" ry="14" fill="#111"/>
+<rect x="106" y="130" width="28" height="44" fill="#C98B62"/>
+<rect x="56" y="160" width="128" height="170" rx="52" fill="#F59E0B"/>
+<rect x="30" y="178" width="34" height="132" rx="17" fill="#F59E0B"/><rect x="176" y="178" width="34" height="132" rx="17" fill="#F59E0B"/>
+<circle cx="47" cy="318" r="18" fill="#C98B62"/><circle cx="193" cy="318" r="18" fill="#C98B62"/>
+<circle cx="120" cy="92" r="58" fill="#C98B62"/>
+<path d="M62 92 Q60 30 120 30 Q182 30 178 92 Q170 58 120 56 Q72 58 62 92Z" fill="#3b2416"/>
+<circle cx="100" cy="98" r="6" fill="#1a1a1a"/><circle cx="140" cy="98" r="6" fill="#1a1a1a"/>
+<path d="M100 122 Q120 145 140 122" stroke="#1a1a1a" stroke-width="6" fill="none" stroke-linecap="round"/>
+<circle cx="88" cy="116" r="9" fill="#f9a8a8" opacity=".6"/><circle cx="152" cy="116" r="9" fill="#f9a8a8" opacity=".6"/>
+<g transform="translate(168,240)"><rect x="0" y="0" width="56" height="96" rx="12" fill="#15131c"/><rect x="6" y="8" width="44" height="78" rx="6" fill="#ede9fe"/></g></g></svg></div>
+<div class="trk a" data-a="rise" data-d=".3"><div class="trks"><div class="trkh">Worqera<small>Acompanhar pedido</small></div>
+<div class="trkb"><div style="font-size:20px;letter-spacing:.2em;color:#8b8899;font-weight:700">PEDIDO</div><div class="code">0001</div>
+<div style="font-size:26px;color:#6b6877">Air Force 1 · prazo sex, 14/11</div>
+<div class="step done a" data-a="check" data-d=".9"><i>✓</i>Recebido</div>
+<div class="step now a" data-a="check" data-d="1.3"><i></i>Lavagem · agora</div>
+<div class="step"><i></i>Acabamento</div>
+<div class="step"><i></i>Pronto pra retirar</div></div></div></div></section>
+<section class="sc light" data-s="16.8" data-e="21.4"><p class="ebx a" data-a="up" data-d="0">Passo 5 · Setores</p><div class="hx a" data-a="up" data-d="0.1">Dali pra dentro,<br>o <b>sistema se resolve</b>.</div><div class="board"><div class="bcol"><h5><i style="background:#06b6d4"></i>Lavagem<em>2</em></h5><div class="who"><span style=background:#F59E0B></span><span style=background:#10B981></span></div><div style="height:100px"></div><div class="bc"><b>0004</b><p>Vans · Costura</p></div><div class="bc"><b>0006</b><p>Adidas · Limpeza</p></div><div class="bc"><b>0009</b><p>Puma · Sola</p></div></div><div class="bcol"><h5><i style="background:#f59e0b"></i>Restauração<em>3</em></h5><div class="who"><span style=background:#3B82F6></span></div><div style="height:100px"></div><div class="bc"><b>0006</b><p>Adidas · Limpeza</p></div><div class="bc"><b>0009</b><p>Puma · Sola</p></div></div><div class="bcol"><h5><i style="background:#a855f7"></i>Acabamento<em>2</em></h5><div class="who"><span style=background:#EF4444></span><span style=background:#7C3AED></span></div><div style="height:100px"></div><div class="bc"><b>0004</b><p>Vans · Costura</p></div><div class="bc"><b>0006</b><p>Adidas · Limpeza</p></div><div class="bc"><b>0009</b><p>Puma · Sola</p></div></div><div class="bcol"><h5><i style="background:#22c55e"></i>Pronto<em>3</em></h5><div class="who"></div><div style="height:100px"></div></div><div class="bc hot a" data-a="trip" data-d=".8" style="width:217px"><b>0001</b><p>Marina · Air Force 1</p><p class="a" data-a="pop" data-d="3.7" style="color:#16a34a;font-weight:800;font-size:20px">✓ Pronto</p></div></div>
+<div class="chip a" data-a="pop" data-d="1.0" style="left:84px;top:1580px;background:#110f17;color:#fff;font-size:30px"><span class="dot" style="background:#22c55e"></span>Cada setor só vê a própria fila</div></section>
+<section class="sc warm" data-s="21.4" data-e="25.0"><p class="ebx a" data-a="up" data-d="0">Passo 6 · Aviso</p><div class="hx a" data-a="up" data-d="0.1">Ficou pronto?<br>Cliente <b>avisado</b>.</div>
+<div class="lock a" data-a="rise" data-d=".1"><div class="locks"><div class="tm">10:42</div><div class="dt">sexta-feira, 14 de novembro</div>
+<div class="nt a" data-a="drop" data-d=".8" style="top:360px"><div class="ic"></div><div><b>Worqera</b><small>agora</small><p>Marina, seu pedido #0001 ficou pronto ✅ Pode retirar quando quiser.</p></div></div>
+<div class="nt a" data-a="drop" data-d="2.0" style="top:530px;background:#D9FDD3"><div class="ic" style="background:#F59E0B"></div><div><b>Você respondeu</b><p>Nossa, já?! Que prático 😍</p></div></div></div></div>
+<span class="heart a" data-a="float" data-d="2.2" style="left:180px;top:1300px">💜</span><span class="heart a" data-a="float" data-d="2.5" style="left:860px;top:1250px">😍</span><span class="heart a" data-a="float" data-d="2.8" style="left:120px;top:1100px">⭐</span></section>
+<section class="sc warm" data-s="25.0" data-e="28.6"><p class="ebx a" data-a="up" data-d="0">Passo 7 · Entrega</p><div class="hx a" data-a="up" data-d="0.1">Entregue, pago<br>e <b>avaliado</b>.</div>
+<div class="floor"></div>
+<div class="counter"><div class="plaque"><img src="worqera-logo.png">Worqera</div></div>
+<div class="abs" style="left:690px;top:830px"><svg width="230" viewBox="0 0 240 470"><g transform="translate(240,0) scale(-1,1)">
+<rect x="78" y="300" width="36" height="150" rx="18" fill="#1f2937"/><rect x="126" y="300" width="36" height="150" rx="18" fill="#1f2937"/>
+<ellipse cx="92" cy="455" rx="30" ry="14" fill="#111"/><ellipse cx="148" cy="455" rx="30" ry="14" fill="#111"/>
+<rect x="106" y="130" width="28" height="44" fill="#E8B48F"/>
+<rect x="56" y="160" width="128" height="170" rx="52" fill="#7C3AED"/>
+<rect x="30" y="178" width="34" height="132" rx="17" fill="#7C3AED"/><rect x="176" y="178" width="34" height="132" rx="17" fill="#7C3AED"/>
+<circle cx="47" cy="318" r="18" fill="#E8B48F"/><circle cx="193" cy="318" r="18" fill="#E8B48F"/>
+<circle cx="120" cy="92" r="58" fill="#E8B48F"/>
+<path d="M62 92 Q60 30 120 30 Q182 30 178 92 Q170 58 120 56 Q72 58 62 92Z" fill="#111827"/>
+<circle cx="100" cy="98" r="6" fill="#1a1a1a"/><circle cx="140" cy="98" r="6" fill="#1a1a1a"/>
+<path d="M104 126 Q120 136 136 126" stroke="#1a1a1a" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+</g></svg></div>
+<div class="abs" style="left:60px;top:960px;z-index:3"><svg width="260" viewBox="0 0 240 470"><g>
+<rect x="78" y="300" width="36" height="150" rx="18" fill="#334155"/><rect x="126" y="300" width="36" height="150" rx="18" fill="#334155"/>
+<ellipse cx="92" cy="455" rx="30" ry="14" fill="#111"/><ellipse cx="148" cy="455" rx="30" ry="14" fill="#111"/>
+<rect x="106" y="130" width="28" height="44" fill="#C98B62"/>
+<rect x="56" y="160" width="128" height="170" rx="52" fill="#F59E0B"/>
+<rect x="30" y="178" width="34" height="132" rx="17" fill="#F59E0B"/><rect x="176" y="178" width="34" height="132" rx="17" fill="#F59E0B"/>
+<circle cx="47" cy="318" r="18" fill="#C98B62"/><circle cx="193" cy="318" r="18" fill="#C98B62"/>
+<circle cx="120" cy="92" r="58" fill="#C98B62"/>
+<path d="M62 92 Q60 30 120 30 Q182 30 178 92 Q170 58 120 56 Q72 58 62 92Z" fill="#3b2416"/>
+<circle cx="100" cy="98" r="6" fill="#1a1a1a"/><circle cx="140" cy="98" r="6" fill="#1a1a1a"/>
+<path d="M100 122 Q120 145 140 122" stroke="#1a1a1a" stroke-width="6" fill="none" stroke-linecap="round"/>
+<circle cx="88" cy="116" r="9" fill="#f9a8a8" opacity=".6"/><circle cx="152" cy="116" r="9" fill="#f9a8a8" opacity=".6"/>
+<g transform="translate(150,268) scale(.9)"><path d="M0 40 Q4 6 34 4 L52 22 Q78 34 112 38 Q130 42 128 58 L0 58Z" fill="#fff" stroke="#15131c" stroke-width="5"/><path d="M8 58 L128 58" stroke="#7C3AED" stroke-width="10"/><path d="M40 20 L60 44" stroke="#7C3AED" stroke-width="6"/></g></g></svg></div>
+<div class="chip a" data-a="pop" data-d=".6" style="left:84px;top:620px;background:#15803d;color:#fff"><span class="dot" style="background:#bbf7d0"></span>Pago no Pix · R$ 180,00</div>
+<div class="chip a" data-a="pop" data-d="1.2" style="left:84px;top:740px;background:#fff;color:#f59e0b;border:1px solid #eee">★★★★★ <span style="color:#444;font-size:28px">5 estrelas</span></div>
+<div class="chip a" data-a="pop" data-d="1.8" style="left:560px;top:620px;background:#7C3AED;color:#fff">Caixa do dia +R$ 180</div></section>
+<section class="sc light" data-s="28.6" data-e="32.2"><p class="ebx a" data-a="up" data-d="0">Quem já opera na Worqera</p>
+<div class="logos2"><div class="a" data-a="rise" data-d=".3"><img src="logo-cdt.png"><b>Casa do Tênis</b><span>Av. Paulista, SP</span></div><div class="a" data-a="rise" data-d=".6"><img src="logo-sp.png"><b>Sapataria Paulista</b><span>São Paulo</span></div></div>
+<div class="nums2"><div class="a" data-a="pop" data-d="1.4"><b>1.000+</b><span>pedidos por mês</span></div><div class="a" data-a="pop" data-d="1.7"><b>R$ 1 mi+</b><span>em pedidos</span></div></div></section>
+<section class="sc navy" data-s="32.2" data-e="35.6"><div class="abs" style="left:0;right:0;top:540px;text-align:center">
+<img class="a" data-a="pop" data-d="0" src="worqera-logo.png" style="width:160px;height:160px;border-radius:38px">
+<div class="a" data-a="up" data-d=".2" style="font-size:100px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin-top:50px">Você atende.<br><span style="color:#C99BFF">A Worqera organiza.</span></div>
+<div class="a" data-a="up" data-d=".5" style="font-size:38px;color:#cfc8e6;margin-top:30px;font-weight:500">Kanban · QR · aviso · CRM · IA</div>
+<div class="a" data-a="pop" data-d="1.1" style="margin-top:70px"><span class="btn">Teste 7 dias grátis · link na bio</span></div></div></section>
+<div class="prog" id="prog"></div>
+<script>
+const E='cubic-bezier(.22,1,.36,1)';
+const K={
+  walk:[[{transform:'translateX(-560px)'},{transform:'translateX(0)'}],1300,'cubic-bezier(.3,.7,.4,1)'],
+  bob:[[{transform:'translateY(0)'},{transform:'translateY(-14px)'},{transform:'translateY(0)'},{transform:'translateY(-14px)'},{transform:'translateY(0)'}],1300,'linear'],
+  type:[[{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(0 0 0 0)'}],900,'steps(18)'],
+  sel:[[{background:'#fff',color:'#55525f',borderColor:'#e3e1ea'},{background:'#7C3AED',color:'#fff',borderColor:'#7C3AED'}],200],
+  tapr:[[{opacity:0,transform:'scale(.3)'},{opacity:1,transform:'scale(1)',offset:.4},{opacity:0,transform:'scale(1.6)'}],600],
+  print:[[{transform:'translateY(-100%)'},{transform:'translateY(0)'}],1600,'cubic-bezier(.4,0,.2,1)'],
+  fade:[[{opacity:0},{opacity:1}],350],
+  check:[[{opacity:.4},{opacity:1}],250],
+  hop1:[[{transform:'translate(0,0)'},{transform:'translate(0,-30px)',offset:.3},{transform:'translate(var(--dx),-30px)',offset:.75},{transform:'translate(var(--dx),0)'}],800,'cubic-bezier(.4,0,.2,1)'],
+  float:[[{opacity:0,transform:'translateY(0) scale(.6)'},{opacity:1,transform:'translateY(-80px) scale(1)',offset:.4},{opacity:0,transform:'translateY(-220px) scale(1.1)'}],1600,'ease-out'],
+  hand:[[{transform:'translateX(0)'},{transform:'translateX(-210px)'}],700,'cubic-bezier(.3,.7,.4,1)'],
+  kb:[[{transform:'scale(1)'},{transform:'scale(1.08)'}],4000,'linear'],
+
+  trip:[[{transform:'translate(0,0)'},{transform:'translate(0,-26px)',offset:.06},{transform:'translate(249px,-26px)',offset:.2},{transform:'translate(249px,0)',offset:.26},{transform:'translate(249px,0)',offset:.36},{transform:'translate(249px,-26px)',offset:.42},{transform:'translate(498px,-26px)',offset:.56},{transform:'translate(498px,0)',offset:.62},{transform:'translate(498px,0)',offset:.72},{transform:'translate(498px,-26px)',offset:.78},{transform:'translate(747px,-26px)',offset:.92},{transform:'translate(747px,0)'}],3000,'ease-in-out'],
+
+  up:[[{opacity:0,transform:'translateY(60px)'},{opacity:1,transform:'none'}],550],
+  rise:[[{opacity:0,transform:'translateY(140px) scale(.96)'},{opacity:1,transform:'none'}],750],
+  pop:[[{opacity:0,transform:'scale(.7)'},{opacity:1,transform:'scale(1.04)',offset:.7},{opacity:1,transform:'none'}],500],
+  drop:[[{opacity:0,transform:'translateY(-120px)'},{opacity:1,transform:'none'}],600],
+  strike:[[{transform:'scaleX(0)'},{transform:'scaleX(1)'}],450],
+  line:[[{transform:'scaleX(0)',transformOrigin:'left'},{transform:'scaleX(1)',transformOrigin:'left'}],600],
+  panx:[[{transform:'translateX(0)'},{transform:'translateX(-760px)'}],2300,'ease-in-out'],
+  pany:[[{transform:'translateY(-60px)'},{transform:'translateY(-470px)'}],2000,'ease-in-out'],
+  scrollq:[[{transform:'translateY(0) scale(1)'},{transform:'translateY(-180px) scale(1)'}],1300,'ease-in-out'],
+};
+const scenes=[...document.querySelectorAll('.sc')].map(el=>({el,s:+el.dataset.s,e:+el.dataset.e,anims:[]}));
+for(const sc of scenes){
+  sc.el.querySelectorAll('.a').forEach(n=>{
+    const [kf,dur,ease]=K[n.dataset.a];
+    const a=n.animate(kf,{duration:dur,delay:(+n.dataset.d||0)*1000,easing:ease||E,fill:'both'});
+    a.pause(); sc.anims.push(a);
+  });
+}
+const prog=document.getElementById('prog');
+const chapters=scenes.slice(1,8);
+chapters.forEach(()=>{const i=document.createElement('i');i.appendChild(document.createElement('b'));prog.appendChild(i)});
+window.render=(t)=>{
+  let cur=null;
+  for(const sc of scenes){const on=t>=sc.s&&t<sc.e;sc.el.style.display=on?'block':'none';if(on){cur=sc;sc.anims.forEach(a=>a.currentTime=(t-sc.s)*1000)}}
+  // progress bar only on feature scenes
+  const idx=chapters.indexOf(cur);
+  prog.style.display=idx>=0?'flex':'none';
+  prog.style.color=cur&&(cur.el.classList.contains('navy')||cur.el.classList.contains('purple'))?'#fff':'#7C3AED';
+  [...prog.children].forEach((c,i)=>{c.firstChild.style.width=(i<idx?100:i>idx?0:Math.min(100,(t-cur.s)/(cur.e-cur.s)*100))+'%'});
+};
+window.TOTAL=35.6;
+render(0);
+</script>
+</body></html>

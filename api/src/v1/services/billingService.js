@@ -10,7 +10,7 @@ const PRODUCTS = [
   {
     code: 'WORQERA_BASIC',
     name: 'Worqera Basic',
-    description: 'A fila no ar: kanban, consulta do cliente, CRM de orçamentos e IA no resumo do dia. Até 150 pedidos por mês',
+    description: 'A fila no ar: kanban, consulta do cliente, CRM de orçamentos e IA no resumo do dia. Até 150 pedidos por mês e 2 usuários',
     priceCents: 14700,
     yearlyPriceCents: 147000,
     currency: 'BRL',
@@ -19,7 +19,7 @@ const PRODUCTS = [
   {
     code: 'WORQERA_PRO',
     name: 'Worqera Pro',
-    description: 'Sem limite de pedidos: financeiro, métricas, estoque, marca e IA com 300 usos por mês',
+    description: 'Sem limite de pedidos nem de usuários: financeiro, métricas, estoque, marca e IA com 300 usos por mês',
     priceCents: 29700,
     yearlyPriceCents: 297000,
     currency: 'BRL',

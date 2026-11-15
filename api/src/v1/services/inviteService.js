@@ -5,6 +5,7 @@ const Membership = require('../models/Membership');
 const Shop = require('../models/Shop');
 const { hashPassword } = require('./authService');
 const { sendMail } = require('./mailer');
+const { assertBasicUserCap } = require('./userCap');
 
 function hashToken(raw) {
   return crypto.createHash('sha256').update(String(raw)).digest('hex');
@@ -34,6 +35,8 @@ async function createInvite(shopId, createdByUserId, { email, role, sectorIds, a
     err.code = 'VALIDATION_ERROR';
     throw err;
   }
+
+  await assertBasicUserCap(shopId);
 
   const raw = crypto.randomBytes(24).toString('hex');
   const invite = await Invite.create({
@@ -127,6 +130,11 @@ async function acceptInvite(raw, { name, password }) {
     err.code = 'NOT_FOUND';
     throw err;
   }
+
+  const already = await User.findOne({ email: invite.email }).select('_id').lean();
+  const activeHere =
+    already && (await Membership.exists({ userId: already._id, shopId: invite.shopId, active: true }));
+  if (!activeHere) await assertBasicUserCap(invite.shopId);
 
   let user = await User.findOne({ email: invite.email });
   if (!user) {

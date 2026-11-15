@@ -215,17 +215,17 @@ function BoardPane({ step, columns, card }: PaneProps) {
         <span className="hidden text-xs font-semibold text-[var(--ink)] sm:inline">{s.board}</span>
       </div>
 
-      <div ref={scroller} className="grid flex-1 snap-x grid-cols-[repeat(4,minmax(140px,1fr))] gap-2 lg:grid-cols-4 overflow-x-auto bg-[var(--mock-bg)] p-2.5 sm:p-3 [scrollbar-width:none]">
+      <div ref={scroller} className="grid flex-1 grid-cols-4 gap-1.5 overflow-hidden bg-[var(--mock-bg)] p-1.5 sm:gap-2 sm:p-3">
         {columns.map((name, index) => {
           const here = column === index
           const count = GHOSTS[index].length + (here ? 1 : 0)
           return (
-            <div key={`${name}-${index}`} className="flex min-h-[300px] snap-start flex-col gap-2 rounded-xl bg-[var(--mock-col)] p-2">
+            <div key={`${name}-${index}`} className="flex min-h-[300px] min-w-0 flex-col gap-1.5 rounded-xl bg-[var(--mock-col)] p-1.5 sm:gap-2 sm:p-2">
               <div className="flex items-center justify-between px-1 pt-0.5">
-                <p className={cn("truncate text-[11px] font-semibold tracking-[0.08em] uppercase", here ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]")}>
+                <p className={cn("truncate text-[10px] font-semibold sm:text-[11px] sm:tracking-[0.08em] sm:uppercase", here ? "text-[var(--primary)]" : "text-[var(--muted-foreground)]")}>
                   {name}
                 </p>
-                <span className="lp-mono rounded-full bg-[var(--muted)] px-1.5 text-[11px] font-semibold text-[var(--ink)]">
+                <span className="lp-mono shrink-0 rounded-full bg-[var(--muted)] px-1 text-[10px] font-semibold text-[var(--ink)] sm:px-1.5 sm:text-[11px]">
                   <RollNumber value={String(count)} />
                 </span>
               </div>
@@ -234,17 +234,17 @@ function BoardPane({ step, columns, card }: PaneProps) {
                 <m.article
                   layoutId="lp-stage-card"
                   transition={SPRING}
-                  className="relative rounded-lg border border-[var(--primary)]/50 bg-[var(--surface)] p-2.5 shadow-[0_12px_28px_-16px_rgba(125,38,222,0.7)] ring-2 ring-[var(--primary)]/20"
+                  className="relative min-w-0 rounded-lg border border-[var(--primary)]/50 bg-[var(--surface)] p-1.5 sm:p-2.5 shadow-[0_12px_28px_-16px_rgba(125,38,222,0.7)] ring-2 ring-[var(--primary)]/20"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="lp-mono text-xs font-semibold text-[var(--primary)]">{s.code}</p>
-                    <QrCode className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+                    <QrCode className="hidden h-3.5 w-3.5 text-[var(--muted-foreground)] sm:block" />
                   </div>
-                  <p className="mt-1 truncate text-[13px] font-semibold text-[var(--ink)]">
+                  <p className="mt-1 truncate text-[11px] font-semibold text-[var(--ink)] sm:text-[13px]">
                     {s.customer} · {card.item}
                   </p>
-                  <p className="truncate text-[11px] text-[var(--muted-foreground)]">{card.service}</p>
-                  <div className="mt-2 flex items-center justify-between gap-1">
+                  <p className="truncate text-[10px] text-[var(--muted-foreground)] sm:text-[11px]">{card.service}</p>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                     <span className="truncate rounded-full bg-[var(--muted)] px-1.5 py-0.5 text-[10px] text-[var(--muted-foreground)]">{s.due}</span>
                     <AnimatePresence initial={false}>
                       {step >= 2 ? (
@@ -267,9 +267,9 @@ function BoardPane({ step, columns, card }: PaneProps) {
               ) : null}
 
               {GHOSTS[index].map((ghost) => (
-                <div key={ghost.code} className="rounded-lg border border-[var(--border)] bg-[var(--surface)]/70 p-2.5 opacity-80">
+                <div key={ghost.code} className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)]/70 p-1.5 opacity-80 sm:p-2.5">
                   <div className="flex items-center justify-between">
-                    <p className="lp-mono text-[11px] text-[var(--muted-foreground)]">{ghost.code}</p>
+                    <p className="lp-mono truncate text-[10px] text-[var(--muted-foreground)] sm:text-[11px]">{ghost.code}</p>
                     {ghost.late ? (
                       <span className="lp-late-pulse rounded-full bg-[color-mix(in_srgb,var(--late)_14%,transparent)] px-1.5 text-[10px] font-semibold text-[var(--late)]">
                         {s.late}
@@ -355,7 +355,7 @@ function PhonePane({ step, columns, card }: PaneProps) {
               {s.phone.order} {s.code}
             </p>
             <p className="mt-1 truncate text-sm font-semibold text-[var(--ink)]">{card.item}</p>
-            <p className="truncate text-[11px] text-[var(--muted-foreground)]">{card.service}</p>
+            <p className="truncate text-[10px] text-[var(--muted-foreground)] sm:text-[11px]">{card.service}</p>
 
             <ol className="mt-3 space-y-0">
               {columns.map((name, index) => {

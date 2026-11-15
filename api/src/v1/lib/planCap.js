@@ -1,4 +1,6 @@
 const BASIC_ORDER_CAP = 150;
+/** Active accounts (owner included) a Basic shop can have. Existing extra accounts keep working. */
+const BASIC_USER_CAP = 2;
 
 const TIER = {
   WORQERA_BASIC: 'basic',
@@ -35,6 +37,11 @@ function planHas(subscription, feature) {
   return false;
 }
 
+/** True when a Basic shop with `activeCount` active accounts cannot add one more. */
+function basicUserCapReached(planCode, activeCount) {
+  return isBasicPlan(planCode) && Number(activeCount) >= BASIC_USER_CAP;
+}
+
 /** Midnight on the first day of the month in America/Sao_Paulo (UTC−3). */
 function saoPauloMonthStart(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -59,6 +66,8 @@ function saoPauloDayKey(now = new Date()) {
 
 module.exports = {
   BASIC_ORDER_CAP,
+  BASIC_USER_CAP,
+  basicUserCapReached,
   planTier,
   isBasicPlan,
   isBusinessPlan,

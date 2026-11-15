@@ -1,0 +1,138 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=IBM+Plex+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0f0b1e;font-family:Inter,sans-serif}
+.sc{position:absolute;inset:0;display:none;overflow:hidden}
+.light{background:#F3F4F8;color:#110f17}
+.white{background:#fff;color:#110f17}
+.navy{background:#0f0b1e;color:#fff}
+.purple{background:#6d28d9;color:#fff}
+.eb{font-family:'IBM Plex Sans';font-weight:700;font-size:26px;letter-spacing:.3em;text-transform:uppercase}
+.light .eb,.white .eb{color:#7C3AED}.navy .eb{color:#C99BFF}.purple .eb{color:#EBDCFF}
+.h{font-weight:800;font-size:92px;line-height:1.02;letter-spacing:-.035em}
+.sub{font-size:36px;font-weight:500;line-height:1.3;opacity:.75}
+.top{position:absolute;left:84px;right:84px;top:250px}
+.win{position:absolute;border-radius:28px;overflow:hidden;background:#fff;box-shadow:0 2px 0 rgba(0,0,0,.04),0 30px 60px -30px rgba(17,15,23,.35);border:1px solid #e3e3ea}
+.bar{height:56px;background:#f6f6f9;border-bottom:1px solid #e6e6ee;display:flex;align-items:center;gap:12px;padding:0 22px}
+.bar i{width:16px;height:16px;border-radius:50%;background:#dcdce4;display:block}
+.bar span{margin-left:18px;font-size:20px;color:#8b8b98;background:#fff;border:1px solid #e6e6ee;border-radius:10px;padding:6px 16px}
+.view{position:relative;overflow:hidden}
+.view img{position:absolute;left:0;top:0;display:block}
+.phone{position:absolute;width:520px;height:1100px;border-radius:72px;background:#0b0b10;padding:16px;box-shadow:0 40px 80px -30px rgba(0,0,0,.55)}
+.phone .scr{width:100%;height:100%;border-radius:58px;overflow:hidden;position:relative;background:#fff}
+.phone .scr img{width:100%;display:block;position:absolute;left:0;top:0}
+.chip{position:absolute;display:inline-flex;align-items:center;gap:14px;padding:20px 30px;border-radius:999px;font-weight:700;font-size:34px;white-space:nowrap}
+.dot{width:16px;height:16px;border-radius:50%}
+.notif{position:absolute;width:880px;left:100px;background:#fff;border-radius:34px;padding:28px 32px;display:flex;gap:24px;box-shadow:0 30px 60px -20px rgba(0,0,0,.35);border:1px solid #ececf2}
+.notif .ic{width:84px;height:84px;border-radius:22px;background:#25D366;flex:none;display:flex;align-items:center;justify-content:center}
+.notif b{font-size:30px;color:#110f17}.notif p{font-size:30px;color:#3b3946;line-height:1.3;margin-top:6px}
+.notif small{font-size:24px;color:#8b8b98;float:right;font-weight:500}
+.big{font-weight:900;letter-spacing:-.05em;line-height:.9}
+.strike{position:absolute;left:-10px;right:-10px;top:55%;height:14px;background:#a78bfa;transform-origin:left center;border-radius:8px}
+.logo{width:150px;height:150px;border-radius:36px}
+.btn{display:inline-flex;align-items:center;gap:18px;background:#7C3AED;color:#fff;font-weight:800;font-size:46px;padding:34px 58px;border-radius:999px}
+.prog{position:absolute;left:84px;right:84px;top:150px;height:6px;display:flex;gap:10px}
+.prog i{flex:1;background:rgba(127,127,140,.28);border-radius:4px;overflow:hidden;display:block}
+.prog i b{display:block;height:100%;background:currentColor;width:0}
+.mark{position:absolute;bottom:120px;left:0;right:0;text-align:center;font-size:26px;font-weight:600;opacity:.45;letter-spacing:.02em}
+</style><style>
+.ph2{position:absolute;width:420px;height:880px;border-radius:60px;background:#0b0b10;padding:13px;box-shadow:0 40px 80px -30px rgba(0,0,0,.45)}
+.ph2 .scr{width:100%;height:100%;border-radius:48px;overflow:hidden;position:relative;background:#fff}
+.ph2 .scr img{width:100%;position:absolute;left:0;top:0}
+.tag{display:inline-block;font-size:24px;font-weight:700;padding:10px 20px;border-radius:999px;background:#ede9fe;color:#6d28d9;margin-top:22px}
+.navy .tag,.purple .tag{background:rgba(255,255,255,.14);color:#fff}
+.pcard{position:absolute;left:84px;right:84px;background:#fff;border:1px solid #e6e4ec;border-radius:32px;padding:40px;display:flex;gap:34px;align-items:flex-start}
+.pcard img{width:150px;height:150px;flex:none}
+.pcard q{display:block;font-size:31px;line-height:1.38;color:#2a2733;font-weight:500;quotes:none}
+.pcard b{display:block;margin-top:18px;font-size:26px;color:#15131c}
+.pcard span{font-size:24px;color:#77748a;font-weight:500}
+.ngrid{position:absolute;left:84px;right:84px;top:640px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.ngrid div{background:rgba(255,255,255,.1);border-radius:30px;padding:46px 36px}
+.ngrid b{display:block;font-size:92px;font-weight:900;letter-spacing:-.045em;line-height:1}
+.ngrid span{display:block;margin-top:14px;font-size:30px;font-weight:600;opacity:.85}
+</style>
+</head><body>
+<section class="sc white" data-s="0" data-e="2.6"><div class="top" style="top:600px">
+<div class="h a" data-a="up" data-d="0" style="font-size:96px;position:relative;display:inline-block">Pedido no caderno.<i class="strike a" data-a="strike" data-d=".9" style="background:#7C3AED;height:10px"></i></div>
+<div class="h a" data-a="up" data-d=".25" style="font-size:96px;position:relative;display:inline-block;margin-top:14px">Cliente ligando.<i class="strike a" data-a="strike" data-d="1.15" style="background:#7C3AED;height:10px"></i></div>
+<div class="h a" data-a="up" data-d=".5" style="font-size:96px;position:relative;display:inline-block;margin-top:14px">Caixa no escuro.<i class="strike a" data-a="strike" data-d="1.4" style="background:#7C3AED;height:10px"></i></div>
+</div></section>
+<section class="sc navy" data-s="2.6" data-e="4.8"><div class="top" style="top:700px;text-align:center">
+<img class="a" data-a="pop" data-d="0" src="worqera-logo.png" style="width:170px;height:170px;border-radius:40px">
+<div class="h a" data-a="up" data-d=".2" style="font-size:120px;margin-top:50px">Worqera</div>
+<div class="sub a" data-a="up" data-d=".35" style="margin-top:22px;font-size:42px">Do balcão à entrega, no controle.</div></div></section>
+<section class="sc light" data-s="4.8" data-e="7.6"><div class="top"><p class="eb a" data-a="up" data-d="0">01 · Kanban por setor</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">Cada pedido no<br>setor certo.</div></div>
+<div class="win a" data-a="rise" data-d=".25" style="left:60px;right:60px;top:780px;height:860px">
+<div class="bar"><i></i><i></i><i></i><span>app.worqera.com/kanban</span></div>
+<div class="view" style="height:804px"><img class="a" data-a="panx" data-d=".6" src="c-kanban.png" style="height:1120px;top:-60px"></div></div></section>
+<section class="sc purple" data-s="7.6" data-e="10.2"><div class="top"><p class="eb a" data-a="up" data-d="0">02 · Etiqueta com QR</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">O pedido nasce<br>com código.</div></div>
+<div class="phone a" data-a="rise" data-d=".2" style="left:280px;top:720px"><div class="scr"><img class="a" data-a="scrollq" data-d=".9" src="shots/m-etiqueta.png"></div></div></section>
+<section class="sc white" data-s="10.2" data-e="13.0"><div class="top"><p class="eb a" data-a="up" data-d="0">03 · Cliente avisado</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">Acompanha sozinho<br>pelo QR.</div></div>
+<div class="phone a" data-a="rise" data-d=".2" style="left:280px;top:720px"><div class="scr"><img src="shots/m-track.png"></div></div>
+<div class="notif a" data-a="drop" data-d="1.0" style="top:1180px"><div class="ic"><svg width="48" height="48" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.4 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 1-2.3.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.3.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.8-.1 1.4Z"/></svg></div><div style="flex:1"><b>Ateliê Sola</b><small>agora</small><p>Seu pedido #0001 ficou pronto ✅ Pode retirar quando quiser.</p></div></div></section>
+<section class="sc navy" data-s="13.0" data-e="15.8"><div class="top"><p class="eb a" data-a="up" data-d="0">04 · CRM de orçamentos</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">Orçamento parado<br>vira venda.</div></div>
+<div class="win a" data-a="rise" data-d=".25" style="left:60px;right:60px;top:780px;height:860px;border-color:#2a2440">
+<div class="bar"><i></i><i></i><i></i><span>app.worqera.com/orcamentos</span></div>
+<div class="view" style="height:804px"><img class="a" data-a="pany" data-d=".7" src="c-orc.png" style="width:1750px;left:-40px"></div></div></section>
+<section class="sc light" data-s="15.8" data-e="18.6"><div class="top"><p class="eb a" data-a="up" data-d="0">05 · Visão geral com IA</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">O dia começa pelo<br>que dá dinheiro.</div></div>
+<div class="win a" data-a="rise" data-d=".2" style="left:60px;right:60px;top:780px;height:620px">
+<div class="view" style="height:620px"><img src="c-dash.png" style="width:1400px;left:-14px;top:-8px"></div></div>
+<div class="chip a" data-a="pop" data-d="1.1" style="left:84px;top:1450px;background:#7C3AED;color:#fff">IA · R$ 1.800 em jogo hoje</div></section>
+<section class="sc white" data-s="18.6" data-e="21.2"><div class="top"><p class="eb a" data-a="up" data-d="0">06 · Financeiro</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">Caixa do dia,<br>sem planilha.</div></div>
+<div class="win a" data-a="rise" data-d=".2" style="left:60px;right:60px;top:800px;height:500px">
+<div class="view" style="height:500px"><img src="c-fin.png" style="width:2000px;left:-20px;top:-14px"></div></div>
+<div class="chip a" data-a="pop" data-d="1.0" style="left:84px;top:1350px;background:#110f17;color:#fff"><span class="dot" style="background:#22c55e"></span>Recebido, a receber e ticket médio</div></section>
+<section class="sc purple" data-s="21.2" data-e="24.0"><div class="top"><p class="eb a" data-a="up" data-d="0">07 · No celular também</p><div class="h a" data-a="up" data-d="0.1" style="margin-top:28px">Portal e app,<br>a mesma fila.</div></div>
+<div class="ph2 a" data-a="rise" data-d=".2" style="left:90px;top:760px"><div class="scr"><img src="shots/m-dashboard.png"></div></div>
+<div class="ph2 a" data-a="rise" data-d=".45" style="left:570px;top:820px"><div class="scr"><img src="c-appkanban.png"></div></div></section>
+<section class="sc light" data-s="24.0" data-e="28.2"><div class="top"><p class="eb a" data-a="up" data-d="0">Quem já opera na Worqera</p><div class="h a" data-a="up" data-d=".1" style="margin-top:28px">Lojas de verdade,<br>fila de verdade.</div></div>
+<div class="pcard a" data-a="rise" data-d=".35" style="top:740px"><img src="logo-cdt.png"><div><q>“O que revolucionou não foi a tela — foi o setor. Cada um vê a própria fila. A produção anda mais.”</q><b>Junior Ribeiro <span>· Casa do Tênis, Av. Paulista</span></b></div></div>
+<div class="pcard a" data-a="rise" data-d=".8" style="top:1160px"><img src="logo-sp.png"><div><q>“Hoje tem código, setor e prazo. A equipe produz mais porque não perde tempo procurando.”</q><b>Thiago Landes <span>· Sapataria Paulista</span></b></div></div></section>
+<section class="sc purple" data-s="28.2" data-e="31.2"><div class="top"><p class="eb a" data-a="up" data-d="0">Em números</p><div class="h a" data-a="up" data-d=".1" style="margin-top:28px">Já passou muito<br>pedido por aqui.</div></div>
+<div class="ngrid"><div class="a" data-a="pop" data-d=".3"><b>R$ 1 mi+</b><span>em pedidos</span></div><div class="a" data-a="pop" data-d=".45"><b>1.000+</b><span>pedidos por mês</span></div><div class="a" data-a="pop" data-d=".6"><b>7.000+</b><span>pedidos importados</span></div><div class="a" data-a="pop" data-d=".75"><b>6.000+</b><span>clientes na base</span></div></div></section>
+<section class="sc navy" data-s="31.2" data-e="34.6"><div class="top" style="top:520px;text-align:center">
+<img class="logo a" data-a="pop" data-d="0" src="worqera-logo.png">
+<div class="h a" data-a="up" data-d=".2" style="font-size:112px;margin-top:60px">Teste 7 dias<br>grátis.</div>
+<div class="sub a" data-a="up" data-d=".35" style="margin-top:36px;font-size:40px">Sem cartão. Ou a gente implanta<br>tudo com você.</div>
+<div class="a" data-a="pop" data-d=".6" style="margin-top:80px"><span class="btn">Link na bio <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span></div>
+<p class="a" data-a="up" data-d=".8" style="margin-top:56px;font-size:34px;font-weight:600;color:#C99BFF">worqera.com</p></div></section>
+<div class="prog" id="prog"></div>
+<script>
+const E='cubic-bezier(.22,1,.36,1)';
+const K={
+  up:[[{opacity:0,transform:'translateY(60px)'},{opacity:1,transform:'none'}],550],
+  rise:[[{opacity:0,transform:'translateY(140px) scale(.96)'},{opacity:1,transform:'none'}],750],
+  pop:[[{opacity:0,transform:'scale(.7)'},{opacity:1,transform:'scale(1.04)',offset:.7},{opacity:1,transform:'none'}],500],
+  drop:[[{opacity:0,transform:'translateY(-120px)'},{opacity:1,transform:'none'}],600],
+  strike:[[{transform:'scaleX(0)'},{transform:'scaleX(1)'}],450],
+  line:[[{transform:'scaleX(0)',transformOrigin:'left'},{transform:'scaleX(1)',transformOrigin:'left'}],600],
+  panx:[[{transform:'translateX(0)'},{transform:'translateX(-760px)'}],2300,'ease-in-out'],
+  pany:[[{transform:'translateY(-60px)'},{transform:'translateY(-470px)'}],2000,'ease-in-out'],
+  scrollq:[[{transform:'translateY(0) scale(1)'},{transform:'translateY(-180px) scale(1)'}],1300,'ease-in-out'],
+};
+const scenes=[...document.querySelectorAll('.sc')].map(el=>({el,s:+el.dataset.s,e:+el.dataset.e,anims:[]}));
+for(const sc of scenes){
+  sc.el.querySelectorAll('.a').forEach(n=>{
+    const [kf,dur,ease]=K[n.dataset.a];
+    const a=n.animate(kf,{duration:dur,delay:(+n.dataset.d||0)*1000,easing:ease||E,fill:'both'});
+    a.pause(); sc.anims.push(a);
+  });
+}
+const prog=document.getElementById('prog');
+const chapters=scenes.slice(2,9);
+chapters.forEach(()=>{const i=document.createElement('i');i.appendChild(document.createElement('b'));prog.appendChild(i)});
+window.render=(t)=>{
+  let cur=null;
+  for(const sc of scenes){const on=t>=sc.s&&t<sc.e;sc.el.style.display=on?'block':'none';if(on){cur=sc;sc.anims.forEach(a=>a.currentTime=(t-sc.s)*1000)}}
+  // progress bar only on feature scenes
+  const idx=chapters.indexOf(cur);
+  prog.style.display=idx>=0?'flex':'none';
+  prog.style.color=cur&&(cur.el.classList.contains('navy')||cur.el.classList.contains('purple'))?'#fff':'#7C3AED';
+  [...prog.children].forEach((c,i)=>{c.firstChild.style.width=(i<idx?100:i>idx?0:Math.min(100,(t-cur.s)/(cur.e-cur.s)*100))+'%'});
+};
+window.TOTAL=34.6;
+render(0);
+</script>
+</body></html>

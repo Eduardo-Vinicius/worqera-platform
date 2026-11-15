@@ -32,3 +32,14 @@ test('every paid plan has AI; WhatsApp and the weekly reading stay in Business',
   assert.equal(planHas({ planCode: 'WORQERA_PRO', status: 'active' }, 'weekly'), false);
   assert.equal(planHas({ planCode: 'WORQERA_BUSINESS', status: 'trialing' }, 'weekly'), true);
 });
+
+test('Basic stops at 2 active accounts; Pro and Business have no cap', () => {
+  const { BASIC_USER_CAP, basicUserCapReached } = require('../lib/planCap');
+  assert.equal(BASIC_USER_CAP, 2);
+  assert.equal(basicUserCapReached('WORQERA_BASIC', 1), false);
+  assert.equal(basicUserCapReached('WORQERA_BASIC', 2), true);
+  assert.equal(basicUserCapReached('WORQERA_BASIC', 5), true);
+  assert.equal(basicUserCapReached('WORQERA_PRO', 50), false);
+  assert.equal(basicUserCapReached('WORQERA_BUSINESS', 50), false);
+  assert.equal(basicUserCapReached(null, 50), false);
+});

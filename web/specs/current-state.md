@@ -46,7 +46,7 @@ Next 15.2 / React 19 / Tailwind 4 / Radix · `--wq-*` · logo SVG Worqera · Jet
 | Setores + **Cliente vê** (`showOnPublic`) | LIVE |
 | Avaliações `/avaliacoes` | LIVE |
 | Consulta `/p/o/{token}` (antigo `/p/{slug}/{code}?t=` segue válido) + `#avaliar` | LIVE |
-| Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos; implantação sob consulta) |
+| Billing lock UX | LIVE (aba Plano: Basic 147 até 150 pedidos e 2 usuários, Pro 297, Business 597; anual −17%; Asaas; últimos pagamentos; implantação sob consulta) |
 | TV Cliente / TV Oficina | LIVE |
 | Privacidade `/privacidade` e Excluir conta `/excluir-conta` (públicas) | LIVE |
 

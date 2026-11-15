@@ -89,6 +89,16 @@ export function PricingSection() {
                   {!popular && plan.seal ? <span className="text-[10px] font-semibold tracking-[0.12em] text-[var(--primary)] uppercase">{plan.seal}</span> : null}
                 </div>
                 <p className="mt-2 min-h-10 text-sm font-medium text-[var(--ink)]">{plan.description}</p>
+                {plan.highlight ? (
+                  <p
+                    className={cn(
+                      "mt-3 rounded-xl px-3 py-2 text-xs leading-snug font-semibold",
+                      popular ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--brand-soft)] text-[var(--primary)]"
+                    )}
+                  >
+                    {plan.highlight}
+                  </p>
+                ) : null}
 
                 <div className="my-5 border-y border-[var(--border)] py-5">
                   <p className="lp-display flex items-baseline gap-1.5 text-[2.6rem] leading-none font-semibold tracking-tight text-[var(--ink)]">
@@ -125,7 +135,7 @@ export function PricingSection() {
               </div>
             )
             return (
-              <RevealItem key={plan.name} className={cn("relative", popular && "md:-my-3 md:scale-[1.04]")}>
+              <RevealItem key={plan.name} className={cn("relative", popular && "order-first mt-3 md:order-none md:-my-3 md:scale-[1.04]")}>
                 {popular ? (
                   <>
                     <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--primary)] px-3 py-1 text-[11px] font-bold tracking-wide whitespace-nowrap text-[var(--primary-foreground)] uppercase shadow-lg">

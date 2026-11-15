@@ -23,6 +23,18 @@ import {
 } from "@/lib/apiV1"
 import { toast } from "sonner"
 
+/** Basic tops out at 2 users: say so and point to the plans instead of a bare error. */
+function teamError(err: any, fallback: string) {
+  if (err?.code === "BASIC_USER_CAP") {
+    toast.error(err.message || "O plano Basic tem até 2 usuários.", {
+      action: { label: "Ver planos", onClick: () => (window.location.href = "/billing") },
+      duration: 10000,
+    })
+    return
+  }
+  toast.error(err?.message || fallback)
+}
+
 type Member = {
   id: string
   role: string
@@ -139,7 +151,7 @@ export default function EquipePage() {
       setSectorIds([])
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao adicionar")
+      teamError(err, "Falha ao adicionar")
     } finally {
       setSaving(false)
     }
@@ -170,7 +182,7 @@ export default function EquipePage() {
       setInviteRole("atendimento")
       setInviteSectors([])
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao convidar")
+      teamError(err, "Falha ao convidar")
     } finally {
       setInviting(false)
     }
@@ -181,7 +193,7 @@ export default function EquipePage() {
       await patchShopMemberV1(m.id, { active })
       await load()
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao atualizar")
+      teamError(err, "Falha ao atualizar")
     }
   }
 
